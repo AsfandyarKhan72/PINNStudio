@@ -37,6 +37,30 @@ README = os.path.join(_REPO, "README.md")
 GROUPS = ["ODEs", "1D, steady", "1D, time-dependent", "2D, steady", "2D, time-dependent", "3D"]
 
 # What the papers report (relative L2 over space and time), with where.
+# DeepXDE examples taken from a paper: the source and what it reports for the same problem.
+# outs: each output's relative L2 as reported (at the time `when` says); main: the one for the figures' star.
+DEEPXDE_SOURCE = {
+    "Wave propagation – space-time multi-scale Fourier features": dict(
+        cite="Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3",
+        url="https://arxiv.org/abs/2012.10047",
+        method="their space-time multi-scale Fourier feature network",
+        outs={"u": 9.83e-4}, main=9.83e-4,
+        note="over the whole space-time domain, with their adaptive (NTK) loss weights; 1.02 without them, "
+             "1.01 for a plain PINN (Table 1)"),
+    "Beltrami flow": dict(
+        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets), Table 3",
+        url="https://arxiv.org/abs/2003.06496",
+        method="VP-NSFnet (10 × 100 network)",
+        outs={"u": 4.26e-3, "v": 3.66e-3, "w": 5.87e-3, "p": 4.766e-2}, main=4.26e-3,
+        note="at t = 1"),
+    "Linear elastostatic plate": dict(
+        cite="Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379",
+        url="https://arxiv.org/abs/2003.02751",
+        method="their PINN (five networks, SciANN)", outs=None, main=None,
+        note="the same plate, also used there to identify λ and μ"),
+}
+
+
 PAPER_REPORTED = {
     "1D Allen-Cahn (whole interval)": [("Wight & Zhao (2021), Table 3.1", 2.33e-2, "paper_wz"),
                                        ("Mattey & Ghosh (2022), Table 2", 1.68e-2, "paper_mg")],
@@ -473,6 +497,9 @@ def figure(recs, path, stars=False, paper=False):
         ext_inv = r["deepxde"]      # the papers have no inverse problems: a template's inverse has no reference
         par_best = r.get("i_best_par") or []
         rep = [val for _, val, _ in (r["paper"] or []) if val] if not r["deepxde"] else []
+        src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
+        if src and src.get("main"):
+            rep = [src["main"]]
         rows.append(dict(label=PAPER_SHORT.get(e.name, e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
                          p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None))
@@ -883,6 +910,9 @@ def _section(r):
     if prob:
         a("**The problem**\n")
         a(prob + "\n")
+        src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
+        if src:
+            a(f"*Source paper:* [{src['cite']}]({src['url']}) — DeepXDE's example reproduces this problem.\n")
     try:
         a(_settings_toggles(r))
     except Exception as ex:
@@ -940,6 +970,11 @@ def _section(r):
             if picked:
                 best = row
             a(_row([lbl] + cells(l2, outs, st, t), picked))
+        src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
+        if src and src.get("outs"):
+            rc = [sci(src["outs"].get(k)) for k in names] if names else [sci(src["outs"].get(main) or src["main"])]
+            short = src["cite"].split(")")[0] + ")"
+            a(_row([f"{src['method'][0].upper() + src['method'][1:]}, as reported ({short})"] + rc + ["–"], False))
         lab = _best_label(r, False)
         if paper_rows and lab == "no tuning needed":
             lab = "the template's starting settings"
@@ -954,6 +989,8 @@ def _section(r):
         if names:
             a(f"*Each output's relative L₂ at its last reference time; the best run is chosen by "
               f"{SYM.get(main, main)}.*\n")
+        if src and src.get("outs"):
+            a(f"*As reported: {src['note']}.*\n")
         if paper_rows and not pr:
             a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
     if has_i:
@@ -1071,11 +1108,11 @@ def _paper_examples_md():
 
 Three forward problems, one per dimension and each from a different area: a multi-scale wave, a phase-field equation and 3D fluid flow. Each row is PINNStudio's best run of that problem (the same run as in its table below), drawn from its saved model.
 
-**(a) Wave 1D — multi-scale Fourier features** ([DeepXDE example](#bench-wave-1d-space-time-multi-scale-fourier-features))
+**(a) Wave 1D — multi-scale Fourier features** ([DeepXDE example](#bench-wave-1d-space-time-multi-scale-fourier-features), after [Wang, Wang & Perdikaris (2021)](https://arxiv.org/abs/2012.10047))
 
 $$\\frac{{\\partial^2 u}}{{\\partial t^2}} = C^2\\frac{{\\partial^2 u}}{{\\partial x^2}}, \\qquad x \\in [0, 1],\\ t \\in [0, 1],\\ C = 10$$
 
-with $u(0, t) = u(1, t) = 0$, $u(x, 0) = \\sin(\\pi x) + \\sin(2\\pi x)$ and $u_t(x, 0) = 0$. The exact solution $u = \\sin(\\pi x)\\cos(10\\pi t) + \\sin(2\\pi x)\\cos(20\\pi t)$ oscillates ten and twenty times in $t$, which a plain network struggles to represent. PINNStudio: space-time multi-scale Fourier feature network 4 × 200, Adam 30,000 → L-BFGS 15,000. $L_2$ = 1.5 × 10⁻³ at $t = 1$ (median of 3 seeds) against 3.0 × 10⁻¹ with DeepXDE's settings; over the whole space-time domain (this seed) 3.3 × 10⁻³.
+with $u(0, t) = u(1, t) = 0$, $u(x, 0) = \\sin(\\pi x) + \\sin(2\\pi x)$ and $u_t(x, 0) = 0$. The exact solution $u = \\sin(\\pi x)\\cos(10\\pi t) + \\sin(2\\pi x)\\cos(20\\pi t)$ oscillates ten and twenty times in $t$, which a plain network struggles to represent. PINNStudio: space-time multi-scale Fourier feature network 4 × 200, Adam 30,000 → L-BFGS 15,000. $L_2$ = 1.5 × 10⁻³ at $t = 1$ (median of 3 seeds) against 3.0 × 10⁻¹ with DeepXDE's settings; over the whole space-time domain (this seed) 3.3 × 10⁻³. The problem is from Wang, Wang & Perdikaris (2021), who report 9.8 × 10⁻⁴ over the whole domain with their network and adaptive (NTK) loss weights, and about 1 without the adaptive weights; PINNStudio's run uses no adaptive weights.
 
 **(b) Allen-Cahn 2D — Mattey & Ghosh** ([PINNStudio template](#bench-allen-cahn-2d-mattey-ghosh))
 
@@ -1083,11 +1120,11 @@ $$\\frac{{\\partial h}}{{\\partial t}} = c_1^2\\nabla^2 h - c_2\\left(h^3 - h\\r
 
 with $h(x, y, 0) = \\sin(4\\pi x)\\cos(4\\pi y)$ and periodic boundaries. PINNStudio: 4 × 128 network on periodic input features, the initial condition built into the output, self-adaptive (SA-PINN) point weights, Adam 20,000 → L-BFGS 10,000 over the whole time interval. $L_2$ = 3.4 × 10⁻⁴ over all reference times; Mattey & Ghosh report 2.5 × 10⁻² for their bc-PINN.
 
-**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow))
+**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://arxiv.org/abs/2003.06496))
 
 $$\\frac{{\\partial \\mathbf u}}{{\\partial t}} + (\\mathbf u\\cdot\\nabla)\\mathbf u + \\nabla p = \\nabla^2\\mathbf u, \\qquad \\nabla\\cdot\\mathbf u = 0, \\qquad (x, y, z) \\in [-1, 1]^3,\\ t \\in [0, 1]$$
 
-with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
+with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 4.3 × 10⁻³ ($u$), 3.7 × 10⁻³ ($v$), 5.9 × 10⁻³ ($w$) and 4.8 × 10⁻² ($p$) at $t = 1$ with a 10 × 100 network, 2–5 times PINNStudio's errors with a 4 × 50 network.
 
 ![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png{_ver(PAPER_FWD)})
 
@@ -1110,7 +1147,7 @@ $$\\frac{{\\partial u}}{{\\partial t}} + \\lambda_1 u\\frac{{\\partial u}}{{\\pa
 
 with $u(x, 0) = -\\sin(\\pi x)$ and $u(\\pm 1, t) = 0$; true $\\lambda_1 = 1$, $\\lambda_2 = 0.01$ (initial guesses 0.1 and 1). Measured: $u$ at $t = 1$. PINNStudio: 4 × 40 network, Adam 15,000 → L-BFGS 30,000. Found $\\lambda_1$ = 0.99994, $\\lambda_2$ = 0.010010 (errors 0.006% and 0.099%). The solution is drawn over the whole $(x, t)$ domain, so everything before $t = 1$ is a prediction ($L_2$ = 1.1 × 10⁻³ against the exact Cole-Hopf solution).
 
-**(b) Linear elasticity 2D — plate** ([DeepXDE example](#bench-linear-elasticity-2d-plate))
+**(b) Linear elasticity 2D — plate** ([DeepXDE example](#bench-linear-elasticity-2d-plate), after [Haghighat et al. (2021)](https://arxiv.org/abs/2003.02751))
 
 $$\\frac{{\\partial \\sigma_{{xx}}}}{{\\partial x}} + \\frac{{\\partial \\sigma_{{xy}}}}{{\\partial y}} = f_x, \\quad \\frac{{\\partial \\sigma_{{xy}}}}{{\\partial x}} + \\frac{{\\partial \\sigma_{{yy}}}}{{\\partial y}} = f_y, \\quad \\sigma_{{xx}} = (\\lambda + 2\\mu)\\varepsilon_{{xx}} + \\lambda\\varepsilon_{{yy}},\\ \\sigma_{{yy}} = (\\lambda + 2\\mu)\\varepsilon_{{yy}} + \\lambda\\varepsilon_{{xx}},\\ \\sigma_{{xy}} = 2\\mu\\varepsilon_{{xy}}$$
 

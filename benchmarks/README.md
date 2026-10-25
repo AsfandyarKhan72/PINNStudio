@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=a005efa7)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=d80a6a7c)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -98,7 +98,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=27b34c03)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=403a9cb9)
 
 </details>
 
@@ -107,11 +107,11 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 Three forward problems, one per dimension and each from a different area: a multi-scale wave, a phase-field equation and 3D fluid flow. Each row is PINNStudio's best run of that problem (the same run as in its table below), drawn from its saved model.
 
-**(a) Wave 1D — multi-scale Fourier features** ([DeepXDE example](#bench-wave-1d-space-time-multi-scale-fourier-features))
+**(a) Wave 1D — multi-scale Fourier features** ([DeepXDE example](#bench-wave-1d-space-time-multi-scale-fourier-features), after [Wang, Wang & Perdikaris (2021)](https://arxiv.org/abs/2012.10047))
 
 $$\frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1],\ C = 10$$
 
-with $u(0, t) = u(1, t) = 0$, $u(x, 0) = \sin(\pi x) + \sin(2\pi x)$ and $u_t(x, 0) = 0$. The exact solution $u = \sin(\pi x)\cos(10\pi t) + \sin(2\pi x)\cos(20\pi t)$ oscillates ten and twenty times in $t$, which a plain network struggles to represent. PINNStudio: space-time multi-scale Fourier feature network 4 × 200, Adam 30,000 → L-BFGS 15,000. $L_2$ = 1.5 × 10⁻³ at $t = 1$ (median of 3 seeds) against 3.0 × 10⁻¹ with DeepXDE's settings; over the whole space-time domain (this seed) 3.3 × 10⁻³.
+with $u(0, t) = u(1, t) = 0$, $u(x, 0) = \sin(\pi x) + \sin(2\pi x)$ and $u_t(x, 0) = 0$. The exact solution $u = \sin(\pi x)\cos(10\pi t) + \sin(2\pi x)\cos(20\pi t)$ oscillates ten and twenty times in $t$, which a plain network struggles to represent. PINNStudio: space-time multi-scale Fourier feature network 4 × 200, Adam 30,000 → L-BFGS 15,000. $L_2$ = 1.5 × 10⁻³ at $t = 1$ (median of 3 seeds) against 3.0 × 10⁻¹ with DeepXDE's settings; over the whole space-time domain (this seed) 3.3 × 10⁻³. The problem is from Wang, Wang & Perdikaris (2021), who report 9.8 × 10⁻⁴ over the whole domain with their network and adaptive (NTK) loss weights, and about 1 without the adaptive weights; PINNStudio's run uses no adaptive weights.
 
 **(b) Allen-Cahn 2D — Mattey & Ghosh** ([PINNStudio template](#bench-allen-cahn-2d-mattey-ghosh))
 
@@ -119,11 +119,11 @@ $$\frac{\partial h}{\partial t} = c_1^2\nabla^2 h - c_2\left(h^3 - h\right), \qq
 
 with $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$ and periodic boundaries. PINNStudio: 4 × 128 network on periodic input features, the initial condition built into the output, self-adaptive (SA-PINN) point weights, Adam 20,000 → L-BFGS 10,000 over the whole time interval. $L_2$ = 3.4 × 10⁻⁴ over all reference times; Mattey & Ghosh report 2.5 × 10⁻² for their bc-PINN.
 
-**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow))
+**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://arxiv.org/abs/2003.06496))
 
 $$\frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
 
-with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
+with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 4.3 × 10⁻³ ($u$), 3.7 × 10⁻³ ($v$), 5.9 × 10⁻³ ($w$) and 4.8 × 10⁻² ($p$) at $t = 1$ with a 10 × 100 network, 2–5 times PINNStudio's errors with a 4 × 50 network.
 
 ![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png?v=908e2490)
 
@@ -146,7 +146,7 @@ $$\frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \fr
 
 with $u(x, 0) = -\sin(\pi x)$ and $u(\pm 1, t) = 0$; true $\lambda_1 = 1$, $\lambda_2 = 0.01$ (initial guesses 0.1 and 1). Measured: $u$ at $t = 1$. PINNStudio: 4 × 40 network, Adam 15,000 → L-BFGS 30,000. Found $\lambda_1$ = 0.99994, $\lambda_2$ = 0.010010 (errors 0.006% and 0.099%). The solution is drawn over the whole $(x, t)$ domain, so everything before $t = 1$ is a prediction ($L_2$ = 1.1 × 10⁻³ against the exact Cole-Hopf solution).
 
-**(b) Linear elasticity 2D — plate** ([DeepXDE example](#bench-linear-elasticity-2d-plate))
+**(b) Linear elasticity 2D — plate** ([DeepXDE example](#bench-linear-elasticity-2d-plate), after [Haghighat et al. (2021)](https://arxiv.org/abs/2003.02751))
 
 $$\frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \quad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y, \quad \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy},\ \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx},\ \sigma_{xy} = 2\mu\varepsilon_{xy}$$
 
@@ -2865,6 +2865,8 @@ $$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2
 
 Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). With 10,000 iterations the problem remains difficult: the error grows with t, and longer training reduces it.
 
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3](https://arxiv.org/abs/2012.10047) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
@@ -2915,7 +2917,10 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 | 3× training points | 1.1 × 10<sup>-1</sup> | 75 |
 | L-BFGS phase added | 1.6 × 10<sup>-1</sup> | 178 |
 | 🔴 **All of the above together (3 seeds, median)** | **1.5 × 10<sup>-3</sup>** | **645** |
+| Their space-time multi-scale Fourier feature network, as reported (Wang, Wang & Perdikaris (2021)) | 9.8 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.5 × 10<sup>-3</sup>** | **645** |
+
+*As reported: over the whole space-time domain, with their adaptive (NTK) loss weights; 1.02 without them, 1.01 for a plain PINN (Table 1).*
 
 **Inverse problem**
 
@@ -3479,6 +3484,8 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Boundary conditions:** imposed exactly by an output transform, e.g. $\hat u_x = y(1-y)N_1$, $\hat\sigma_{yy} = (1-y)N_4 + (\lambda+2\mu)Q\sin(\pi x)$
 - **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\ Qy^4/4$
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
+
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -5131,6 +5138,8 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 - **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
 
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets), Table 3](https://arxiv.org/abs/2003.06496) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
@@ -5168,7 +5177,10 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 1.4 × 10<sup>-3</sup> | – |
+| VP-NSFnet (10 × 100 network), as reported (Jin, Cai, Li & Karniadakis (2021)) | 4.3 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.4 × 10<sup>-3</sup>** | – |
+
+*As reported: at t = 1.*
 
 **Inverse problem**
 
