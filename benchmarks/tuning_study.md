@@ -909,6 +909,7 @@ Tuned settings: [`Heat 1D – Dirichlet (tuned).pinn.json`](tuning/Heat%201D%20�
 | base | 3.27e-04 | 3.1 × 10<sup>-4</sup> | 4.6% | 396 |
 | dataw | 7.61e-03 | 3.6 × 10<sup>-4</sup> | 68% | 400 |
 | times | 3.15e-03 | 8.1 × 10<sup>-4</sup> | 58% | 964 |
+| setup | 1.48e-04 | 4.3 × 10<sup>-4</sup> | 2.3% | 460 |
 | **invall** | 8.50e-05 | 8.9 × 10<sup>-5</sup> | 1.7% | 1859 |
 
 **Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [3, 256, 256, 256, 256, 256, 1], Adam 20,000 → L-BFGS 30,000, 10,000 / 400 / 512 points.
@@ -1062,6 +1063,7 @@ Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn
 | base | 7.25e-02 | 1.4 × 10<sup>-2</sup> | 5.2% | 1741 |
 | dataw | 2.92e-01 | 8.0 × 10<sup>-3</sup> | 43% | 776 |
 | **times** | 3.34e-02 | 5.9 × 10<sup>-3</sup> | 0.96% | 5306 |
+| invall | 3.52e-02 | 1.5 × 10<sup>-3</sup> | 4.2% | 4619 |
 
 **Chosen: times** (measured data at every reference time after t = 0, not only one (inverse problems)): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
 

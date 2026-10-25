@@ -782,6 +782,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 | 🔴 **Larger network (2× width, one more layer)** | **1.5 × 10<sup>-2</sup>** | **21** |
 | 3× training points | 3.7 × 10<sup>-2</sup> | 19 |
 | L-BFGS phase added | 2.0 × 10<sup>-2</sup> | 19 |
+| 3× fractional resolution | 1.4 × 10<sup>-2</sup> | 22 |
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 57 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.5 × 10<sup>-2</sup>** | **21** |
 
@@ -3298,6 +3299,8 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 | Larger network (2× width, one more layer) | 7.9 × 10<sup>-2</sup> | 6.9 × 10<sup>-2</sup> | 101 |
 | 3× training points | 7.7 × 10<sup>-2</sup> | 6.7 × 10<sup>-2</sup> | 135 |
 | L-BFGS phase added | 7.7 × 10<sup>-2</sup> | 6.1 × 10<sup>-2</sup> | 108 |
+| Residual-based adaptive refinement | 7.7 × 10<sup>-2</sup> | 6.1 × 10<sup>-2</sup> | 523 |
+| Multi-scale Fourier features | 1.7 × 10<sup>0</sup> | 1.6 × 10<sup>0</sup> | 111 |
 | All of the above together (3 seeds, median) | 7.7 × 10<sup>-2</sup> | 6.1 × 10<sup>-2</sup> | 1017 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.0 × 10<sup>-2</sup>** | **6.9 × 10<sup>-2</sup>** | **61** |
 
@@ -3905,6 +3908,8 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 | 3× iterations | 3.1 × 10<sup>-2</sup> | 413 |
 | Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 182 |
 | 3× training points | 1.9 × 10<sup>-2</sup> | 175 |
+| Residual-based adaptive refinement | 3.6 × 10<sup>-2</sup> | 337 |
+| Multi-scale Fourier features | 2.8 × 10<sup>-2</sup> | 292 |
 | 🔴 **All of the above together (3 seeds, median)** | **1.2 × 10<sup>-2</sup>** | **500** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.2 × 10<sup>-2</sup>** | **500** |
 
@@ -4076,6 +4081,7 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 | The template's starting settings | 3.1 × 10<sup>-4</sup> | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | 4.6% | 396 |
 | 10× weight on the measured data | 3.6 × 10<sup>-4</sup> | λ = 3.16939 (10); λε² = 0.00211525 (0.00625) | 68% | 400 |
 | Measured data at every reference time | 8.1 × 10<sup>-4</sup> | λ = 4.24259 (10); λε² = 0.00273061 (0.00625) | 58% | 964 |
+| Best whole-interval setup | 4.3 × 10<sup>-4</sup> | λ = 9.76643 (10); λε² = 0.00611763 (0.00625) | 2.3% | 460 |
 | 🔴 **10× data weight, 3× L-BFGS and the larger network** | **8.9 × 10<sup>-5</sup>** | **λ = 9.82765 (10); λε² = 0.00615365 (0.00625)** | **1.7%** | **1859** |
 | **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **8.9 × 10<sup>-5</sup>** | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | **1.7%** | **1859** |
 
@@ -4439,6 +4445,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 | The template's starting settings | 1.4 × 10<sup>-2</sup> | α = 0.000189574 (0.0002); κ = 1.01558 (1) | 5.2% | 1741 |
 | 10× weight on the measured data | 8.0 × 10<sup>-3</sup> | α = 0.000114763 (0.0002); κ = 0.853682 (1) | 43% | 776 |
 | 🔴 **Measured data at every reference time** | **5.9 × 10<sup>-3</sup>** | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** | **0.96%** | **5306** |
+| 10× data weight, 3× L-BFGS and the larger network | 1.5 × 10<sup>-3</sup> | α = 0.000205789 (0.0002); κ = 1.04151 (1) | 4.2% | 4619 |
 | **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **5.9 × 10<sup>-3</sup>** | α = 0.000201912 (0.0002); κ = 0.995857 (1) | **0.96%** | **5306** |
 
 *L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
