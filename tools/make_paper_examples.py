@@ -290,7 +290,9 @@ def plot(keys, path, inverse):
     H = TOP + len(keys) * PANEL + (len(keys) - 1) * ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(WIDTH, H))
     cmap = plt.get_cmap("jet")
-    titles = ["PINNStudio", "Reference", "Parameter error" if inverse else "Absolute error"]
+    # forward: reference | PINNStudio | error; inverse: PINNStudio | error | the unknowns
+    titles = (["PINNStudio", "Absolute error", "Parameter error"] if inverse
+              else ["Reference", "PINNStudio", "Absolute error"])
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
         meta = json.loads(str(d["meta"]))
@@ -304,7 +306,9 @@ def plot(keys, path, inverse):
         lo, hi = float(np.nanmin(R)), float(np.nanmax(R))
         norm = matplotlib.colors.Normalize(lo, hi)
         E = np.abs(P - R)
-        panels = [(P, norm), (R, norm)] + ([] if inverse else [(E, matplotlib.colors.Normalize(0, float(np.nanmax(E))))])
+        enorm = matplotlib.colors.Normalize(0, float(np.nanmax(E)))
+        panels = [(P, norm), (E, enorm)] if inverse else [(R, norm), (P, norm), (E, enorm)]
+        err_col = 1 if inverse else 2
         for c, (A, nm) in enumerate(panels):
             if three:
                 # a little wider than the panel, shifted left, so the z axis labels clear the colorbar
@@ -331,7 +335,7 @@ def plot(keys, path, inverse):
                 for axis in (ax.xaxis, ax.yaxis):    # 0, 0.5, 1 (or -1, 0, 1): short labels that never touch
                     axis.set_major_locator(matplotlib.ticker.LinearLocator(3))
                     axis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))
-            _colorbar(fig, rects[c], sm, sci=(c == 2))
+            _colorbar(fig, rects[c], sm, sci=(c == err_col))
             if r == 0:
                 fig.text(rects[c][0] + rects[c][2] / 2, (H - TOP / 2.4) / H, titles[c], ha="center", va="center",
                          fontsize=FONT + 1, fontweight="bold")
