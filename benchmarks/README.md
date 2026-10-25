@@ -102,6 +102,64 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 </details>
 
+<details>
+<summary>🧪 <em>Forward examples for the paper — 1D, 2D, 3D</em></summary>
+
+Three forward problems, one per dimension and each from a different area: a multi-scale wave, a phase-field equation and 3D fluid flow. Each row is PINNStudio's best run of that problem (the same run as in its table below), drawn from its saved model.
+
+**(a) Wave 1D — multi-scale Fourier features** ([DeepXDE example](#bench-wave-1d-space-time-multi-scale-fourier-features))
+
+$$\frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1],\ C = 10$$
+
+with $u(0, t) = u(1, t) = 0$, $u(x, 0) = \sin(\pi x) + \sin(2\pi x)$ and $u_t(x, 0) = 0$. The exact solution $u = \sin(\pi x)\cos(10\pi t) + \sin(2\pi x)\cos(20\pi t)$ oscillates ten and twenty times in $t$, which a plain network struggles to represent. PINNStudio: space-time multi-scale Fourier feature network 4 × 200, Adam 30,000 → L-BFGS 15,000. $L_2$ = 1.5 × 10⁻³ at $t = 1$ (median of 3 seeds) against 3.0 × 10⁻¹ with DeepXDE's settings; over the whole space-time domain (this seed) 3.3 × 10⁻³.
+
+**(b) Allen-Cahn 2D — Mattey & Ghosh** ([PINNStudio template](#bench-allen-cahn-2d-mattey-ghosh))
+
+$$\frac{\partial h}{\partial t} = c_1^2\nabla^2 h - c_2\left(h^3 - h\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1],\ c_1^2 = 10^{-4},\ c_2 = 1$$
+
+with $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$ and periodic boundaries. PINNStudio: 4 × 128 network on periodic input features, the initial condition built into the output, self-adaptive (SA-PINN) point weights, Adam 20,000 → L-BFGS 10,000 over the whole time interval. $L_2$ = 3.4 × 10⁻⁴ over all reference times; Mattey & Ghosh report 2.5 × 10⁻² for their bc-PINN.
+
+**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow))
+
+$$\frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
+
+with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the plane $z = 0$ at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
+
+![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png?v=a7dc6dc3)
+
+*Columns: PINNStudio's solution, the reference (the exact solution for (a) and (c), the template's reference data for (b)) and the absolute error; PINN and reference share a colour scale. (a) the whole space-time domain $u(x, t)$; (b) $h$ at $t = 1$; (c) $u$ on $z = 0$ at $t = 1$. PDF: [`figures/paper_forward.pdf`](figures/paper_forward.pdf). Made with [`tools/make_paper_examples.py`](../tools/make_paper_examples.py) from the saved models (the arrays are in [`paper_examples/`](paper_examples)).*
+
+</details>
+
+<details>
+<summary>🔍 <em>Inverse examples for the paper — 1D, 2D, 3D</em></summary>
+
+Three inverse problems, one per dimension: the classic PINN benchmark, material constants of an elastic plate, and the coefficients of a 3D phase-field equation. The unknown coefficients are trained together with the network from measured values of the solution. The third column shows how close each one gets to its true value during training.
+
+**(a) Burgers 1D — Raissi et al.** ([PINNStudio template](#bench-burgers-1d-raissi-et-al))
+
+$$\frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2} = 0, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+with $u(x, 0) = -\sin(\pi x)$ and $u(\pm 1, t) = 0$; true $\lambda_1 = 1$, $\lambda_2 = 0.01$ (initial guesses 0.1 and 1). Measured: $u$ at $t = 1$. PINNStudio: 4 × 40 network, Adam 15,000 → L-BFGS 30,000. Found $\lambda_1$ = 0.99994, $\lambda_2$ = 0.010010 (errors 0.006% and 0.099%). The solution is drawn over the whole $(x, t)$ domain, so everything before $t = 1$ is a prediction ($L_2$ = 1.1 × 10⁻³ against the exact Cole-Hopf solution).
+
+**(b) Linear elasticity 2D — plate** ([DeepXDE example](#bench-linear-elasticity-2d-plate))
+
+$$\frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \quad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y, \quad \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy},\ \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx},\ \sigma_{xy} = 2\mu\varepsilon_{xy}$$
+
+on $[0, 1]^2$, with the boundary conditions built into the output and the known body force. The Lamé constants $\lambda$ (true 1, initial guess 2) and $\mu$ (true 0.5, initial guess 1) are unknown in the stress-strain law. Measured: $u_x$ and $u_y$ on a 19 × 19 grid. PINNStudio: parallel network (PFNN) 4 × 40 with five outputs, Adam 20,000 → L-BFGS 20,000. Found $\lambda$ = 0.99974, $\mu$ = 0.50009 (errors 0.026% and 0.018%). Shown: $u_x$.
+
+**(c) Allen-Cahn 3D — Wight & Zhao** ([PINNStudio template](#bench-allen-cahn-3d-wight-zhao))
+
+$$\frac{\partial \phi}{\partial t} = \lambda\varepsilon^2\nabla^2\phi - \lambda\left(\phi^3 - \phi\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
+
+a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\lambda$ (true 10) and $\lambda\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\lambda$ = 9.969, $\lambda\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: the slice $z = 0.5$ at $t = 0.5$, a time with no measured data ($L_2$ = 5.1 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
+
+![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png?v=02f2511c)
+
+*Columns: PINNStudio's solution, the reference and each unknown's relative error $|p - p_{true}|/p_{true}$ during training (the legend gives the final value). (a) $u(x, t)$; (b) $u_x(x, y)$; (c) $\phi$ on $z = 0.5$ at $t = 0.5$. PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
+
+</details>
+
 ## ODEs
 
 <details id="bench-integro-differential-ode">
