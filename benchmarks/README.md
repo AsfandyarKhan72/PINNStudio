@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=8b7623db)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=cec4af2c)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -73,9 +73,9 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 | [Poisson 2D – disk](#bench-poisson-2d-disk) | PINNStudio | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | – | – | f = 1.00002 (1) | 0.002% | 157 |
 | [Poisson 2D – L-shape](#bench-poisson-2d-l-shape) | DeepXDE | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | – | 500 | – | – | – |
 | [Fractional Poisson 2D – unknown order α](#bench-fractional-poisson-2d-unknown-order) | DeepXDE | – | – | – | – | α = 1.80445 (1.8) | 0.25% | – |
-| [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 7.9 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
+| [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
 | [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
-| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 822 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
+| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 822 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **2.0 × 10<sup>-3</sup>** | – | – | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | – | α = 0.399893 (0.4) | 0.027% | 169 |
@@ -94,9 +94,9 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 **No reported errors in this figure.** The errors the original papers report are left out here: they come from other networks, point counts and training, and some are over all times while this axis is the last reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They stay in the tables of each example ("as reported" rows, with the source and its setup) and in the full figure.
 
-**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 12 below 10⁻³. Of the 18 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 9, by a median factor of 29.9 in those (median over all 18: 1.2). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
+**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 12 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 9, by a median factor of 29.9 in those (median over all 20: 1.0). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
 
-**All 63 examples.** 52 forward problems: median relative L₂ error 1.4 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 21 below 10⁻³. Of the 45 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 17, by a median factor of 14.8 in those (median over all 45: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
+**All 63 examples.** 52 forward problems: median relative L₂ error 1.4 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 21 below 10⁻³. Of the 47 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 17, by a median factor of 14.8 in those (median over all 47: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
 
 **How "tuned" was chosen.** The tuned settings are the run with the lowest error against the reference (the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
@@ -106,7 +106,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=e2ec070c)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=9edfa2c5)
 
 </details>
 
@@ -4185,7 +4185,7 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 |---|---|---|---|
 | Base PINN | 1.0 × 10<sup>0</sup> | 8.8 × 10<sup>-1</sup> | 224 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.8) | – | figures only | – |
-| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| Wight & Zhao's method, run in PINNStudio | 2.8 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | 1819 |
 | The template's starting settings | 7.9 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | 1780 |
 | 3× iterations | 9.3 × 10<sup>-2</sup> | 5.0 × 10<sup>-2</sup> | 3710 |
 | Larger network (2× width, one more layer) | 1.4 × 10<sup>-1</sup> | 7.5 × 10<sup>-2</sup> | 4728 |
@@ -4212,7 +4212,9 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
+*Wight & Zhao's method, run in PINNStudio:*
+
+![Allen-Cahn 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/paper_wz_surface_comparison.png)
 
 *PINNStudio best — the best setup as it is:*
 
@@ -4424,19 +4426,19 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 **Forward problem**
 
-| Training | L₂ u, last time | L₂ μ, last time | L₂ u, all times | Time (s) |
-|---|---|---|---|---|
-| Base PINN | – | – | – | – |
-| Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | figures only | – |
-| Wight & Zhao's method, run in PINNStudio | – | – | – | – |
-| 🔴 **The template's starting settings** | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | **1.6 × 10<sup>-2</sup>** | **822** |
-| 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | 7.2 × 10<sup>-3</sup> | 1464 |
-| Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | 1.1 × 10<sup>-2</sup> | 1995 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | **1.6 × 10<sup>-2</sup>** | **822** |
+| Training | L₂ φ, last time | L₂ μ, last time | Mean abs. error μ, last time | L₂ φ, all times | Time (s) |
+|---|---|---|---|---|---|
+| Base PINN | 1.1 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 6.5 × 10<sup>-3</sup> | 4.7 × 10<sup>-1</sup> | 830 |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | – | figures only | – |
+| Wight & Zhao's method, run in PINNStudio | 2.4 × 10<sup>-1</sup> | 6.1 × 10<sup>-1</sup> | 2.3 × 10<sup>-2</sup> | 7.5 × 10<sup>-1</sup> | 5551 |
+| 🔴 **The template's starting settings** | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | – | **1.6 × 10<sup>-2</sup>** | **822** |
+| 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | – | 7.2 × 10<sup>-3</sup> | 1464 |
+| Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | – | 1.1 × 10<sup>-2</sup> | 1995 |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | – | **1.6 × 10<sup>-2</sup>** | **822** |
 
-*Each output's relative L₂ at its last reference time; the best run is chosen by u and μ together (the worse of the two).*
+*Each output's relative L₂ at its last reference time; the best run is chosen by φ and μ together (the worse of the two).*
 
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*μ decays to almost zero as the system approaches equilibrium, so its relative L₂ divides by a very small number and looks large even when the field is right; the mean absolute error of μ (the same time) shows its actual size. The paper's reported error, where it gives one, is compared with the concentration.*
 
 **Inverse problem**
 
@@ -4452,7 +4454,15 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
+*Wight & Zhao's method, run in PINNStudio:*
+
+<sub>φ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — φ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_surface_comparison_phi.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_surface_comparison_mu.png)
 
 *PINNStudio best — the example's own settings (no change did better):*
 
@@ -5067,12 +5077,10 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Base PINN | – | – | – |
+| Base PINN | 9.9 × 10<sup>-1</sup> | 1.0 × 10<sup>0</sup> | 604 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.9) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | **PINNStudio best** (Settings: Tuned): the template's starting settings | **2.7 × 10<sup>-4</sup>** | – | – |
-
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
