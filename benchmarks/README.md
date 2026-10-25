@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=0a7a25d9)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=6b16a35b)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -42,9 +42,9 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 | [Fractional Poisson 1D – unknown order α](#bench-fractional-poisson-1d-unknown-order) | DeepXDE | – | – | – | – | α = 1.79183 (1.8) | 0.45% | – |
 | [Poisson 1D – unknown forcing field](#bench-poisson-1d-unknown-forcing-field) | DeepXDE | – | – | – | – | field | – | 221 |
 | [Poisson 1D – unknown forcing field (batches)](#bench-poisson-1d-unknown-forcing-field-batches) | DeepXDE | – | – | – | – | field | – | 215 |
-| [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | – | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | 0.47% | 302 |
-| [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 6.0 × 10<sup>-4</sup> | **6.0 × 10<sup>-4</sup>** | – | – | – | – | – |
-| [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 4.8 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | 3.2 × 10<sup>-2</sup> | 1002 | – | – | – |
+| [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 2.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | – | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | 0.47% | 302 |
+| [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 8.6 × 10<sup>-3</sup> | **6.0 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 5.7 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** | 3.2 × 10<sup>-2</sup> | 1656 | – | – | – |
 | [Black-Scholes 1D – American put](#bench-black-scholes-1d-american-put) | DeepXDE | – | – | – | – | – | – | – |
 | [Black-Scholes 1D – European call](#bench-black-scholes-1d-european-call) | DeepXDE | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | – | – | – | – | – |
 | [Burgers 1D – Raissi et al.](#bench-burgers-1d-raissi-et-al) | Paper | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 6.7 × 10<sup>-4</sup> | 40 | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | 0.099% | 101 |
@@ -98,7 +98,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=57ef199f)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=15d9ea26)
 
 </details>
 
@@ -1587,14 +1587,12 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Base PINN | – | – | – |
+| Base PINN | 7.6 × 10<sup>-1</sup> | 5.9 × 10<sup>-1</sup> | 121 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Table 3.1) | – | 2.3 × 10<sup>-2</sup> | – |
-| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| Wight & Zhao's method, run in PINNStudio | 4.6 × 10<sup>-2</sup> | 2.9 × 10<sup>-2</sup> | 346 |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Table 2) | – | 1.7 × 10<sup>-2</sup> | – |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | 2.4 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | 564 |
 | **PINNStudio best** (Settings: Tuned): the template's starting settings | **1.4 × 10<sup>-3</sup>** | – | – |
-
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1610,10 +1608,6 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
-
-*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
-
-*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
 *PINNStudio best (the template's own settings, README):*
 
@@ -1698,19 +1692,17 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 **Forward problem**
 
-| Training | L₂, last time | L₂, all times | Time (s) |
-|---|---|---|---|
-| Base PINN | – | – | – |
-| Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | 9.5 × 10<sup>-3</sup> | – |
-| Wight & Zhao's method, run in PINNStudio | – | – | – |
-| **PINNStudio best** (Settings: Tuned): the template's starting settings | **6.0 × 10<sup>-4</sup>** | – | – |
+| Training | L₂ u, last time | L₂ μ, last time | L₂ u, all times | Time (s) |
+|---|---|---|---|---|
+| Base PINN | 3.5 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 1.4 × 10<sup>-2</sup> | 216 |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | – | 9.5 × 10<sup>-3</sup> | – |
+| Wight & Zhao's method, run in PINNStudio | 8.6 × 10<sup>-3</sup> | 2.1 × 10<sup>-2</sup> | 4.3 × 10<sup>-2</sup> | 1048 |
+| **PINNStudio best** (Settings: Tuned): the template's starting settings | **6.0 × 10<sup>-4</sup>** | – | – | – |
 
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*Each output's relative L₂ at its last reference time; the best run is chosen by u.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
-
-*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
 *PINNStudio best (the template's own settings, README):*
 
@@ -1771,60 +1763,29 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 *Forward problem*
 
-- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
-- **Points:** 10,000 domain, 512 initial, 200 boundary
-- **Training:** Adam 5,000 → L-BFGS 5,000
-- **Loss weights:** equations 1; boundary 1; initial 100
-- **Methods:** exact periodicity (periodic input features); SA-PINN per-point weights; time-adaptive training: 19 time windows, a network per window, each starting from the previous one
+- **Network:** FNN 4 × 200 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 512 initial, 201 boundary
+- **Training:** Adam 100,000 → L-BFGS 50,000
 
 *Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) · [training methods study: 1D Cahn-Hilliard (Mattey & Ghosh)](training_methods.md#1d-cahn-hilliard-mattey--ghosh)
 
 </details>
 
 **Forward problem**
 
-| Training | L₂ u, last time | L₂ μ, last time | L₂ u, all times | Time (s) |
+| Training | L₂ h, last time | L₂ μ, last time | L₂ h, all times | Time (s) |
 |---|---|---|---|---|
-| Base PINN | – | – | – | – |
+| 🔴 **Base PINN** | **1.9 × 10<sup>-3</sup>** | **7.7 × 10<sup>-1</sup>** | **3.9 × 10<sup>-3</sup>** | **1656** |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | – | 1.9 × 10<sup>-2</sup> | – |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – | – |
-| 🔴 **Best setup of the training methods study** | **3.9 × 10<sup>-3</sup>** | **3.8 × 10<sup>-1</sup>** | **3.2 × 10<sup>-2</sup>** | **1002** |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | 5.7 × 10<sup>-3</sup> | 4.6 × 10<sup>-2</sup> | 5.5 × 10<sup>-3</sup> | 2864 |
+| Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | 3.8 × 10<sup>-1</sup> | 3.2 × 10<sup>-2</sup> | 1002 |
 | Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | 1.9 × 10<sup>0</sup> | 7.0 × 10<sup>-2</sup> | 2165 |
 | Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | 6.4 × 10<sup>1</sup> | 8.6 × 10<sup>-1</sup> | 1893 |
 | Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | 1.4 × 10<sup>0</sup> | 3.6 × 10<sup>-2</sup> | 1709 |
 | Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | 3.9 × 10<sup>1</sup> | 9.3 × 10<sup>-1</sup> | 13959 |
-| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.9 × 10<sup>-3</sup>** | **3.8 × 10<sup>-1</sup>** | **3.2 × 10<sup>-2</sup>** | **1002** |
+| **PINNStudio best** (Settings: Tuned): the base PINN | **1.9 × 10<sup>-3</sup>** | **7.7 × 10<sup>-1</sup>** | **3.9 × 10<sup>-3</sup>** | **1656** |
 
-*Each output's relative L₂ at its last reference time; the best run is chosen by u.*
-
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
-
-<details>
-<summary>📊 <em>Forward results — figures</em></summary>
-
-*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
-
-*PINNStudio best — the best setup as it is:*
-
-<sub>u — PINN, reference and error over space and time</sub>
-
-![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is — u — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_surface_comparison_u.png)
-
-<sub>μ — PINN, reference and error over space and time</sub>
-
-![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is — μ — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_surface_comparison_mu.png)
-
-<sub>u — PINN against the reference along a line, at the reference times</sub>
-
-![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is — u — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_line_comparison_u.png)
-
-<sub>μ — PINN against the reference along a line, at the reference times</sub>
-
-![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is — μ — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_line_comparison_mu.png)
-
-</details>
+*Each output's relative L₂ at its last reference time; the best run is chosen by h.*
 
 </details>
 

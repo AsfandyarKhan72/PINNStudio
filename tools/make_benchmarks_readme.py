@@ -895,7 +895,12 @@ def _section(r):
                                 prefix="Best setup + ", mark=fmark)
         # every output's error when the problem has more than one (the main output first; it decides the best)
         names = []
-        for d in [x[6] for x in rows] + [q.get("outs") or {} for q in pr.values()]:
+        dicts = [x[6] for x in rows if x[6] is not None] + [q.get("outs") for q in pr.values() if q.get("outs")]
+        if any("h" in d for d in dicts) and any("u" in d for d in dicts):
+            for d in dicts:         # older runs named the template's first output u, newer ones h: one column
+                if "u" in d:
+                    d.setdefault("h", d["u"]); del d["u"]
+        for d in dicts:
             names += [k for k in d if k not in names]
         main = next((k for k in MAIN if k in names), names[0] if names else None)
         names = ([main] + [k for k in names if k != main]) if len(names) > 1 else []
