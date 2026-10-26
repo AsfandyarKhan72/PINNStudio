@@ -230,6 +230,27 @@ For each template taken from a paper: the plain PINN (the template's equations w
 </details>
 
 <details>
+<summary>📄 <em>Figure 7 for the paper — the training-methods study (three versions)</em></summary>
+
+The same data drawn three ways (the study: [`training_methods.md`](training_methods.md); the data: [`figures/study.json`](figures/study.json); redraw with `python tools/make_methods_figure.py`). Each is drawn at 6.5 in wide for Word; PDFs next to the PNGs.
+
+**Version A — every setup on one error axis (recommended for Figure 7).** One row per problem; each point is one training setup, coloured by the method added and shaped by whole interval (circle) or time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270), the best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems (2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.
+
+![Figure 7, version A](figures/paper_methods_a.png?v=dd2ffada)
+
+> *Caption to start from: Relative L₂ error at the last reference time for eight Allen–Cahn and Cahn–Hilliard benchmarks under the training setups of the PINNStudio training-methods study. Open circles: plain PINN with loss-based initial and boundary conditions; stars: the most accurate setup, with the improvement factor. Colour gives the method added to exact boundary (and initial) conditions; squares mark training in successive time windows. W&Z: Wight and Zhao [8]; M&G: Mattey and Ghosh [9]. Single runs; the setups differ in computational cost.*
+
+**Version B — where the error builds up (a second panel or a supplementary figure).** The error against time for three problems: the plain PINN, the best setup on the whole interval and the best with time windows. It explains *why* windows win on the long problems: on the whole interval the error grows with time (or never comes down), while each window starts from an accurate state.
+
+![Figure 7, version B](figures/paper_methods_b.png?v=7a53e4a0)
+
+**Version C — the current heatmap (every number; best kept in the supplement).**
+
+![The training-methods heatmap](figures/study_overview.png)
+
+</details>
+
+<details>
 <summary>📄 <em>Table S2 for the paper — every forward problem, each output</em></summary>
 
 PINNStudio's tuned result for every forward problem with a reference solution: the relative L₂ of each output at the last reference time (for Beltrami flow the pressure is left out, as it is fixed only up to a constant). Generated from the same runs as the tables below.
