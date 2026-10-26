@@ -30,6 +30,13 @@
   "match": "f7_ac1d_plain"
  },
  {
+  "example": "Allen-Cahn 1D – Wight & Zhao (time-adaptive)",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac1d_bcpinn",
+  "equal_budget": true,
+  "match": "f7_ac1d_plain"
+ },
+ {
   "example": "Cahn-Hilliard 1D – Wight & Zhao",
   "setup": "Plain",
   "name": "f7_ch1d_plain"
@@ -56,6 +63,20 @@
   "example": "Cahn-Hilliard 1D – Wight & Zhao",
   "setup": "Time-adaptive",
   "name": "f7_ch1d_windows",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "equal_budget": true,
+  "match": "f7_ch1d_plain"
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ch1d_bcpinn",
   "windows": [
    {
     "t_start": 0.0,
@@ -97,6 +118,13 @@
   "match": "f7_ac2dmg_plain"
  },
  {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac2dmg_bcpinn",
+  "equal_budget": true,
+  "match": "f7_ac2dmg_plain"
+ },
+ {
   "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
   "setup": "Plain",
   "name": "f7_ch2dmg_plain"
@@ -123,6 +151,13 @@
   "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
   "setup": "Time-adaptive",
   "name": "f7_ch2dmg_windows",
+  "equal_budget": true,
+  "match": "f7_ch2dmg_plain"
+ },
+ {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ch2dmg_bcpinn",
   "equal_budget": true,
   "match": "f7_ch2dmg_plain"
  }

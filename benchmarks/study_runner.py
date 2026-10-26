@@ -43,6 +43,7 @@ SETUPS = {
     "Time-adaptive": ["soft_ic", "exact_bc", "windows"],
     "Time-adaptive + RBA": ["soft_ic", "exact_bc", "windows", "rba"],
     "Time-adaptive + SA-PINN": ["soft_ic", "exact_bc", "windows", "sa"],
+    "Time-adaptive + backward": ["soft_ic", "exact_bc", "windows", "backward"],   # bc-PINN (Mattey & Ghosh)
     "Template": [],
 }
 IC_WEIGHT = 100.0
@@ -92,9 +93,13 @@ def apply_setup(cfg, setup, run):
             cfg.time_adaptive = True
             cfg.adapt_method = "Time Adaptive"
             cfg.ta_transfer_learning = True
+            cfg.ta_backward = cfg.ta_growing = False      # plain windows unless "backward" is asked for
+            cfg.ta_icgl_fraction, cfg.ta_resample_rounds = 0.0, 0
             if run.get("windows"):
                 cfg.ta_step_groups = json.dumps(run["windows"])
                 cfg.ta_num_steps = sum(g["steps"] for g in run["windows"])
+        elif sw == "backward":       # later windows are held to the stored solution of the earlier ones
+            cfg.ta_backward = True
         elif sw == "rba":
             cfg.point_weights, cfg.point_weights_lbfgs = "RBA", "keep"
         elif sw == "sa":
@@ -197,7 +202,7 @@ def build(plan, out, smoke):
         meta = dict({k: v for k, v in run.items() if k != "match_cfg"}, layers=cfg.layers,
                     num_domain=cfg.num_domain, num_boundary=cfg.num_boundary,
                     num_initial=getattr(cfg, "num_initial", None), lr=cfg.learning_rate, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
-                    ta=cfg.time_adaptive, windows=cfg.ta_step_groups if cfg.time_adaptive else None,
+                    ta=cfg.time_adaptive, backward=getattr(cfg, "ta_backward", False), windows=cfg.ta_step_groups if cfg.time_adaptive else None,
                     point_weights=cfg.point_weights, causal=cfg.causal_training, net=cfg.network_type,
                     phases=[(p["optimizer"], p["iterations"], p.get("weights", "")) for p in _phases(cfg)],
                     validate=errs)
