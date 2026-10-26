@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 61 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=478caebc)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=2c306950)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -76,7 +76,7 @@ The sweep was run on the 61 examples with the largest errors. The others were al
 | [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
 | [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
 | [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 822 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
-| [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | – | 1964 | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | – | 1964 | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | 98 | α = 0.399893 (0.4) | 0.027% | 169 |
 | [Fractional Poisson 3D – sphere](#bench-fractional-poisson-3d-sphere) | DeepXDE | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** | – | 1343 | – | – | – |
@@ -221,7 +221,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | Allen-Cahn 2D – Wight & Zhao | Wight & Zhao's method | 1.0 × 10<sup>0</sup> | 2.8 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | figures only (Wight & Zhao (2021), Fig. 3.8) | **1.6 × 10<sup>-3</sup>** |
 | Allen-Cahn 2D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 2.8 × 10<sup>-2</sup> | 2.5 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> | 2.5 × 10<sup>-2</sup> (Mattey & Ghosh (2022), Sec. 6.1.1) | **3.6 × 10<sup>-4</sup>** |
 | Cahn-Hilliard 2D – Wight & Zhao | Wight & Zhao's method | 1.1 × 10<sup>-1</sup> | 2.4 × 10<sup>-1</sup> | 7.5 × 10<sup>-1</sup> | figures only (Wight & Zhao (2021), Fig. 3.13) | **1.1 × 10<sup>-2</sup>** |
-| Cahn-Hilliard 2D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 8.2 × 10<sup>-2</sup> | – | – | figures only (Mattey & Ghosh (2022), Sec. 6.2.1) | **1.1 × 10<sup>-3</sup>** |
+| Cahn-Hilliard 2D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 8.2 × 10<sup>-2</sup> | 2.0 × 10<sup>-2</sup> | 1.9 × 10<sup>-2</sup> | figures only (Mattey & Ghosh (2022), Sec. 6.2.1) | **1.1 × 10<sup>-3</sup>** |
 | Burgers 2D – Mathias et al. | Mathias et al.'s settings | 1.6 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 1.8 × 10<sup>-1</sup> | figures only (Mathias et al. (2022)) | **8.4 × 10<sup>-3</sup>** |
 | Allen-Cahn 3D – Wight & Zhao | Wight & Zhao's method | 9.9 × 10<sup>-1</sup> | 4.6 × 10<sup>-4</sup> | 8.1 × 10<sup>-4</sup> | figures only (Wight & Zhao (2021), Fig. 3.9) | **1.9 × 10<sup>-4</sup>** |
 
@@ -232,28 +232,35 @@ For each template taken from a paper: the plain PINN (the template's equations w
 <details>
 <summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
 
-**Figure 7.** Four phase-field problems, the same training setups in each: the plain PINN (initial and boundary conditions in the loss), the initial condition and periodicity built into the network (exact BC + IC), that with RBA or with SA-PINN point weights, and training in successive time windows (exact BC, the initial condition of each window in the loss; not run for 2D Cahn–Hilliard). Error at every reference time from t = 0, each panel with its own error range; drawn at 6.5 × 4.9 in for Word (PDF next to it). (a) Allen–Cahn 1D and (b) Cahn–Hilliard 1D of Wight & Zhao, (c) Allen–Cahn 2D and (d) Cahn–Hilliard 2D of Mattey & Ghosh (time scaled to [0, 1]).
+**Figure 7.** Four phase-field problems, the same six training setups in each, and within each problem the same network, collocation points, learning rate, seed and total Adam / L-BFGS steps for every setup: the plain PINN (initial and boundary conditions in the loss), the initial condition and periodicity built into the network (exact BC + IC), that with RBA or with SA-PINN point weights, training in successive time windows (exact BC, each window's initial condition in the loss; the steps shared out over the windows, every window with all the points), and the same windows with backward compatibility (bc-PINN). (a) Allen–Cahn 1D and (b) Cahn–Hilliard 1D of Wight & Zhao, (c) Allen–Cahn 2D and (d) Cahn–Hilliard 2D of Mattey & Ghosh (time scaled to [0, 1]). Drawn at 6.5 × 4.9 in for Word (PDF next to it); data in [`figures/fig7_rerun.json`](figures/fig7_rerun.json), runs from [`plans/fig7_confirm.json`](plans/fig7_confirm.json).
 
-![Figure 7](figures/paper_methods_c.png?v=1d7ae24e)
+![Figure 7](figures/paper_methods_c.png?v=e6c3afa7)
 
-> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; and training in successive time windows (not run for (d)). Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0 (below the axis). Single runs; the setups differ in computational cost. All setups for all phase-field problems are in Supplementary Fig. S1.*
+*Still running (this panel set will be redrawn when they finish):* the two time-window setups of (d), and seeds 2027 and 2028 of (a)–(c) ([`plans/fig7_seeds.json`](plans/fig7_seeds.json)), after which (a)–(c) show the median of three seeds. The values below are seed 2026.
 
-**What it shows.** (a) Each step helps: 10% → 4.3% → 0.43% → 0.18% at t = 1. (b) Every method helps a little on this already accurate problem: 0.52% → 0.16% with exact constraints → 0.060% with SA-PINN; time windows do not help here (0.65%). (c) Exact constraints give the large gain (1.3% → 0.057%); here time windows are less accurate than the whole interval. (d) Exact constraints take the error from 51% to 0.35%, and SA-PINN halves it again (0.20%). No single method is best for every problem.
-
-**Same settings within each problem (confirmation runs queued).** In the study behind these panels the four whole-interval setups of a problem already share the network, points, learning rate and training steps, but the time-window setup ran the full number of steps and points in *every* window, so it had k times the training (k = 4 or 5 windows). The figure is being rerun on the RTX 4090 so that within each problem every technique uses the same main settings: the setups copy the network, domain, boundary and initial points, learning rate, seed and Adam / L-BFGS steps of that problem's plain PINN (the runner checks they match), and the time-window setup shares the same total steps out over its windows (each window gets 1/k of the steps but all of the points, so a step costs the same as in the other setups and the total compute is equal). Settings still differ between problems (a 2D problem needs a bigger network than a 1D one); that is fine, since each panel compares techniques on one problem. The rerun also adds time windows for (d), and a sixth setup in every panel: backward-compatible time windows (bc-PINN, Mattey & Ghosh), the same windows with each later window also held to the stored solution of the earlier ones (same steps and points; the stored points add a little to each step). Plan: `benchmarks/plans/fig7_confirm.json`; the panels and the text below will be updated from it.
-
-| Problem | Network | Domain points | Adam + L-BFGS steps | Windows (each gets) |
+| Problem | Network | Domain points | Adam + L-BFGS steps | Time windows (each gets) |
 |---|---|---|---|---|
 | (a) Allen–Cahn 1D | 4 × 128 | 2,000 | 20,000 + 10,000 | 4 (5,000 + 2,500 steps) |
 | (b) Cahn–Hilliard 1D | 4 × 128 | 10,000 | 5,000 + 5,000 | 4 (1,250 + 1,250 steps) |
 | (c) Allen–Cahn 2D | 6 × 128 | 20,000 | 12,000 + 10,000 | 5 (2,400 + 2,000 steps) |
 | (d) Cahn–Hilliard 2D | 5 × 128 | 50,000 | 40,000 + 75,000 | 4 (10,000 + 18,750 steps) |
 
-**What to write in the paper (Section 4.5)** — a draft to adapt once the rerun is in:
+| Error at t = 1 | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
+|---|---|---|---|---|---|---|
+| (a) Allen–Cahn 1D | 63% | 5.4% | 0.98% | **0.43%** | 0.83% | 1.1% |
+| (b) Cahn–Hilliard 1D | 1.7% | 0.31% | 0.30% | **0.20%** | 0.29% | 0.39% |
+| (c) Allen–Cahn 2D | 0.51% | 0.045% | 0.049% | **0.032%** | 0.45% | 0.58% |
+| (d) Cahn–Hilliard 2D | 7.3% | 0.17% | 0.25% | **0.073%** | running | running |
 
-> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that move in time and the error made early in time carries over to later times. We used them to compare the training options PINNStudio offers. For each problem the network, collocation points, learning rate and number of Adam and L-BFGS steps were kept fixed, and only the technique was changed: (i) a plain PINN with the initial and boundary conditions in the loss; (ii) the initial condition and the periodic boundaries imposed exactly through the network (Exact BC + IC); (iii) the same with residual-based attention (RBA) or (iv) self-adaptive (SA-PINN) point weights; and (v) training in successive time windows, where the same total number of steps is divided between the windows and each window uses the full set of points, so every technique had the same computational budget; and (vi) the same windows with backward compatibility (bc-PINN [9]), where each window is also trained to keep the solution of the earlier windows. Figure 7 shows the relative L₂ error against time. Imposing the conditions exactly gave the largest single improvement on all four problems, most clearly for the 2D Cahn–Hilliard equation, where the plain PINN failed. Point weighting reduced the error further on top of this, with SA-PINN best in most cases, while time windows helped only on some problems at this budget. No single method was best for every problem, which is why PINNStudio lets the user combine and switch them from the interface without changing code.
+> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; training in successive time windows; and time windows with backward compatibility (bc-PINN) [9]. Within each problem all setups use the same network, collocation points and total number of training steps. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0. Median of three seeds for (a)–(c), one run for (d).*
 
-(The numbers to quote in that paragraph come from the rerun; the sentence on time windows in particular may change, since they now get a fair share of the budget.)
+**What it shows.** Building the conditions into the network is the biggest single gain on every problem (×12 in (a), ×5 in (b), ×11 in (c), ×43 in (d) at t = 1). SA-PINN weights then give the lowest error on all four problems, RBA helps only in (a). With the same budget, time windows beat exact BC + IC alone in (a), match it at t = 1 in (b) (0.29% against 0.31%) but are the worst setup early in time there (15% at t = 0.25, where the first window has only a quarter of the steps), and are ten times less accurate in (c). Backward compatibility does not change the result at this budget (the first window is identical; later windows are about the same or slightly worse).
+
+**Compared with the original study** (Supplementary Fig. S1; one seed, time windows with k times the budget): the order of the methods is the same, but some single values moved by a factor of 2–6 (the plain PINN on (a) 10% there, 63% here; SA-PINN 0.18% there, 0.43% here), which is why the extra seeds are running. The earlier panels are under *Earlier versions* below.
+
+**What to write in the paper (Section 4.5)** — a draft; the numbers will change slightly to the seed medians:
+
+> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that move in time, and an error made early in time carries over to later times. We used four of them to compare the training options PINNStudio offers. For each problem the network, collocation points, learning rate and number of Adam and L-BFGS steps were kept fixed, and only the technique was changed: (i) a plain PINN with the initial and boundary conditions in the loss; (ii) the initial condition and the periodic boundaries imposed exactly through the network (Exact BC + IC); (iii) the same with residual-based attention (RBA) or (iv) self-adaptive (SA-PINN) point weights; (v) training in successive time windows, where the same total number of steps is divided between the windows and each window uses the full set of points; and (vi) the same windows with backward compatibility (bc-PINN [9]), where each window is also trained to keep the solution of the earlier windows. Figure 7 shows the relative L₂ error against time. Imposing the conditions exactly gave the largest single improvement on all four problems, from 63% to 5.4% at t = 1 for the 1D Allen–Cahn equation and from 7.3% to 0.17% for the 2D Cahn–Hilliard equation. Adding SA-PINN weights reduced the error further and gave the lowest error on every problem (0.03–0.4%). With the same number of training steps, time windows did not improve on the whole-interval training except for the 1D Allen–Cahn equation, and the backward compatibility term did not change this. These results show that the choice of training technique matters as much as the network, and that it differs from problem to problem; in PINNStudio these techniques are options in the interface that can be combined without changing any code.
 
 **Supplementary Fig. S1 — every setup and problem of the study** (the error at the last reference time; darker is lower, the best per row in bold, – not run):
 
@@ -265,6 +272,10 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 <details>
 <summary>Earlier versions (all setups, all problems)</summary>
+
+**Figure 7 from the original study** (the same four panels and five setups, before the matched-settings rerun: one seed, time windows with k times the steps, no time windows for (d)):
+
+![Figure 7 from the original study](figures/paper_methods_c_study.png)
 
 The same data drawn three ways (the study: [`training_methods.md`](training_methods.md); the data: [`figures/study.json`](figures/study.json); redraw with `python tools/make_methods_figure.py`). Each is drawn at 6.5 in wide for Word; PDFs next to the PNGs.
 
@@ -4871,7 +4882,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 |---|---|---|---|---|---|
 | Base PINN | 8.2 × 10<sup>-2</sup> | 5.6 × 10<sup>-1</sup> | 1.0 × 10<sup>-2</sup> | 8.6 × 10<sup>-2</sup> | 3593 |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.2.1) | – | – | – | figures only | – |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – | – | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | 2.0 × 10<sup>-2</sup> | 2.6 × 10<sup>-1</sup> | 3.7 × 10<sup>-3</sup> | 1.9 × 10<sup>-2</sup> | 27707 |
 | The template's starting settings | 2.0 × 10<sup>-3</sup> | 4.2 × 10<sup>-2</sup> | 1.2 × 10<sup>-3</sup> | – | 954 |
 | 🔴 **3× iterations** | **1.1 × 10<sup>-3</sup>** | **3.1 × 10<sup>-2</sup>** | **9.0 × 10<sup>-4</sup>** | – | **1964** |
 | Larger network (2× width, one more layer) | 8.5 × 10<sup>-4</sup> | 3.0 × 10<sup>-2</sup> | 8.9 × 10<sup>-4</sup> | – | 2301 |
@@ -4896,7 +4907,15 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
+*Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+
+<sub>h — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — h — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_h.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_mu.png)
 
 *PINNStudio best — 3× iterations:*
 
