@@ -16,6 +16,7 @@ import dataclasses
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -99,6 +100,8 @@ def compare(e, inverse, args):
     os.makedirs(d, exist_ok=True)
     try:
         cfg, _msg = es.settings_for(base_config(e, inverse), e.key, inverse, es.TUNED)
+    except SystemExit as ex:              # e.g. a template with no inverse version
+        return dict(status="skipped", note=f"no such problem: {ex}")
     except Exception as ex:  # noqa: BLE001
         return dict(status="error", note=f"config: {ex!r}")
     if getattr(cfg, "sweep_enabled", False):
@@ -118,6 +121,7 @@ def compare(e, inverse, args):
         res[kind] = dict(rc=rc, seconds=round(sec, 1),
                          loss=[ln.strip() for ln in log.splitlines() if LOSS_LINE.match(ln.strip())],
                          params={(m.group(1) or m.group(3)): (m.group(2) or m.group(4)) for m in PARAM_LINE.finditer(log)})
+    shutil.rmtree(os.path.join(d, "runs"), ignore_errors=True)     # the trained models and plots are not needed
     s, x = res["solve"], res["export"]
     out = dict(solve_rc=s["rc"], export_rc=x["rc"], lines=len(s["loss"]), seconds=(s["seconds"], x["seconds"]))
     if s["rc"] != 0 or x["rc"] != 0:
