@@ -99,7 +99,7 @@ class MemSampler(threading.Thread):
     training script itself is not changed."""
     def __init__(self, period=0.5):
         super().__init__(daemon=True)
-        self.period, self.peak, self.base, self._stop = period, None, None, threading.Event()
+        self.period, self.peak, self.base, self._halt = period, None, None, threading.Event()
 
     def _read(self):
         try:
@@ -111,14 +111,14 @@ class MemSampler(threading.Thread):
 
     def run(self):
         self.base = self._read()
-        while not self._stop.is_set():
+        while not self._halt.is_set():
             v = self._read()
             if v is not None:
                 self.peak = v if self.peak is None else max(self.peak, v)
-            self._stop.wait(self.period)
+            self._halt.wait(self.period)
 
     def stop(self):
-        self._stop.set()
+        self._halt.set()
         self.join(timeout=5)
         if self.peak is None:
             return None
