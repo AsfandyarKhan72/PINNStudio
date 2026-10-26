@@ -10,9 +10,9 @@ and trained. Several runs share the GPU at once (--jobs).
 PLAN.json is a list of {"example": <example name as the Examples list shows it>, "setup": <setup name>,
 "name": <folder name>, optional "category", "seed", "windows", "phases", "extra", "equal_budget"}.
 "match": <name of an earlier run>: copy that run's network, points, learning rate and training phases (MATCH),
-so all techniques on one example share them; set before "equal_budget" divides them over the windows.
-"equal_budget": a time-windows setup gets the same total training as the whole-interval ones (steps and
-domain/boundary points divided by the number of windows). Each
+so all techniques on one example share them; set before "equal_budget" divides the steps over the windows.
+"equal_budget": a time-windows setup gets the same total training as the whole-interval ones (the steps
+divided by the number of windows; every window keeps the full points). Each
 run's folder gets run.py, log.txt and result.json (the relative L2 error of
 every output group at every reference time). --smoke cuts iterations and
 points so that a whole plan can be checked in minutes.
@@ -130,17 +130,14 @@ def apply_setup(cfg, setup, run):
             p["iterations"] = n
         cfg.scheduler_phases = json.dumps(ph)
     if run.get("equal_budget") and cfg.time_adaptive:
-        # the same training budget as the whole-interval setups: the optimizer steps and the domain and
-        # boundary points are shared out over the windows (each window gets 1/k of them); the network and
-        # the initial-condition points stay as they are
+        # the same training budget as the whole-interval setups: the optimizer steps are shared out over the
+        # windows (each window gets 1/k of them); every window keeps the full network and points, so a step
+        # costs the same as in the whole-interval setups and the total compute is equal
         k = max(1, int(cfg.ta_num_steps))
         ph = _phases(cfg)
         for p in ph:
             p["iterations"] = max(1, int(round(int(p["iterations"]) / k)))
         cfg.scheduler_phases = json.dumps(ph)
-        cfg.num_domain = max(1, int(round(cfg.num_domain / k)))
-        if hasattr(cfg, "num_boundary"):
-            cfg.num_boundary = max(1, int(round(cfg.num_boundary / k)))
     if "seed" in run:
         cfg.random_seed = run["seed"]
 
