@@ -1826,6 +1826,71 @@ def _result_vals(r):
     return fref, r["f_best"], ft, _par_txt(r.get("i_best_par")), _perr(r.get("i_best_par")), it
 
 
+def _inner(toggle):
+    """The body of a <details> toggle (between its summary and its closing tag)."""
+    k = toggle.index("</summary>") + len("</summary>")
+    return toggle[k:toggle.rindex("</details>")].strip()
+
+
+def _labelled(body):
+    """[(label, text)] of a figures toggle's body: each block starts with a line *label:*."""
+    parts = re.split(r"(?m)^\*(?!\*)([^\n]*?):\*\s*$", body)
+    return [(parts[i].strip(), parts[i + 1].strip()) for i in range(1, len(parts) - 1, 2)]
+
+
+def _front_figures(bench_sec):
+    """One toggle with PINNStudio best's figures only: forward, then inverse."""
+    out = []
+    for t in _toggles(bench_sec, "📊"):
+        mode = "Inverse problem" if "Inverse results" in t[:200] else "Forward problem"
+        blocks = _labelled(_inner(t))
+        best = [(l, x) for l, x in blocks if l.startswith("PINNStudio best") or "also PINNStudio best" in l]
+        pick = best[-1] if best else (blocks[-1] if blocks else None)
+        if not pick or "![" not in pick[1]:
+            continue
+        label = pick[0].replace(" (also PINNStudio best)", "")
+        label = re.sub(r"^PINNStudio best( — )?", "", label) or "the example's own settings"
+        out.append(f"*{mode} — {label}:*\n\n" + pick[1])
+    if not out:
+        return ""
+    return ("<details>\n<summary>📊 <em>Results — PINNStudio best</em></summary>\n\n" + _to_root("\n\n".join(out))
+            + "\n\n</details>\n")
+
+
+def _default_summary(body):
+    """The Default settings in short: per problem the network, points and training."""
+    out = []
+    for blk in re.split(r"(?m)^(?=\*(?:Forward|Inverse) problem)", body):
+        head = re.match(r"\*((?:Forward|Inverse) problem)[^*\n]*\*", blk)
+        keep = [ln for ln in blk.split("\n") if re.match(r"- \*\*(Network|Points|Training):", ln)]
+        if head and keep:
+            out.append(f"*{head.group(1)}:* " + "; ".join(re.sub(r"^- \*\*([^*]+):\*\*\s*", r"\1 ", k).strip()
+                                                         for k in keep))
+    return "\n\n".join(out)
+
+
+def _front_settings(bench_sec, name):
+    """One settings toggle: PINNStudio best (Tuned) in full, the Default settings in short."""
+    tog = _toggles(bench_sec, "⚙️")
+    dflt = next((t for t in tog if "Default settings" in t[:200]), None)
+    tuned = next((t for t in tog if "PINNStudio best" in t[:200] and "Default settings" not in t[:200]), None)
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    full = f"README.md#bench-{slug}"      # made relative to the root by _to_root
+    parts = []
+    if tuned:
+        parts.append("**PINNStudio best (*Settings: Tuned*)**\n\n" + _inner(tuned))
+        if dflt:
+            sm = _default_summary(_inner(dflt))
+            parts.append("**Default (*Settings: Default*)** — what loads first; in short:\n\n" + (sm + "\n\n" if sm else "")
+                         + f"The full Default settings, and where they come from: [benchmark]({full}).")
+    elif dflt:
+        parts.append("**Default (*Settings: Default*) — also PINNStudio best**\n\n" + _inner(dflt))
+    if not parts:
+        return ""
+    return ("<details>\n<summary>⚙️ <em>Settings</em></summary>\n\n" + _to_root("\n\n".join(parts))
+            + "\n\n</details>\n")
+
+
 def _front_section(r, ent, bench_sec):
     e = r["entry"]
     fref, fbest, ft, ipar, iperr, it = _result_vals(r)
@@ -1851,8 +1916,10 @@ def _front_section(r, ent, bench_sec):
     if rows:
         L.append(f"**Results (RTX 4090).** *Default* is {dflt}; *PINNStudio best* is the *Tuned* setting.\n")
         L.append("| | Default | PINNStudio best | Training time of the best (s) |\n|---|---|---|---|\n" + "\n".join(rows) + "\n")
-    for t in _toggles(bench_sec, "⚙️") + _toggles(bench_sec, "📊"):
-        L.append(_to_root(t) + "\n")
+    L.append(_front_settings(bench_sec, e.name))
+    figs = _front_figures(bench_sec)
+    if figs:
+        L.append(figs)
     slug = re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")
     L.append(f"[Full benchmark: every setting tried, the errors the papers report, all figures →]"
              f"(benchmarks/README.md#bench-{slug})\n")
