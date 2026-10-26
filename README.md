@@ -874,13 +874,6 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-lorenz-ode-unknown-c-c-c)
 
 </details>
@@ -940,13 +933,6 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 <sub>the learned parameters during training</sub>
 
 ![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif)
 
 </details>
 
@@ -1520,13 +1506,6 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-brinkman-forchheimer-1d-unknown-e-k)
 
 </details>
@@ -1631,13 +1610,6 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 <sub>the learned parameters during training</sub>
 
 ![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Fractional Poisson 1D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif)
 
 </details>
 
@@ -1891,13 +1863,6 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-1d-wight-zhao)
 
 </details>
@@ -2105,13 +2070,6 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Black-Scholes 1D – American put — PINN solution over time (u)](assets/Images/DeepXDE/American_put_option/animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-black-scholes-1d-american-put)
 
 </details>
@@ -2162,13 +2120,6 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Black-Scholes 1D – European call: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Black_Scholes_equation_call_option/base_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Black-Scholes 1D – European call — PINN solution over time (u)](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
 
 </details>
 
@@ -2280,15 +2231,6 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
-
-![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-1d-raissi-et-al)
 
 </details>
@@ -2339,13 +2281,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Burgers 1D – RAR: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Burgers_equation_with_RAR/base_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Burgers 1D – RAR — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
 
 </details>
 
@@ -2425,13 +2360,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d)
 
 </details>
@@ -2483,13 +2411,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Diffusion 1D – hard IC and BCs: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion 1D – hard IC and BCs — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
 
 </details>
 
@@ -2564,13 +2485,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation_with_resampling/lbfgs_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)
 
 </details>
 
@@ -2685,13 +2599,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion-reaction 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-reaction-1d)
 
 </details>
@@ -2743,13 +2650,6 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Fractional diffusion 1D: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Fractional_diffusion_equation/base_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Fractional diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
 
 </details>
 
@@ -2866,15 +2766,6 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Heat 1D – Dirichlet — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)
-
-![Heat 1D – Dirichlet inverse mode — inferred parameter during training](assets/Images/DeepXDE/Heat_equation/inverse_param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-heat-1d-dirichlet)
 
 </details>
@@ -2947,13 +2838,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 <sub>PINN against the reference along a line, at the reference times</sub>
 
 ![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation_with_resampling/net_line_comparison.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Heat 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)
 
 </details>
 
@@ -3065,13 +2949,6 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Klein-Gordon 1D — PINN solution over time (u)](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-klein-gordon-1d)
 
 </details>
@@ -3168,15 +3045,6 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 <sub>the learned parameters during training</sub>
 
 ![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](benchmarks/figures/tuning/Schr_dinger_equation_inv/net_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Schrödinger 1D — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
-
-![Schrödinger 1D inverse mode — inferred parameter during training](assets/Images/DeepXDE/Schr_dinger_equation/inverse_param_convergence_animation.gif)
 
 </details>
 
@@ -3292,13 +3160,6 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Wave 1D – space-time multi-scale Fourier features — PINN solution over time (u)](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-wave-1d-space-time-multi-scale-fourier-features)
 
 </details>
@@ -3371,15 +3232,6 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion 1D – unknown coefficient — PINN solution over time (u)](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
-
-![Diffusion 1D – unknown coefficient — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d-unknown-coefficient)
 
 </details>
@@ -3427,17 +3279,6 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
 ![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
-
-![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif)
-
-![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif)
 
 </details>
 
@@ -4180,13 +4021,6 @@ A companion to the L-shape example, on a smooth (curved, non-singular) boundary 
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Poisson (Disk) inverse parameter convergence animation](assets/Images/2D-Poisson-Disk-Shaped/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-2d-disk)
 
 </details>
@@ -4253,13 +4087,6 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Poisson 2D – L-shape inverse parameter convergence animation](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-2d-l-shape)
 
 </details>
@@ -4312,13 +4139,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 <sub>the learned parameters during training</sub>
 
 ![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Fractional Poisson 2D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif)
 
 </details>
 
@@ -4430,15 +4250,6 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
-
-![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-2d-wight-zhao)
 
 </details>
@@ -4539,15 +4350,6 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 <sub>the learned parameters during training</sub>
 
 ![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 10× weight on the measured data — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/dataw_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
-
-![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)
 
 </details>
 
@@ -4670,13 +4472,6 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Cahn-Hilliard (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Wight/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-cahn-hilliard-2d-wight-zhao)
 
 </details>
@@ -4790,13 +4585,6 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <sub>the learned parameters during training</sub>
 
 ![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Cahn-Hilliard (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)
 
 </details>
 
@@ -4947,17 +4735,6 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
-
-<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
-
-![2D Burgers (Mathias) inverse parameter convergence animation](assets/Images/2D_Burgers/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-2d-mathias-et-al)
 
 </details>
@@ -5033,15 +4810,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 <sub>the learned parameters during training</sub>
 
 ![Heat 2D: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Heat_inv/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
-
-![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
 
 </details>
 
@@ -5172,13 +4940,6 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![3D Poisson (Sphere) inverse parameter convergence animation](assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-3d-sphere)
 
 </details>
@@ -5296,13 +5057,6 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 </details>
 
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif)
-
-</details>
-
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-3d-wight-zhao)
 
 </details>
@@ -5388,15 +5142,6 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 <sub>the learned parameters during training</sub>
 
 ![Heat 3D: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Heat_inv/base_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)
-
-![3D Heat inverse parameter convergence animation](assets/Images/3D_Heat/param_convergence_animation.gif)
 
 </details>
 
@@ -5536,19 +5281,6 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 <sub>the learned parameters during training</sub>
 
 ![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — the learned parameters during training](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png)
-
-</details>
-
-<details>
-<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
-
-![Navier-Stokes 3D – Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
-
-![Navier-Stokes 3D – Beltrami flow — PINN solution over time (v)](assets/Images/DeepXDE/Beltrami_flow/animation_v.gif)
-
-![Navier-Stokes 3D – Beltrami flow — PINN solution over time (w)](assets/Images/DeepXDE/Beltrami_flow/animation_w.gif)
-
-![Navier-Stokes 3D – Beltrami flow — PINN solution over time (p)](assets/Images/DeepXDE/Beltrami_flow/animation_p.gif)
 
 </details>
 
@@ -5846,6 +5578,10 @@ How much these help on the phase-field problems, at the same training cost, is m
 **Source code:** [convergence plots](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9073-L9181) (`codegen.py`) · [plots after training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L16014-L16175) (`main_window.py`)
 
 In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & visualize.
+
+![Inverse problem: the two coefficients of the 1D Allen-Cahn equation (γ₁, diffusion; γ₂, reaction) converging to their true values during training](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
+
+*Allen-Cahn 1D – Wight & Zhao in Inverse mode: both coefficients start from 1 and settle on their true values (γ₁ = 10⁻⁴, γ₂ = 5) during training.*
 
 </details>
 

@@ -219,7 +219,7 @@ _PROB_INDEX = []
 
 def _prob_index():
     """benchmarks/problems/index.json: every example in the README's order, with its README anchor, its group
-    heading, its problem file and its training animations."""
+    heading and its problem file."""
     if not _PROB_INDEX:
         try:
             _PROB_INDEX.extend(json.load(open(os.path.join(PROB_DIR, "index.json"), encoding="utf-8")))
@@ -1853,9 +1853,6 @@ def _front_section(r, ent, bench_sec):
         L.append("| | Default | PINNStudio best | Training time of the best (s) |\n|---|---|---|---|\n" + "\n".join(rows) + "\n")
     for t in _toggles(bench_sec, "⚙️") + _toggles(bench_sec, "📊"):
         L.append(_to_root(t) + "\n")
-    if ent.get("gifs"):
-        L.append("<details>\n<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>\n\n"
-                 + "\n\n".join(ent["gifs"]) + "\n\n</details>\n")
     slug = re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")
     L.append(f"[Full benchmark: every setting tried, the errors the papers report, all figures →]"
              f"(benchmarks/README.md#bench-{slug})\n")
