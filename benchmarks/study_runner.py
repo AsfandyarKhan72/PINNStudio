@@ -257,12 +257,24 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--build-only", action="store_true", help=argparse.SUPPRESS)
     a = ap.parse_args()
     out = os.path.abspath(a.out)
     plan = json.load(open(a.plan))
-    dirs = build(plan, out, a.smoke)
+    if a.build_only:
+        build(plan, out, a.smoke)
+        os._exit(0)                 # skip Qt's teardown, which can crash after the scripts are written
+    # the scripts are written in a separate process, so a crash of the hidden window cannot stop the runs
+    cmd = [sys.executable, os.path.abspath(__file__), a.plan, out, "--build-only"] + (["--smoke"] if a.smoke else [])
+    rc = subprocess.run(cmd).returncode
+    dirs = [os.path.join(out, r["name"]) for r in plan]
+    todo = [d for d in dirs if os.path.exists(os.path.join(d, "run.py"))
+            and not os.path.exists(os.path.join(d, "result.json"))]          # finished runs are kept
+    missing = [os.path.basename(d) for d in dirs if not os.path.exists(os.path.join(d, "run.py"))]
+    print(f"== scripts built (rc={rc}); {len(todo)} to run, {len(dirs) - len(todo) - len(missing)} already done"
+          + (f"; NOT BUILT: {missing}" if missing else ""), flush=True)
     with ThreadPoolExecutor(a.jobs) as ex:
-        list(ex.map(run_one, dirs))
+        list(ex.map(run_one, todo))
 
 
 if __name__ == "__main__":
