@@ -147,6 +147,7 @@ def _par_txt(params):
             .replace("gamma", "γ").replace("omega", "ω").replace("kappa", "κ").replace("nu", "ν").replace("mu", "μ") \
             .replace("^2", "²").replace("_1", "₁").replace("_2", "₂").replace("_3", "₃").replace("_0", "₀") \
             .replace("_e", "ₑ").replace("_f", "_f")
+        s = re.sub(r"^([A-Za-z])([0-9])$", lambda m: m.group(1) + "₀₁₂₃₄₅₆₇₈₉"[int(m.group(2))], s)   # C1 -> C₁
         out.append(f"{s} = {found:.6g} ({true:.6g})")
     return "; ".join(out)
 
@@ -1492,6 +1493,10 @@ def main():
                         o = dict(r["outs"])
                         # μ of the Cahn-Hilliard templates decays to almost zero, so its relative L2 looks large:
                         # its mean absolute error goes in its own column
+                        if slug.startswith("Beltrami_flow"):
+                            # p is fixed only up to a constant there and the runs' p error is not taken after
+                            # removing the mean, so its relative L2 says nothing: left out
+                            o.pop("p", None)
                         if "mu" in o and (r.get("abs") or {}).get("mu") is not None:
                             o["abs_mu"] = r["abs"]["mu"]
                         OUTS[(slug, variant, str(r["seed"]))] = o

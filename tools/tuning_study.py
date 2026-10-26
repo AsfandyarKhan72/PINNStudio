@@ -459,6 +459,11 @@ def run(args):
         if args.best and tkey in BEST_FORWARD and not inverse:   # start from the study's best setup
             base = apply_switches(base, BEST_FORWARD[tkey])
             name = name + " | best setup"
+        if getattr(base, "sweep_enabled", False):
+            # a Parameter Sweep example runs its own 50 trainings in the background: not a single run to time
+            # or compare (it also kept writing into the next runs' logs)
+            print(f"--  {name[:50]:50s} is a parameter sweep: skipped", flush=True)
+            continue
         true = {v["name"]: v.get("true") for v in json.loads(base.inverse_variables_json or "[]")}
         for variant in variants:
             cfg0 = apply_variant(base, variant, tkey)
