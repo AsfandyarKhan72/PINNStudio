@@ -230,11 +230,22 @@ For each template taken from a paper: the plain PINN (the template's equations w
 </details>
 
 <details>
-<summary>📄 <em>Figure 7 for the paper — the training-methods study (three versions)</em></summary>
+<summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
+
+**Figure 7.** Three problems, the same five training setups in each: the plain PINN (initial and boundary conditions in the loss), the initial condition and periodicity built into the network (exact BC + IC), that with RBA or with SA-PINN point weights, and training in successive time windows (exact BC, the initial condition of each window in the loss). Error at every reference time; the figure is drawn at 6.5 × 2.55 in for Word (PDF next to it). The problems: (a) Allen–Cahn 1D of Wight & Zhao, (b) Cahn–Hilliard 1D of Mattey & Ghosh, (c) Allen–Cahn 2D of Mattey & Ghosh.
+
+![Figure 7](figures/paper_methods_c.png?v=ed5be177)
+
+> *Caption to start from: Relative L₂ error against time for (a) the one-dimensional Allen–Cahn equation of Wight and Zhao [8], (b) the one-dimensional Cahn–Hilliard equation of Mattey and Ghosh [9] and (c) the two-dimensional Allen–Cahn equation of Mattey and Ghosh [9], trained in PINNStudio with five setups: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; and training in successive time windows. Single runs; the setups differ in computational cost. All setups for eight phase-field problems are in Supplementary Fig. S1.*
+
+**What it shows.** (a) Each step helps: 10% → 4.3% → 0.43% → 0.18% at t = 1. (b) Every setup on the whole time interval fails (51–90%); only time windows solve it (0.48%). (c) Exact constraints give the large gain (1.3% → 0.057%), and here time windows are less accurate than the whole interval — no single method is best for every problem.
+
+<details>
+<summary>Earlier versions (all setups, all problems)</summary>
 
 The same data drawn three ways (the study: [`training_methods.md`](training_methods.md); the data: [`figures/study.json`](figures/study.json); redraw with `python tools/make_methods_figure.py`). Each is drawn at 6.5 in wide for Word; PDFs next to the PNGs.
 
-**Version A — every setup on one error axis (recommended for Figure 7).** One row per problem; each point is one training setup, coloured by the method added and shaped by whole interval (circle) or time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270), the best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems (2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.
+**Version A — every setup on one error axis.** One row per problem; each point is one training setup, coloured by the method added and shaped by whole interval (circle) or time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270), the best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems (2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.
 
 ![Figure 7, version A](figures/paper_methods_a.png?v=dd2ffada)
 
@@ -244,9 +255,11 @@ The same data drawn three ways (the study: [`training_methods.md`](training_meth
 
 ![Figure 7, version B](figures/paper_methods_b.png?v=7a53e4a0)
 
-**Version C — the current heatmap (every number; best kept in the supplement).**
+**Version C — the heatmap (every number; Supplementary Fig. S1).**
 
 ![The training-methods heatmap](figures/study_overview.png)
+
+</details>
 
 </details>
 

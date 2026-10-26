@@ -155,11 +155,52 @@ def fig_b(ex):
     plt.close(fig)
 
 
+# Figure 7 (chosen design): the same five setups in every panel
+SETUPS = [("Loss BC + loss IC", "Plain PINN", INK, (0, (4, 2)), "o"),
+          ("Exact BC + exact IC", "Exact BC + IC", "#8a8f98", "-", "s"),
+          ("Exact BC + exact IC + RBA", "Exact BC + IC + RBA", C["RBA"], "-", "^"),
+          ("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN", C["SA-PINN"], "-", "D"),
+          ("Time windows: exact BC + loss IC", "Time windows", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v")]
+PANELS = [("ac1d", "(a) Allen–Cahn 1D"), ("ch1d_mg", "(b) Cahn–Hilliard 1D"), ("ac2d_mg", "(c) Allen–Cahn 2D")]
+
+
+def fig_c(ex):
+    style()
+    fig, axs = plt.subplots(1, 3, figsize=(WIDTH, 2.55), sharey=True)
+    for ax, (eid, title) in zip(axs, PANELS):
+        e = ex[eid]
+        for setup, _, col, ls, mk in SETUPS:
+            c = next(c for c in e["core"] if c["setup"] == setup)
+            t = [p[0] for p in c["l2"] if p[0] > 0]
+            v = [p[1] for p in c["l2"] if p[0] > 0]
+            ax.plot(t, v, ls=ls, color=col, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5, zorder=3)
+        ax.set_yscale("log")
+        ax.set_ylim(1e-4, 3)
+        ax.set_xlim(0, 1.03)
+        ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0], ["0", "0.25", "0.5", "0.75", "1"])
+        ax.set_title(title, fontsize=8.8, loc="left", pad=4)
+        ax.set_xlabel("$t$", labelpad=1)
+        ax.grid(color=GRID, lw=0.6)
+        ax.set_axisbelow(True)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.tick_params(labelsize=7.8)
+    axs[0].set_ylabel("Relative $L_2$ error")
+    h = [Line2D([], [], color=col, ls=ls, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5) for _, _, col, ls, mk in SETUPS]
+    fig.legend(h, [lab for _, lab, _, _, _ in SETUPS], loc="upper center", ncol=5, frameon=False, fontsize=7.4,
+               handlelength=2.4, handletextpad=0.35, columnspacing=0.9, bbox_to_anchor=(0.5, 1.0))
+    fig.subplots_adjust(left=0.095, right=0.99, top=0.80, bottom=0.16, wspace=0.1)
+    for ext in ("png", "pdf"):
+        fig.savefig(os.path.join(OUT, f"paper_methods_c.{ext}"), dpi=300)
+    plt.close(fig)
+
+
 def main():
     d = json.load(open(DATA, encoding="utf-8"))
     ex = {e["id"]: e for e in d["examples"]}
     fig_a(ex)
     fig_b(ex)
+    fig_c(ex)
     print("wrote", os.path.join(OUT, "paper_methods_a.png"), "and _b")
 
 
