@@ -234,15 +234,19 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 **Figure 7.** Four phase-field problems, the same training setups in each: the plain PINN (initial and boundary conditions in the loss), the initial condition and periodicity built into the network (exact BC + IC), that with RBA or with SA-PINN point weights, and training in successive time windows (exact BC, the initial condition of each window in the loss; not run for 2D Cahn–Hilliard). Error at every reference time from t = 0, each panel with its own error range; drawn at 6.5 × 4.9 in for Word (PDF next to it). (a) Allen–Cahn 1D of Wight & Zhao, (b) Cahn–Hilliard 1D of Mattey & Ghosh, (c) Allen–Cahn 2D of Mattey & Ghosh, (d) Cahn–Hilliard 2D of Mattey & Ghosh (time scaled to [0, 1]).
 
-![Figure 7](figures/paper_methods_c.png?v=c7cac1c0)
+![Figure 7](figures/paper_methods_c.png?v=1afd75b3)
 
-> *Caption to start from: Relative L₂ error against time for (a) the one-dimensional Allen–Cahn equation of Wight and Zhao [8], (b) the one-dimensional and (d) the two-dimensional Cahn–Hilliard equations and (c) the two-dimensional Allen–Cahn equation of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; and training in successive time windows (not run for (d)). Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0. Single runs; the setups differ in computational cost. All setups for all phase-field problems are in Supplementary Fig. S1.*
+> *Caption to start from: Relative L₂ error against time for (a) the one-dimensional Allen–Cahn equation of Wight and Zhao [8], (b) the one-dimensional and (d) the two-dimensional Cahn–Hilliard equations and (c) the two-dimensional Allen–Cahn equation of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; and training in successive time windows (not run for (d)). Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0 (below the axis). Single runs; the setups differ in computational cost. All setups for all phase-field problems are in Supplementary Fig. S1.*
 
 **What it shows.** (a) Each step helps: 10% → 4.3% → 0.43% → 0.18% at t = 1. (b) Every setup on the whole time interval fails (51–90%); only time windows solve it (0.48%). (c) Exact constraints give the large gain (1.3% → 0.057%); here time windows are less accurate than the whole interval. (d) Exact constraints take the error from 51% to 0.35%, and SA-PINN halves it again (0.20%). No single method is best for every problem.
 
 **Supplementary Fig. S1 — every setup and problem of the study** (the error at the last reference time; darker is lower, the best per row in bold, – not run):
 
 ![The training-methods study: every setup and problem](figures/study_overview.png)
+
+**Supplementary Fig. S2 — the same study, every setup on one error axis** (one row per problem; open circle: plain PINN, star: best setup with the improvement factor; colour: the method added; square: time windows):
+
+![Every setup of the study on one error axis](figures/paper_methods_a.png?v=dd2ffada)
 
 <details>
 <summary>Earlier versions (all setups, all problems)</summary>

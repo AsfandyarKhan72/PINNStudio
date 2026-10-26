@@ -180,12 +180,11 @@ def fig_c(ex):
         for c, col, ls, mk in curves:
             if c is None:
                 continue
-            pts = c["l2"]
-            if pts and pts[0][0] == 0 and pts[0][1] < lo:     # exact IC: zero error at t = 0, below the axis
-                ax.plot([0], [lo], ls="", marker=mk, ms=4.2, mfc="white", mec=col, mew=1.0, zorder=4, clip_on=False)
-                pts = pts[1:]
+            pts = [(p[0], max(p[1], lo)) for p in c["l2"]]
             ax.plot([p[0] for p in pts], [p[1] for p in pts], ls=ls, color=col, lw=1.5, marker=mk, ms=3.6,
                     mec="white", mew=0.5, zorder=3, clip_on=False)
+            if c["l2"] and c["l2"][0][0] == 0 and c["l2"][0][1] < lo:   # exact IC: zero error at t = 0, on the lower edge
+                ax.plot([0], [lo], ls="", marker=mk, ms=4.4, mfc="white", mec=col, mew=1.0, zorder=4, clip_on=False)
         ax.set_yscale("log")
         ax.set_ylim(lo, hi)
         ax.set_xlim(0, 1.0)
