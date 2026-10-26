@@ -28,7 +28,7 @@ Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is ru
 | Time windows: exact BC + loss IC + RBA | exact | loss | windows | RBA |
 | Time windows: exact BC + loss IC + SA-PINN | exact | loss | windows | SA-PINN |
 
-Everything else (network, points, iterations) is the example's own and is given at the start of its section. Within one example all setups share these settings, with one exception in the runs below: a time-window setup trained every window with the full number of steps and points, so it had k times the training of a whole-interval setup (k windows). **Equal-budget reruns** of the four problems of the paper's Figure 7 (1D Allen-Cahn and Cahn-Hilliard of Wight & Zhao, 2D Allen-Cahn and Cahn-Hilliard of Mattey & Ghosh) are queued on the GPU ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)): there every setup copies the network, points, learning rate, seed and steps of the example's plain run (`"match"`, checked by the runner), and the time windows share the same total steps out over the windows, each window keeping the full points, so every setup gets the same compute (`"equal_budget"`). The reruns add a sixth setup, **Time windows + backward compatibility** (bc-PINN of Mattey & Ghosh: each later window is also fitted to the stored solution of the earlier windows), with the same steps and points as the plain time windows. Settings still differ between examples; the comparison is between setups on one example. Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the unweighted loss instead. "(template)" marks the setup the example's template uses, the best setup of each table is in bold, and "–" marks a setup that was not run. Under each core table, **other setups** lists further runs on that problem, named the same way. The other problems (Klein-Gordon, Burgers, and the steady problems) have no periodicity or initial condition to build in, so they are run as **Plain** (every condition a loss term) and **Plain +** one method.
+Everything else (network, points, iterations) is the example's own and is given at the start of its section. Within one example all setups share these settings, except that a time-window setup trains every window with the full number of steps (k times the training of a whole-interval setup). For the paper's Figure 7 the four main phase-field problems were rerun under one common protocol; see [The controlled comparison (paper Figure 7)](#the-controlled-comparison-paper-figure-7). Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the unweighted loss instead. "(template)" marks the setup the example's template uses, the best setup of each table is in bold, and "–" marks a setup that was not run. Under each core table, **other setups** lists further runs on that problem, named the same way. The other problems (Klein-Gordon, Burgers, and the steady problems) have no periodicity or initial condition to build in, so they are run as **Plain** (every condition a loss term) and **Plain +** one method.
 
 **Figures.** Each figure shows the error against time on a log scale, every core setup in one plot, in the order and with the names of the table under it. The colour is the weighting method (purple none, blue RBA, orange SA-PINN, green causal, dark green causal + MsFFN), a **solid line** trains on the whole time interval at once and a **dashed line** in time windows, and the two setups without an exact IC on the whole interval are gray with open markers. A thick line is the template's setup. $t = 0$ is left out, because with an exact IC the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/). Figures and core tables are drawn from [`figures/study.json`](figures/study.json) by [`make_figures.py`](make_figures.py), and the runs were made with [`study_runner.py`](study_runner.py) from the plans in [`plans/`](plans/).
 
@@ -73,6 +73,64 @@ Everything else (network, points, iterations) is the example's own and is given 
 **What did not.** The exact initial condition is not always better than the initial condition as a loss term: on 3D Allen-Cahn and 2D Cahn-Hilliard (Wight & Zhao), whose solutions change quickly at the start, the loss term was 25 and 3.6 times more accurate at $t = 1$. Time windows made smooth problems worse (1D Cahn-Hilliard, Wight & Zhao). SA-PINN with the initial condition as a loss term can fail completely (2D Allen-Cahn, Wight & Zhao: $u = 0$ in every window). The Fourier-feature network hurt on the smooth 2D problems (2D Allen-Cahn and 2D Cahn-Hilliard of Mattey & Ghosh). Gradient-norm loss balancing was worse everywhere and has been removed; causal training with one fixed $\varepsilon$ had almost no effect, and causal training together with per-point weights did worse than either alone.
 
 **Following the papers closely mattered.** The first versions of causal training and SA-PINN here used one fixed $\varepsilon$ and normalized SA-PINN's weights. Both then looked no better than RBA, or worse, until they were implemented as published (see [Checked against the papers](#checked-against-the-papers)); only the corrected versions are reported here.
+
+## The controlled comparison (paper Figure 7)
+
+The study above uses each example's own settings, which differ from problem to problem (they follow each paper), so it shows what works on each problem but is not a controlled comparison. For the paper's Figure 7 the four phase-field problems were rerun under **one protocol**: the equations, domains, initial conditions and reference solutions follow the source papers (1D Allen-Cahn and 1D Cahn-Hilliard of Wight & Zhao, 2D Allen-Cahn and 2D Cahn-Hilliard of Mattey & Ghosh), and the training settings are the same for every problem of a dimension and every technique. Within a panel only the technique changes.
+
+**Shared settings** (plan: [`plans/fig7_v2.json`](plans/fig7_v2.json)):
+
+| | 1D: (a) Allen-Cahn, (b) Cahn-Hilliard | 2D: (c) Allen-Cahn, (d) Cahn-Hilliard |
+|---|---|---|
+| Network | 4 × 128, tanh | 6 × 128, tanh |
+| Domain (collocation) points | 10,000 | 20,000 |
+| Boundary points | 200 | 1,600 |
+| Initial-condition points | 512 | 4,096 (the 64 × 64 grid) |
+| Training | 20,000 Adam (learning rate $10^{-3}$) + 10,000 L-BFGS | same |
+| Loss weights | 1 on the equation and boundary terms; 100 on the initial condition when it is a loss term | same |
+| Seed | 2026 | same |
+
+**Setups** (the same in every panel):
+
+| # | Setup | Boundary condition | Initial condition | Time | Weights | Training per run |
+|---|---|---|---|---|---|---|
+| 1 | Plain PINN | loss term | loss term | whole interval | – | 20,000 + 10,000 |
+| 2 | Exact BC + IC | built into the network (periodic) | built into the network | whole interval | – | 20,000 + 10,000 |
+| 3 | Exact BC + IC + RBA | built in | built in | whole interval | RBA | 20,000 + 10,000 |
+| 4 | Exact BC + IC + SA-PINN | built in | built in | whole interval | SA-PINN | 20,000 + 10,000 |
+| 5 | Time windows | built in | loss term | 4 windows of 0.25 | – | every window 20,000 + 10,000 (4 × the total) |
+| 6 | Time windows + backward (bc-PINN) | built in | loss term | 4 windows, earlier windows' solution kept | – | every window 20,000 + 10,000 (4 × the total) |
+| 5b | Time windows, equal compute | built in | loss term | 4 windows | – | every window 5,000 + 2,500 (30,000 in total, as setups 1–4) |
+| 6b | bc-PINN windows, equal compute | built in | loss term | 4 windows + backward | – | every window 5,000 + 2,500 |
+
+**How the time windows work in PINNStudio** (Adaptive training → *Time Adaptive Training*):
+
+- The interval $[0, 1]$ is split into 4 windows that are trained one after the other. Every window samples **all** the domain and boundary points inside its own time slice, so a training step costs the same as in a whole-interval run and the points are 4 times denser in time.
+- **Initial condition of a window.** The first window has the true initial condition; every later window has the previous window's prediction at its end time, both as a loss term (weight 100) on a uniform grid: 512 points in 1D, the 64 × 64 grid in 2D (the same numbers as the initial-condition points of setups 1–4). An exact initial condition cannot be combined with time windows in PINNStudio, so setups 5–6b have it as a loss term.
+- **Transfer learning.** Each window starts from the previous window's network weights, taken after its L-BFGS phase (*Enable transfer learning*, *Transfer optimizer: L-BFGS*). The optimizers start fresh in every window (Adam, then L-BFGS).
+- **Backward compatibility (setups 6, 6b).** After each window its prediction is stored on the same grid at 10 times inside the window, and every later window has an extra loss term (weight 100) that keeps the network close to those stored values. This is the backward-compatible part of Mattey & Ghosh's bc-PINN; their initial-condition-guided pre-training of each window is not included here.
+- **Full or equal compute.** Setups 5 and 6 train every window like a full run, as the method is normally used; they cost about 4 times as much as setups 1–4, which is why the training times are reported. Setups 5b and 6b give the windows exactly the training of setups 1–4 (the steps shared out, all the points kept), so that the technique is the only difference.
+
+**Reproducing.** `python benchmarks/study_runner.py benchmarks/plans/fig7_v2.json <out> --jobs 2` (in a plan, `"match"` copies the plain run's network, points, learning rate, seed and steps into every other setup of the problem and checks them, `"equal_budget"` shares the steps out over the windows). The runner writes each run's script (`run.py`), log and errors at every reference time (`result.json`); [`tools/make_methods_figure.py`](../tools/make_methods_figure.py) draws the figure from `figures/fig7_rerun.json`.
+
+**Versions.** The figure went through three sets of runs; the paper uses the last one.
+
+| Version | Settings | Time windows | Status |
+|---|---|---|---|
+| Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
+| Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
+| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | running (October 2026) |
+
+Results of the matched-per-problem version (error at $t = 1$, seed 2026):
+
+| Problem | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
+|---|---|---|---|---|---|---|
+| 1D Allen-Cahn (4 × 128, 2,000 points, 20,000 + 10,000) | 63% | 5.4% | 0.98% | **0.43%** | 0.83% | 1.1% |
+| 1D Cahn-Hilliard (4 × 128, 10,000 points, 5,000 + 5,000) | 1.7% | 0.31% | 0.30% | **0.20%** | 0.29% | 0.39% |
+| 2D Allen-Cahn (6 × 128, 20,000 points, 12,000 + 10,000) | 0.51% | 0.045% | 0.049% | **0.032%** | 0.45% | 0.58% |
+| 2D Cahn-Hilliard (5 × 128, 50,000 points, 40,000 + 75,000) | 7.3% | 0.17% | 0.25% | **0.073%** | – | – |
+
+(The time-window columns had 1/k of the steps per window.) The ranking agrees with the original study, but some single values differ from it by a factor of 2–6 (the plain PINN on 1D Allen-Cahn: 10% there, 63% here), so single runs are only read for differences well above that; more seeds follow once the protocol is settled.
 
 ## Allen-Cahn
 
