@@ -1526,7 +1526,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Boundary conditions:** Periodic
 - **Geometry:** Interval
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters:
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters.
 
 <details>
 <summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
@@ -1955,7 +1955,7 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1:
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
 
@@ -2530,7 +2530,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
 
-*Inverse mode* — pick the example from the **Inverse** list: the diffusivity $a$ is unknown (initial guess 1, true value 0.4) and is learned together with $u$ from $u$ measured at $t = 1$ (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](../reference_data/1D/heat/t_1.0.txt)):
+*Inverse mode* — pick the example from the **Inverse** list: the diffusivity $a$ is unknown (initial guess 1, true value 0.4) and is learned together with $u$ from $u$ measured at $t = 1$ (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](../reference_data/1D/heat/t_1.0.txt)).
 
 $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
@@ -2866,7 +2866,7 @@ $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - 
 
 - **Initial condition:** $h(x, 0) = 2\ \mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
 
-*Inverse mode* — pick the example from the **Inverse** list: the coefficient $c$ of the second-derivative terms (0.5 above; initial guess 1) is unknown and is learned from $|h| = \sqrt{u^2 + v^2}$ measured at $t = 0.75$, with the same training as above:
+*Inverse mode* — pick the example from the **Inverse** list: the coefficient $c$ of the second-derivative terms (0.5 in Forward mode; initial guess 1) is unknown and is learned from $|h| = \sqrt{u^2 + v^2}$ measured at $t = 0.75$, with the same training as the forward problem.
 
 $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0$$
 
@@ -3973,7 +3973,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
 - **Geometry:** Disk, center $(0,0)$, radius $1$
 
-A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
+A companion to the L-shape example, on a smooth (curved, non-singular) boundary instead.
 
 <details>
 <summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
@@ -4195,7 +4195,7 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own).
 
 $$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$
 
@@ -4726,11 +4726,9 @@ PINN solution animated over time, for each of the two coupled outputs:
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
 <sub><strong>U</strong></sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
 <sub><strong>V</strong></sub>
 </td>
 </tr>
@@ -4741,17 +4739,15 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/surface_comparison_u.png" alt="2D Burgers (Mathias) — U surface comparison" width="100%">
 <sub><strong>U</strong></sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/surface_comparison_v.png" alt="2D Burgers (Mathias) — V surface comparison" width="100%">
 <sub><strong>V</strong></sub>
 </td>
 </tr>
 </table>
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$:
+*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$.
 
 <details>
 <summary>⚙️ <em>Default settings — Mathias et al.'s settings, as in the paper</em></summary>
@@ -4885,7 +4881,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 
 <details>
 <summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
@@ -5015,14 +5011,14 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 
 **The problem**
 
-The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
+The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the Poisson 2D – disk template.
 
 $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter from 300 measured points
+*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode) as an unknown parameter from 300 measured points
 
 <details>
 <summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
@@ -5243,7 +5239,7 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 
 <details>
 <summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>

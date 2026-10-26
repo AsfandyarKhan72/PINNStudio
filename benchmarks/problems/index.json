@@ -1,0 +1,526 @@
+[
+ {
+  "name": "Integro-differential ODE",
+  "anchor": "dx-integro-differential-equation",
+  "group": "ODE examples",
+  "file": "integro-differential-ode.md",
+  "gifs": []
+ },
+ {
+  "name": "Integro-differential ODE – Volterra kernel",
+  "anchor": "dx-volterra-integro-differential-equation",
+  "group": "ODE examples",
+  "file": "integro-differential-ode-volterra-kernel.md",
+  "gifs": []
+ },
+ {
+  "name": "Linear ODE system",
+  "anchor": "dx-ode-system",
+  "group": "ODE examples",
+  "file": "linear-ode-system.md",
+  "gifs": []
+ },
+ {
+  "name": "Lotka-Volterra ODE",
+  "anchor": "dx-lotka-volterra-equation",
+  "group": "ODE examples",
+  "file": "lotka-volterra-ode.md",
+  "gifs": []
+ },
+ {
+  "name": "Second-order ODE",
+  "anchor": "dx-second-order-ode",
+  "group": "ODE examples",
+  "file": "second-order-ode.md",
+  "gifs": []
+ },
+ {
+  "name": "Lorenz ODE – unknown C₁, C₂, C₃",
+  "anchor": "dx-inverse-lorenz-system",
+  "group": "ODE examples",
+  "file": "lorenz-ode-unknown-c-c-c.md",
+  "gifs": [
+   "![Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",
+  "anchor": "dx-inverse-lorenz-system-with-exogenous-input",
+  "group": "ODE examples",
+  "file": "lorenz-ode-unknown-c-c-c-exogenous-input.md",
+  "gifs": [
+   "![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Euler beam 1D",
+  "anchor": "dx-euler-beam",
+  "group": "1D examples",
+  "file": "euler-beam-1d.md",
+  "gifs": []
+ },
+ {
+  "name": "Fractional Poisson 1D",
+  "anchor": "dx-fractional-poisson-equation-1d",
+  "group": "1D examples",
+  "file": "fractional-poisson-1d.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – Dirichlet",
+  "anchor": "dx-poisson-1d-dirichlet",
+  "group": "1D examples",
+  "file": "poisson-1d-dirichlet.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – Dirichlet/Neumann",
+  "anchor": "dx-poisson-1d-dirichlet-neumann",
+  "group": "1D examples",
+  "file": "poisson-1d-dirichlet-neumann.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – Dirichlet/Periodic",
+  "anchor": "dx-poisson-1d-dirichlet-periodic",
+  "group": "1D examples",
+  "file": "poisson-1d-dirichlet-periodic.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – Dirichlet/point-set operator",
+  "anchor": "dx-poisson-1d-dirichlet-pointsetoperator",
+  "group": "1D examples",
+  "file": "poisson-1d-dirichlet-point-set-operator.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – Dirichlet/Robin",
+  "anchor": "dx-poisson-1d-dirichlet-robin",
+  "group": "1D examples",
+  "file": "poisson-1d-dirichlet-robin.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – hard BCs",
+  "anchor": "dx-poisson-1d-hard-boundary-conditions",
+  "group": "1D examples",
+  "file": "poisson-1d-hard-bcs.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – multi-scale Fourier features",
+  "anchor": "dx-poisson-1d-multi-scale-fourier-features",
+  "group": "1D examples",
+  "file": "poisson-1d-multi-scale-fourier-features.md",
+  "gifs": []
+ },
+ {
+  "name": "Brinkman-Forchheimer 1D – unknown ν_e, K",
+  "anchor": "dx-inverse-brinkman-forchheimer-model",
+  "group": "1D examples",
+  "file": "brinkman-forchheimer-1d-unknown-e-k.md",
+  "gifs": [
+   "![Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion-reaction 1D – unknown rate field",
+  "anchor": "dx-inverse-diffusion-reaction-with-space-dependent-rate",
+  "group": "1D examples",
+  "file": "diffusion-reaction-1d-unknown-rate-field.md",
+  "gifs": []
+ },
+ {
+  "name": "Fractional Poisson 1D – unknown order α",
+  "anchor": "dx-inverse-fractional-poisson-equation-1d",
+  "group": "1D examples",
+  "file": "fractional-poisson-1d-unknown-order.md",
+  "gifs": [
+   "![Fractional Poisson 1D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Poisson 1D – unknown forcing field",
+  "anchor": "dx-inverse-poisson-with-unknown-forcing-field",
+  "group": "1D examples",
+  "file": "poisson-1d-unknown-forcing-field.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 1D – unknown forcing field (batches)",
+  "anchor": "dx-inverse-poisson-with-unknown-forcing-field-batches",
+  "group": "1D examples",
+  "file": "poisson-1d-unknown-forcing-field-batches.md",
+  "gifs": []
+ },
+ {
+  "name": "Allen-Cahn 1D – Wight & Zhao",
+  "anchor": "1d-allen-cahn",
+  "group": "1D examples",
+  "file": "allen-cahn-1d-wight-zhao.md",
+  "gifs": [
+   "![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Cahn-Hilliard 1D – Wight & Zhao",
+  "anchor": "1d-cahn-hilliard",
+  "group": "1D examples",
+  "file": "cahn-hilliard-1d-wight-zhao.md",
+  "gifs": []
+ },
+ {
+  "name": "Cahn-Hilliard 1D – Mattey & Ghosh",
+  "anchor": "1d-cahn-hilliard-mattey--ghosh",
+  "group": "1D examples",
+  "file": "cahn-hilliard-1d-mattey-ghosh.md",
+  "gifs": []
+ },
+ {
+  "name": "Black-Scholes 1D – American put",
+  "anchor": "dx-american-put-option",
+  "group": "1D examples",
+  "file": "black-scholes-1d-american-put.md",
+  "gifs": [
+   "![Black-Scholes 1D – American put — PINN solution over time (u)](assets/Images/DeepXDE/American_put_option/animation.gif)"
+  ]
+ },
+ {
+  "name": "Black-Scholes 1D – European call",
+  "anchor": "dx-black-scholes-equation-call-option",
+  "group": "1D examples",
+  "file": "black-scholes-1d-european-call.md",
+  "gifs": [
+   "![Black-Scholes 1D – European call — PINN solution over time (u)](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)"
+  ]
+ },
+ {
+  "name": "Burgers 1D – Raissi et al.",
+  "anchor": "1d-burgers",
+  "group": "1D examples",
+  "file": "burgers-1d-raissi-et-al.md",
+  "gifs": [
+   "![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)",
+   "![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Burgers 1D – RAR",
+  "anchor": "dx-burgers-equation-with-rar",
+  "group": "1D examples",
+  "file": "burgers-1d-rar.md",
+  "gifs": [
+   "![Burgers 1D – RAR — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion 1D",
+  "anchor": "dx-diffusion-equation",
+  "group": "1D examples",
+  "file": "diffusion-1d.md",
+  "gifs": [
+   "![Diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation/animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion 1D – hard IC and BCs",
+  "anchor": "dx-diffusion-equation-with-hard-ic-and-bc",
+  "group": "1D examples",
+  "file": "diffusion-1d-hard-ic-and-bcs.md",
+  "gifs": [
+   "![Diffusion 1D – hard IC and BCs — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion 1D – resampling",
+  "anchor": "dx-diffusion-equation-with-resampling",
+  "group": "1D examples",
+  "file": "diffusion-1d-resampling.md",
+  "gifs": [
+   "![Diffusion 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion-reaction 1D",
+  "anchor": "dx-diffusion-reaction-equation",
+  "group": "1D examples",
+  "file": "diffusion-reaction-1d.md",
+  "gifs": [
+   "![Diffusion-reaction 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)"
+  ]
+ },
+ {
+  "name": "Fractional diffusion 1D",
+  "anchor": "dx-fractional-diffusion-equation",
+  "group": "1D examples",
+  "file": "fractional-diffusion-1d.md",
+  "gifs": [
+   "![Fractional diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)"
+  ]
+ },
+ {
+  "name": "Heat 1D – Dirichlet",
+  "anchor": "dx-heat-equation",
+  "group": "1D examples",
+  "file": "heat-1d-dirichlet.md",
+  "gifs": [
+   "![Heat 1D – Dirichlet — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)",
+   "![Heat 1D – Dirichlet inverse mode — inferred parameter during training](assets/Images/DeepXDE/Heat_equation/inverse_param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Heat 1D – resampling",
+  "anchor": "dx-heat-equation-with-resampling",
+  "group": "1D examples",
+  "file": "heat-1d-resampling.md",
+  "gifs": [
+   "![Heat 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)"
+  ]
+ },
+ {
+  "name": "Klein-Gordon 1D",
+  "anchor": "dx-klein-gordon-equation",
+  "group": "1D examples",
+  "file": "klein-gordon-1d.md",
+  "gifs": [
+   "![Klein-Gordon 1D — PINN solution over time (u)](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)"
+  ]
+ },
+ {
+  "name": "Schrödinger 1D",
+  "anchor": "dx-schr-dinger-equation",
+  "group": "1D examples",
+  "file": "schr-dinger-1d.md",
+  "gifs": [
+   "![Schrödinger 1D — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)",
+   "![Schrödinger 1D inverse mode — inferred parameter during training](assets/Images/DeepXDE/Schr_dinger_equation/inverse_param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Wave 1D – space-time multi-scale Fourier features",
+  "anchor": "dx-wave-propagation-space-time-multi-scale-fourier-features",
+  "group": "1D examples",
+  "file": "wave-1d-space-time-multi-scale-fourier-features.md",
+  "gifs": [
+   "![Wave 1D – space-time multi-scale Fourier features — PINN solution over time (u)](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion 1D – unknown coefficient",
+  "anchor": "dx-inverse-diffusion-equation",
+  "group": "1D examples",
+  "file": "diffusion-1d-unknown-coefficient.md",
+  "gifs": [
+   "![Diffusion 1D – unknown coefficient — PINN solution over time (u)](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)",
+   "![Diffusion 1D – unknown coefficient — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Diffusion-reaction 1D – unknown k_f, D",
+  "anchor": "dx-inverse-diffusion-reaction-system",
+  "group": "1D examples",
+  "file": "diffusion-reaction-1d-unknown-k-f-d.md",
+  "gifs": [
+   "![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)",
+   "![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif)",
+   "![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Fractional Poisson 2D – disk",
+  "anchor": "dx-fractional-poisson-equation-2d",
+  "group": "2D examples",
+  "file": "fractional-poisson-2d-disk.md",
+  "gifs": []
+ },
+ {
+  "name": "Helmholtz 2D – Dirichlet",
+  "anchor": "dx-helmholtz-2d-dirichlet",
+  "group": "2D examples",
+  "file": "helmholtz-2d-dirichlet.md",
+  "gifs": []
+ },
+ {
+  "name": "Helmholtz 2D – hyperparameter search",
+  "anchor": "dx-helmholtz-2d-hyperparameter-optimization",
+  "group": "2D examples",
+  "file": "helmholtz-2d-hyperparameter-search.md",
+  "gifs": []
+ },
+ {
+  "name": "Helmholtz 2D – sound-hard scattering",
+  "anchor": "dx-helmholtz-sound-hard-scattering-absorbing-bc",
+  "group": "2D examples",
+  "file": "helmholtz-2d-sound-hard-scattering.md",
+  "gifs": []
+ },
+ {
+  "name": "Helmholtz 2D – square with hole",
+  "anchor": "dx-helmholtz-2d-with-a-hole",
+  "group": "2D examples",
+  "file": "helmholtz-2d-square-with-hole.md",
+  "gifs": []
+ },
+ {
+  "name": "Laplace 2D – disk",
+  "anchor": "dx-laplace-equation-on-a-disk",
+  "group": "2D examples",
+  "file": "laplace-2d-disk.md",
+  "gifs": []
+ },
+ {
+  "name": "Linear elasticity 2D – plate",
+  "anchor": "dx-linear-elastostatic-plate",
+  "group": "2D examples",
+  "file": "linear-elasticity-2d-plate.md",
+  "gifs": []
+ },
+ {
+  "name": "Linear elasticity 2D – plate, soft BCs",
+  "anchor": "dx-linear-elastostatic-plate-soft-bcs",
+  "group": "2D examples",
+  "file": "linear-elasticity-2d-plate-soft-bcs.md",
+  "gifs": []
+ },
+ {
+  "name": "Navier-Stokes 2D – Kovasznay flow",
+  "anchor": "dx-kovasznay-flow",
+  "group": "2D examples",
+  "file": "navier-stokes-2d-kovasznay-flow.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 2D – disk",
+  "anchor": "2d-poisson-disk",
+  "group": "2D examples",
+  "file": "poisson-2d-disk.md",
+  "gifs": [
+   "![2D Poisson (Disk) inverse parameter convergence animation](assets/Images/2D-Poisson-Disk-Shaped/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Poisson 2D – L-shape",
+  "anchor": "dx-poisson-over-an-l-shaped-domain",
+  "group": "2D examples",
+  "file": "poisson-2d-l-shape.md",
+  "gifs": [
+   "![Poisson 2D – L-shape inverse parameter convergence animation](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Fractional Poisson 2D – unknown order α",
+  "anchor": "dx-inverse-fractional-poisson-equation-2d",
+  "group": "2D examples",
+  "file": "fractional-poisson-2d-unknown-order.md",
+  "gifs": [
+   "![Fractional Poisson 2D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Allen-Cahn 2D – Wight & Zhao",
+  "anchor": "2d-allen-cahn-wight--zhao",
+  "group": "2D examples",
+  "file": "allen-cahn-2d-wight-zhao.md",
+  "gifs": [
+   "![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)",
+   "![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Allen-Cahn 2D – Mattey & Ghosh",
+  "anchor": "2d-allen-cahn-mattey--ghosh",
+  "group": "2D examples",
+  "file": "allen-cahn-2d-mattey-ghosh.md",
+  "gifs": [
+   "![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)",
+   "![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Cahn-Hilliard 2D – Wight & Zhao",
+  "anchor": "2d-cahn-hilliard-wight--zhao",
+  "group": "2D examples",
+  "file": "cahn-hilliard-2d-wight-zhao.md",
+  "gifs": [
+   "![2D Cahn-Hilliard (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Wight/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "anchor": "2d-cahn-hilliard-mattey--ghosh",
+  "group": "2D examples",
+  "file": "cahn-hilliard-2d-mattey-ghosh.md",
+  "gifs": [
+   "![2D Cahn-Hilliard (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Burgers 2D – Mathias et al.",
+  "anchor": "2d-burgers-mathias",
+  "group": "2D examples",
+  "file": "burgers-2d-mathias-et-al.md",
+  "gifs": [
+   "<img src=\"assets/Images/2D_Burgers/solution_plot_u.gif\" alt=\"2D Burgers (Mathias) — U solution animated over time\" width=\"100%\">",
+   "<img src=\"assets/Images/2D_Burgers/solution_plot_v.gif\" alt=\"2D Burgers (Mathias) — V solution animated over time\" width=\"100%\">",
+   "![2D Burgers (Mathias) inverse parameter convergence animation](assets/Images/2D_Burgers/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Heat 2D",
+  "anchor": "2d-heat",
+  "group": "2D examples",
+  "file": "heat-2d.md",
+  "gifs": [
+   "![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)",
+   "![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Fractional Poisson 3D – sphere",
+  "anchor": "dx-fractional-poisson-equation-3d",
+  "group": "3D examples",
+  "file": "fractional-poisson-3d-sphere.md",
+  "gifs": []
+ },
+ {
+  "name": "Poisson 3D – sphere",
+  "anchor": "3d-poisson-sphere",
+  "group": "3D examples",
+  "file": "poisson-3d-sphere.md",
+  "gifs": [
+   "![3D Poisson (Sphere) inverse parameter convergence animation](assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Allen-Cahn 3D – Wight & Zhao",
+  "anchor": "3d-allen-cahn-wight--zhao",
+  "group": "3D examples",
+  "file": "allen-cahn-3d-wight-zhao.md",
+  "gifs": [
+   "![3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Heat 3D",
+  "anchor": "3d-heat",
+  "group": "3D examples",
+  "file": "heat-3d.md",
+  "gifs": [
+   "![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)",
+   "![3D Heat inverse parameter convergence animation](assets/Images/3D_Heat/param_convergence_animation.gif)"
+  ]
+ },
+ {
+  "name": "Navier-Stokes 3D – Beltrami flow",
+  "anchor": "dx-beltrami-flow",
+  "group": "3D examples",
+  "file": "navier-stokes-3d-beltrami-flow.md",
+  "gifs": [
+   "![Navier-Stokes 3D – Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)",
+   "![Navier-Stokes 3D – Beltrami flow — PINN solution over time (v)](assets/Images/DeepXDE/Beltrami_flow/animation_v.gif)",
+   "![Navier-Stokes 3D – Beltrami flow — PINN solution over time (w)](assets/Images/DeepXDE/Beltrami_flow/animation_w.gif)",
+   "![Navier-Stokes 3D – Beltrami flow — PINN solution over time (p)](assets/Images/DeepXDE/Beltrami_flow/animation_p.gif)"
+  ]
+ }
+]

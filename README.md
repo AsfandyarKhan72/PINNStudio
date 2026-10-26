@@ -339,7 +339,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 
 ## Examples
 
-PINNStudio comes with 65 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
+PINNStudio comes with 63 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
 - **PINNStudio templates** (14): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
 - **DeepXDE examples** (39 forward, 10 inverse; DeepXDE's Allen-Cahn 1D is left out, as the two Wight & Zhao templates cover it): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
@@ -353,75 +353,90 @@ Every result shown below comes from one training run with the example's settings
 
 The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other, with Allen-Cahn and then Cahn-Hilliard first in each group.
 
-| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source |
-|---|---|---|---|---|---|---|---|
-| | **ODE (t only)** | | | | | | |
-| 1 | [Integro-differential ODE](#dx-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py) |
-| 2 | [Integro-differential ODE – Volterra kernel](#dx-volterra-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py) |
-| 3 | [Linear ODE system](#dx-ode-system) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) |
-| 4 | [Lotka-Volterra ODE](#dx-lotka-volterra-equation) | ODE | Time-dependent | Forward | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) |
-| 5 | [Second-order ODE](#dx-second-order-ode) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) |
-| 6 | [Lorenz ODE – unknown C₁, C₂, C₃](#dx-inverse-lorenz-system) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) |
-| 7 | [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#dx-inverse-lorenz-system-with-exogenous-input) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py) |
-| | **1D** | | | | | | |
-| 8 | [Euler beam 1D](#dx-euler-beam) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Euler_beam.py) |
-| 9 | [Fractional Poisson 1D](#dx-fractional-poisson-equation-1d) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py) |
-| 10 | [Poisson 1D – Dirichlet](#dx-poisson-1d-dirichlet) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d.py) |
-| 11 | [Poisson 1D – Dirichlet/Neumann](#dx-poisson-1d-dirichlet-neumann) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Neumann_1d.py) |
-| 12 | [Poisson 1D – Dirichlet/Periodic](#dx-poisson-1d-dirichlet-periodic) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_periodic_1d.py) |
-| 13 | [Poisson 1D – Dirichlet/point-set operator](#dx-poisson-1d-dirichlet-pointsetoperator) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_PointSetOperator_1d.py) |
-| 14 | [Poisson 1D – Dirichlet/Robin](#dx-poisson-1d-dirichlet-robin) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Robin_1d.py) |
-| 15 | [Poisson 1D – hard BCs](#dx-poisson-1d-hard-boundary-conditions) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py) |
-| 16 | [Poisson 1D – multi-scale Fourier features](#dx-poisson-1d-multi-scale-fourier-features) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py) |
-| 17 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#dx-inverse-brinkman-forchheimer-model) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py) |
-| 18 | [Diffusion-reaction 1D – unknown rate field](#dx-inverse-diffusion-reaction-with-space-dependent-rate) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py) |
-| 19 | [Fractional Poisson 1D – unknown order α](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) |
-| 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) |
-| 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
-| 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 24 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 25 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
-| 26 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) |
-| 27 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) |
-| 28 | [Burgers 1D – RAR](#dx-burgers-equation-with-rar) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) |
-| 29 | [Diffusion 1D](#dx-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d.py) |
-| 30 | [Diffusion 1D – hard IC and BCs](#dx-diffusion-equation-with-hard-ic-and-bc) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_exactBC.py) |
-| 31 | [Diffusion 1D – resampling](#dx-diffusion-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_resample.py) |
-| 32 | [Diffusion-reaction 1D](#dx-diffusion-reaction-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_reaction.py) |
-| 33 | [Fractional diffusion 1D](#dx-fractional-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py) |
-| 34 | [Heat 1D – Dirichlet](#dx-heat-equation) | 1D | Time-dependent | Forward / Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat.py) |
-| 35 | [Heat 1D – resampling](#dx-heat-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat_resample.py) |
-| 36 | [Klein-Gordon 1D](#dx-klein-gordon-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Klein_Gordon.py) |
-| 37 | [Schrödinger 1D](#dx-schr-dinger-equation) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb) |
-| 38 | [Wave 1D – space-time multi-scale Fourier features](#dx-wave-propagation-space-time-multi-scale-fourier-features) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py) |
-| 39 | [Diffusion 1D – unknown coefficient](#dx-inverse-diffusion-equation) | 1D | Time-dependent | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_1d_inverse.py) |
-| 40 | [Diffusion-reaction 1D – unknown k_f, D](#dx-inverse-diffusion-reaction-system) | 1D | Time-dependent | Inverse | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/reaction_inverse.py) |
-| | **2D** | | | | | | |
-| 41 | [Fractional Poisson 2D – disk](#dx-fractional-poisson-equation-2d) | 2D | Steady | Forward | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py) |
-| 42 | [Helmholtz 2D – Dirichlet](#dx-helmholtz-2d-dirichlet) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d.py) |
-| 43 | [Helmholtz 2D – hyperparameter search](#dx-helmholtz-2d-hyperparameter-optimization) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py) |
-| 44 | [Helmholtz 2D – sound-hard scattering](#dx-helmholtz-sound-hard-scattering-absorbing-bc) | 2D | Steady | Forward | Rectangle − Disk | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py) |
-| 45 | [Helmholtz 2D – square with hole](#dx-helmholtz-2d-with-a-hole) | 2D | Steady | Forward | Rectangle − Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Neumann_2d_hole.py) |
-| 46 | [Laplace 2D – disk](#dx-laplace-equation-on-a-disk) | 2D | Steady | Forward | Rectangle in (r, θ) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Laplace_disk.py) |
-| 47 | [Linear elasticity 2D – plate](#dx-linear-elastostatic-plate) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
-| 48 | [Linear elasticity 2D – plate, soft BCs](#dx-linear-elastostatic-plate-soft-bcs) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
-| 49 | [Navier-Stokes 2D – Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) |
-| 50 | [Poisson 2D – disk](#2d-poisson-disk) | 2D | Steady | Forward / Inverse | Disk | Generated data | — |
-| 51 | [Poisson 2D – L-shape](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) |
-| 52 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
-| 53 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 54 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) |
-| 58 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — |
-| | **3D** | | | | | | |
-| 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
-| 60 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — |
-| 61 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 62 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — |
-| 63 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) |
+| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source | L₂, Default | L₂, PINNStudio best |
+|---|---|---|---|---|---|---|---|---|---|
+|  | **ODE (t only)** |  |  |  |  |  |  |  |  |
+| 1 | [Integro-differential ODE](#dx-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py) | 1.5 × 10<sup>-4</sup> | **1.5 × 10<sup>-4</sup>** |
+| 2 | [Integro-differential ODE – Volterra kernel](#dx-volterra-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py) | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** |
+| 3 | [Linear ODE system](#dx-ode-system) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** |
+| 4 | [Lotka-Volterra ODE](#dx-lotka-volterra-equation) | ODE | Time-dependent | Forward | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** |
+| 5 | [Second-order ODE](#dx-second-order-ode) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** |
+| 6 | [Lorenz ODE – unknown C₁, C₂, C₃](#dx-inverse-lorenz-system) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) | – | **0.0013%** (parameters) |
+| 7 | [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#dx-inverse-lorenz-system-with-exogenous-input) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py) | – | **0.26%** (parameters) |
+|  | **1D** |  |  |  |  |  |  |  |  |
+| 8 | [Euler beam 1D](#dx-euler-beam) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Euler_beam.py) | 3.5 × 10<sup>-3</sup> | **2.4 × 10<sup>-4</sup>** |
+| 9 | [Fractional Poisson 1D](#dx-fractional-poisson-equation-1d) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py) | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** |
+| 10 | [Poisson 1D – Dirichlet](#dx-poisson-1d-dirichlet) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d.py) | 3.7 × 10<sup>-4</sup> | **3.7 × 10<sup>-4</sup>** |
+| 11 | [Poisson 1D – Dirichlet/Neumann](#dx-poisson-1d-dirichlet-neumann) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Neumann_1d.py) | 2.3 × 10<sup>-4</sup> | **2.3 × 10<sup>-4</sup>** |
+| 12 | [Poisson 1D – Dirichlet/Periodic](#dx-poisson-1d-dirichlet-periodic) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_periodic_1d.py) | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup>** |
+| 13 | [Poisson 1D – Dirichlet/point-set operator](#dx-poisson-1d-dirichlet-pointsetoperator) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_PointSetOperator_1d.py) | 2.6 × 10<sup>-5</sup> | **2.6 × 10<sup>-5</sup>** |
+| 14 | [Poisson 1D – Dirichlet/Robin](#dx-poisson-1d-dirichlet-robin) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Robin_1d.py) | 2.4 × 10<sup>-4</sup> | **2.4 × 10<sup>-4</sup>** |
+| 15 | [Poisson 1D – hard BCs](#dx-poisson-1d-hard-boundary-conditions) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py) | 2.2 × 10<sup>-6</sup> | **2.2 × 10<sup>-6</sup>** |
+| 16 | [Poisson 1D – multi-scale Fourier features](#dx-poisson-1d-multi-scale-fourier-features) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py) | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** |
+| 17 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#dx-inverse-brinkman-forchheimer-model) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py) | – | **15%** (parameters) |
+| 18 | [Diffusion-reaction 1D – unknown rate field](#dx-inverse-diffusion-reaction-with-space-dependent-rate) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py) | – | – |
+| 19 | [Fractional Poisson 1D – unknown order α](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) | – | **0.45%** (parameters) |
+| 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) | – | – |
+| 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) | – | – |
+| 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-2</sup> | **6.3 × 10<sup>-4</sup>** |
+| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 8.6 × 10<sup>-3</sup> | **6.0 × 10<sup>-4</sup>** |
+| 24 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** |
+| 25 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) | – | – |
+| 26 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** |
+| 27 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** |
+| 28 | [Burgers 1D – RAR](#dx-burgers-equation-with-rar) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** |
+| 29 | [Diffusion 1D](#dx-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d.py) | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** |
+| 30 | [Diffusion 1D – hard IC and BCs](#dx-diffusion-equation-with-hard-ic-and-bc) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_exactBC.py) | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** |
+| 31 | [Diffusion 1D – resampling](#dx-diffusion-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_resample.py) | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** |
+| 32 | [Diffusion-reaction 1D](#dx-diffusion-reaction-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_reaction.py) | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** |
+| 33 | [Fractional diffusion 1D](#dx-fractional-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py) | 3.3 × 10<sup>-3</sup> | **3.3 × 10<sup>-3</sup>** |
+| 34 | [Heat 1D – Dirichlet](#dx-heat-equation) | 1D | Time-dependent | Forward / Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat.py) | 5.0 × 10<sup>-2</sup> | **1.3 × 10<sup>-2</sup>** |
+| 35 | [Heat 1D – resampling](#dx-heat-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat_resample.py) | 1.4 × 10<sup>-2</sup> | **3.1 × 10<sup>-3</sup>** |
+| 36 | [Klein-Gordon 1D](#dx-klein-gordon-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Klein_Gordon.py) | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** |
+| 37 | [Schrödinger 1D](#dx-schr-dinger-equation) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb) | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** |
+| 38 | [Wave 1D – space-time multi-scale Fourier features](#dx-wave-propagation-space-time-multi-scale-fourier-features) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py) | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** |
+| 39 | [Diffusion 1D – unknown coefficient](#dx-inverse-diffusion-equation) | 1D | Time-dependent | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_1d_inverse.py) | – | **0.004%** (parameters) |
+| 40 | [Diffusion-reaction 1D – unknown k_f, D](#dx-inverse-diffusion-reaction-system) | 1D | Time-dependent | Inverse | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/reaction_inverse.py) | – | **0.82%** (parameters) |
+|  | **2D** |  |  |  |  |  |  |  |  |
+| 41 | [Fractional Poisson 2D – disk](#dx-fractional-poisson-equation-2d) | 2D | Steady | Forward | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py) | 9.2 × 10<sup>-4</sup> | **9.2 × 10<sup>-4</sup>** |
+| 42 | [Helmholtz 2D – Dirichlet](#dx-helmholtz-2d-dirichlet) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d.py) | 1.9 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** |
+| 43 | [Helmholtz 2D – hyperparameter search](#dx-helmholtz-2d-hyperparameter-optimization) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py) | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** |
+| 44 | [Helmholtz 2D – sound-hard scattering](#dx-helmholtz-sound-hard-scattering-absorbing-bc) | 2D | Steady | Forward | Rectangle − Disk | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py) | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** |
+| 45 | [Helmholtz 2D – square with hole](#dx-helmholtz-2d-with-a-hole) | 2D | Steady | Forward | Rectangle − Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Neumann_2d_hole.py) | 1.1 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** |
+| 46 | [Laplace 2D – disk](#dx-laplace-equation-on-a-disk) | 2D | Steady | Forward | Rectangle in (r, θ) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Laplace_disk.py) | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** |
+| 47 | [Linear elasticity 2D – plate](#dx-linear-elastostatic-plate) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** |
+| 48 | [Linear elasticity 2D – plate, soft BCs](#dx-linear-elastostatic-plate-soft-bcs) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** |
+| 49 | [Navier-Stokes 2D – Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) | 2.1 × 10<sup>-4</sup> | **2.1 × 10<sup>-4</sup>** |
+| 50 | [Poisson 2D – disk](#2d-poisson-disk) | 2D | Steady | Forward / Inverse | Disk | Generated data | — | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** |
+| 51 | [Poisson 2D – L-shape](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** |
+| 52 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) | – | **0.21%** (parameters) |
+| 53 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** |
+| 54 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** |
+| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
+| 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** |
+| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** |
+| 58 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** |
+|  | **3D** |  |  |  |  |  |  |  |  |
+| 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** |
+| 60 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** |
+| 61 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** |
+| 62 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** |
+| 63 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** |
+
+<!-- examples-summary:start (generated) -->
+
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 20, by a median factor of 7.2 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
+
+<details>
+<summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
+
+![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=2c306950)
+
+*Circles: forward problems (relative L₂ at the last reference time); diamonds: inverse problems (error of each learned parameter). Open: the Default settings (DeepXDE's, or the paper's method run in PINNStudio); filled: PINNStudio's best; a ring: the two are the same. ⭐: the error the paper reports, for the templates taken from a paper.*
+
+</details>
+
+<!-- examples-summary:end -->
 
 The "unknown field" inverse examples learn the field as an extra network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train the DeepXDE examples from the command line and print their Error Analysis results:
 
@@ -430,6 +445,8 @@ python tools/run_deepxde_examples.py --out deepxde_runs            # full settin
 python tools/run_deepxde_examples.py --smoke --out deepxde_runs    # a few hundred iterations each
 ```
 
+
+<!-- examples:start (generated by tools/make_benchmarks_readme.py) -->
 
 ### ODE examples
 
@@ -446,15 +463,39 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 - **Initial condition:** $u(0) = 0$
 - **Integral:** 16-point Gauss-Legendre quadrature of the network (*∫ points* 16, DeepXDE's `quad_deg`)
 - **Exact solution:** $u = \sin(2\pi t)$
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Integro-differential ODE**
 
-**Result (RTX 4090):** $L_2$ = 1.5 × 10⁻⁴
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.5 × 10<sup>-4</sup> | **1.5 × 10<sup>-4</sup>** | 23 |
 
-![Integro-differential ODE — PINN vs reference along a line](assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-integro-differential-ode)
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Integro-differential ODE: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Integro_differential_equation/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-integro-differential-ode)
 
 </details>
 
@@ -469,15 +510,41 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 - **Initial condition:** $u(0) = 1$
 - **Integral:** 20-point Gauss-Legendre quadrature; 10 uniformly spaced collocation points; L-BFGS only, as in DeepXDE's script
 - **Exact solution:** $u = e^{-t}\cosh t$
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** L-BFGS 15,000; 10 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Integro-differential ODE – Volterra kernel**
 
-**Result (RTX 4090):** $L_2$ = 2.5 × 10⁻³
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Integro-differential ODE – Volterra kernel — PINN vs reference along a line](assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** | 5 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-integro-differential-ode-volterra-kernel)
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10 domain, 2 boundary
+- **Training:** L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE – Volterra kernel** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Integro-differential ODE – Volterra kernel: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Volterra_integro_differential_equation/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-integro-differential-ode-volterra-kernel)
 
 </details>
 
@@ -491,19 +558,84 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 - **Problem dimension:** ODE (t) — derivatives written `dy1_t`, `dy2_t`
 - **Initial conditions:** $y_1(0) = 0$, $y_2(0) = 1$
 - **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
-- **Network:** FNN [2, 50, 50, 50, 2], tanh, Glorot uniform
-- **Training:** Adam 20,000; 35 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Linear ODE system**
 
-**Result (RTX 4090):** $L_2$ = 3.6 × 10⁻³ ($y_1$), 3.1 × 10⁻³ ($y_2$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*y1 — PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** | 42 |
+| Inverse: parameters found (true) | – | **ω = 0.999912 (1)** (worst error 0.0088%) | 135 |
 
-![Linear ODE system — PINN vs reference along a line (y1)](assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*y2 — PINN vs reference along a line*
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Linear ODE system — PINN vs reference along a line (y2)](assets/Images/DeepXDE/ODE_system/line_comparison_y2.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-linear-ode-system)
+
+- **Network:** FNN 3 × 50 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 35 domain, 2 boundary
+- **Training:** Adam 20,000
+
+*Load it:* toolbar → Examples: **Forward** → **Linear ODE system** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 100 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 105 domain, 6 boundary
+- **Training:** Adam 60,000 → L-BFGS 45,000
+- **Unknowns:** w (initial guess 2.0, true 1.0)
+- **Measured data:** y1_obs.txt for y1 (weight 100); y2_obs.txt for y2 (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Linear ODE system** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-linear-ode-system-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>y1 — PINN against the reference along a line, at the reference times</sub>
+
+![Linear ODE system: DeepXDE's settings (also PINNStudio best) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/ODE_system/base_line_comparison_y1.png)
+
+<sub>y2 — PINN against the reference along a line, at the reference times</sub>
+
+![Linear ODE system: DeepXDE's settings (also PINNStudio best) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/ODE_system/base_line_comparison_y2.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>y1 — PINN against the reference along a line, at the reference times</sub>
+
+![Linear ODE system: PINNStudio best — all of the changes together — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y1.png)
+
+<sub>y2 — PINN against the reference along a line, at the reference times</sub>
+
+![Linear ODE system: PINNStudio best — all of the changes together — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y2.png)
+
+<sub>the learned parameters during training</sub>
+
+![Linear ODE system: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/ODE_system_inv/all_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-linear-ode-system)
 
 </details>
 
@@ -516,22 +648,88 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 
 - **Problem dimension:** ODE (t); populations scaled by $U = 200$ and time by $R = 20$ (constants `ub`, `rb`)
 - **Initial conditions:** $r(0) = 100/U$, $p(0) = 15/U$, imposed exactly by the output transform $\hat r = r\tanh t + 100/U$, $\hat p = p\tanh t + 15/U$
-- **Input features:** $(t, \sin t, \sin 2t, \ldots, \sin 6t)$ through an input-transform formula
 - **Reference:** SciPy `solve_ivp` solution of the same system
 - **Constants:** `ub = 200`, `rb = 20`
-- **Network:** FNN [2, 64, 64, 64, 64, 64, 64, 2], tanh, Glorot normal
-- **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Lotka-Volterra ODE**
 
-**Result (RTX 4090):** $L_2$ = 2.1 × 10⁻³ ($r$), 1.4 × 10⁻³ ($p$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*r — PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | 219 |
+| Inverse: parameters found (true) | – | **a = 2.00001 (2); d = 1.06 (1.06)** (worst error 0.0005%) | 230 |
 
-![Lotka-Volterra ODE — PINN vs reference along a line (r)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*p — PINN vs reference along a line*
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Lotka-Volterra ODE — PINN vs reference along a line (p)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-lotka-volterra-ode)
+
+- **Network:** FNN 6 × 64 (2 inputs, 2 outputs), tanh, Glorot normal
+- **Points:** 3,000 domain, 2 boundary
+- **Training:** Adam 50,000 → L-BFGS 15,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Lotka-Volterra ODE** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup*
+
+- **Network:** FNN 6 × 64 (2 inputs, 2 outputs), tanh, Glorot normal
+- **Points:** 3,000 domain, 2 boundary
+- **Training:** Adam 50,000 → L-BFGS 15,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** a (initial guess 1.0, true 2.0), d (initial guess 2.0, true 1.06)
+- **Measured data:** r.txt for r (weight 100); p.txt for p (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Lotka-Volterra ODE** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-lotka-volterra-ode-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>r — PINN against the reference along a line, at the reference times</sub>
+
+![Lotka-Volterra ODE: DeepXDE's settings (also PINNStudio best) — r — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png)
+
+<sub>p — PINN against the reference along a line, at the reference times</sub>
+
+![Lotka-Volterra ODE: DeepXDE's settings (also PINNStudio best) — p — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_p.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>r — PINN against the reference along a line, at the reference times</sub>
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better) — r — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png)
+
+<sub>p — PINN against the reference along a line, at the reference times</sub>
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better) — p — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png)
+
+<sub>the learned parameters during training</sub>
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-lotka-volterra-ode)
 
 </details>
 
@@ -544,17 +742,75 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 
 - **Problem dimension:** ODE (t) — `du_tt - 10*du_t + 9*u - 5*t`
 - **Initial conditions:** $u(0) = -1$ (initial condition); $u'(0) = 2$ as an Operator BC `du_t - 2` applied at the initial time
-- **Loss weights:** 0.01 for the equation, 1 for both initial conditions, as in DeepXDE's script
 - **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
-- **Network:** FNN [2, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Second-order ODE**
 
-**Result (RTX 4090):** $L_2$ = 6.9 × 10⁻⁴ (1.7 × 10⁻⁵ in other runs: with only 16 training points and Adam alone, the loss can jump in the last steps, so the final number varies from run to run)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** | 28 |
+| Inverse: parameters found (true) | – | **a = 10.0003 (10); b = 8.99262 (9)** (worst error 0.082%) | 30 |
 
-![Second-order ODE — PINN vs reference along a line](assets/Images/DeepXDE/Second_order_ODE/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-second-order-ode)
+
+- **Network:** FNN 3 × 50 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Second-order ODE** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 100 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000 → L-BFGS 15,000
+- **Unknowns:** a (initial guess 5.0, true 10.0), b (initial guess 4.5, true 9.0)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Second-order ODE** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-second-order-ode-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Second-order ODE: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Second_order_ODE/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Second-order ODE: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Second_order_ODE_inv/net_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Second-order ODE: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](benchmarks/figures/tuning/Second_order_ODE_inv/net_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-second-order-ode)
 
 </details>
 
@@ -568,27 +824,64 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Problem dimension:** ODE (t); initial conditions $y(0) = (-8, 7, 27)$
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
-- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃**
 
-**Result (RTX 4090):** $C_1$ = 10.000, $C_2$ = 14.9998, $C_3$ = 2.66664 (true 10, 15, 8/3); $L_2$ = 1.0 × 10⁻⁴ ($y_1$), 1.3 × 10⁻⁴ ($y_2$), 6.1 × 10⁻⁵ ($y_3$)
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*y1 — PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** (worst error 0.0013%) | 86 |
 
-*y2 — PINN vs reference along a line*
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y2)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y2.png)
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
 
-*y3 — PINN vs reference along a line*
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-lorenz-ode-unknown-c-c-c)
 
-![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
+- **Network:** FNN 3 × 40 (2 inputs, 3 outputs), tanh, Glorot uniform
+- **Points:** 400 domain, 2 boundary
+- **Training:** Adam 20,000 → L-BFGS 15,000
+- **Unknowns:** C1 (initial guess 1.0, true 10.0), C2 (initial guess 1.0, true 15.0), C3 (initial guess 1.0, true 2.66667)
+- **Measured data:** y1_obs.txt for y1 (weight 1); y2_obs.txt for y2 (weight 1); y3_obs.txt for y3 (weight 1)
 
-*Inferred parameters during training*
+*Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+<sub>y1 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png)
+
+<sub>y2 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png)
+
+<sub>y3 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png)
+
+<sub>the learned parameters during training</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-lorenz-ode-unknown-c-c-c)
 
 </details>
 
@@ -600,30 +893,64 @@ DeepXDE example: [`Lorenz_inverse_forced.py`](https://github.com/lululxvi/deepxd
 $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3 + 10\sin(2\pi t)$$
 
 - **Problem dimension:** ODE (t), $t \in [0, 3]$; initial conditions $y(0) = (-8, 7, 27)$
-- **Exogenous input:** $f(t) = 10\sin(2\pi t)$, written straight into the equation
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
-- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 60,000; 400 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input**
 
-**Result (RTX 4090):** $C_1$ = 9.974, $C_2$ = 14.996, $C_3$ = 2.6669 (true 10, 15, 8/3); $L_2$ = 1.6 × 10⁻³ ($y_1$), 1.2 × 10⁻³ ($y_2$), 6.3 × 10⁻⁴ ($y_3$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*y1 — PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **C₁ = 9.97389 (10); C₂ = 14.9961 (15); C₃ = 2.66686 (2.66667)** (worst error 0.26%) | 196 |
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*y2 — PINN vs reference along a line*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y2)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y2.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-lorenz-ode-unknown-c-c-c-exogenous-input)
 
-*y3 — PINN vs reference along a line*
+- **Network:** FNN 3 × 40 (2 inputs, 3 outputs), tanh, Glorot uniform
+- **Points:** 400 domain, 2 boundary
+- **Training:** Adam 60,000
+- **Unknowns:** C1 (initial guess 1.0, true 10.0), C2 (initial guess 1.0, true 15.0), C3 (initial guess 1.0, true 2.66667)
+- **Measured data:** y1_obs.txt for y1 (weight 1); y2_obs.txt for y2 (weight 1); y3_obs.txt for y3 (weight 1)
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png)
+*Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input** → **Default**, then Solve.
 
-*Inferred parameters during training*
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+<sub>y1 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y1.png)
+
+<sub>y2 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y2.png)
+
+<sub>y3 — PINN against the reference along a line, at the reference times</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y3.png)
+
+<sub>the learned parameters during training</sub>
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-lorenz-ode-unknown-c-c-c-exogenous-input)
 
 </details>
 
@@ -640,15 +967,84 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 
 - **Boundary conditions:** $u(0) = 0$, $u'(0) = 0$ (clamped); $u''(1) = 0$, $u'''(1) = 0$ (free) — the last two as Operator BCs
 - **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
-- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 10 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Euler beam 1D**
 
-**Result (RTX 4090):** $L_2$ = 8.4 × 10⁻³
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.5 × 10<sup>-3</sup> | **2.4 × 10<sup>-4</sup>** | 59 |
+| Inverse: parameters found (true) | – | **EI = 1.00075 (1)** (worst error 0.075%) | 231 |
 
-![Euler beam 1D — PINN vs reference along a line](assets/Images/DeepXDE/Euler_beam/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 10 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Euler beam 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 10 domain, 2 boundary
+- **Training:** Adam 10,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Euler beam 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-euler-beam-1d)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 40 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 30 domain, 6 boundary
+- **Training:** Adam 30,000 → L-BFGS 45,000
+- **Unknowns:** EI (initial guess 2.0, true 1.0)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Euler beam 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-euler-beam-1d-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Euler beam 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Euler_beam/base_line_comparison.png)
+
+*PINNStudio best — L-BFGS phase added:*
+
+![Euler beam 1D: PINNStudio best — L-BFGS phase added — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Euler_beam/lbfgs_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Euler beam 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Euler_beam_inv/all_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Euler beam 1D: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Euler_beam_inv/all_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-euler-beam-1d)
 
 </details>
 
@@ -660,19 +1056,63 @@ DeepXDE example: [`fractional_Poisson_1d.py`](https://github.com/lululxvi/deepxd
 $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alpha = 1.5$$
 
 - **Equation in the panel:** `frac(u) - (...)`, with $f$ written out with `gamma(...)` as in DeepXDE's script; constant `alpha`
-- **Fractional settings:** α `alpha`, resolution 101, static mesh (DeepXDE's FPDE, Grünwald-Letnikov)
 - **Boundary conditions:** $u(0) = u(1) = 0$, imposed exactly by the output transform $\hat u = x(1-x)N$
 - **Exact solution:** $u = x^3(1-x)^3$
 - **Constants:** `alpha = 1.5`
-- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 101 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 1D**
 
-**Result (RTX 4090):** $L_2$ = 3.7 × 10⁻²
+*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Fractional Poisson 1D — PINN vs reference along a line](assets/Images/DeepXDE/Fractional_Poisson_equation_1D/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** | 21 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 20 (1 input, 1 output), tanh, Glorot normal
+- **Points:** 101 domain, 2 boundary
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 5 × 40 (1 input, 1 output), tanh, Glorot normal
+- **Points:** 101 domain, 2 boundary
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-poisson-1d)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Fractional Poisson 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Fractional_Poisson_equation_1D/base_line_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Fractional Poisson 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Fractional_Poisson_equation_1D/net_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-poisson-1d)
 
 </details>
 
@@ -685,15 +1125,39 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
 - **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where *Whole boundary*, Value `0`
 - **Exact solution:** $u = \sin(\pi x)$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – Dirichlet**
 
-**Result (RTX 4090):** $L_2$ = 3.7 × 10⁻⁴
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.7 × 10<sup>-4</sup> | **3.7 × 10<sup>-4</sup>** | 23 |
 
-![Poisson 1D – Dirichlet — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-dirichlet)
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – Dirichlet: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-dirichlet)
 
 </details>
 
@@ -706,15 +1170,39 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
 - **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – Dirichlet/Neumann**
 
-**Result (RTX 4090):** $L_2$ = 2.3 × 10⁻⁴
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-4</sup> | **2.3 × 10<sup>-4</sup>** | 27 |
 
-![Poisson 1D – Dirichlet/Neumann — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-dirichlet-neumann)
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Neumann** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – Dirichlet/Neumann: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet_Neumann/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-dirichlet-neumann)
 
 </details>
 
@@ -727,15 +1215,56 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
 - **Exact solution:** $u = \sin(\pi x)$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – Dirichlet/Periodic**
 
-**Result (RTX 4090):** $L_2$ = 1.2 × 10⁻²
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup>** | 67 |
 
-![Poisson 1D – Dirichlet/Periodic — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Periodic/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Periodic** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 100 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 48 domain, 6 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Periodic** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-dirichlet-periodic)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Poisson 1D – Dirichlet/Periodic: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet_Periodic/base_line_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+![Poisson 1D – Dirichlet/Periodic: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet_Periodic/all_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-dirichlet-periodic)
 
 </details>
 
@@ -748,15 +1277,39 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ — a Point Set Operator row with the point typed in (Points `1`, Function `du_x`, Target value `4`; no file)
 - **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – Dirichlet/point-set operator**
 
-**Result (RTX 4090):** $L_2$ = 2.6 × 10⁻⁵
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.6 × 10<sup>-5</sup> | **2.6 × 10<sup>-5</sup>** | 44 |
 
-![Poisson 1D – Dirichlet/point-set operator — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-dirichlet-point-set-operator)
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 20,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/point-set operator** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – Dirichlet/point-set operator: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet_PointSetOperator/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-dirichlet-point-set-operator)
 
 </details>
 
@@ -769,15 +1322,39 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
 - **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – Dirichlet/Robin**
 
-**Result (RTX 4090):** $L_2$ = 2.4 × 10⁻⁴
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-4</sup> | **2.4 × 10<sup>-4</sup>** | 27 |
 
-![Poisson 1D – Dirichlet/Robin — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-dirichlet-robin)
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 16 domain, 2 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Robin** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – Dirichlet/Robin: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_Dirichlet_Robin/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-dirichlet-robin)
 
 </details>
 
@@ -790,16 +1367,42 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 
 - **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\ N(x) + x$
 - **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
-- **Learning rate:** inverse-time decay, $10^{-4}/(1 + 0.3\ n/1000)$ at iteration $n$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 30,000; 64 domain points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – hard BCs**
 
-**Result (RTX 4090):** $L_2$ = 2.2 × 10⁻⁶
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Poisson 1D – hard BCs — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.2 × 10<sup>-6</sup> | **2.2 × 10<sup>-6</sup>** | 76 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-hard-bcs)
+
+- **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 64 domain
+- **Training:** Adam 30,000 (lr 0.0001)
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – hard BCs** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – hard BCs: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_hard_boundary_conditions/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-hard-bcs)
 
 </details>
 
@@ -812,20 +1415,44 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 
 - **Boundary conditions:** $u(0) = u(1) = 0$
 - **Exact solution:** $u = \sin(2\pi x) + 0.1\sin(50\pi x)$ — a slow wave plus a fast, small one
-- **Network:** a multi-scale Fourier feature network (MsFFN): the input goes through random Fourier features with scales $\sigma = 1$ and $10$, each through the same hidden layers, then combined
-- **Points:** 1,280 pseudo-random collocation points, redrawn every iteration; learning rate $10^{-3}/(1 + 0.9\ n/2000)$
 - **Constants:** `A = 2`, `B = 50`
-- **Network:** MsFFN [1, 100, 100, 100, 1], Fourier scales σ = 1, 10, tanh, Glorot uniform
-- **Training:** Adam 20,000; 1,280 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Poisson 1D – multi-scale Fourier features**
 
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 allow the PINN to represent the sin(50πx) component.
 
-**Result (RTX 4090):** $L_2$ = 3.9 × 10⁻³
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384](https://arxiv.org/abs/2012.10047) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Poisson 1D – multi-scale Fourier features — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | 70 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-multi-scale-fourier-features)
+
+- **Network:** multi-scale Fourier features (MsFFN) 3 × 100 (1 input, 1 output), tanh, Glorot uniform, scales 1, 10
+- **Points:** 1,280 domain, 2 boundary
+- **Training:** Adam 20,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – multi-scale Fourier features** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Poisson 1D – multi-scale Fourier features: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Poisson_1D_multi_scale_Fourier_features/base_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-multi-scale-fourier-features)
 
 </details>
 
@@ -840,21 +1467,67 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Data:** 5 measurements of $u$; $u = 0$ at both walls through the output transform $\hat u = x(1-x)N$
 - **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
-- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 30,000; 100 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K**
 
-DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35 × 10⁻³, $K$ = 9.84 × 10⁻⁴ and an $L_2$ error of 1.8 × 10⁻²–2.0 × 10⁻² for $u$. The result is the same: $K$ is recovered closely, while $\nu_e$ is recovered only to within about 30–50% from five measurements.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $\nu_e$ = 1.28 × 10⁻³, $K$ = 1.04 × 10⁻³ (both true 1 × 10⁻³); $L_2$ of $u$ = 2.0 × 10⁻²
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001)** (worst error 15%) | 234 |
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inferred parameters during training*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
+
+- **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 100 domain
+- **Training:** Adam 30,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** v_e (initial guess 0.1, true 0.001), K (initial guess 0.1, true 0.001)
+- **Measured data:** u_obs.txt for u (weight 1)
+
+*Load it:* toolbar → Examples: **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Brinkman-Forchheimer 1D – unknown ν_e, K: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/base_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Brinkman-Forchheimer 1D – unknown ν_e, K: DeepXDE's settings — the learned parameters during training](benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/base_param_plot.png)
+
+*PINNStudio best — 3× iterations:*
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — the learned parameters during training](benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-brinkman-forchheimer-1d-unknown-e-k)
 
 </details>
 
@@ -868,23 +1541,45 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Unknown:** the reaction rate $k(x)$ (true $0.1 + e^{-0.5(x - 0.5)^2/0.15^2}$), learned as a second network output
 - **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
 - **Constants:** `l = 0.01`
-- **Network:** PFNN, a separate [20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 50 domain, 8 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Diffusion-reaction 1D – unknown rate field**
 
-**Result (RTX 4090):** $L_2$ = 4.0 × 10⁻² ($k$)
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*u — PINN vs reference along a line*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Diffusion-reaction 1D – unknown rate field — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: learned field | – | **see the benchmark** | 61 |
 
-*u — PINN solution*
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-![Diffusion-reaction 1D – unknown rate field — PINN solution (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot.png)
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
 
-*k — the learned rate field*
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
 
-![Diffusion-reaction 1D – unknown rate field — learned rate field (k)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot_k.png)
+- **Network:** PFNN 2 × 20 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 50 domain, 8 boundary
+- **Training:** Adam 20,000
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown rate field** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Diffusion-reaction 1D – unknown rate field: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/base_line_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Diffusion-reaction 1D – unknown rate field: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/net_line_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-reaction-1d-unknown-rate-field)
 
 </details>
 
@@ -897,21 +1592,56 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 
 - **Unknown:** the order $\alpha$ (true $\alpha_0 = 1.8$, start 1.5) — an inverse variable named `alpha`, also the fractional α
 - **Data:** 20 measurements of $u = x(1 - x^2)^{\alpha_0/2}$, loss weight 100
-- **Fractional settings:** 100 points per unit length, dynamic mesh (rebuilt every step as α changes)
 - **Constants:** `a0 = 1.8`
-- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 20 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Fractional Poisson 1D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); $L_2$ of $u$ = 4.9 × 10⁻³
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **α = 1.79183 (1.8)** (worst error 0.45%) | 255 |
 
-![Fractional Poisson 1D – unknown order α — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inferred parameters during training*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-poisson-1d-unknown-order)
+
+- **Network:** FNN 4 × 20 (1 input, 1 output), tanh, Glorot normal
+- **Points:** 20 domain
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** alpha (initial guess 1.5, true 1.8)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 1D – unknown order α** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Fractional Poisson 1D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-poisson-1d-unknown-order)
 
 </details>
 
@@ -924,20 +1654,55 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 
 - **Unknown:** the field $q(x)$ (true $`-\pi^2\sin(\pi x)`$), learned as a second network output
 - **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
-- **Mode:** Forward — there are no unknown constants, only an unknown field, as in DeepXDE
-- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Poisson 1D – unknown forcing field**
 
-**Result (RTX 4090):** $L_2$ = 8.3 × 10⁻⁴ ($u$), 4.3 × 10⁻² ($q$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: learned field | – | **see the benchmark** | 221 |
 
-![Poisson 1D – unknown forcing field — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_u.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*q — PINN vs reference along a line*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Poisson 1D – unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-unknown-forcing-field)
+
+- **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 200 domain, 2 boundary
+- **Training:** Adam 20,000 (lr 0.0001)
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field: DeepXDE's settings — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field/base_line_comparison_u.png)
+
+<sub>q — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field: DeepXDE's settings — q — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field/base_line_comparison_q.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field: PINNStudio best — all of the changes together — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field/all_line_comparison_u.png)
+
+<sub>q — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field: PINNStudio best — all of the changes together — q — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field/all_line_comparison_q.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-unknown-forcing-field)
 
 </details>
 
@@ -950,17 +1715,55 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 
 - **Unknown:** the field $q(x)$ (true $`-\pi^2\sin(\pi x)`$)
 - **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
-- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Poisson 1D – unknown forcing field (batches)**
 
-**Result (RTX 4090):** $L_2$ = 7.6 × 10⁻³ ($u$), 1.3 × 10⁻¹ ($q$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*q — PINN vs reference along a line*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: learned field | – | **see the benchmark** | 215 |
 
-![Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_u.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-![Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_q.png)
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
+
+- **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 200 domain, 2 boundary
+- **Training:** Adam 20,000 (lr 0.0001)
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field (batches)** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field (batches): DeepXDE's settings — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/base_line_comparison_u.png)
+
+<sub>q — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field (batches): DeepXDE's settings — q — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/base_line_comparison_q.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field (batches): PINNStudio best — all of the changes together — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/all_line_comparison_u.png)
+
+<sub>q — PINN against the reference along a line, at the reference times</sub>
+
+![Poisson 1D – unknown forcing field (batches): PINNStudio best — all of the changes together — q — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/all_line_comparison_q.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-1d-unknown-forcing-field-batches)
 
 </details>
 
@@ -976,32 +1779,126 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Initial condition:** $u(x, 0) = x^2\cos(\pi x)$
 - **Boundary conditions:** Periodic
 - **Geometry:** Interval
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao**. *Settings: Default* solves it with Wight & Zhao's own method; *Tuned* loads the whole-interval setup below, PINNStudio's best.
+- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao**. *Settings: Default* solves it with Wight & Zhao's own method; *Tuned* loads PINNStudio's best (the whole time interval with exact conditions).
 
-**Result with time-adaptive training** (4 time windows of 0.25 with transfer learning; still loads by its old name, *1D Allen-Cahn*) **(RTX 4090):** $L_2$ = 1.5 × 10⁻⁴ ($t = 0$), 4.5 × 10⁻⁴ ($t = 0.25$), 1.0 × 10⁻³ ($t = 0.5$), 1.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/1D/allen_cahn`](reference_data/1D/allen_cahn) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Inverse mode: $\gamma_1$ = 1.29 × 10⁻⁴ (true 1 × 10⁻⁴), $\gamma_2$ = 5.005 (true 5).
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters.
 
-![1D Allen-Cahn — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-AllenCahn/surface_comparison.png)
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-![1D Allen-Cahn — line comparison against reference data](assets/Images/1D-AllenCahn/line_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 4.6 × 10<sup>-2</sup> | **6.3 × 10<sup>-4</sup>** | 359 |
+| Inverse: parameters found (true) | – | **γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5)** (worst error 0.47%) | 302 |
 
-*Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 3 minutes on the RTX 4090), with four settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$. The template has all four already set (it is what *Settings: Tuned* loads). The settings it uses are:
+<details>
+<summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
 
-- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* — the network's inputs become $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is exactly periodic
-- **Exact initial condition:** Initial conditions → *Exact (built into the network)* — $u = x^2\cos(\pi x) + t N$, so the initial condition holds exactly and needs no loss term
-- **Causal training:** Loss weights → *Automatic weighting* → *Causal training*, with *Raise ε step by step* (the paper's schedule, the default); Adaptive training → Method *None*
-- **Fourier-feature network:** Network → Network type *MsFFN*, scales `1, 5`
+*Forward problem*
 
-Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.3 × 10⁻⁴ ($t = 0.5$), 6.0 × 10⁻⁴ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$). This is as accurate as time-adaptive training at early times and about 3× more accurate at $t = 1$ (0.065–0.24% at $t = 1$ over five runs; the template itself, rerun twice, gave 0.24% and 0.18%). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
+- **Network:** FNN 4 × 128 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 2,000 domain, 200 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** residual-based adaptive refinement (6 rounds of 200 points)
 
-![1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition, causal training and MsFFN — PINN vs reference](assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 1D – Wight & Zhao** → **Default**, then Solve.
 
-![1D Allen-Cahn, whole time interval — line comparison against reference data](assets/Images/1D-AllenCahn/whole_domain_line_comparison.png)
+*From the paper, and PINNStudio's choices where it is silent:* W&Z Sec. 3.1, Table 3.1 ("resampling" trial, their best on this problem, rel. L2 2.33e-2): 4 × 128 tanh, weighted loss C0 = 100 (Sec. 2.2.1 default), 2,000 LHS collocation points + 200 added per resampling, about six resamplings, Adam then L-BFGS-B. Not stated: Adam lr/iterations, L-BFGS settings, N_u, N_b (Sec. 3.1 defaults N_u = N_b = 200 used). Resampling = PINNStudio's RAR (residual-based refinement).
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
+</details>
 
-**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 0.982 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.9995 (true 5); both from $u$ measured at $t = 1$. Inverse mode has no time-adaptive training, so the time-adaptive template switched to Inverse trains on the whole interval with the whole-interval template's setup (without it, $\gamma_1$ came out 15% off), and switched back to Forward it has its own setup again.
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** multi-scale Fourier features (MsFFN) 5 × 256 (2 inputs, 1 output), tanh, Glorot uniform, scales 1, 5
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); causal training
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 1D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-allen-cahn-1d-wight-zhao-pinnstudio-template) · [training methods study: 1D Allen-Cahn (Wight & Zhao)](benchmarks/training_methods.md#1d-allen-cahn-wight--zhao)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** multi-scale Fourier features (MsFFN) 4 × 128 (2 inputs, 1 output), tanh, Glorot uniform, scales 1, 5
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; measured data 100
+- **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); causal training
+- **Unknowns:** gamma_1 (initial guess 1.0, true 0.0001), gamma_2 (initial guess 1.0, true 5.0)
+- **Measured data:** t_0.25.txt for u (weight 100); t_0.50.txt for u (weight 100); t_0.75.txt for u (weight 100); t_1.0.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 1D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Wight & Zhao's method, run in PINNStudio:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/paper_wz_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/paper_wz_line_comparison.png)
+
+*Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/paper_mg_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/paper_mg_line_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/net_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/net_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Measured data at every reference time:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — the learned parameters during training](benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-1d-wight-zhao)
 
 </details>
 
@@ -1017,22 +1914,89 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Initial condition:** $u(x, 0) = -\cos(2\pi x)$; $\mu$ has none, since its equation has no time derivative and determines $\mu$ at each time
 - **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
 - **Geometry:** Interval
-- **Scaling:** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100× smaller than $u_t$'s and training converges to a wrong solution with a small loss (28–42% $L_2$ error in $u$). The template enters the $\mu$ equation divided by $\gamma_2$, `(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01`, and scales the network's $\mu$ output by 0.01, so both residuals are of order 1 — the same equations, with $\mu$ in physical units.
-- **Exact initial condition** (Initial conditions → *Exact (built into the network)*): $u = -\cos(2\pi x) + t N_u$, so the initial condition holds exactly and needs no loss term ($\mu = 0.01 N_\mu$ keeps its scaling)
-- **Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*): the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is exactly periodic (the periodic BC rows stay on)
-- **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* ([McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)), *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
-- **Training:** Adam 20,000 → L-BFGS 20,000; 10,000 domain, 200 boundary, 512 initial points; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** → **Cahn-Hilliard 1D – Wight & Zhao**
 
-**Result (RTX 4090, about 6 minutes):** $u$: $L_2$ = 1.6 × 10⁻⁷ ($t = 0$), 2.3 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 7.2 × 10⁻⁴ ($t = 0.75$), 6.0 × 10⁻⁴ ($t = 1$); $\mu$: 1.2 × 10⁻³, 2.8 × 10⁻³, 1.8 × 10⁻³, 1.3 × 10⁻³, 1.6 × 10⁻³, against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard`](reference_data/1D/cahn_hilliard) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Two more seeds gave the same within 15% (0.051–0.060% in $u$ at $t = 1$). With RBA in place of SA-PINN the error in $u$ is about 2× larger (6.0 × 10⁻³ at $t = 0.25$, 1.2 × 10⁻³ at $t = 1$), with the scaling alone about 10× larger (3.3 × 10⁻² and 5.2 × 10⁻³) — see the [training methods study](benchmarks/training_methods.md) for every setup tried.
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-![1D Cahn-Hilliard — PINN vs reference, u](assets/Images/1D-CahnHilliard/surface_comparison_u.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 8.6 × 10<sup>-3</sup> | **6.0 × 10<sup>-4</sup>** | 380 |
 
-![1D Cahn-Hilliard — u along x at the reference times](assets/Images/1D-CahnHilliard/line_comparison_u.png)
+<details>
+<summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
 
-![1D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/1D-CahnHilliard/surface_comparison_mu.png)
+*Forward problem*
 
-![1D Cahn-Hilliard — mu along x at the reference times](assets/Images/1D-CahnHilliard/line_comparison_mu.png)
+- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 5,000 → L-BFGS 5,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** time-adaptive training: 10 time windows, one network on a growing time range, resampling in each window (2 rounds of 200 points, 2,000 Adam iterations each)
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Wight & Zhao** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* W&Z Sec. 3.2: one network (u, mu), 4 × 128 tanh, time-adaptive approach I + resampling, Adam lr 1e-3 (max 20,000) then L-BFGS-B, weighted loss "as for AC" (C0 = 100); rel. L2 9.51e-3. Not stated: the time step of approach I (0.1 used, as their 1D AC), iterations per stage, the resampling schedule (here 2 rounds of 200 points per stage, 2,000 Adam iterations each; their 1D AC trial added 200 points per resampling).
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem — the template's own settings*
+
+- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); SA-PINN per-point weights
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template) · [training methods study: 1D Cahn-Hilliard (Wight & Zhao)](benchmarks/training_methods.md#1d-cahn-hilliard-wight--zhao)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Wight & Zhao's method, run in PINNStudio:*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/paper_wz_surface_comparison_u.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/paper_wz_surface_comparison_mu.png)
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/paper_wz_line_comparison_u.png)
+
+<sub>μ — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — μ — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/paper_wz_line_comparison_mu.png)
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_u.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_mu.png)
+
+<sub>u — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_line_comparison_u.png)
+
+<sub>μ — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — μ — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_line_comparison_mu.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-cahn-hilliard-1d-wight-zhao)
 
 </details>
 
@@ -1048,20 +2012,70 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 - **Initial condition:** $h(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$; $\mu$ has none
 - **Boundary conditions:** Periodic in value and slope, for $h$ and $\mu$
 - **Geometry:** Interval
-- **Time-adaptive training** (Adaptive training → *Time Adaptive Training*), the counterpart of the paper's bc-PINN: 10 windows of 0.01 over the fast start (the two bumps merge by about $t = 0.05$), then 9 of 0.1, each starting from the previous window's network (transfer learning, L-BFGS)
-- **Initial condition as a loss term** (weight 100) and **exact periodicity**
-- **Training:** Adam 5,000 → L-BFGS 5,000 per window; 10,000 domain points, 4 × 128 network
 - **In PINNStudio:** Examples → **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh**
 
-**Result (RTX 4090, about 13 minutes):** $h$: $L_2$ = 2.9 × 10⁻³ ($t = 0$), 3.5 × 10⁻³ ($t = 0.05$), 5.1 × 10⁻³ ($t = 0.25$), 4.9 × 10⁻³ ($t = 0.5$), 4.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard_mattey`](reference_data/1D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). On the whole time interval every setup failed (25–90% error in $h$ at $t = 1$: plain, exact initial condition, SA-PINN, RBA, causal training with and without MsFFN), as the paper's standard PINN does. $\mu$ is fitted less closely in relative terms (3–13% after the merge), because it is nearly zero once the two phases have settled.
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, h](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | 2864 |
 
-![1D Cahn-Hilliard (Mattey & Ghosh) — h along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png)
+<details>
+<summary>⚙️ <em>Default settings — Mattey & Ghosh's bc-PINN, as in the paper</em></summary>
 
-![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_mu.png)
+*Forward problem*
 
-![1D Cahn-Hilliard (Mattey & Ghosh) — mu along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_mu.png)
+- **Network:** FNN 6 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 128 initial, 20 boundary
+- **Training:** Adam 10,000 → L-BFGS 50,000
+- **Loss weights:** equations 1; boundary 1; initial 64
+- **Methods:** time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 5.2, Table 3 [PAR]: bc-PINN, (h, mu), 6 × 128, N_i = 128, N_b = 20 and N_r = 10,000 per segment, 20 steps (0.1) per segment → 10 segments, 10,000 Adam per segment then L-BFGS, ICGL + TL; rel. L2 1.86e-2. Weights for CH are not stated: 64 on IC and backward terms as in their AC code.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 128 initial, 20 boundary
+- **Training:** Adam 10,000 → L-BFGS 50,000
+- **Loss weights:** equations 1; boundary 1; initial 64
+- **Methods:** time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best):*
+
+<sub>h — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — h — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_h.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_mu.png)
+
+<sub>h — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — h — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_line_comparison_h.png)
+
+<sub>μ — PINN against the reference along a line, at the reference times</sub>
+
+![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — μ — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_line_comparison_mu.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-cahn-hilliard-1d-mattey-ghosh)
 
 </details>
 
@@ -1074,18 +2088,31 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 
 - **Domain:** $S \in [0, 4]$, $\tau \in [0, 1]$; strike $K = 1$, $r = 0.05$, $\sigma = 0.2$
 - **Equations:** three residuals for one output (DeepXDE's Fischer-Burmeister form of the complementarity problem)
-- **Extra points:** 1000 anchors in $S \in [0.5, 1.5]$ around the exercise boundary; point resampling every 1000 iterations
 - **Reference:** none bundled (DeepXDE compares against a binomial-tree price) — add your own in Error Analysis
 - **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
-- **Network:** FNN [2, 128, 128, 128, 128, 1], tanh, Glorot normal
-- **Training:** Adam 12,000 → L-BFGS 15,000; 6,000 domain, 1,500 boundary, 1,500 initial points
 - **In PINNStudio:** Examples → **Forward** → **Black-Scholes 1D – American put**
 
-**Result (RTX 4090):** trained without errors; no bundled reference to compare against
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*u — PINN solution over time*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
+
+- **Network:** FNN 4 × 128 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 6,000 domain, 1,500 initial, 1,500 boundary
+- **Training:** Adam 12,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – American put** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Black-Scholes 1D – American put — PINN solution over time (u)](assets/Images/DeepXDE/American_put_option/animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-black-scholes-1d-american-put)
 
 </details>
 
@@ -1100,19 +2127,52 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 - **Initial condition:** payoff $V(S, 0) = \max(S - K, 0)$; **boundary conditions:** $V(0, \tau) = 0$, $V(150, \tau) = 150 - Ke^{-r\tau}$
 - **Exact solution:** the Black-Scholes formula (uses `norm_cdf` in the reference formula)
 - **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
-- **Network:** FNN [2, 28, 28, 28, 28, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
 - **In PINNStudio:** Examples → **Forward** → **Black-Scholes 1D – European call**
 
-**Result (RTX 4090):** $L_2$ = 5.7 × 10⁻⁴ ($t = 0.25$), 3.2 × 10⁻⁴ ($t = 0.5$), 4.3 × 10⁻⁴ ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | 60 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-black-scholes-1d-european-call)
+
+- **Network:** FNN 4 × 28 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,047 domain, 127 initial, 63 boundary
+- **Training:** Adam 20,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – European call** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Black-Scholes 1D – European call: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Black_Scholes_equation_call_option/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Black-Scholes 1D – European call: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Black_Scholes_equation_call_option/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Black-Scholes 1D – European call — PINN solution over time (u)](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Black-Scholes 1D – European call — PINN vs reference, error analysis](assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-black-scholes-1d-european-call)
 
 </details>
 
@@ -1130,25 +2190,106 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻⁵ ($t = 0$), 3.7 × 10⁻⁴ ($t = 0.25$), 7.2 × 10⁻⁴ ($t = 0.5$), 1.2 × 10⁻³ ($t = 0.75$), 1.3 × 10⁻³ ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.997 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
-
-![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
-
-![1D Burgers — line comparison against reference data](assets/Images/1D-Burgers/line_comparison.png)
-
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
-
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1:
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
 
-with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so the value it learns is 0.01). $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so the value it learns is 0.01). $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value.
 
-**Inverse result (RTX 4090):** $\lambda_1$ = 0.996 (true 1), $\lambda_2$ = 0.01004 (true 0.01).
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 40 |
+| Inverse: parameters found (true) | – | **λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01)** (worst error 0.099%) | 101 |
+
+<details>
+<summary>⚙️ <em>Default settings — Raissi et al.'s settings, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 8 × 20 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 50 initial, 50 boundary
+- **Training:** L-BFGS 50,000
+
+*Load it:* toolbar → Examples: **Forward** → **Burgers 1D – Raissi et al.** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* Raissi et al. Sec. 2.1 and their code: 8x20 tanh (3,021 parameters), N_u = 100 IC/BC points, N_f = 10,000 LHS points, L-BFGS-B only (maxiter 50,000), equal weights; rel. L2 6.7e-4. The code normalises inputs to [-1, 1] (not done here; x is already in [-1, 1], t in [0, 1]).
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 8 × 20 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 50 initial, 50 boundary
+- **Training:** L-BFGS 50,000
+
+*Load it:* toolbar → Examples: **Forward** → **Burgers 1D – Raissi et al.** → **Tuned**, then Solve.
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 40 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 8,000 domain, 200 initial, 200 boundary
+- **Training:** Adam 15,000 → L-BFGS 30,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Unknowns:** lambda_1 (initial guess 0.1, true 1.0), lambda_2 (initial guess 1.0, true 0.01)
+- **Measured data:** t_1.0.txt for u (weight 1000)
+
+*Load it:* toolbar → Examples: **Inverse** → **Burgers 1D – Raissi et al.** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-burgers-1d-raissi-et-al-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Raissi et al.'s settings, run in PINNStudio (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
+![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
 
 ![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-1d-raissi-et-al)
 
 </details>
 
@@ -1160,27 +2301,55 @@ DeepXDE example: [`Burgers_RAR.py`](https://github.com/lululxvi/deepxde/blob/mas
 $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
-- **Time range / reference:** $t \in [0, 1]$, compared with the exact solution at $t = 0, 0.25, 0.5, 0.75, 1$
-- **Residual-based adaptive refinement:** 3 rounds, each adding the 100 points with the largest PDE residual (out of 100,000 random candidates) and retraining (Adam 10,000 → L-BFGS 15,000)
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
 - **In PINNStudio:** Examples → **Forward** → **Burgers 1D – RAR**
 
-**Why not DeepXDE's one-point refinement.** DeepXDE's script adds 1 point per round until the mean residual is below 0.005. Here, after the first training the mean residual is already about 3–4 × 10⁻³, so that loop would add a single point and stop, which shows nothing. This example therefore turns the tolerance off and runs 3 rounds of 100 points instead. The collocation-point figure below shows that they are placed on the shock at $x = 0$ once it has formed ($t \gtrsim 0.3$), the region of largest error. The $L_2$ error at $t = 1$, where the shock is steepest, falls from 2.6 × 10⁻² after round 1 to 4.0 × 10⁻³ after round 2 and 8.4 × 10⁻⁴ after round 3.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻³ ($t = 0$), 4.6 × 10⁻³ ($t = 0.25$), 1.0 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 8.4 × 10⁻⁴ ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** | 170 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-burgers-1d-rar) · [training methods study: 1D Burgers](benchmarks/training_methods.md#1d-burgers)
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,500 domain, 160 initial, 100 boundary
+- **Training:** Adam 10,000 → L-BFGS 15,000
+- **Methods:** residual-based adaptive refinement (3 rounds of 100 points)
+
+*Load it:* toolbar → Examples: **Forward** → **Burgers 1D – RAR** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Burgers 1D – RAR: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Burgers_equation_with_RAR/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Burgers 1D – RAR: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Burgers_equation_with_RAR/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Burgers 1D – RAR — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Burgers 1D – RAR — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
-
-*Collocation points after the last RAR round: original points (gray), points added in earlier rounds (orange) and in the last round (red)*
-
-![Burgers 1D – RAR — collocation points after the last RAR round: original points (gray), points added in earlier rounds (orange) and in the last round (red)](assets/Images/DeepXDE/Burgers_equation_with_RAR/rar_collocation_points.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-1d-rar)
 
 </details>
 
@@ -1193,19 +2362,77 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
 - **In PINNStudio:** Examples → **Forward** → **Diffusion 1D**
 
-**Result (RTX 4090):** $L_2$ = 4.8 × 10⁻³ ($t = 0$), 9.0 × 10⁻³ ($t = 0.25$), 6.4 × 10⁻³ ($t = 0.5$), 5.8 × 10⁻³ ($t = 0.75$), 3.0 × 10⁻² ($t = 1$)
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*u — PINN solution over time*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** | 76 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain, 10 initial, 20 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 64 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 120 domain, 30 initial, 60 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-1d)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation/base_line_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_equation/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation/all_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Diffusion 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d)
 
 </details>
 
@@ -1218,19 +2445,55 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 40 domain points
 - **In PINNStudio:** Examples → **Forward** → **Diffusion 1D – hard IC and BCs**
 
-**Result (RTX 4090):** $L_2$ = 9.4 × 10⁻⁸ ($t = 0$), 1.6 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 2.8 × 10⁻³ ($t = 1$)
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*u — PINN solution over time*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** | 40 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-1d-hard-ic-and-bcs)
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – hard IC and BCs** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D – hard IC and BCs: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D – hard IC and BCs: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion 1D – hard IC and BCs — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Diffusion 1D – hard IC and BCs — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d-hard-ic-and-bcs)
 
 </details>
 
@@ -1242,21 +2505,76 @@ DeepXDE example: [`diffusion_1d_resample.py`](https://github.com/lululxvi/deepxd
 $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 - **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u = e^{-t}\sin(\pi x)$ on the boundary
-- **Point resampling:** pseudo-random collocation points redrawn every 100 iterations
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
 - **In PINNStudio:** Examples → **Forward** → **Diffusion 1D – resampling**
 
-**Result (RTX 4090):** $L_2$ = 1.8 × 10⁻² ($t = 0$), 2.5 × 10⁻² ($t = 0.25$), 1.5 × 10⁻² ($t = 0.5$), 1.4 × 10⁻² ($t = 0.75$), 4.3 × 10⁻² ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** | 12 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain, 10 initial, 20 boundary
+- **Training:** Adam 2,000
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – resampling** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain, 10 initial, 20 boundary
+- **Training:** Adam 2,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – resampling** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-1d-resampling)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D – resampling: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_equation_with_resampling/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D – resampling: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation_with_resampling/base_line_comparison.png)
+
+*PINNStudio best — L-BFGS phase added:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_equation_with_resampling/lbfgs_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_equation_with_resampling/lbfgs_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Diffusion 1D – resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_resampling/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d-resampling)
 
 </details>
 
@@ -1269,21 +2587,112 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
 - **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
-- **Network:** FNN [2, 30, 30, 30, 30, 30, 30, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000; 320 domain points
 - **In PINNStudio:** Examples → **Forward** → **Diffusion-reaction 1D**
 
-DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $L_2$ = 9.9 × 10⁻⁸ ($t = 0$), 1.4 × 10⁻² ($t = 0.25$), 3.4 × 10⁻² ($t = 0.5$), 6.7 × 10⁻² ($t = 0.75$), 1.1 × 10⁻¹ ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | 290 |
+| Inverse: parameters found (true) | – | **D = 0.999773 (1)** (worst error 0.023%) | 334 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 30 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 320 domain
+- **Training:** Adam 20,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion-reaction 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 7 × 60 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 960 domain
+- **Training:** Adam 60,000 → L-BFGS 15,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Diffusion-reaction 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-reaction-1d) · [training methods study: Diffusion-reaction 1D](benchmarks/training_methods.md#diffusion-reaction-1d)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 7 × 60 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 960 domain
+- **Training:** Adam 60,000 → L-BFGS 45,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** D (initial guess 2.0, true 1.0)
+- **Measured data:** t_0.25.txt for u (weight 100); t_0.5.txt for u (weight 100); t_0.75.txt for u (weight 100); t_1.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-diffusion-reaction-1d-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion-reaction 1D: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_reaction_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion-reaction 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_reaction_equation/base_line_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_reaction_equation/all_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion-reaction 1D — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Diffusion-reaction 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_reaction_equation/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-reaction-1d)
 
 </details>
 
@@ -1295,23 +2704,56 @@ DeepXDE example: [`fractional_diffusion_1d.py`](https://github.com/lululxvi/deep
 $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e^{-t}\left(x^3(1-x)^3 + f_\alpha(x)\right), \qquad x \in [0, 1],\ t \in [0, 1],\ \alpha = 1.8$$
 
 - **Equation in the panel:** `du_t - frac(u) + exp(-t)*(x**3*(1 - x)**3 + ...)` (DeepXDE's TimeFPDE)
-- **Fractional settings:** 52-point static mesh in x at each time
 - **Boundary and initial conditions:** $u(0, t) = u(1, t) = 0$, $u(x, 0) = x^3(1-x)^3$, both exact through $\hat u = x(1-x)\ t\ N + x^3(1-x)^3$
 - **Exact solution:** $u = e^{-t}x^3(1-x)^3$
 - **Constants:** `alpha = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
 - **In PINNStudio:** Examples → **Forward** → **Fractional diffusion 1D**
 
-**Result (RTX 4090):** $L_2$ = 1.0 × 10⁻⁷ ($t = 0$), 1.4 × 10⁻³ ($t = 0.25$), 5.8 × 10⁻³ ($t = 0.5$), 2.4 × 10⁻³ ($t = 0.75$), 3.3 × 10⁻³ ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.3 × 10<sup>-3</sup> | **3.3 × 10<sup>-3</sup>** | 39 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-diffusion-1d)
+
+- **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 400 domain, 2 initial, 2 boundary
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Fractional diffusion 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Fractional diffusion 1D: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Fractional_diffusion_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Fractional diffusion 1D: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Fractional_diffusion_equation/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Fractional diffusion 1D — PINN solution over time (u)](assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Fractional diffusion 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_diffusion_equation/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-diffusion-1d)
 
 </details>
 
@@ -1325,31 +2767,115 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary conditions:** $u(0, t) = u(1, t) = 0$
 - **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Heat 1D – Dirichlet**
 
 The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
 
-**Result (RTX 4090):** $L_2$ = 4.2 × 10⁻⁴ ($t = 0$), 9.1 × 10⁻⁴ ($t = 0.25$), 2.2 × 10⁻³ ($t = 0.5$), 9.5 × 10⁻³ ($t = 0.75$), 5.0 × 10⁻² ($t = 1$)
-
-*u — PINN solution over time*
-
-![Heat 1D – Dirichlet — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Heat 1D – Dirichlet — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation/surface_comparison.png)
-
-*Inverse mode* — pick the example from the **Inverse** list: the diffusivity $a$ is unknown (initial guess 1, true value 0.4) and is learned together with $u$ from $u$ measured at $t = 1$ (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](reference_data/1D/heat/t_1.0.txt)):
+*Inverse mode* — pick the example from the **Inverse** list: the diffusivity $a$ is unknown (initial guess 1, true value 0.4) and is learned together with $u$ from $u$ measured at $t = 1$ (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](reference_data/1D/heat/t_1.0.txt)).
 
 $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
-**Inverse result (RTX 4090):** $a$ = 0.3972 (true 0.4); $L_2$ = 7.1 × 10⁻⁴ ($t = 0$), 6.1 × 10⁻³ ($t = 0.25$), 2.1 × 10⁻² ($t = 0.5$), 2.2 × 10⁻² ($t = 0.75$), 5.1 × 10⁻³ ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*Inverse mode — inferred parameter during training*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 5.0 × 10<sup>-2</sup> | **1.3 × 10<sup>-2</sup>** | 128 |
+| Inverse: parameters found (true) | – | **a = 0.400406 (0.4)** (worst error 0.1%) | 146 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,540 domain, 160 initial, 80 boundary
+- **Training:** Adam 20,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 1D – Dirichlet** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 40 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 7,620 domain, 480 initial, 240 boundary
+- **Training:** Adam 60,000 → L-BFGS 45,000
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 1D – Dirichlet** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-heat-1d-dirichlet)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 40 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 7,620 domain, 480 initial, 240 boundary
+- **Training:** Adam 60,000 → L-BFGS 45,000
+- **Unknowns:** a (initial guess 1.0, true 0.4)
+- **Measured data:** t_1.0.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Heat 1D – Dirichlet** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-heat-1d-dirichlet-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 1D – Dirichlet: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Heat_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Heat 1D – Dirichlet: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation/base_line_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Heat_equation/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation/all_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Heat_equation_inv/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation_inv/all_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Heat_equation_inv/all_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
+![Heat 1D – Dirichlet — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)
 
 ![Heat 1D – Dirichlet inverse mode — inferred parameter during training](assets/Images/DeepXDE/Heat_equation/inverse_param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-heat-1d-dirichlet)
 
 </details>
 
@@ -1361,22 +2887,77 @@ DeepXDE example: [`heat_resample.py`](https://github.com/lululxvi/deepxde/blob/m
 $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
 
 - **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u(0, t) = u(1, t) = 0$
-- **Point resampling:** the collocation points are redrawn every 10 iterations (DeepXDE's `PDEPointResampler`)
 - **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **In PINNStudio:** Examples → **Forward** → **Heat 1D – resampling**
 
-**Result (RTX 4090):** $L_2$ = 1.6 × 10⁻⁴ ($t = 0$), 4.6 × 10⁻⁴ ($t = 0.25$), 5.8 × 10⁻⁴ ($t = 0.5$), 4.1 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻² ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.4 × 10<sup>-2</sup> | **3.1 × 10<sup>-3</sup>** | 558 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,540 domain, 160 initial, 80 boundary
+- **Training:** Adam 200,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 1D – resampling** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 40 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,540 domain, 160 initial, 80 boundary
+- **Training:** Adam 200,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 1D – resampling** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-heat-1d-resampling)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 1D – resampling: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Heat_equation_with_resampling/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Heat 1D – resampling: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation_with_resampling/base_line_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](benchmarks/figures/tuning/Heat_equation_with_resampling/net_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Heat_equation_with_resampling/net_line_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Heat 1D – resampling — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Heat 1D – resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation_with_resampling/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-heat-1d-resampling)
 
 </details>
 
@@ -1389,22 +2970,109 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 - **Initial conditions:** $u(x, 0) = x$ and $\partial u/\partial t\ (x, 0) = 0$ (the second as an Operator BC applied at the initial time)
 - **Boundary condition:** $u = x\cos t$
-- **Training:** Adam with inverse-time decay ($10^{-3}$, steps 3000, rate 0.9), then L-BFGS
 - **Exact solution:** $u = x\cos t$
 - **Constants:** `alpha = -1`, `beta = 0`, `gamma = 1`, `k = 2`
-- **Network:** FNN [2, 40, 40, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 15,000; 30,000 domain, 1,500 boundary, 1,500 initial points
 - **In PINNStudio:** Examples → **Forward** → **Klein-Gordon 1D**
 
-**Result (RTX 4090):** $L_2$ = 1.4 × 10⁻³ ($t = 0$), 1.6 × 10⁻² ($t = 2.5$), 8.5 × 10⁻² ($t = 5$), 6.5 × 10⁻² ($t = 7.5$), 8.1 × 10⁻² ($t = 10$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | 151 |
+| Inverse: parameters found (true) | – | **γ = 1.00912 (1)** (worst error 0.91%) | 1361 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 2 × 40 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 1,500 initial, 1,500 boundary
+- **Training:** Adam 20,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Klein-Gordon 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 80 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 1,500 initial, 1,500 boundary
+- **Training:** Adam 20,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Klein-Gordon 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-klein-gordon-1d) · [training methods study: Klein-Gordon](benchmarks/training_methods.md#klein-gordon)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 3 × 80 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 90,000 domain, 4,500 initial, 4,500 boundary
+- **Training:** Adam 60,000 → L-BFGS 45,000
+- **Unknowns:** gamma (initial guess 0.5, true 1.0)
+- **Measured data:** t_1.txt for u (weight 100); t_2.txt for u (weight 100); t_3.txt for u (weight 100); t_4.txt for u (weight 100); t_5.txt for u (weight 100); t_6.txt for u (weight 100); t_7.txt for u (weight 100); t_8.txt for u (weight 100); t_9.txt for u (weight 100); t_10.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Klein-Gordon 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-klein-gordon-1d-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Klein-Gordon 1D: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Klein_Gordon_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Klein-Gordon 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Klein_Gordon_equation/base_line_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](benchmarks/figures/tuning/Klein_Gordon_equation/net_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Klein_Gordon_equation/net_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Klein-Gordon 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Klein-Gordon 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Klein-Gordon 1D: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Klein-Gordon 1D — PINN solution over time (u)](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Klein-Gordon 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Klein_Gordon_equation/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-klein-gordon-1d)
 
 </details>
 
@@ -1419,34 +3087,100 @@ $$\Large \frac{\partial u}{\partial t} + 0.5\frac{\partial^2 v}{\partial x^2} + 
 
 $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2)\ u = 0$$
 
-- **Solved as:** two real outputs, $h = u + iv$: the second and third equations above are the real and imaginary parts, entered in PINNStudio as PDE 1 (`du_t + 0.5*dv_xx + (u**2 + v**2)*v`) and PDE 2 (`dv_t - 0.5*du_xx - (u**2 + v**2)*u`)
 - **Initial condition:** $h(x, 0) = 2\ \mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
-- **Compared:** $|h| = \sqrt{u^2 + v^2}$ against a Fourier pseudo-spectral (split-step) solution in [`reference_data/1D/schrodinger`](reference_data/1D/schrodinger), made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)
-- **Network:** FNN [2, 100, 100, 100, 100, 2], tanh, Glorot normal
-- **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Schrödinger 1D**
 
-**Result (RTX 4090):** $L_2$ of $|h|$ = 1.4 × 10⁻³ ($t = 0$), 1.0 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.4 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.0 × 10⁻³ ($t = 1.25$), 1.8 × 10⁻³ ($t = 1.5$)
-
-*|h| — PINN solution over time*
-
-![Schrödinger 1D — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
-
-*|h| — PINN vs reference, error analysis*
-
-![Schrödinger 1D — PINN vs reference, error analysis (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png)
-
-*Inverse mode* — pick the example from the **Inverse** list: the coefficient $c$ of the second-derivative terms (0.5 above; initial guess 1) is unknown and is learned from $|h| = \sqrt{u^2 + v^2}$ measured at $t = 0.75$, with the same training as above:
+*Inverse mode* — pick the example from the **Inverse** list: the coefficient $c$ of the second-derivative terms (0.5 in Forward mode; initial guess 1) is unknown and is learned from $|h| = \sqrt{u^2 + v^2}$ measured at $t = 0.75$, with the same training as the forward problem.
 
 $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0$$
 
-**Why $t = 0.75$.** Measured at $t = 1.5$ only, $|h|$ does not determine $c$: solving the equation with $c = 1.95$ gives an $|h|$ at $t = 1.5$ within 1% of the one for $c = 0.5$, and training from the guess $c = 1$ converges to 1.95, fitting the data at $t = 1.5$ while missing every other time by 27–60%. At $t = 0.75$ (or $0.5$) $|h|$ changes with $c$ in one direction only, and the true value is recovered.
+*Source paper:* [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Inverse result (RTX 4090):** this example depends a lot on the random seed, so it was run 12 times with different seeds. $c$ came out between 0.4964 and 0.5008 (true 0.5, within 0.7%) in 11 runs, and 0.515 (3% off) in one. $|h|$ always matches the data at $t = 0.75$ ($L_2$ about 3–6 × 10⁻⁴), but how well it is found at the other times varies: in 2 of the 12 runs $L_2$ stayed around 10⁻³ at every time (e.g. $c$ = 0.50017, $L_2$ = 1.3 × 10⁻³ at $t = 0$ and 1.5 × 10⁻³ at $t = 1.5$, the run shown below), in the others it is 2 × 10⁻² to 1 × 10⁻¹ away from $t = 0.75$. Data at more than one time would pin the solution down better.
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*Inverse mode — inferred parameter during training*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | 108 |
+| Inverse: parameters found (true) | – | **c = 0.500036 (0.5)** (worst error 0.0072%) | 337 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-schr-dinger-1d)
+
+- **Network:** FNN 4 × 100 (2 inputs, 2 outputs), tanh, Glorot normal
+- **Points:** 10,000 domain, 200 initial, 20 boundary
+- **Training:** Adam 10,000 → L-BFGS 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Schrödinger 1D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 5 × 200 (2 inputs, 2 outputs), tanh, Glorot normal
+- **Points:** 10,000 domain, 200 initial, 20 boundary
+- **Training:** Adam 10,000 → L-BFGS 10,000
+- **Unknowns:** c (initial guess 1.0, true 0.5)
+- **Measured data:** t_0.75.txt for output (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Schrödinger 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-schr-dinger-1d-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Schrödinger 1D: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Schr_dinger_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Schrödinger 1D: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Schr_dinger_equation/base_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](benchmarks/figures/tuning/Schr_dinger_equation_inv/net_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Schr_dinger_equation_inv/net_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](benchmarks/figures/tuning/Schr_dinger_equation_inv/net_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
+![Schrödinger 1D — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
 
 ![Schrödinger 1D inverse mode — inferred parameter during training](assets/Images/DeepXDE/Schr_dinger_equation/inverse_param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-schr-dinger-1d)
 
 </details>
 
@@ -1460,24 +3194,112 @@ $$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2
 - **Boundary conditions:** $u(0, t) = u(1, t) = 0$
 - **Initial conditions:** $u(x, 0) = \sin(\pi x) + \sin(A\pi x)$ ($A = 2$); $\partial u/\partial t(x, 0) = 0$ as an Operator BC `du_t` applied at the initial time
 - **Exact solution:** $u = \sin(\pi x)\cos(C\pi t) + \sin(A\pi x)\cos(AC\pi t)$ — ten and twenty oscillations in time
-- **Network:** space-time multi-scale Fourier features (STMsFFN): space scale $\sigma_x = 1$, time scales $\sigma_t = 1, 10$; inputs rescaled to zero mean, unit variance by the input-transform formula `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`
-- **Loss weights:** set from the initial losses, $w_i = 5 / L_i(0)$ (*Scale by initial losses*); learning rate $10^{-3}/(1 + 0.9\ n/2000)$; collocation points redrawn every iteration
 - **Constants:** `A = 2`, `C = 10`
-- **Network:** STMsFFN [2, 100, 100, 100, 1], Fourier scales σ = 1, time scales 1, 10, tanh, Glorot uniform
-- **Training:** Adam 10,000; 360 domain, 360 boundary, 360 initial points
 - **In PINNStudio:** Examples → **Forward** → **Wave 1D – space-time multi-scale Fourier features**
 
 Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). With 10,000 iterations the problem remains difficult: the error grows with t, and longer training reduces it.
 
-**Result (RTX 4090):** $L_2$ = 7.7 × 10⁻⁴ ($t = 0$), 4.5 × 10⁻² ($t = 0.25$), 9.8 × 10⁻² ($t = 0.5$), 1.0 × 10⁻¹ ($t = 0.75$), 1.4 × 10⁻¹ ($t = 1$)
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3](https://arxiv.org/abs/2012.10047) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*u — PINN solution over time*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** | 645 |
+| Inverse: parameters found (true) | – | **C = 10 (10)** (worst error 0%) | 4354 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** STMsFFN 3 × 100 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 360 domain, 360 initial, 360 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Wave 1D – space-time multi-scale Fourier features** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** STMsFFN 4 × 200 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 1,080 domain, 1,080 initial, 1,080 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Wave 1D – space-time multi-scale Fourier features** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** STMsFFN 4 × 200 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 15,000 domain, 1,080 initial, 1,080 boundary
+- **Training:** Adam 30,000 → L-BFGS 45,000
+- **Unknowns:** C (initial guess 5.0, true 10.0)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Wave 1D – space-time multi-scale Fourier features** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/base_line_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_line_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — all of the changes together:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Wave 1D – space-time multi-scale Fourier features — PINN solution over time (u)](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif)
 
-*PINN vs reference, error analysis*
+</details>
 
-![Wave 1D – space-time multi-scale Fourier features — PINN vs reference, error analysis](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/surface_comparison.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-wave-1d-space-time-multi-scale-fourier-features)
 
 </details>
 
@@ -1491,23 +3313,74 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Unknown:** $C$ (true value 1, initial guess 2)
 - **Data:** 10 measurements of $u$ at $t = 1$, plus the initial and boundary conditions
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
 - **In PINNStudio:** Examples → **Inverse** → **Diffusion 1D – unknown coefficient**
 
-**Result (RTX 4090):** $C$ = 0.9996 (true 1); $L_2$ = 1.6 × 10⁻³ ($t = 0$), 4.2 × 10⁻³ ($t = 0.25$), 4.4 × 10⁻³ ($t = 0.5$), 6.9 × 10⁻³ ($t = 0.75$), 1.1 × 10⁻² ($t = 1$)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **C = 1.00004 (1)** (worst error 0.004%) | 311 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-1d-unknown-coefficient)
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain, 10 initial, 20 boundary
+- **Training:** Adam 50,000
+- **Unknowns:** C (initial guess 2.0, true 1.0)
+- **Measured data:** u_obs_t1.txt for u (weight 1)
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion 1D – unknown coefficient** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D – unknown coefficient: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Inverse_diffusion_equation/base_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D – unknown coefficient: DeepXDE's settings — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_diffusion_equation/base_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Diffusion 1D – unknown coefficient: DeepXDE's settings — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_equation/base_param_plot.png)
+
+*PINNStudio best — 3× iterations:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — PINN, reference and error over space and time](benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_diffusion_equation/iters_line_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion 1D – unknown coefficient — PINN solution over time (u)](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
 
-*PINN vs reference, error analysis*
-
-![Diffusion 1D – unknown coefficient — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_diffusion_equation/surface_comparison.png)
-
-*Inferred parameters during training*
-
 ![Diffusion 1D – unknown coefficient — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-1d-unknown-coefficient)
 
 </details>
 
@@ -1521,21 +3394,54 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Domain:** $x \in [0, 1]$, $t \in [0, 10]$; $C_A = C_B = e^{-20x}$ at $t = 0$, $C_A = C_B = 1 - x$ on the boundary
 - **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
-- **Network:** FNN [2, 20, 20, 20, 2], tanh, Glorot uniform
-- **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
 - **In PINNStudio:** Examples → **Inverse** → **Diffusion-reaction 1D – unknown k_f, D**
 
-**Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.993 (true 2)
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*ca — PINN solution over time*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **kf = 0.0991842 (0.1); D = 1.9933 (2)** (worst error 0.82%) | 747 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-diffusion-reaction-1d-unknown-k-f-d)
+
+- **Network:** FNN 3 × 20 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 2,000 domain, 100 initial, 100 boundary
+- **Training:** Adam 80,000
+- **Unknowns:** kf (initial guess 0.05, true 0.1), D (initial guess 1.0, true 2.0)
+- **Measured data:** ca_obs.txt for ca (weight 1); cb_obs.txt for cb (weight 1)
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown k_f, D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
 
 ![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif)
 
-*Inferred parameters during training*
-
 ![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-diffusion-reaction-1d-unknown-k-f-d)
 
 </details>
 
@@ -1551,19 +3457,43 @@ DeepXDE example: [`fractional_Poisson_2d.py`](https://github.com/lululxvi/deepxd
 $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(1 + \tfrac{\alpha}{2})\left(1 - (1 + \tfrac{\alpha}{2})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
 
 - **Equation in the panel:** `frac(u)*gamma((1 - alpha)/2)*gamma((2 + alpha)/2)/(2*pi**1.5) - ...` — `frac(u)` times $C(\alpha, 2)$ is $-(-\Delta)^{\alpha/2}u$
-- **Fractional settings:** 8 directions, 100 Grünwald-Letnikov points per unit length, dynamic mesh
 - **Geometry:** unit disk; $u = 0$ on the circle through $\hat u = (1 - x^2 - y^2)N$
 - **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
 - **Constants:** `alpha = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000; 100 domain points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 2D – disk**
 
-**Result (RTX 4090):** $L_2$ = 6.6 × 10⁻⁴ to 4.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 9.2 × 10<sup>-4</sup> | **9.2 × 10<sup>-4</sup>** | 184 |
 
-![Fractional Poisson 2D – disk — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-poisson-2d-disk)
+
+- **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 100 domain
+- **Training:** Adam 20,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 2D – disk** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Fractional Poisson 2D – disk: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Fractional_Poisson_equation_2D/base_surface_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-poisson-2d-disk)
 
 </details>
 
@@ -1577,15 +3507,78 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Boundary conditions:** $u = 0$ on the boundary, imposed exactly by $\hat u = x(1-x)y(1-y)N$
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
-- **Network:** FNN [2, 150, 150, 150, 1], sin, Glorot uniform
-- **Training:** Adam 5,000; 400 domain, 80 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Helmholtz 2D – Dirichlet**
 
-**Result (RTX 4090):** $L_2$ = 1.9 × 10⁻³
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference, error analysis*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Helmholtz 2D – Dirichlet — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.9 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** | 26 |
+| Inverse: parameters found (true) | – | **k₀ = 12.5664 (12.5664)** (worst error 0.00023%) | 58 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-helmholtz-2d-dirichlet)
+
+- **Network:** FNN 3 × 150 (2 inputs, 1 output), sin, Glorot uniform
+- **Points:** 400 domain, 80 boundary
+- **Training:** Adam 5,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – Dirichlet** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 300 (2 inputs, 1 output), sin, Glorot uniform
+- **Points:** 400 domain, 80 boundary
+- **Training:** Adam 5,000 → L-BFGS 45,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** k0 (initial guess 10.0, true 12.566370614359172)
+- **Measured data:** u_obs.txt for u (weight 1000)
+
+*Load it:* toolbar → Examples: **Inverse** → **Helmholtz 2D – Dirichlet** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-helmholtz-2d-dirichlet-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Helmholtz 2D – Dirichlet: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_2D_Dirichlet/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Helmholtz 2D – Dirichlet: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Helmholtz 2D – Dirichlet: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](benchmarks/figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-helmholtz-2d-dirichlet)
 
 </details>
 
@@ -1596,24 +3589,42 @@ DeepXDE example: [`Helmholtz_Dirichlet_2d_HPO.py`](https://github.com/lululxvi/d
 
 $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
 
-- **Same problem** as Helmholtz 2D (Dirichlet), with $\hat u = x(1-x)y(1-y)N$
 - **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$ to $5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
-- **Budget:** 50 runs of 10,000 Adam iterations each — the baseline (lr $10^{-3}$, 4 × 50, sin), 10 random runs, then 39 chosen by the Gaussian-process model, minimizing the final loss
-- **Output:** one folder per run, `bayes_search.csv` and `bayes_convergence.png`; the best run is printed at the end of the Training Log
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
-- **Network:** FNN [2, 50, 50, 50, 50, 1], sin, Glorot uniform
-- **Training:** Adam 10,000; 400 domain, 80 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Helmholtz 2D – hyperparameter search**
 
-**Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 ($L_2$ = 3.3 × 10⁻¹); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **$L_2$ = 1.3 × 10⁻³** (about 40 minutes for all 50 runs)
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-*PINN vs reference, error analysis*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Helmholtz 2D – hyperparameter search — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – |
 
-*Bayesian search: final loss of every run and the best so far*
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-![Helmholtz 2D – hyperparameter search — Bayesian search: final loss of every run and the best so far](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/bayes_convergence.png)
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
+
+- **Network:** FNN 4 × 50 (2 inputs, 1 output), sin, Glorot uniform
+- **Points:** 400 domain, 80 boundary
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – hyperparameter search** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (README):*
+
+![Helmholtz 2D – hyperparameter search: DeepXDE's settings (README) — PINN, reference and error over space and time](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-helmholtz-2d-hyperparameter-search)
 
 </details>
 
@@ -1625,24 +3636,47 @@ DeepXDE example: [`Helmholtz_Sound_hard_ABC_2d.py`](https://github.com/lululxvi/
 $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 
 - **Geometry:** Custom — the square $[-\pi, \pi]^2$ minus a disk of radius $R = \pi/4$
-- **Scattered field** of the plane wave $e^{ik_0x}$ off a sound-hard disk: two outputs `u_re`, `u_im`, one equation each
-- **On the disk** (Neumann): $\partial u/\partial n = -\partial e^{ik_0x}/\partial n$, i.e. `-k0*x*sin(k0*x)/R` and `k0*x*cos(k0*x)/R`
-- **On the outer square** (absorbing, Robin): $\partial u/\partial n = ik_0u$, i.e. `-k0*u_im` on the `u_re` row and `k0*u_re` on the `u_im` row
 - **Reference:** the Bessel/Hankel series solution of DeepXDE's script
 - **Constants:** `k0 = 2`, `R = pi/4`
-- **Network:** FNN [2, 350, 350, 350, 2], tanh, Glorot uniform
-- **Training:** Adam 10,000; 1,600 domain, 320 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Helmholtz 2D – sound-hard scattering**
 
-**Result (RTX 4090):** $L_2$ = 7.8 × 10⁻² ($u_{re}$), 6.7 × 10⁻² ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1 × 10⁻² (best 7.1 × 10⁻²)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u_re — PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** | 61 |
 
-![Helmholtz 2D – sound-hard scattering — PINN vs reference, error analysis (u_re)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_re.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*u_im — PINN vs reference, error analysis*
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Helmholtz 2D – sound-hard scattering — PINN vs reference, error analysis (u_im)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-helmholtz-2d-sound-hard-scattering)
+
+- **Network:** FNN 3 × 350 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 1,600 domain, 320 boundary
+- **Training:** Adam 10,000
+
+*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – sound-hard scattering** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>im — PINN, reference and error over space and time</sub>
+
+![Helmholtz 2D – sound-hard scattering: DeepXDE's settings (also PINNStudio best) — im — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_im.png)
+
+<sub>re — PINN, reference and error over space and time</sub>
+
+![Helmholtz 2D – sound-hard scattering: DeepXDE's settings (also PINNStudio best) — re — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_re.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-helmholtz-2d-sound-hard-scattering)
 
 </details>
 
@@ -1657,15 +3691,56 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 - **Boundary conditions:** Dirichlet (exact solution) on the outer square; Neumann (exact normal derivative) on the hole
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
-- **Network:** FNN [2, 350, 350, 350, 1], sin, Glorot uniform
-- **Training:** Adam 5,000; 225 domain, 240 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Helmholtz 2D – square with hole**
 
-**Result (RTX 4090):** $L_2$ = 4.6 × 10⁻²
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 24 |
 
-![Helmholtz 2D – square with hole — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_with_a_hole/surface_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 350 (2 inputs, 1 output), sin, Glorot uniform
+- **Points:** 225 domain, 240 boundary
+- **Training:** Adam 5,000
+
+*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – square with hole** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 3 × 350 (2 inputs, 1 output), sin, Glorot uniform
+- **Points:** 225 domain, 240 boundary
+- **Training:** Adam 5,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – square with hole** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-helmholtz-2d-square-with-hole)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Helmholtz 2D – square with hole: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_2D_with_a_hole/base_surface_comparison.png)
+
+*PINNStudio best — L-BFGS phase added:*
+
+![Helmholtz 2D – square with hole: PINNStudio best — L-BFGS phase added — PINN, reference and error over space and time](benchmarks/figures/tuning/Helmholtz_2D_with_a_hole/lbfgs_surface_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-helmholtz-2d-square-with-hole)
 
 </details>
 
@@ -1677,18 +3752,41 @@ DeepXDE example: [`Laplace_disk.py`](https://github.com/lululxvi/deepxde/blob/ma
 $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} + \frac{\partial^2 u}{\partial \theta^2} = 0, \qquad r \in [0, 1],\ \theta \in [0, 2\pi]$$
 
 - **Boundary condition:** $u(1, \theta) = \cos\theta$
-- **Input features:** $(r\sin\theta,\ r\cos\theta)$ through an input-transform formula, which makes the solution periodic in $\theta$
 - **Exact solution:** $u = r\cos\theta$
 - **In PINNStudio:** $x$ plays $r$ and $y$ plays $\theta$, so the plots show the $(r, \theta)$ rectangle
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 15,000; 2,540 domain, 80 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Laplace 2D – disk**
 
-**Result (RTX 4090):** $L_2$ = 1.1 × 10⁻³
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | 72 |
 
-![Laplace 2D – disk — PINN vs reference, error analysis](assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-laplace-2d-disk)
+
+- **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 2,540 domain, 80 boundary
+- **Training:** Adam 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Laplace 2D – disk** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Laplace 2D – disk: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Laplace_equation_on_a_disk/base_surface_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-laplace-2d-disk)
 
 </details>
 
@@ -1702,37 +3800,144 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy}, \quad \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx}, \quad \sigma_{xy} = 2\mu\varepsilon_{xy}$$
 
 - **Domain:** $[0, 1]^2$; $\lambda = 1$, $\mu = 0.5$, $Q = 4$ (constants `lmbd`, `mu`, `Q`); body forces $f_x$, $f_y$ as in DeepXDE's script
-- **Outputs:** five, $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$, with five equations (two momentum, three constitutive)
 - **Boundary conditions:** imposed exactly by an output transform, e.g. $\hat u_x = y(1-y)N_1$, $\hat\sigma_{yy} = (1-y)N_4 + (\lambda+2\mu)Q\sin(\pi x)$
 - **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\ Qy^4/4$
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
-- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Linear elasticity 2D – plate**
 
-**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the $L_2$ errors are 3.5 × 10⁻¹, 5.9 × 10⁻¹, 1.9 × 10⁻¹, 4.8 × 10⁻¹ and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 3.3 × 10⁻¹–3.6 × 10⁻¹). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $L_2$ = 4.9 × 10⁻² ($u_x$), 4.3 × 10⁻² ($u_y$), 7.2 × 10⁻³ ($\sigma_{xx}$), 2.0 × 10⁻² ($\sigma_{yy}$), 6.7 × 10⁻² ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 3.5 × 10⁻¹, 5.9 × 10⁻¹, 1.9 × 10⁻¹, 4.8 × 10⁻¹, 1.6)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*ux — PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | 1147 |
+| Inverse: parameters found (true) | – | **λ = 0.999744 (1); μ = 0.500088 (0.5)** (worst error 0.026%) | 546 |
 
-![Linear elasticity 2D – plate — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*uy — PINN vs reference, error analysis*
+*Forward problem*
 
-![Linear elasticity 2D – plate — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_uy.png)
+- **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
+- **Points:** 500 domain, 500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
 
-*sxx — PINN vs reference, error analysis*
+*Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate** → **Default**, then Solve.
 
-![Linear elasticity 2D – plate — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxx.png)
+</details>
 
-*syy — PINN vs reference, error analysis*
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-![Linear elasticity 2D – plate — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_syy.png)
+*Forward problem*
 
-*sxy — PINN vs reference, error analysis*
+- **Network:** PFNN 5 × 80 (2 inputs, 5 outputs), tanh, Glorot uniform
+- **Points:** 1,500 domain, 1,500 boundary
+- **Training:** Adam 60,000 → L-BFGS 60,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
 
-![Linear elasticity 2D – plate — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxy.png)
+*Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-linear-elasticity-2d-plate)
+
+*Inverse problem — PINNStudio's own inverse setup*
+
+- **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
+- **Points:** 500 domain, 500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** lmbd (initial guess 2.0, true 1.0), mu (initial guess 1.0, true 0.5)
+- **Measured data:** ux_obs.txt for ux (weight 100); uy_obs.txt for uy (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Linear elasticity 2D – plate** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-linear-elasticity-2d-plate-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: DeepXDE's settings — σₓₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/base_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: DeepXDE's settings — σₓᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/base_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: DeepXDE's settings — σᵧᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/base_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: DeepXDE's settings — uₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/base_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: DeepXDE's settings — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/base_surface_comparison_uy.png)
+
+*PINNStudio best — all of the changes together:*
+
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — σₓₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — σₓᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — σᵧᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — uₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σᵧᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png)
+
+<sub>the learned parameters during training</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-linear-elasticity-2d-plate)
 
 </details>
 
@@ -1743,36 +3948,61 @@ DeepXDE example: [`elasticity_plate.py`](https://github.com/lululxvi/deepxde/blo
 
 $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
 
-- **Same problem** as the plate above (constants `lmbd`, `mu`, `Q`, five outputs and equations)
 - **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
-- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Linear elasticity 2D – plate, soft BCs**
 
-**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough ($L_2$ errors 2 × 10⁻²–8 × 10⁻² with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $L_2$ = 4.9 × 10⁻⁴ ($u_x$), 1.1 × 10⁻³ ($u_y$), 6.4 × 10⁻⁴ ($\sigma_{xx}$), 9.6 × 10⁻⁴ ($\sigma_{yy}$), 2.7 × 10⁻³ ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4 × 10⁻² to 7.8 × 10⁻²)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*ux — PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | 654 |
 
-![Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*uy — PINN vs reference, error analysis*
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
 
-![Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png)
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-linear-elasticity-2d-plate-soft-bcs)
 
-*sxx — PINN vs reference, error analysis*
+- **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
+- **Points:** 500 domain, 500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
 
-![Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png)
+*Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate, soft BCs** → **Default**, then Solve.
 
-*syy — PINN vs reference, error analysis*
+</details>
 
-![Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png)
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
 
-*sxy — PINN vs reference, error analysis*
+*DeepXDE's settings (also PINNStudio best):*
 
-![Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png)
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — σₓₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — σₓᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — σᵧᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — uₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_uy.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-linear-elasticity-2d-plate-soft-bcs)
 
 </details>
 
@@ -1787,23 +4017,94 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Boundary conditions:** Dirichlet for $u$ and $v$ on the whole boundary, and for $p$ on the outlet $x = 1$
 - **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
 - **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
-- **Network:** FNN [2, 50, 50, 50, 50, 3], tanh, Glorot normal
-- **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Navier-Stokes 2D – Kovasznay flow**
 
-**Result (RTX 4090):** $L_2$ = 2.1 × 10⁻⁴ ($u$), 9.0 × 10⁻⁴ ($v$), 5.4 × 10⁻⁴ ($p$)
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)](https://doi.org/10.1016/j.jcp.2020.109951) — studies a related problem.
 
-*u — PINN vs reference, error analysis*
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.1 × 10<sup>-4</sup> | **2.1 × 10<sup>-4</sup>** | 210 |
+| Inverse: parameters found (true) | – | **Re = 19.9978 (20)** (worst error 0.011%) | 252 |
 
-*v — PINN vs reference, error analysis*
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (v)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_v.png)
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
 
-*p — PINN vs reference, error analysis*
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-navier-stokes-2d-kovasznay-flow)
 
-![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
+- **Network:** FNN 4 × 50 (2 inputs, 3 outputs), tanh, Glorot normal
+- **Points:** 2,601 domain, 400 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Navier-Stokes 2D – Kovasznay flow** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 5 × 100 (2 inputs, 3 outputs), tanh, Glorot normal
+- **Points:** 2,601 domain, 400 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+- **Unknowns:** Re (initial guess 10.0, true 20.0)
+- **Measured data:** u_obs.txt for u (weight 100); v_obs.txt for v (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Navier-Stokes 2D – Kovasznay flow** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-navier-stokes-2d-kovasznay-flow-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (also PINNStudio best) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (also PINNStudio best) — p — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_p.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (also PINNStudio best) — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_v.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — p — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_p.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_v.png)
+
+<sub>the learned parameters during training</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](benchmarks/figures/tuning/Kovasznay_flow_inv/net_param_plot.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-navier-stokes-2d-kovasznay-flow)
 
 </details>
 
@@ -1818,13 +4119,75 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Geometry:** Disk, center $(0,0)$, radius $1$
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Poisson 2D – disk**
 
-A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
+A companion to the L-shape example, on a smooth (curved, non-singular) boundary instead.
 
-**Result (RTX 4090):** $L_2$ = 2.8 × 10⁻⁴, against the reference data in [`reference_data/2D/poisson_disk`](reference_data/2D/poisson_disk). Inverse mode: source term = 1.00002 (true 1).
+**Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-![2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | 156 |
+| Inverse: parameters found (true) | – | **f = 1.00002 (1)** (worst error 0.002%) | 157 |
+
+<details>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-2d-disk-pinnstudio-template)
+
+- **Network:** FNN 4 × 50 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 1,200 domain, 120 boundary
+- **Training:** Adam 50,000 → L-BFGS 50,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 2D – disk** → **Default**, then Solve.
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-poisson-2d-disk-pinnstudio-template-inverse-mode)
+
+- **Network:** FNN 4 × 50 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 1,200 domain, 120 boundary
+- **Training:** Adam 50,000 → L-BFGS 50,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Unknowns:** source_term (initial guess 0.1, true 1.0)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 2D – disk** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*The template's starting settings (also PINNStudio best):*
+
+![Poisson 2D – disk: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Poisson_Disk/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Poisson 2D – disk: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Poisson_Disk_inv/base_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Poisson 2D – disk: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Poisson_Disk_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![2D Poisson (Disk) inverse parameter convergence animation](assets/Images/2D-Poisson-Disk-Shaped/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-2d-disk)
 
 </details>
 
@@ -1837,21 +4200,67 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
 - **Geometry:** Polygon (L-shape)
-- **Network:** FNN [2, 50, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
-- **Constant:** `f = 1`, the source term (DeepXDE's script writes 1), so that Inverse mode can learn it
-- **Inverse mode** (PINNStudio's addition): learns $f$ (initial guess 0.1, true 1) from measurements of $u$ in [`reference_data/2D/poisson_lshape/u_obs.txt`](reference_data/2D/poisson_lshape/u_obs.txt)
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Poisson 2D – L-shape**
 
-**Result (RTX 4090):** $L_2$ = 3.5 × 10⁻²
+*Inverse mode* — the source term $f$ learned from $u$ measured at 300 points (initial guess 0.1, true 1).
 
-*PINN vs reference, error analysis*
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-![Poisson 2D – L-shape — PINN vs reference, error analysis](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/surface_comparison.png)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*Inverse mode* — the source term $f$ learned from $u$ measured at 300 points (initial guess 0.1, true 1). **Inverse result (RTX 4090):** $f$ = 0.99987 (true 1, 0.01% off); $L_2$ of $u$ = 1.0 × 10⁻².
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | 500 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 50 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 1,200 domain, 120 boundary
+- **Training:** Adam 50,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 2D – L-shape** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 5 × 100 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 3,600 domain, 360 boundary
+- **Training:** Adam 150,000 → L-BFGS 45,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 2D – L-shape** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-2d-l-shape)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings:*
+
+![Poisson 2D – L-shape: DeepXDE's settings — PINN, reference and error over space and time](benchmarks/figures/tuning/Poisson_over_an_L_shaped_domain/base_surface_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+![Poisson 2D – L-shape: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Poisson_over_an_L_shaped_domain/all_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Poisson 2D – L-shape inverse parameter convergence animation](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-2d-l-shape)
 
 </details>
 
@@ -1864,21 +4273,56 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 
 - **Unknown:** the order $\alpha$ (true 1.8, start 1.5); $C(\alpha, 2)$ written with `lgamma` so it stays differentiable in α
 - **Data:** 30 random measurements of $u = (1 - |x|^2)^{1 + \alpha_0/2}$, loss weight 100
-- **Fractional settings:** 8 directions, 100 points per unit length, dynamic mesh
 - **Constants:** `a0 = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 64 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Fractional Poisson 2D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.804 (true 1.8); $L_2$ of $u$ = 2.0–3.2 × 10⁻³ over repeated runs
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **α = 1.80386 (1.8)** (worst error 0.21%) | 1395 |
 
-![Fractional Poisson 2D – unknown order α — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inferred parameters during training*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-poisson-2d-unknown-order)
+
+- **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
+- **Points:** 64 domain
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** alpha (initial guess 1.5, true 1.8)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 2D – unknown order α** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error over space and time](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Fractional Poisson 2D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-poisson-2d-unknown-order)
 
 </details>
 
@@ -1894,28 +4338,108 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Initial condition:** a smooth circular interface, $\phi(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{2\varepsilon}\right)$ (paper's eq. 3.12) (written with $+10^{-6}$ under the square root, which keeps its derivatives finite at the centre, as in the 3D example)
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
-- **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
-
-**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻⁴ ($t = 0$), 9.3 × 10⁻³ ($t = 2.5$), 2.1 × 10⁻² ($t = 5$), 7.9 × 10⁻³ ($t = 10$), against the reference data in [`reference_data/2D/allen_cahn_wight`](reference_data/2D/allen_cahn_wight). Inverse mode: $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 6.07 × 10⁻³ (true 6.25 × 10⁻³).
-
-![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
-
-*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN fails across the domain (about 200% error), and the best whole-interval setting found, RBA per-point weights, still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Time-adaptive training is therefore needed here, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
-
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own).
 
 $$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$
 
-with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates during training.
+with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
-**Inverse result (RTX 4090):** $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 0.00607 (true 0.00625), both about 3% off, from $\phi$ measured at $t = 2.5$:
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1596 |
+| Inverse: parameters found (true) | – | **λ = 9.82765 (10); λε² = 0.00615365 (0.00625)** (worst error 1.7%) | 1859 |
+
+<details>
+<summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 10,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 1000
+- **Methods:** time-adaptive training: 10 time windows, a separate network per window
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Wight & Zhao** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.1, Fig. 3.8: Δt = 1 on t in [0, 10] (the caption also says 0.2; the text says 1) → 10 windows.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features); RBA per-point weights; time-adaptive training: 10 time windows, a network per window, each starting from the previous one
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [training methods study: 2D Allen-Cahn (Wight & Zhao)](benchmarks/training_methods.md#2d-allen-cahn-wight--zhao)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 5 × 256 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 30,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Unknowns:** lambda_ (initial guess 1.0, true 10.0), diff_coeff (initial guess 1.0, true 0.00625)
+- **Measured data:** t_2.5.txt for phi (weight 1000)
+
+*Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Wight & Zhao's method, run in PINNStudio:*
+
+![Allen-Cahn 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/paper_wz_surface_comparison.png)
+
+*PINNStudio best — the best setup as it is:*
+
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the best setup as it is — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
+![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
 
 ![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-2d-wight-zhao)
 
 </details>
 
@@ -1931,34 +4455,103 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Initial condition:** $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
-- **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
-
-**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻³ ($t = 0$), 5.6 × 10⁻³ ($t = 0.25$), 5.5 × 10⁻³ ($t = 0.5$), 5.6 × 10⁻³ ($t = 0.75$), 6.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/allen_cahn_mattey`](reference_data/2D/allen_cahn_mattey). Inverse mode: $c_1^2$ = 1.031 × 10⁻⁴ (true 1 × 10⁻⁴, 3% off), $c_2$ = 1.001 (true 1).
-
-![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
-
-*Without time-adaptive training* — trained on the whole time interval at once (about 3.5 minutes) with the same three settings as the 1D example (see the [training methods study](benchmarks/training_methods.md)), the error drops more than 10× below the time-adaptive result:
-
-- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* — the network's inputs become $\cos(2\pi x)$, $\sin(2\pi x)$, $\cos(2\pi y)$, $\sin(2\pi y)$, $t$
-- **Exact initial condition:** Initial conditions → *Exact (built into the network)* — $h = \sin(4\pi x)\cos(4\pi y) + t N$
-- **Per-point weights:** Loss weights → Per-point weights *RBA*, During L-BFGS *Keep the weights*; Adaptive training → Method *None*
-
-Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 10⁻⁴ ($t = 0.5$), 5.4 × 10⁻⁴ ($t = 0.75$), 5.4 × 10⁻⁴ ($t = 1$). The same training without these settings gives about 1.3%.
-
-![2D Allen-Cahn (Mattey & Ghosh), whole time interval with exact periodicity, exact initial condition and RBA — PINN vs reference](assets/Images/2D_Allen_Cahn_Mattey/whole_domain_surface_comparison.png)
-
-![2D Allen-Cahn (Mattey & Ghosh), whole time interval — line comparison against reference data](assets/Images/2D_Allen_Cahn_Mattey/whole_domain_line_comparison.png)
 
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $h$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
+
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 266 |
+| Inverse: parameters found (true) | – | **c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1)** (worst error 2.5%) | 1789 |
+
+<details>
+<summary>⚙️ <em>Default settings — Mattey & Ghosh's bc-PINN, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 20,000 domain, 4,096 initial, 640 boundary
+- **Training:** Adam 12,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 64
+- **Methods:** time-adaptive training: 5 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.25 of Adam)
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Mattey & Ghosh** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 6.1.1, Table 4 [PAR] (IBVP-1): bc-PINN 6 × 128, N_i = 4096 (the 64^2 grid), N_b = 640 and N_r = 20,000 per segment, 20 steps (0.2) per segment → 5 segments, 15,000 Adam per segment of which 20% ICGL, then 10,000 L-BFGS; rel. L2 2.5e-2 (> 95% without ICGL). Weights not stated: 64 as in their code. Backward points (not stated): 1,000 of the 64^2 grid x 10 times per segment.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) · [training methods study: 2D Allen-Cahn (Mattey & Ghosh)](benchmarks/training_methods.md#2d-allen-cahn-mattey--ghosh)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Unknowns:** c1_sq (initial guess 1.0, true 0.0001), c2 (initial guess 0.1, true 1.0)
+- **Measured data:** t_0.25.txt for h (weight 1000); t_0.5.txt for h (weight 1000); t_0.75.txt for h (weight 1000); t_1.0.txt for h (weight 1000)
+
+*Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+
+![Allen-Cahn 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh/paper_mg_surface_comparison.png)
+
+*PINNStudio best — the best setup as it is:*
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — the best setup as it is — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× weight on the measured data:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 10× weight on the measured data — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/dataw_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 10× weight on the measured data — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/dataw_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
 ![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $h$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000). The animation below shows both estimates during training; $c_1^2$ is briefly negative early on, the gap on the log axis.
-
-**Inverse result (RTX 4090):** $c_1^2$ = 1.031 × 10⁻⁴ (true 10⁻⁴, 3% off), $c_2$ = 1.0007 (true 1, 0.07% off); $L_2$ = 1.1 × 10⁻³ ($t = 0.25$) to 1.0 × 10⁻³ ($t = 1$). The interface thickness is the harder one to find: from $h$ at $t = 1$ alone, with L-BFGS 10,000, $c_1^2$ came out 66% off.
-
 ![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-2d-mattey-ghosh)
 
 </details>
 
@@ -1974,19 +4567,117 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 - **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $\phi = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and the curvature at that corner drives the merging. A network built on the exact initial condition cannot capture curvature at a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $\phi$ unchanged gives). The smoothing changes $\phi$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
 - **Boundary conditions:** Periodic, for $\phi$ and $\mu$
 - **Geometry:** Rectangle
-- **Exact periodicity** (inputs $\cos\pi x$, $\sin\pi x$, $\cos\pi y$, $\sin\pi y$, $t$), as in the 1D examples; the **initial condition as a loss term** (weight 100)
-- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao**
 
-**Result (RTX 4090):** $\phi$: $L_2$ = 1.3 × 10⁻³ ($t = 0$), 2.6 × 10⁻² ($t = 0.25$), 1.9 × 10⁻² ($t = 0.5$), 1.2 × 10⁻² ($t = 0.75$), 1.1 × 10⁻² ($t = 1$); $\mu$: 3.3 × 10⁻², 2.9 × 10⁻², 2.4 × 10⁻², 2.5 × 10⁻² at $t = 0.25$ to 1 (at $t = 0$ the true $\mu$ has a sharp spike at the neck, which the network, with no initial condition for $\mu$, does not reproduce), against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_wight`](reference_data/2D/cahn_hilliard_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py); grid and time-step refinement change it by about 10⁻⁴). The remaining error is concentrated on the moving interface; the paper's own errors at $t = 1$ (its Figure 3.13) are up to about 0.5. With the initial condition built into the network instead ($\phi = \text{IC} + tN$), a plain run and RBA leave the bubbles almost unmoved; SA-PINN then gets them to merge (1.2% / 3.8% at $t = 0.25$ / 1, the earlier template), and causal training too (2.9% / 4.2%) — see the [training methods study](benchmarks/training_methods.md#2d-cahn-hilliard-wight--zhao).
+*Inverse mode* — same template, switched to **Inverse**, recovering $\varepsilon^2$ (initial guess 1, true value 0.0025) from $\phi$ measured at $t = 1$.
 
-![2D Cahn-Hilliard — PINN vs reference, φ](assets/Images/2D_CahnHilliard-Wight/surface_comparison_u.png)
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-![2D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Wight/surface_comparison_mu.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 822 |
+| Inverse: parameters found (true) | – | **ε² = 0.00251042 (0.0025)** (worst error 0.42%) | 3736 |
 
-*Inverse mode* — same template, switched to **Inverse**, recovering $\varepsilon^2$ (initial guess 1, true value 0.0025) from $\phi$ measured at $t = 1$. **Inverse result (RTX 4090):** $\varepsilon^2$ = 0.002509 (0.4% off).
+<details>
+<summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 10,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 1000
+- **Methods:** time-adaptive training: 5 time windows, a separate network per window
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 2D – Wight & Zhao** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.2, Fig. 3.13: (u, mu) network, Δt = 0.2 on [0, 1] → 5 windows.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem — the template's own settings*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features)
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) · [training methods study: 2D Cahn-Hilliard (Wight & Zhao)](benchmarks/training_methods.md#2d-cahn-hilliard-wight--zhao)
+
+*Inverse problem — PINNStudio's own inverse setup*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Methods:** exact periodicity (periodic input features)
+- **Unknowns:** eps_sq (initial guess 1.0, true 0.0025)
+- **Measured data:** t_1_phi.txt for phi (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Cahn-Hilliard 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Wight & Zhao's method, run in PINNStudio:*
+
+<sub>φ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — φ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_surface_comparison_phi.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_surface_comparison_mu.png)
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_u.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_mu.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_u.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_mu.png)
+
+<sub>the learned parameters during training</sub>
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![2D Cahn-Hilliard (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Wight/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-cahn-hilliard-2d-wight-zhao)
 
 </details>
 
@@ -1997,24 +4688,119 @@ Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.20
 
 $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = h^3 - h - \alpha\left(\frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t' \in [0, 1]$$
 
-- **Time is rescaled**, $t' = t / 0.005$: the paper's interval is $t \in [0, 0.005]$, over which the time input is almost constant. With $t'$ the equation gains the factor 0.005, and both residuals are of order 1. The reference times $t' = 0.2, 0.6, 1$ are the paper's $t = 0.001, 0.003, 0.005$.
-- **$\alpha = 0.0002$**, not the 0.02 the paper states: with $\alpha = 0.02$ this pattern decays (to ±0.04 at $t = 0.005$, checked with the reference solver), while the paper's Fig. 16 shows it growing to about ±1, which $\alpha = 0.0002$ reproduces (as it does its Fig. 15, IBVP-1).
 - **Initial condition:** $h(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$; $\mu$ has none
 - **Boundary conditions:** Periodic, for $h$ and $\mu$
 - **Geometry:** Rectangle
-- **Exact initial condition**, **exact periodicity** and **SA-PINN** (weights held during L-BFGS)
-- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Mattey & Ghosh**
 
-**Result (RTX 4090, about 15 minutes):** $h$: $L_2$ = 8.5 × 10⁻⁷ ($t' = 0$), 5.2 × 10⁻³ ($t' = 0.2$), 4.5 × 10⁻³ ($t' = 0.4$), 4.0 × 10⁻³ ($t' = 0.6$), 2.4 × 10⁻³ ($t' = 0.8$), 2.0 × 10⁻³ ($t' = 1$); $\mu$: 4.0 × 10⁻³ to 7.8 × 10⁻³ up to $t' = 0.8$, 4.2 × 10⁻² at $t' = 1$, against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_mattey`](reference_data/2D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Without SA-PINN the error in $h$ is about 1.7× larger (3.5 × 10⁻³ at $t' = 1$), and RBA or causal training do no better.
+*Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $h$ measured at $t' = 1$.
 
-![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, h](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_mu.png)
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | 1964 |
+| Inverse: parameters found (true) | – | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** (worst error 0.96%) | 5306 |
 
-*Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $h$ measured at $t' = 1$. **Inverse result (RTX 4090):** $\alpha$ = 1.88 × 10⁻⁴ (6% off), $\kappa$ = 1.012 (1.2% off).
+<details>
+<summary>⚙️ <em>Default settings — Mattey & Ghosh's bc-PINN, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 5 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 50,000 domain, 4,096 initial, 1,600 boundary
+- **Training:** Adam 40,000 → L-BFGS 75,000
+- **Loss weights:** equations 1; boundary 1; initial 64
+- **Methods:** time-adaptive training: 4 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.2 of Adam)
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 2D – Mattey & Ghosh** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 6.2.1, Table 7 (IBVP-2, the template's problem; t in (0, 0.005] in the paper, rescaled to [0, 1] in the template): bc-PINN, (h, mu), 5 × 128, N_i = 4096 (64^2), N_b = 1600 and N_r = 50,000 per segment, 25 steps per segment → 4 segments, 50,000 Adam and up to 75,000 L-BFGS per segment, ICGL, transfer learning with one more frozen layer per segment (layer freezing is not in PINNStudio). Not stated: the loss weights (64 as in their AC code), the ICGL fraction (20% as in their 2D AC).
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 60,000 → L-BFGS 60,000
+- **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
+
+*Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 2D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template) · [training methods study: 2D Cahn-Hilliard (Mattey & Ghosh)](benchmarks/training_methods.md#2d-cahn-hilliard-mattey--ghosh)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; measured data 100
+- **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
+- **Unknowns:** alpha (initial guess 1.0, true 0.0002), kappa (initial guess 0.1, true 1.0)
+- **Measured data:** t_0.2_h.txt for h (weight 100); t_0.4_h.txt for h (weight 100); t_0.6_h.txt for h (weight 100); t_0.8_h.txt for h (weight 100); t_1_h.txt for h (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Cahn-Hilliard 2D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+
+<sub>h — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — h — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_h.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_mu.png)
+
+*PINNStudio best — 3× iterations:*
+
+<sub>h — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — 3× iterations — h — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/iters_surface_comparison_h.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — 3× iterations — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/iters_surface_comparison_mu.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Measured data at every reference time:*
+
+<sub>h — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — h — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_h.png)
+
+<sub>μ — PINN, reference and error over space and time</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — μ — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_mu.png)
+
+<sub>the learned parameters during training</sub>
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![2D Cahn-Hilliard (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-cahn-hilliard-2d-mattey-ghosh)
 
 </details>
 
@@ -2032,24 +4818,18 @@ $(x, y) \in [0, 1]^2$, $t \in [0, 1]$
 - **Initial condition:** $U(x,y,0) = \sin(2\pi x)\sin(2\pi y)$, $\ V(x,y,0) = \sin(\pi x)\sin(\pi y)$
 - **Boundary conditions:** Dirichlet, $U = V = 0$ on all four edges
 - **Geometry:** Rectangle
-- **Network:** 4 hidden layers × 128 neurons — wider than PINNStudio's global default (3 × 64), which gave better results for this coupled two-output velocity field
-- **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Burgers 2D – Mathias et al.**
 
 This template uses the paper's PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and a plain MLP network. The paper's sparse-data augmentation and hard-constrained output layer are not included.
-
-**Result (RTX 4090):** $L_2$ of $U$ = 6.0 × 10⁻⁴ ($t = 0$), 1.9 × 10⁻² ($t = 0.25$), 1.1 × 10⁻² ($t = 0.5$), 1.1 × 10⁻² ($t = 0.75$), 1.1 × 10⁻² ($t = 1$); of $V$ = 4.3 × 10⁻⁴ ($t = 0$), 9.0 × 10⁻³ ($t = 0.25$), 7.5 × 10⁻³ ($t = 0.5$), 5.1 × 10⁻³ ($t = 0.75$), 4.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/burgers_mathias`](reference_data/2D/burgers_mathias).
 
 PINN solution animated over time, for each of the two coupled outputs:
 
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
 <sub><strong>U</strong></sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
 <sub><strong>V</strong></sub>
 </td>
 </tr>
@@ -2060,19 +4840,125 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/surface_comparison_u.png" alt="2D Burgers (Mathias) — U surface comparison" width="100%">
 <sub><strong>U</strong></sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/2D_Burgers/surface_comparison_v.png" alt="2D Burgers (Mathias) — V surface comparison" width="100%">
 <sub><strong>V</strong></sub>
 </td>
 </tr>
 </table>
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$:
+*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$.
+
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** | 3684 |
+| Inverse: parameters found (true) | – | **ν = 0.00320066 (0.0031831)** (worst error 0.55%) | 6962 |
+
+<details>
+<summary>⚙️ <em>Default settings — Mathias et al.'s settings, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 20 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain
+- **Training:** Adam 99,999 (lr 0.01), MAE loss
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Burgers 2D – Mathias et al.** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* Mathias et al. Sec. 2 and their code (github.com/C4AI/PINN_for_Burgers): the IC and the zero BCs built into the output, U = d*N + (1 - d)*U0 with d = 16x(1-x)y(1-y)tanh(26.4t); 4x20 tanh with residual connections every two layers (PINNStudio: a plain 4x20 network); mean absolute error loss; n_f = 10,000 uniform physics points and no solution data (their pure-physics case); Adam lr 1e-2 for 99,999 steps, full batch, no L-BFGS.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 8,000 domain, 2,000 initial, 2,000 boundary
+- **Training:** Adam 45,000 → L-BFGS 30,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** time-adaptive training: 4 time windows, a network per window, each starting from the previous one
+
+*Load it:* toolbar → Examples: **Forward** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template)
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 5 × 256 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 8,000 domain, 2,000 initial, 2,000 boundary
+- **Training:** Adam 15,000 → L-BFGS 30,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Unknowns:** nu (initial guess 1.0, true 0.00318309886184)
+- **Measured data:** t_1.0_u.txt for u (weight 1000); t_1.0_v.txt for v (weight 1000)
+
+*Load it:* toolbar → Examples: **Inverse** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Mathias et al.'s settings, run in PINNStudio:*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: Mathias et al.'s settings, run in PINNStudio — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias/paper_mathias_surface_comparison_u.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: Mathias et al.'s settings, run in PINNStudio — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias/paper_mathias_surface_comparison_v.png)
+
+*PINNStudio best — 3× iterations:*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_v.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/invall_surface_comparison_u.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/invall_surface_comparison_v.png)
+
+<sub>the learned parameters during training</sub>
+
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/invall_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
+
+<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
+
+<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
 
 ![2D Burgers (Mathias) inverse parameter convergence animation](assets/Images/2D_Burgers/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-2d-mathias-et-al)
 
 </details>
 
@@ -2086,19 +4972,80 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Heat 2D**
 
-**Result (RTX 4090):** $L_2$ = 9.1 × 10⁻³ ($t = 0.25$), 1.0 × 10⁻² ($t = 0.5$), 7.9 × 10⁻³ ($t = 0.75$), 3.9 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/heat`](reference_data/2D/heat) ($t = 0$ is left out: the initial condition is $u = 0$, so a relative error there divides by almost nothing). Inverse mode: diffusivity = 0.4005 (true 0.4).
-
-![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
-
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
+
+**Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | 98 |
+| Inverse: parameters found (true) | – | **α = 0.399893 (0.4)** (worst error 0.027%) | 169 |
+
+<details>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-heat-2d-pinnstudio-template)
+
+- **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 400 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1, 100, 1, 1; initial 100
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 2D** → **Default**, then Solve.
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-heat-2d-pinnstudio-template-inverse-mode)
+
+- **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 400 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1, 100, 1, 1; initial 100; measured data 100
+- **Unknowns:** alpha (initial guess 1.0, true 0.4)
+- **Measured data:** t_1.0.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Heat 2D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*The template's starting settings (also PINNStudio best):*
+
+![Heat 2D: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Heat/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 2D: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_2D_Heat_inv/base_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 2D: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_2D_Heat_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
-
-**Inverse result (RTX 4090):** diffusivity = 0.3999 (true 0.4).
-
 ![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-heat-2d)
 
 </details>
 
@@ -2113,26 +5060,50 @@ DeepXDE example: [`fractional_Poisson_3d.py`](https://github.com/lululxvi/deepxd
 
 $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\Gamma(\frac{3 + \alpha}{2})}{\Gamma(\frac{3}{2})}\left(1 - (1 + \tfrac{\alpha}{3})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
 
-- **Fractional settings:** 8 × 8 directions, 100 points per unit length, dynamic mesh; constant $C(\alpha, 3)$ written with `gamma`
 - **Geometry:** unit sphere; $u = 0$ on the sphere through $\hat u = (1 - |x|^2)N$
 - **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
 - **Constants:** `alpha = 1.8`
-- **Network:** FNN [3, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 256 domain points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 3D – sphere**
 
-**Result (RTX 4090):** $L_2$ = 6.7 × 10⁻³ to 8.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*PINN vs reference, error analysis*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** | 1343 |
 
-![Fractional Poisson 3D – sphere — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png)
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-fractional-poisson-3d-sphere)
+
+- **Network:** FNN 4 × 20 (3 inputs, 1 output), tanh, Glorot normal
+- **Points:** 256 domain
+- **Training:** Adam 10,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+
+*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 3D – sphere** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+![Fractional Poisson 3D – sphere: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Fractional_Poisson_equation_3D/base_surface_comparison.png)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-fractional-poisson-3d-sphere)
 
 </details>
 
 <details id="3d-poisson-sphere">
 <summary><strong>Poisson 3D – sphere</strong></summary>
 
-The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
+The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the Poisson 2D – disk template.
 
 $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
 
@@ -2140,13 +5111,75 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Poisson 3D – sphere**
 
-**Result (RTX 4090):** $L_2$ = 1.5 × 10⁻³, against the reference data in [`reference_data/3D/poisson_sphere`](reference_data/3D/poisson_sphere). Inverse mode: source term = 1.00005 (true 1).
+*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode) as an unknown parameter from 300 measured points
 
-![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
+**Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter from 300 measured points; the convergence animation below shows the estimate settling onto its true value during training:
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** | 76 |
+| Inverse: parameters found (true) | – | **f = 1.00005 (1)** (worst error 0.005%) | 83 |
+
+<details>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-3d-sphere-pinnstudio-template)
+
+- **Network:** FNN 4 × 50 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 2,000 domain, 300 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – sphere** → **Default**, then Solve.
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-poisson-3d-sphere-pinnstudio-template-inverse-mode)
+
+- **Network:** FNN 4 × 50 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 2,000 domain, 300 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Unknowns:** source_term (initial guess 0.1, true 1.0)
+- **Measured data:** u_obs.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 3D – sphere** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*The template's starting settings (also PINNStudio best):*
+
+![Poisson 3D – sphere: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Poisson_Sphere/base_surface_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Poisson 3D – sphere: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Poisson_Sphere_inv/base_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Poisson 3D – sphere: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Poisson_Sphere_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![3D Poisson (Sphere) inverse parameter convergence animation](assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-3d-sphere)
 
 </details>
 
@@ -2162,33 +5195,115 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 - **Initial condition:** $\phi(x, y, z, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2}}{2\varepsilon}\right)$ (written with $+10^{-6}$ under the square root, which keeps its derivatives finite at the centre)
 - **Boundary conditions:** Periodic in x, y and z
 - **Geometry:** Cuboid
-- **Initial condition as a loss term** (weight 100) and **exact periodicity** (inputs $\cos 2\pi x$, $\sin 2\pi x$, ... for each axis, and $t$)
-- **Training:** Adam 20,000 → L-BFGS 20,000; 30,000 domain points, 4 × 128 network
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 3D – Wight & Zhao**
-
-**Result (RTX 4090, about 15 minutes):** $L_2$ = 2.5 × 10⁻³ ($t = 0$), 3.0 × 10⁻⁴ ($t = 0.25$), 2.2 × 10⁻⁴ ($t = 0.5$), 2.5 × 10⁻⁴ ($t = 0.75$), 2.7 × 10⁻⁴ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/3D/allen_cahn_wight`](reference_data/3D/allen_cahn_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Building the initial condition into the output instead ($\phi = \phi_0 + t N$) gives about 30 times more error (7 × 10⁻³ at every time), and RBA, SA-PINN or causal training do not improve either setup.
-
-The figure is the slice $z = 0.5$ through the centre of the sphere (PINN, reference, error): the bubble stays round and shrinks, and the largest pointwise error, about 0.013, sits on its interface.
-
-![3D Allen-Cahn — slice z = 0.5, PINN vs reference](assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
-
-The same run in 3D, drawn like the paper's Fig. 3.9: the drop ($\phi = 0$) inside the cube at each reference time, and the error on the cube with one corner cut away, so the cuts through the centre show where it sits (the black line is the reference interface). After $t = 0$ the error is largest in a thin shell around the interface and shrinks with the drop. Made with [`tools/plot_3d_allen_cahn_isosurface.py`](tools/plot_3d_allen_cahn_isosurface.py) from the model PINNStudio saves in `solution_results/`. PINNStudio's own Error Analysis draws the same view for any 3D box problem (`view3d_comparison.png`, with |error| instead of the signed error); its surface level is set in Plot settings → Surface.
-
-![3D Allen-Cahn — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface.png)
-
-The drop's radius over time gives one number to check against: the $\phi = 0$ crossing along the six half-axes from the centre, averaged. The PINN follows the reference to within 0.14% (forward) and 0.02% (inverse run below) at every reference time. The dashed line is the sharp-interface limit, where the interface moves by mean curvature, $R^2 = R_0^2 - 4\lambda\varepsilon^2 t$; the diffuse interface ($\varepsilon = 0.05$) makes the drop shrink a little faster once it gets small. Made with [`tools/plot_3d_allen_cahn_radius.py`](tools/plot_3d_allen_cahn_radius.py).
-
-![3D Allen-Cahn — drop radius over time, PINN vs reference](assets/Images/3D_AllenCahn-Wight/radius.png)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient $\lambda$ and the diffusion coefficient $\lambda\varepsilon^2$ (initial guesses 1, true values 10 and 0.025), from $\phi$ measured at $t = 1$ on every second point of the $51^3$ reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
 
-**Inverse result (RTX 4090):** $\lambda$ = 9.983 (true 10, 0.2% off), $\lambda\varepsilon^2$ = 0.024989 (true 0.025, 0.04% off); $L_2$ = 4.1 × 10⁻⁴ ($t = 0.25$) to 8.3 × 10⁻⁵ ($t = 1$).
+**Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 2678 |
+| Inverse: parameters found (true) | – | **λ = 9.96899 (10); λε² = 0.0249817 (0.025)** (worst error 0.31%) | 1419 |
+
+<details>
+<summary>⚙️ <em>Default settings — Wight & Zhao's method, as in the paper</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 6 × 128 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 2,000 initial, 1,500 boundary
+- **Training:** Adam 10,000 → L-BFGS 10,000
+- **Loss weights:** equations 1; boundary 1; initial 1000
+- **Methods:** time-adaptive training: 2 time windows, a separate network per window
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 3D – Wight & Zhao** → **Default**, then Solve.
+
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.1, Fig. 3.9: Δt = 0.5 on [0, 1] → 2 windows.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 5 × 256 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 2,000 initial, 1,500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features)
+
+*Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 3D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template) · [training methods study: 3D Allen-Cahn (Wight & Zhao)](benchmarks/training_methods.md#3d-allen-cahn-wight--zhao)
+
+*Inverse problem — PINNStudio's own inverse setup*
+
+- **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 2,000 initial, 1,500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Methods:** exact periodicity (periodic input features)
+- **Unknowns:** lambda_ (initial guess 1.0, true 10.0), diff_coeff (initial guess 1.0, true 0.025)
+- **Measured data:** t_1.txt for phi (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 3D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode)
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*Wight & Zhao's method, run in PINNStudio:*
+
+![Allen-Cahn 3D – Wight & Zhao: Wight & Zhao's method, run in PINNStudio — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/paper_wz_surface_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+<sub>PINN, reference and error on slices through the domain</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error on slices through the domain](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png)
+
+<sub>the drop (φ = 0) in the cube, and the error on the cube with one corner cut away</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop (φ = 0) in the cube, and the error on the cube with one corner cut away](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png)
+
+<sub>the drop's radius over time: PINN, reference and the sharp-interface limit</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop's radius over time: PINN, reference and the sharp-interface limit](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png)
+
+<sub>the learned parameters during training</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif)
 
-The inverse run's solution in 3D, drawn the same way:
+</details>
 
-![3D Allen-Cahn inverse — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface_inverse.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-allen-cahn-3d-wight-zhao)
 
 </details>
 
@@ -2206,19 +5321,86 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](#training) in Features before picking a large "IC grid resolution" value.
 
-**Result (RTX 4090):** $L_2$ = 9.0 × 10⁻³ ($t = 0.2$), 5.7 × 10⁻³ ($t = 0.4$), 3.7 × 10⁻³ ($t = 0.6$), 2.8 × 10⁻³ ($t = 0.8$), 2.6 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/3D/heat`](reference_data/3D/heat) ($t = 0$ left out, as for Heat 2D). Inverse mode: diffusivity = 0.4001 (true 0.4).
-
-![3D Heat solution surface](assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
-
 *Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
+
+**Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | 323 |
+| Inverse: parameters found (true) | – | **α = 0.400303 (0.4)** (worst error 0.076%) | 729 |
+
+<details>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-heat-3d-pinnstudio-template)
+
+- **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 15,000 domain, 1,000 initial, 1,000 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1, 100, 1, 1, 1, 1; initial 100
+
+*Load it:* toolbar → Examples: **Forward** → **Heat 3D** → **Default**, then Solve.
+
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-heat-3d-pinnstudio-template-inverse-mode)
+
+- **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 15,000 domain, 1,000 initial, 1,000 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1, 100, 1, 1, 1, 1; initial 100; measured data 100
+- **Unknowns:** alpha (initial guess 1.0, true 0.4)
+- **Measured data:** t_1.0_LessData.txt for u (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Heat 3D** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*The template's starting settings (also PINNStudio best):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 3D: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Heat/base_surface_comparison.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Heat 3D: The template's starting settings (also PINNStudio best) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Template_3D_Heat/base_view3d_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 3D: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Heat_inv/base_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 3D: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Heat_inv/base_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
-
-**Inverse result (RTX 4090):** diffusivity = 0.4001 (true 0.4).
-
 ![3D Heat inverse parameter convergence animation](assets/Images/3D_Heat/param_convergence_animation.gif)
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-heat-3d)
 
 </details>
 
@@ -2229,50 +5411,152 @@ DeepXDE example: [`Beltrami_flow.py`](https://github.com/lululxvi/deepxde/blob/m
 
 $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
 
-- **Outputs:** $u, v, w, p$; Dirichlet BCs and initial conditions for the velocity (the exact Beltrami solution)
-- **Loss weights:** 1 for the four equations, 100 for the BCs and ICs
 - **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
-- **Network:** FNN [4, 50, 50, 50, 50, 4], tanh, Glorot normal
-- **Training:** Adam 30,000 → L-BFGS 15,000; 50,000 domain, 5,000 boundary, 5,000 initial points
 - **In PINNStudio:** Examples → **Forward** → **Navier-Stokes 3D – Beltrami flow**
 
-**Why the pressure error is large.** This example is DeepXDE's script without changes: like the script, it gives boundary and initial conditions for the velocity $u, v, w$ only, and none for $p$. The pressure enters the equations only through its gradient $\nabla p$, so $p$ and $p + C$ satisfy them equally well for any constant $C$, and nothing in the training fixes $C$. The PINN's pressure has the right shape but is shifted by a constant (about 24.7 in this run). The exact pressure decays like $e^{-2t}$ while the shift stays the same, so the relative error of $p$ grows with time: 5.6 at $t = 0$, $5.6\ e^{1} \approx 15$ at $t = 0.5$ and $5.6\ e^{2} \approx 41$ at $t = 1$, which matches the reported values. DeepXDE's script computes the pressure error too but does not print it; it reports only $u, v, w$. Fixing $p$ at a single point (a Point Set BC row on $p$) would remove the free constant.
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets), Table 4](https://doi.org/10.1016/j.jcp.2020.109951) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
-**Result (RTX 4090):** $L_2$ at $t = 0, 0.5, 1$: $u$ 1.9 × 10⁻⁴, 3.5 × 10⁻⁴, 1.4 × 10⁻³; $v$ 1.8 × 10⁻⁴, 2.7 × 10⁻⁴, 7.3 × 10⁻⁴; $w$ 1.9 × 10⁻⁴, 3.6 × 10⁻⁴, 1.2 × 10⁻³; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
+**Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-*u — PINN solution over time*
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | 2420 |
+| Inverse: parameters found (true) | – | **ν = 0.998842 (1)** (worst error 0.12%) | 2575 |
+
+<details>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-navier-stokes-3d-beltrami-flow)
+
+- **Network:** FNN 4 × 50 (4 inputs, 4 outputs), tanh, Glorot normal
+- **Points:** 50,000 domain, 5,000 initial, 5,000 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Navier-Stokes 3D – Beltrami flow** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem — PINNStudio's own inverse setup, tuned*
+
+- **Network:** FNN 4 × 50 (4 inputs, 4 outputs), tanh, Glorot normal
+- **Points:** 50,000 domain, 5,000 initial, 5,000 boundary
+- **Training:** Adam 30,000 → L-BFGS 45,000
+- **Unknowns:** nu (initial guess 0.5, true 1.0)
+- **Measured data:** u_obs.txt for u (weight 100); v_obs.txt for v (weight 100); w_obs.txt for w (weight 100)
+
+*Load it:* toolbar → Examples: **Inverse** → **Navier-Stokes 3D – Beltrami flow** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](benchmarks/tuning_study.md#tune-navier-stokes-3d-beltrami-flow-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
+
+</details>
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (also PINNStudio best):*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_u.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — p — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_p.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_v.png)
+
+<sub>w — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — w — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_w.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_p.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_v.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (also PINNStudio best) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_w.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 3× L-BFGS iterations:*
+
+<sub>u — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_u.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — p — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_p.png)
+
+<sub>v — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_v.png)
+
+<sub>w — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — w — PINN, reference and error over space and time](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_w.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_p.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_v.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_w.png)
+
+<sub>the learned parameters during training</sub>
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations — the learned parameters during training](benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png)
+
+</details>
+
+<details>
+<summary>🎞️ <em>Training animations (from an earlier run)</em></summary>
 
 ![Navier-Stokes 3D – Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
 
-*v — PINN solution over time*
-
 ![Navier-Stokes 3D – Beltrami flow — PINN solution over time (v)](assets/Images/DeepXDE/Beltrami_flow/animation_v.gif)
-
-*w — PINN solution over time*
 
 ![Navier-Stokes 3D – Beltrami flow — PINN solution over time (w)](assets/Images/DeepXDE/Beltrami_flow/animation_w.gif)
 
-*p — PINN solution over time*
-
 ![Navier-Stokes 3D – Beltrami flow — PINN solution over time (p)](assets/Images/DeepXDE/Beltrami_flow/animation_p.gif)
 
-*u — PINN vs reference, error analysis*
+</details>
 
-![Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
-
-*v — PINN vs reference, error analysis*
-
-![Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (v)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_v.png)
-
-*w — PINN vs reference, error analysis*
-
-![Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (w)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_w.png)
-
-*p — PINN vs reference, error analysis*
-
-![Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-navier-stokes-3d-beltrami-flow)
 
 </details>
+
+<!-- examples:end -->
 
 > **Tips.** What improves accuracy depends on the problem; the [training methods study](benchmarks/training_methods.md) measured it on 14 of them. On hard time-dependent problems (sharp fronts, phase fields), first make periodicity and the initial condition exact, then try time-adaptive training, or causal training with a per-point weighting method; on a problem a plain PINN already solves well these can make the result worse, so compare with a plain run. More collocation points help where the solution changes sharply. For an inverse problem, measured data at several times usually pins the parameters down much better than one snapshot, and a parameter that is still moving when training stops needs more iterations: Allen-Cahn 2D – Mattey & Ghosh found its $c_1^2$ 66% off from $u$ at $t = 1$ alone and 3% off from $u$ at four times with a longer L-BFGS phase. A sweep over the measured data (*Measured data: grid points per axis*) shows how much data the parameters need.
 >
@@ -2531,6 +5815,14 @@ Splits the time range into steps and trains through them in order, each step sta
 
 The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
 
+Further options under *Adaptive training* change how the windows work together:
+
+- **Growing time range** — one network trained on $[t_0, t]$ with $t$ growing window by window, with the true initial condition at $t_0$ (Wight & Zhao's approach I).
+- **Backward compatibility (bc-PINN)** — after each window its solution is stored, and every later window is also trained to keep it (Mattey & Ghosh); with **IC-guided learning**, each window first fits its starting state before the equations are switched on.
+- **Resampling in each window** (*Resampling rounds*) — after a window's training, the points with the largest residual are added and training continues.
+
+How much these help on the phase-field problems, at the same training cost, is measured in the [training methods study](benchmarks/training_methods.md#the-controlled-comparison-paper-figure-7).
+
 </details>
 
 <details>
@@ -2672,6 +5964,8 @@ Results can be shown as surface or line plots, or as animations of either over t
 
 The predicted solution can be saved as data on a grid of your choice, for your own analysis. Every problem can also be exported as a standalone DeepXDE/PyTorch script (*Export script* in the toolbar, or Ctrl+E) — to read, run on a cluster, share with a collaborator, or use as a starting point for your own code. The **Script** tab next to the Training Log shows that script for the current settings and updates as you change them.
 
+The exported script is not a simplified copy: it trains the same model as **Solve**. We check this for every example by writing both scripts from the same settings, running them with the same seed and comparing the loss history line by line (`tools/check_export_equivalence.py`; results in [benchmarks/performance.md](benchmarks/performance.md#export-check-the-exported-script-trains-the-same-model)).
+
 </details>
 
 <details>
@@ -2681,6 +5975,8 @@ The predicted solution can be saved as data on a grid of your choice, for your o
 **Source code:** [problem settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/config.py#L12-L1340) (`config.py`) · [save](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9456-L9501) (`main_window.py`) · [open](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9503-L9562) (`main_window.py`) · [GPU settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L11588-L11665) (`main_window.py`)
 
 A whole problem setup can be saved and reopened later (**Save** and **Open** in the toolbar, Ctrl+S and Ctrl+O). Once a problem has a file, Save writes back to it. The examples themselves are never changed: saving an example you have edited asks for a name (suggesting *“<example> (copy)”*), choosing the example again gives its own settings, and the copy remembers which example it came from, so switching it between Forward and Inverse does what the example does. A problem saved before it was complete (Inverse with no measured-data file yet, say) opens again, with what is missing listed in the log. *Problem → Open Recent* and the Start tab list the last eight problems, the title bar marks unsaved changes, and PINNStudio asks before they would be lost. Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on (or the CPU, which can be faster for a small 1D problem; see [Speed](#speed-pinnstudio-and-a-plain-script)), its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
+
+**CPU threads** (*GPU / Hardware settings → CPU threads*): *Automatic* uses about one thread per performance core, at most 8, which was the fastest setting in our measurements; more threads can make CPU training much slower on processors with efficiency cores ([benchmarks/performance.md](benchmarks/performance.md#how-many-cpu-threads)).
 
 </details>
 
@@ -2883,11 +6179,22 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 
 ## References
 
+The software PINNStudio builds on:
+
 - Lu, L., Meng, X., Mao, Z., & Karniadakis, G. E. (2021). DeepXDE: A deep learning library for solving differential equations. *SIAM Review*, 63(1), 208–228. https://doi.org/10.1137/19M1274067
+
+The papers behind the examples (the equations, conditions and reference results; each example names its source):
+
 - Raissi, M., Perdikaris, P., & Karniadakis, G. E. (2019). Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics*, 378, 686–707. https://doi.org/10.1016/j.jcp.2018.10.045
 - Mattey, R., & Ghosh, S. (2022). A novel sequential method to train physics informed neural networks for Allen-Cahn and Cahn-Hilliard equations. *Computer Methods in Applied Mechanics and Engineering*, 390, 114474. https://doi.org/10.1016/j.cma.2021.114474
 - Wight, C. L., & Zhao, J. (2021). Solving Allen-Cahn and Cahn-Hilliard equations using the adaptive physics informed neural networks. *Communications in Computational Physics*, 29(3), 930–954. https://doi.org/10.4208/cicp.OA-2020-0086
 - Mathias, M. S., de Almeida, W. P., de Barros, M. R., Coelho, J. F., et al. (2022). Augmenting a Physics-Informed Neural Network for the 2D Burgers Equation by Addition of Solution Data Points. *Brazilian Conference on Intelligent Systems (BRACIS 2022)*. https://arxiv.org/abs/2301.07824
+- Jin, X., Cai, S., Li, H., & Karniadakis, G. E. (2021). NSFnets (Navier-Stokes flow nets): Physics-informed neural networks for the incompressible Navier-Stokes equations. *Journal of Computational Physics*, 426, 109951. https://doi.org/10.1016/j.jcp.2020.109951
+- Haghighat, E., Raissi, M., Moure, A., Gomez, H., & Juanes, R. (2021). A physics-informed deep learning framework for inversion and surrogate modeling in solid mechanics. *Computer Methods in Applied Mechanics and Engineering*, 379, 113741. https://doi.org/10.1016/j.cma.2021.113741
+- Pang, G., Lu, L., & Karniadakis, G. E. (2019). fPINNs: Fractional physics-informed neural networks. *SIAM Journal on Scientific Computing*, 41(4), A2603–A2626. https://doi.org/10.1137/18M1229845
+- Yu, J., Lu, L., Meng, X., & Karniadakis, G. E. (2022). Gradient-enhanced physics-informed neural networks for forward and inverse PDE problems. *Computer Methods in Applied Mechanics and Engineering*, 393, 114823. https://doi.org/10.1016/j.cma.2022.114823
+- Wu, C., Zhu, M., Tan, Q., Kartha, Y., & Lu, L. (2023). A comprehensive study of non-adaptive and residual-based adaptive sampling for physics-informed neural networks. *Computer Methods in Applied Mechanics and Engineering*, 403, 115671. https://doi.org/10.1016/j.cma.2022.115671
+- Escapil-Inchauspé, P., & Ruz, G. A. (2023). Hyper-parameter tuning of physics-informed neural networks: Application to Helmholtz problems. *Neurocomputing*, 561. https://arxiv.org/abs/2205.06704
 
 Training methods ([When a PINN struggles](#hard-problems), [training methods study](benchmarks/training_methods.md)):
 
