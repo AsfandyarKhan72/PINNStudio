@@ -7,13 +7,18 @@ and trained. Several runs share the GPU at once (--jobs).
 
     python benchmarks/study_runner.py PLAN.json OUT_DIR [--jobs 3] [--smoke]
 
-PLAN.json is a list of {"example": <example key>, "setup": <setup name>,
-"name": <folder name>, optional "seed", "windows", "phases", "extra"}. Each
+PLAN.json is a list of {"example": <example name as the Examples list shows it>, "setup": <setup name>,
+"name": <folder name>, optional "category", "seed", "windows", "phases", "extra", "equal_budget"}.
+"match": <name of an earlier run>: copy that run's network, points, learning rate and training phases (MATCH),
+so all techniques on one example share them; set before "equal_budget" divides them over the windows.
+"equal_budget": a time-windows setup gets the same total training as the whole-interval ones (steps and
+domain/boundary points divided by the number of windows). Each
 run's folder gets run.py, log.txt and result.json (the relative L2 error of
 every output group at every reference time). --smoke cuts iterations and
 points so that a whole plan can be checked in minutes.
 """
 import argparse
+import copy
 import json
 import os
 import re
@@ -41,6 +46,11 @@ SETUPS = {
     "Template": [],
 }
 IC_WEIGHT = 100.0
+
+
+# settings a "match" run copies, so every technique on one example uses the same network, points and training
+MATCH = ("layers", "activation", "learning_rate", "num_domain", "num_boundary", "num_initial", "num_test",
+         "random_seed")                # plus the optimizer and step count of each phase (loss weights stay per setup)
 
 
 def _phases(cfg):
@@ -110,6 +120,27 @@ def apply_setup(cfg, setup, run):
             continue
         assert hasattr(cfg, k), k
         setattr(cfg, k, v)
+    if run.get("match"):              # the same main settings as another run of the same example
+        for k, v in run["match_cfg"].items():
+            if k != "_steps":
+                setattr(cfg, k, copy.deepcopy(v))
+        ph, ref = _phases(cfg), run["match_cfg"]["_steps"]
+        assert [p["optimizer"] for p in ph] == [o for o, _ in ref], (run["name"], ph, ref)
+        for p, (_, n) in zip(ph, ref):
+            p["iterations"] = n
+        cfg.scheduler_phases = json.dumps(ph)
+    if run.get("equal_budget") and cfg.time_adaptive:
+        # the same training budget as the whole-interval setups: the optimizer steps and the domain and
+        # boundary points are shared out over the windows (each window gets 1/k of them); the network and
+        # the initial-condition points stay as they are
+        k = max(1, int(cfg.ta_num_steps))
+        ph = _phases(cfg)
+        for p in ph:
+            p["iterations"] = max(1, int(round(int(p["iterations"]) / k)))
+        cfg.scheduler_phases = json.dumps(ph)
+        cfg.num_domain = max(1, int(round(cfg.num_domain / k)))
+        if hasattr(cfg, "num_boundary"):
+            cfg.num_boundary = max(1, int(round(cfg.num_boundary / k)))
     if "seed" in run:
         cfg.random_seed = run["seed"]
 
@@ -134,24 +165,41 @@ def build(plan, out, smoke):
     w = MainWindow()
     app.processEvents()
     dirs = []
+    shared = {}                         # name -> the MATCH settings it ran with
     for run in plan:
         if "settings" in run:          # an example given by its settings (deepxde_examples style)
             from pinnstudio.core import deepxde_examples as dx
             ex = dx.Example(run["name"], dx.FORWARD, "", run["settings"], "", None, "")
             cfg = dx.build_config(ex, os.path.join(os.path.dirname(HERE), "reference_data"))
         else:
-            w.quick_examples_combo.setCurrentText(run["example"])
+            w.quick_examples_category_combo.setCurrentText(run.get("category", "Forward"))
             app.processEvents()
-            assert w.quick_examples_combo.currentText() == run["example"], run["example"]
+            i = w.quick_examples_combo.findText(run["example"])
+            w.quick_examples_combo.setCurrentIndex(-1)
+            app.processEvents()
+            w.quick_examples_combo.setCurrentIndex(i)
+            for _ in range(20):
+                app.processEvents()
+            assert i >= 0, run["example"]    # (the list goes back to "None" once the example is loaded)
             cfg = w._build_config()
         d = os.path.join(out, run["name"])
         os.makedirs(d, exist_ok=True)
         cfg.save_dir = d
+        if run.get("match"):
+            assert run["match"] in shared, f"{run['name']}: match {run['match']} must come earlier in the plan"
+            run = dict(run, match_cfg=shared[run["match"]])
         apply_setup(cfg, run["setup"], run)
+        mine = {k: copy.deepcopy(getattr(cfg, k)) for k in MATCH if hasattr(cfg, k)}
+        mine["_steps"] = [(p["optimizer"], int(p["iterations"])) for p in _phases(cfg)]
+        shared[run["name"]] = mine
+        if run.get("match") and not run.get("equal_budget"):
+            assert mine == run["match_cfg"], run["name"]
         if smoke:
             _smoke(cfg)
         errs = cfg.validate()
-        meta = dict(run, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
+        meta = dict({k: v for k, v in run.items() if k != "match_cfg"}, layers=cfg.layers,
+                    num_domain=cfg.num_domain, num_boundary=cfg.num_boundary,
+                    num_initial=getattr(cfg, "num_initial", None), lr=cfg.learning_rate, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
                     ta=cfg.time_adaptive, windows=cfg.ta_step_groups if cfg.time_adaptive else None,
                     point_weights=cfg.point_weights, causal=cfg.causal_training, net=cfg.network_type,
                     phases=[(p["optimizer"], p["iterations"], p.get("weights", "")) for p in _phases(cfg)],
@@ -171,10 +219,14 @@ def parse(log):
     """{group: [[t, L2], ...]} from the Error Analysis lines of a log."""
     res, group = {}, "u"
     for line in log.splitlines():
-        m = re.search(r"Output group[^:]*:\s*(\S+)", line) or re.search(r"── (\S+) ──", line)
+        m = (re.search(r"Output group[^:]*:\s*(\S+)", line) or re.search(r"── (\S+) ──", line)
+             or re.search(r"Loaded ground truth.*?from (\S+)", line))
         if m:
-            group = m.group(1).strip("'\":,")
-        m = re.search(r"t=([-\d.eE+]+)\s+—\s+L2=([-\d.eE+]+)", line)
+            g = m.group(1).strip("'\":,")
+            if g.endswith(".txt"):          # a reference file name: t_0.25.txt, mu_t_0.25.txt, ...
+                g = re.sub(r"_?t_[-\d.e]+$", "", re.sub(r"^t_[-\d.e]+_?", "", g[:-4])) or "u"
+            group = g
+        m = re.search(r"t=([-\d.eE+]+)\s+(?:—|--|-)\s+L(?:2|₂)=([-\d.eE+]+)", line)
         if m:
             res.setdefault(group, []).append([float(m.group(1)), float(m.group(2))])
     return res
