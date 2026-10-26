@@ -161,7 +161,7 @@ SETUPS = [("Loss BC + loss IC", "Plain PINN", INK, (0, (4, 2)), "o"),
           ("Exact BC + exact IC + RBA", "Exact BC + IC + RBA", C["RBA"], "-", "^"),
           ("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN", C["SA-PINN"], "-", "D"),
           ("Time windows: exact BC + loss IC", "Time windows", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v")]
-PANELS = [("ac1d", "(a)"), ("ch1d_mg", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)")]
+PANELS = [("ac1d", "(a)"), ("ch1d", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)")]
 
 
 def fig_c(ex):
