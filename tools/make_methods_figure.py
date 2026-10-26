@@ -161,35 +161,48 @@ SETUPS = [("Loss BC + loss IC", "Plain PINN", INK, (0, (4, 2)), "o"),
           ("Exact BC + exact IC + RBA", "Exact BC + IC + RBA", C["RBA"], "-", "^"),
           ("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN", C["SA-PINN"], "-", "D"),
           ("Time windows: exact BC + loss IC", "Time windows", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v")]
-PANELS = [("ac1d", "(a) Allen–Cahn 1D"), ("ch1d_mg", "(b) Cahn–Hilliard 1D"), ("ac2d_mg", "(c) Allen–Cahn 2D")]
+PANELS = [("ac1d", "(a)"), ("ch1d_mg", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)")]
 
 
 def fig_c(ex):
+    """Figure 7: 2 x 2, Allen-Cahn 1D | Cahn-Hilliard 1D (top), Allen-Cahn 2D | Cahn-Hilliard 2D (bottom); the
+    same five setups in every panel (time windows were not run for 2D Cahn-Hilliard); each panel its own
+    y range; t from 0 (the exact initial condition has zero error at t = 0: drawn on the bottom edge)."""
+    import math
     style()
-    fig, axs = plt.subplots(1, 3, figsize=(WIDTH, 2.55), sharey=True)
-    for ax, (eid, title) in zip(axs, PANELS):
+    fig, axs = plt.subplots(2, 2, figsize=(WIDTH, 4.9))
+    for ax, (eid, letter) in zip(axs.ravel(), PANELS):
         e = ex[eid]
-        for setup, _, col, ls, mk in SETUPS:
-            c = next(c for c in e["core"] if c["setup"] == setup)
-            t = [p[0] for p in c["l2"] if p[0] > 0]
-            v = [p[1] for p in c["l2"] if p[0] > 0]
-            ax.plot(t, v, ls=ls, color=col, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5, zorder=3)
+        curves = [(next((c for c in e["core"] if c["setup"] == st), None), col, ls, mk) for st, _, col, ls, mk in SETUPS]
+        vals = [p[1] for c, *_ in curves if c for p in c["l2"] if p[0] > 0]
+        lo = 10 ** math.floor(math.log10(min(vals)) - 0.6)
+        hi = max(vals) * 2.2
+        for c, col, ls, mk in curves:
+            if c is None:
+                continue
+            pts = c["l2"]
+            if pts and pts[0][0] == 0 and pts[0][1] < lo:     # exact IC: zero error at t = 0, below the axis
+                ax.plot([0], [lo], ls="", marker=mk, ms=4.2, mfc="white", mec=col, mew=1.0, zorder=4, clip_on=False)
+                pts = pts[1:]
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], ls=ls, color=col, lw=1.5, marker=mk, ms=3.6,
+                    mec="white", mew=0.5, zorder=3, clip_on=False)
         ax.set_yscale("log")
-        ax.set_ylim(1e-4, 3)
-        ax.set_xlim(0, 1.03)
+        ax.set_ylim(lo, hi)
+        ax.set_xlim(0, 1.0)
         ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0], ["0", "0.25", "0.5", "0.75", "1"])
-        ax.set_title(title, fontsize=8.8, loc="left", pad=4)
+        ax.text(-0.16, 1.04, letter, transform=ax.transAxes, fontsize=9.5, fontweight="bold", va="bottom")
         ax.set_xlabel("$t$", labelpad=1)
+        if letter in ("(a)", "(c)"):
+            ax.set_ylabel("Relative $L_2$ error")
         ax.grid(color=GRID, lw=0.6)
         ax.set_axisbelow(True)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
         ax.tick_params(labelsize=7.8)
-    axs[0].set_ylabel("Relative $L_2$ error")
     h = [Line2D([], [], color=col, ls=ls, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5) for _, _, col, ls, mk in SETUPS]
     fig.legend(h, [lab for _, lab, _, _, _ in SETUPS], loc="upper center", ncol=5, frameon=False, fontsize=7.4,
                handlelength=2.4, handletextpad=0.35, columnspacing=0.9, bbox_to_anchor=(0.5, 1.0))
-    fig.subplots_adjust(left=0.095, right=0.99, top=0.80, bottom=0.16, wspace=0.1)
+    fig.subplots_adjust(left=0.11, right=0.985, top=0.885, bottom=0.08, wspace=0.3, hspace=0.42)
     for ext in ("png", "pdf"):
         fig.savefig(os.path.join(OUT, f"paper_methods_c.{ext}"), dpi=300)
     plt.close(fig)
