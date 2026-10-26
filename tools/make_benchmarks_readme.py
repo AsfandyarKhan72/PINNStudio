@@ -1487,8 +1487,8 @@ def page(recs):
       "| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes "
       "from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme "
       "as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the "
-      "paper's section and table) | [paper_comparison.md](paper_comparison.md) and the *published methods* "
-      "toggle below | `tools/tuning_study.py --variants plain,paper_*` | done |\n"
+      "paper's section and table) | [paper_comparison.md](paper_comparison.md); for the paper: "
+      "[paper.md](paper.md) | `tools/tuning_study.py --variants plain,paper_*` | done |\n"
       "| Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, "
       "time windows) help on the phase-field and other hard problems | each example's own settings, the "
       "technique changed, 10 core setups | [training_methods.md](training_methods.md) | "
@@ -1497,15 +1497,15 @@ def page(recs):
       "steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 "
       "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
       "[training_methods.md → The controlled comparison]"
-      "(training_methods.md#the-controlled-comparison-paper-figure-7) and the *Figure 7* toggle below | "
+      "(training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | "
       "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | running |\n"
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
-      "and identified parameters compared line by line | the paper's Section 4.3 | "
+      "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
       "`tools/check_export_equivalence.py` | running |\n"
       "| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
       "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
-      "`benchmarks/performance/` (Tables 5, 6, S3) | `benchmarks/perf_study.py` | queued |\n\n"
+      "[performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | running |\n\n"
       "All runs are on one RTX 4090 unless stated.\n\n</details>\n\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
       "*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own "
@@ -1744,6 +1744,100 @@ def write_tuned(recs):
 
 
 
+PAPER_PAGE = os.path.join(os.path.dirname(PAGE), "paper.md")
+
+# The paper's items in the order of the paper: (toggle title start, section heading, info rows)
+PAPER_ITEMS = [
+    ("📄 <em>Figure for the paper — ", "Section 4.2 — accuracy on 25 representative problems (Figure 4)", [
+        ("What it shows", "the relative L₂ error of 25 forward problems and the parameter error of their inverse "
+         "versions, with the starting settings (DeepXDE's example or the paper's method) and PINNStudio's tuned settings"),
+        ("How it was run", "every example with its starting settings and with the changes of the tuning study, "
+         "seed 2026 (3 seeds for the close calls), one RTX 4090; *tuned* = lowest error, the fastest within 25% "
+         "([tuning_study.md](tuning_study.md))"),
+        ("Data and scripts", "`tools/make_benchmarks_readme.py` (figure and table), "
+         "[`paper_figure_examples.txt`](paper_figure_examples.txt) (the 25 names), `tools/tuning_study.py` (runs)"),
+        ("Status", "done; the seed repeats for the Figure 4 medians and range bars are queued")]),
+    ("🧪 <em>Forward examples for the paper", "Forward examples in 1D, 2D and 3D (Figure 5)", [
+        ("What it shows", "three forward problems, one per dimension: PINNStudio's solution, the reference and the error"),
+        ("How it was run", "PINNStudio's best run of each problem (the same run as on the benchmarks page), drawn from its saved model"),
+        ("Data and scripts", "`tools/make_paper_examples.py`, arrays in [`paper_examples/`](paper_examples)"),
+        ("Status", "done")]),
+    ("🔍 <em>Inverse examples for the paper", "Inverse examples in 1D, 2D and 3D (Figure 6)", [
+        ("What it shows", "three inverse problems, one per dimension: the solution and the learned coefficients against the true ones"),
+        ("How it was run", "PINNStudio's best inverse run of each problem, drawn from its saved model"),
+        ("Data and scripts", "`tools/make_paper_examples.py`, arrays in [`paper_examples/`](paper_examples)"),
+        ("Status", "done")]),
+    ("📄 <em>Table for the paper — the published methods", "Section 4.5 — the published methods run in PINNStudio (table)", [
+        ("What it shows", "for each template taken from a paper: the paper's base PINN, the paper's own method set up in "
+         "PINNStudio, the error the paper reports, and PINNStudio's tuned result"),
+        ("How it was run", "the paper's network, points and training scheme as far as the paper states them "
+         "(`pinnstudio/core/paper_settings.py`, one comment per problem with the section and table it follows), seed 2026"),
+        ("For users", "[paper_comparison.md](paper_comparison.md)"),
+        ("Status", "done (all 11 rows)")]),
+    ("📄 <em>Figure 7 for the paper", "Section 4.5 — training techniques on phase-field problems (Figure 7)", [
+        ("What it shows", "six training setups (plain PINN, exact BC + IC, + RBA, + SA-PINN, time windows, bc-PINN "
+         "windows) on four phase-field problems, error against time"),
+        ("How it was run", "one common protocol: 1D 4 × 128 with 10,000 points, 2D 6 × 128 with 20,000 points, "
+         "20,000 Adam + 10,000 L-BFGS for every setup, 4 time windows with full and with equal compute"),
+        ("For users", "[training_methods.md → The controlled comparison]"
+         "(training_methods.md#the-controlled-comparison-paper-figure-7)"),
+        ("Data and scripts", "[`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, "
+         "`tools/make_methods_figure.py`"),
+        ("Status", "common-protocol runs queued on the GPU; the panels shown are the interim matched-per-problem runs")]),
+    ("📄 <em>Table S2 for the paper", "Supplementary Table S2 — every forward problem, each output", [
+        ("What it shows", "the tuned error of every output of every forward problem with a reference solution"),
+        ("How it was run", "the same runs as the benchmarks page"),
+        ("Status", "done")]),
+]
+
+
+def _info(rows):
+    return "| | |\n|---|---|\n" + "".join(f"| **{k}** | {v} |\n" for k, v in rows) + "\n"
+
+
+def split_paper(md):
+    """(README without the paper's items, paper.md): the paper's toggles move to their own page, each under a
+    heading for its section of the paper with a short box on how it was run and its status."""
+    first = md.find("<details>\n<summary>" + PAPER_ITEMS[0][0])
+    s2 = md.find("<summary>" + PAPER_ITEMS[-1][0])
+    if first < 0 or s2 < 0:
+        return md, "# PINNStudio paper\n\n(no paper items found)\n"
+    end = md.index("\n## ", s2)
+    block = md[first:end]
+    # cut the block into its toggles, by the start of each item's <details>
+    starts = [(block.find("<details>\n<summary>" + t), t, h, rows) for t, h, rows in PAPER_ITEMS]
+    starts = sorted(x for x in starts if x[0] >= 0)
+    parts = []
+    for i, (k, t, h, rows) in enumerate(starts):
+        nxt = starts[i + 1][0] if i + 1 < len(starts) else len(block)
+        parts.append((h, rows, block[k:nxt].strip()))
+    extra = os.path.join(os.path.dirname(PAGE), "paper_extra.md")      # hand-written items (Sections 4.3, 5)
+    extra_md = open(extra, encoding="utf-8").read().strip() + "\n" if os.path.exists(extra) else ""
+    P = ["# PINNStudio paper — figures, tables and text\n",
+         "*Everything the paper uses, in the order of the paper. Each item has a short box (what it shows, how it "
+         "was run, the data and scripts, its status) above the figure or table, its caption and a draft of the text. "
+         "Generated by `tools/make_benchmarks_readme.py` from the same runs as the [benchmarks page](README.md); "
+         "the studies themselves are written up for users in [tuning_study.md](tuning_study.md), "
+         "[training_methods.md](training_methods.md), [paper_comparison.md](paper_comparison.md) and "
+         "[performance.md](performance.md).*\n",
+         "| Paper item | Status |\n|---|---|\n" + "".join(
+             f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
+             for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
+         "| running (45 of the first 48 identical, none differ) |\n"
+         "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
+         "Table S3 running; Tables 6 and 5 queued |\n"]
+    for h, rows, body in parts:
+        body = body.replace("](#bench-", "](README.md#bench-")
+        P.append(f"## {h}\n\n{_info(rows)}{body}\n")
+    if extra_md:
+        P.append(extra_md)
+    paper_md = re.sub(r"\n{3,}", "\n\n", "\n".join(P))
+    link = ("**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 4, the forward and "
+            "inverse examples, the published methods, Figure 7, Table S2, Sections 4.3 and 5) are on their own page: "
+            "[paper.md](paper.md).\n\n")
+    return md[:first] + link + md[end:].lstrip("\n"), paper_md
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results", nargs="+")
@@ -1788,8 +1882,11 @@ def main():
         if missing:
             print("paper figure: not in the catalogue:", missing)
         figure([by[n] for n in names if n in by], PAPER_FIG, stars=False, paper=True)
+    md, paper_md = split_paper(page(recs))
     with open(PAGE, "w", encoding="utf-8") as f:
-        f.write(page(recs))
+        f.write(md)
+    with open(PAPER_PAGE, "w", encoding="utf-8") as f:
+        f.write(paper_md)
     # the runs whose figures the page shows, for the figure collection on the GPU machine
     need = os.path.join(os.path.dirname(PAGE), "tuning", "figures_needed.txt")
     with open(need, "w", encoding="utf-8") as f:
