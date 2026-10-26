@@ -163,8 +163,38 @@ SETUPS = [("Loss BC + loss IC", "Plain PINN", INK, (0, (4, 2)), "o"),
           ("Time windows: exact BC + loss IC", "Time windows", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v")]
 PANELS = [("ac1d", "(a)"), ("ch1d", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)")]
 
+# the confirmation reruns (benchmarks/plans/fig7_confirm.json): within each problem every setup has the plain
+# PINN's network, points, learning rate, seed and steps; time windows share those steps out over the windows
+RERUN = os.path.join(ROOT, "benchmarks", "figures", "fig7_rerun.json")
+RERUN_ID = {"ac1d": "ac1d", "ch1d": "ch1d", "ac2d_mg": "ac2dmg", "ch2d_mg": "ch2dmg"}
+SETUPS6 = SETUPS + [("bcpinn", "Time windows + backward (bc-PINN)", C["causal + MsFFN"], (0, (1.2, 1.2)), "P")]
+RERUN_KEY = dict(zip([s[0] for s in SETUPS6], ("plain", "exact", "rba", "sa", "windows", "bcpinn")))
 
-def fig_c(ex):
+
+def rerun_examples():
+    """{eid: {"core": [{"setup", "l2"}]}} from fig7_rerun.json (the main output, not mu); seed median when there are
+    several seeds (runs named <name>_s<seed>)."""
+    import statistics
+    if not os.path.exists(RERUN):
+        return None
+    r = json.load(open(RERUN, encoding="utf-8"))
+    out = {}
+    for eid, pid in RERUN_ID.items():
+        core = []
+        for st, *_ in SETUPS6:
+            runs = [v for k, v in r.items() if k == f"f7_{pid}_{RERUN_KEY[st]}" or k.startswith(f"f7_{pid}_{RERUN_KEY[st]}_s")]
+            runs = [v for v in runs if v.get("rc") == 0]
+            if not runs:
+                continue
+            series = [next(c for g, c in v["l2"].items() if g != "mu") for v in runs]
+            ts = [t for t, _ in series[0]]
+            core.append(dict(setup=st, n=len(series),
+                             l2=[[t, statistics.median(c[i][1] for c in series)] for i, t in enumerate(ts)]))
+        out[eid] = dict(core=core)
+    return out
+
+
+def fig_c(ex, setups=SETUPS, name="paper_methods_c"):
     """Figure 7: 2 x 2, Allen-Cahn 1D | Cahn-Hilliard 1D (top), Allen-Cahn 2D | Cahn-Hilliard 2D (bottom); the
     same five setups in every panel (time windows were not run for 2D Cahn-Hilliard); each panel its own
     y range; t from 0 (the exact initial condition has zero error at t = 0: drawn on the bottom edge)."""
@@ -173,7 +203,7 @@ def fig_c(ex):
     fig, axs = plt.subplots(2, 2, figsize=(WIDTH, 4.9))
     for ax, (eid, letter) in zip(axs.ravel(), PANELS):
         e = ex[eid]
-        curves = [(next((c for c in e["core"] if c["setup"] == st), None), col, ls, mk) for st, _, col, ls, mk in SETUPS]
+        curves = [(next((c for c in e["core"] if c["setup"] == st), None), col, ls, mk) for st, _, col, ls, mk in setups]
         vals = [p[1] for c, *_ in curves if c for p in c["l2"] if p[0] > 0]
         lo = 10 ** math.floor(math.log10(min(vals)) - 0.6)
         hi = max(vals) * 2.2
@@ -198,12 +228,13 @@ def fig_c(ex):
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
         ax.tick_params(labelsize=7.8)
-    h = [Line2D([], [], color=col, ls=ls, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5) for _, _, col, ls, mk in SETUPS]
-    fig.legend(h, [lab for _, lab, _, _, _ in SETUPS], loc="upper center", ncol=5, frameon=False, fontsize=7.4,
+    h = [Line2D([], [], color=col, ls=ls, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5) for _, _, col, ls, mk in setups]
+    nc = 5 if len(setups) <= 5 else 3
+    fig.legend(h, [lab for _, lab, _, _, _ in setups], loc="upper center", ncol=nc, frameon=False, fontsize=7.4,
                handlelength=2.4, handletextpad=0.35, columnspacing=0.9, bbox_to_anchor=(0.5, 1.0))
-    fig.subplots_adjust(left=0.11, right=0.985, top=0.885, bottom=0.08, wspace=0.3, hspace=0.42)
+    fig.subplots_adjust(left=0.11, right=0.985, top=0.885 if nc == 5 else 0.86, bottom=0.08, wspace=0.3, hspace=0.42)
     for ext in ("png", "pdf"):
-        fig.savefig(os.path.join(OUT, f"paper_methods_c.{ext}"), dpi=300)
+        fig.savefig(os.path.join(OUT, f"{name}.{ext}"), dpi=300)
     plt.close(fig)
 
 
@@ -212,7 +243,12 @@ def main():
     ex = {e["id"]: e for e in d["examples"]}
     fig_a(ex)
     fig_b(ex)
-    fig_c(ex)
+    rr = rerun_examples()
+    if rr:
+        fig_c(rr, SETUPS6)                                 # Figure 7: the matched-settings reruns
+        fig_c(ex, name="paper_methods_c_study")           # the same panels from the original study, for comparison
+    else:
+        fig_c(ex)
     print("wrote", os.path.join(OUT, "paper_methods_a.png"), "and _b")
 
 
