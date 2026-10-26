@@ -498,7 +498,7 @@ def build(summ, papers, spacetime, readme):
                 l2 = statistics.median(mtp._maxl2(r) for r in rs if mtp._maxl2(r) is not None)
                 st = [spacetime.get(f"{ts._slug(key)}/{v}_s{r['seed']}") for r in rs]
                 st = [x for x in st if x is not None]
-                pr[v] = dict(l2=l2, st=statistics.median(st) if st else None, seconds=statistics.median(
+                pr[v] = dict(n=len(rs), l2=l2, st=statistics.median(st) if st else None, seconds=statistics.median(
                     r["seconds"] for r in rs), outs=_outs(rs, v),
                     judged=statistics.median([_judged(r) for r in rs if _judged(r) is not None] or [l2]))
         rec["paper_runs"] = pr
@@ -524,6 +524,97 @@ def build(summ, papers, spacetime, readme):
 FIELD_OUT = {"Inverse: Poisson with unknown forcing field": ("q", "q(x)"),
              "Inverse: Poisson with unknown forcing field (batches)": ("q", "q(x)"),
              "Inverse: diffusion-reaction with space-dependent rate": ("k", "k(x)")}
+
+
+def _runs_range(rs, f):
+    """'median (min–max, n runs)' of f over the runs rs, or just the value for one run."""
+    xs = sorted(x for x in (f(r) for r in rs or []) if x is not None)
+    if not xs:
+        return "–", 0
+    if len(xs) == 1:
+        return sci(xs[0]), 1
+    return f"{sci(statistics.median(xs))} ({sci(xs[0])} – {sci(xs[-1])})", len(xs)
+
+
+def _fig4_table(recs):
+    """The numbers behind the paper's Figure 4, one row per example, in the figure's order."""
+    L = ["| Example | Forward: starting settings, L₂ | Forward: PINNStudio tuned, L₂ | Runs | "
+         "Inverse: parameters found (true) | Inverse: worst parameter error | Runs |",
+         "|---|---|---|---|---|---|---|"]
+    for r in recs:
+        e = r["entry"]
+        ext = r["deepxde"] or (r["paper"] and r["paper_runs"])
+        # forward
+        # the same starting point as the figure's open circle: DeepXDE's settings, or for a paper template the
+        # paper's method run in PINNStudio
+        pm = [r["paper_runs"][v]["l2"] for _, _, v in (r["paper"] or []) if v in (r.get("paper_runs") or {})]
+        start = (min(pm) if pm else None) if not r["deepxde"] else r.get("f_ref")
+        f_start = sci(start) if (start is not None and ext) else "–"
+        if r.get("f_best_paper"):
+            q = r["paper_runs"][r["f_best_paper"]]
+            f_best, n_f = sci(q["l2"]), q.get("n", 1)
+        elif r.get("f_best_s"):
+            fs = r["f_best_s"]
+            f_best, n_f = _runs_range(fs["variants"][fs["chosen"]], mtp._maxl2)
+        else:
+            f_best, n_f = sci(r.get("f_best")), 1 if r.get("f_best") is not None else 0
+        if r.get("f_best") is None:
+            f_best, n_f, f_start = "–", 0, "–"
+        # inverse
+        par = r.get("i_best_par") or []
+        if r.get("i_field"):
+            sym, fb, _ = r["i_field"]
+            p_txt, p_err = f"field {sym} (relative L₂)", _pct(fb)
+        else:
+            p_txt, p_err = (_par_txt(par) or "–"), _pct(_perr(par))
+        n_i = len(r["i_s"]["variants"][r["i_s"]["chosen"]]) if r.get("i_s") else (1 if par else 0)
+        name = PAPER_SHORT.get(e.name, e.name)
+        L.append(f"| {name} | {f_start} | **{f_best}** | {n_f or '–'} | {p_txt} | **{p_err}** | {n_i or '–'} |")
+    return "\n".join(L) + "\n"
+
+
+def _paper_methods_table(recs):
+    """Each paper template: the base PINN, the paper's own method run in PINNStudio, the error the paper
+    reports, and PINNStudio's tuned result (Section 4.5)."""
+    L = ["| Problem | Paper's method | Base PINN, L₂ (last time) | Paper's method in PINNStudio, L₂ (last time) | "
+         "Paper's method in PINNStudio, L₂ (all times) | Reported in the paper (all times) | PINNStudio tuned, L₂ (last time) |",
+         "|---|---|---|---|---|---|---|"]
+    n = 0
+    for r in recs:
+        if not (r["paper"] and r["paper_runs"]) or r["entry"].hidden:
+            continue
+        pr = r["paper_runs"]
+        base = pr.get("plain")
+        for ref, val, v in r["paper"]:
+            q = pr.get(v)
+            if q is None and base is None:
+                continue
+            n += 1
+            L.append(f"| {r['entry'].name} | {PAPER_NAME[v]} | {sci(base and base['l2'])} | {sci(q and q['l2'])} | "
+                     f"{sci(q and q.get('st'))} | {sci(val) if val else 'figures only'} ({ref}) | **{sci(r.get('f_best'))}** |")
+    return ("\n".join(L) + "\n") if n else ""
+
+
+def _table_s2(recs):
+    """Every forward problem with a reference: PINNStudio tuned, each output's relative L₂ at the last time."""
+    L = ["| Example | Source | Outputs | Relative L₂ of each output (last reference time) |", "|---|---|---|---|"]
+    for r in recs:
+        if r.get("f_best") is None:
+            continue
+        outs = {}
+        if r.get("f_best_paper"):
+            outs = dict(r["paper_runs"][r["f_best_paper"]].get("outs") or {})
+        elif r.get("f_best_s"):
+            fs = r["f_best_s"]
+            outs = _outs(fs["variants"][fs["chosen"]], fs["chosen"])
+        outs = {k: v for k, v in outs.items() if not k.startswith("abs_")}
+        if not outs:
+            outs = {MAIN[0]: r["f_best"]}
+        names = list(outs)
+        src = "DeepXDE" if r["deepxde"] else "PINNStudio"
+        L.append(f"| {r['entry'].name} | {src} | {', '.join(SYM.get(k, k) for k in names)} | "
+                 f"{', '.join(sci(outs[k]) for k in names)} |")
+    return "\n".join(L) + "\n"
 
 
 def _stats(recs):
@@ -1429,8 +1520,29 @@ def page(recs):
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
           "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
           f"![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png{_ver(PAPER_FIG)})\n\n"
+          "**The values in the figure.** Relative L₂ at the last reference time. *Starting settings* is given only "
+          "where there is an outside starting point (DeepXDE's example or the paper's method run in PINNStudio). "
+          "Where a setting was run with more than one seed, the value is the median with the range in brackets, "
+          "and *Runs* gives the number of seeds.\n\n" + _fig4_table(paper_recs) + "\n"
           "</details>\n")
         a(_paper_examples_md())
+        pm = _paper_methods_table(recs)
+        if pm:
+            a("<details>\n<summary>📄 <em>Table for the paper — the published methods run in PINNStudio "
+              "(Section 4.5)</em></summary>\n\n"
+              "For each template taken from a paper: the plain PINN (the template's equations with a standard "
+              "network and training, no special method), the paper's own method set up in PINNStudio from the "
+              "paper's description, the error the paper reports, and PINNStudio's tuned result. The error is the "
+              "main output (u, h or φ); for Cahn-Hilliard the chemical potential μ is in each example's table. The "
+              "papers report one error over all times, so that column is the like-for-like comparison with the "
+              "reported value. Single runs, seed 2026.\n\n" + pm +
+              "\n> *Caption to start from: Relative L₂ errors for the phase-field and Burgers templates: a plain "
+              "PINN, the training method of the original paper set up in PINNStudio, the error reported in that "
+              "paper, and the configuration selected in the PINNStudio tuning study.*\n\n</details>\n")
+        a("<details>\n<summary>📄 <em>Table S2 for the paper — every forward problem, each output</em></summary>\n\n"
+          "PINNStudio's tuned result for every forward problem with a reference solution: the relative L₂ of each "
+          "output at the last reference time (for Beltrami flow the pressure is left out, as it is fixed only up "
+          "to a constant). Generated from the same runs as the tables below.\n\n" + _table_s2(recs) + "\n</details>\n")
     for g in GROUPS:
         rs = [r for r in recs if r["group"] == g]
         if not rs:
