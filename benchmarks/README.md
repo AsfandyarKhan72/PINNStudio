@@ -96,7 +96,7 @@ The sweep was run on the 61 examples with the largest errors. The others were al
 
 **In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 11, by a median factor of 18.3 in those (median over all 20: 1.4). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
 
-**All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 47 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 19, by a median factor of 9.4 in those (median over all 47: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
+**All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 20, by a median factor of 7.2 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
 
 **How "tuned" was chosen.** The tuned settings are the run with the lowest error against the reference (the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
@@ -4701,7 +4701,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 
 | Training | L₂ h, last time | L₂ μ, last time | Mean abs. error μ, last time | L₂ h, all times | Time (s) |
 |---|---|---|---|---|---|
-| Base PINN | – | – | – | – | – |
+| Base PINN | 8.2 × 10<sup>-2</sup> | 5.6 × 10<sup>-1</sup> | 1.0 × 10<sup>-2</sup> | 8.6 × 10<sup>-2</sup> | 3593 |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.2.1) | – | – | – | figures only | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – | – | – |
 | The template's starting settings | 2.0 × 10<sup>-3</sup> | 4.2 × 10<sup>-2</sup> | 1.2 × 10<sup>-3</sup> | – | 954 |
@@ -4712,8 +4712,6 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 *Each output's relative L₂ at its last reference time; the best run is chosen by h and μ together (the worse of the two).*
 
 *μ decays to almost zero as the system approaches equilibrium, so its relative L₂ divides by a very small number and looks large even when the field is right; the mean absolute error of μ (the same time) shows its actual size. The paper's reported error, where it gives one, is compared with the concentration.*
-
-*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
