@@ -59,7 +59,7 @@ THREADS = [1, 2, 4, 8, 12, 16, 24, 32]
 TRAIN_RE = re.compile(r"'train' took ([\d.]+) s")
 STEP_RE = re.compile(r"^\s*(\d+)\s+\[", re.M)
 GT_RE = re.compile(r"Loaded ground truth.*?from (\S+)")
-L2_RE = re.compile(r"t=([-\d.]+) . L(?:2|₂)=([\d.e+-]+)")
+L2_RE = re.compile(r"t=([-\d.]+) (?:—|--|.) L(?:2|₂)=([\d.e+-]+)")
 PARAM_RE = re.compile(r"(?:=== (\S+) final value: ([-\d.e+]+) ===|Final inferred (\S+): ([-\d.e+]+))")
 SMI = shutil.which("nvidia-smi")
 
@@ -152,8 +152,11 @@ def parse_log(log, phases):
             cur = f or "u"
             continue
         m = L2_RE.search(ln)
-        if m and cur:
-            outs.setdefault(cur, {})[float(m.group(1))] = float(m.group(2))
+        if m:
+            t = float(m.group(1))
+            if cur is None or (cur.startswith("out") and t in outs.get(cur, {})):
+                cur = f"out{len(outs)}"     # the exported script prints no file names: outputs in order
+            outs.setdefault(cur, {})[t] = float(m.group(2))
     r["l2"] = {k: v[max(v)] for k, v in outs.items() if v}
     r["params"] = {(m.group(1) or m.group(3)): float(m.group(2) or m.group(4)) for m in PARAM_RE.finditer(log)}
     return r
@@ -167,7 +170,9 @@ def phases_of(cfg):
 
 # --------------------------------------------------------------------------------------------------------- the window
 def window(offscreen):
-    if offscreen or not os.environ.get("DISPLAY") and sys.platform.startswith("linux"):
+    no_screen = (sys.platform.startswith("linux") and not os.environ.get("DISPLAY")
+                 and not os.environ.get("WAYLAND_DISPLAY"))
+    if offscreen or no_screen:
         os.environ["QT_QPA_PLATFORM"] = "offscreen"
     from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
     app = QApplication.instance() or QApplication(["pinnstudio"])
