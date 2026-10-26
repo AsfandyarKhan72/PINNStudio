@@ -88,6 +88,8 @@ def apply_setup(cfg, setup, run):
             cfg.periodic_inputs = True
         elif sw == "whole":
             cfg.time_adaptive = False
+            cfg.ta_backward = cfg.ta_growing = False      # no window options left over from the template
+            cfg.ta_icgl_fraction, cfg.ta_resample_rounds = 0.0, 0
             cfg.adapt_method = "None"
         elif sw == "windows":
             cfg.time_adaptive = True
