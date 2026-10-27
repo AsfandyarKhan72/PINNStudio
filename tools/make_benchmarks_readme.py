@@ -1622,6 +1622,22 @@ def page(recs):
               "*Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the "
               "table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every "
               "reference time in the figure.*\n\n"
+              "**More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, "
+              "learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only "
+              "the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and "
+              "everything not in the main figure goes in the supplement.\n\n"
+              "| Setup | Boundary / initial condition | Training | Compared with |\n|---|---|---|---|\n"
+              "| Exact BC + IC + causal training (the paper's ε schedule, 32 time chunks) | built in | 20,000 Adam + "
+              "10,000 L-BFGS | RBA, SA-PINN (main figure) |\n"
+              "| Exact BC + IC + causal + MsFFN (Fourier-feature network of the same size, scales 1, 5) | built in | "
+              "20,000 + 10,000 | supplement; also changes the network |\n"
+              "| Exact BC + IC + RAR, equal compute (3 rounds, each adding the 500 (1D) / 1,000 (2D) highest-residual "
+              "points) | built in | 8,000 + 4,000, then 3 × (4,000 + 2,000) = 20,000 + 10,000 | supplement |\n"
+              "| Exact BC + IC + RAR, as usually run | built in | 20,000 + 10,000, then 3 × (10,000 + 10,000) = 50,000 + "
+              "40,000 (about 3 ×) | supplement, with its training time |\n"
+              "| Growing time range (Wight & Zhao's approach I: one network on [0, t], t growing) | built-in periodicity, "
+              "initial condition in the loss | 4 windows, each 20,000 + 10,000 | time windows and bc-PINN at full "
+              "compute (supplement) |\n\n"
               "> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) "
               "Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) "
               "Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with "
@@ -2030,7 +2046,7 @@ PAPER_ITEMS = [
          "(training_methods.md#the-controlled-comparison-paper-figure-7)"),
         ("Data and scripts", "[`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, "
          "`tools/make_methods_figure.py`"),
-        ("Status", "done (31 of 32 runs; one equal-compute run of (d) is being rerun)")]),
+        ("Status", "six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running")]),
     ("📄 <em>Table S2 for the paper", "Supplementary Table S2 — every forward problem, each output", [
         ("What it shows", "the tuned error of every output of every forward problem with a reference solution"),
         ("How it was run", "the same runs as the benchmarks page"),
@@ -2070,7 +2086,7 @@ def split_paper(md):
          "| Paper item | Status |\n|---|---|\n" + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
-         "| running (47 of the first 50 identical, none differ) |\n"
+         "| running (loss histories identical so far; 2 parameters differ in the 6th digit) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
          "done |\n"]
     for h, rows, body in parts:

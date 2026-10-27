@@ -6,7 +6,7 @@
 | **How it was run** | every example (forward, and inverse where it has one) with its Tuned settings and a short training (every Adam phase 200 steps, every L-BFGS phase 50, IC pre-training and resampling cut down the same way); both scripts written from the same configuration and run on the CPU with the same seed; the printed loss history compared line by line, and for inverse problems the identified parameters |
 | **For users** | [performance.md → Export check](performance.md#export-check-the-exported-script-trains-the-same-model) |
 | **Data and scripts** | `tools/check_export_equivalence.py` (writes `results.json` and a summary) |
-| **Status** | running: 47 of the first 50 checked are identical, 2 skipped (no inverse version), none differ; the full check runs on the GPU machine's CPU |
+| **Status** | running on the GPU machine's CPU, every example: so far 26 of 29 identical, 1 skipped (no inverse version), and 2 inverse problems (Linear ODE system, Lorenz) with an identical loss history whose learned parameters differ in the sixth significant digit (1.81166 / 1.81165), as two runs of the same script on several CPU threads can; the earlier check in the cloud found these two identical |
 
 **What to write in the paper (Section 4.3)** — a draft; the count is filled in when the check finishes:
 

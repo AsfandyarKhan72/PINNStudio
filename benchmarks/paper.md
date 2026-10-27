@@ -8,9 +8,9 @@
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
-| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | done (31 of 32 runs; one equal-compute run of (d) is being rerun) |
+| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running |
 | [Supplementary Table S2 — every forward problem, each output](#supplementary-table-s2--every-forward-problem-each-output) | done |
-| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | running (47 of the first 50 identical, none differ) |
+| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | running (loss histories identical so far; 2 parameters differ in the 6th digit) |
 | [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | done |
 
 ## Section 4.2 — accuracy on 25 representative problems (Figure 4)
@@ -199,7 +199,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | **How it was run** | one common protocol: 1D 4 × 128 with 10,000 points, 2D 6 × 128 with 20,000 points, 20,000 Adam + 10,000 L-BFGS for every setup, 4 time windows with full and with equal compute |
 | **For users** | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7) |
 | **Data and scripts** | [`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, `tools/make_methods_figure.py` |
-| **Status** | done (31 of 32 runs; one equal-compute run of (d) is being rerun) |
+| **Status** | six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running |
 
 <details>
 <summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
@@ -216,6 +216,16 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |
 
 *Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every reference time in the figure.*
+
+**More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and everything not in the main figure goes in the supplement.
+
+| Setup | Boundary / initial condition | Training | Compared with |
+|---|---|---|---|
+| Exact BC + IC + causal training (the paper's ε schedule, 32 time chunks) | built in | 20,000 Adam + 10,000 L-BFGS | RBA, SA-PINN (main figure) |
+| Exact BC + IC + causal + MsFFN (Fourier-feature network of the same size, scales 1, 5) | built in | 20,000 + 10,000 | supplement; also changes the network |
+| Exact BC + IC + RAR, equal compute (3 rounds, each adding the 500 (1D) / 1,000 (2D) highest-residual points) | built in | 8,000 + 4,000, then 3 × (4,000 + 2,000) = 20,000 + 10,000 | supplement |
+| Exact BC + IC + RAR, as usually run | built in | 20,000 + 10,000, then 3 × (10,000 + 10,000) = 50,000 + 40,000 (about 3 ×) | supplement, with its training time |
+| Growing time range (Wight & Zhao's approach I: one network on [0, t], t growing) | built-in periodicity, initial condition in the loss | 4 windows, each 20,000 + 10,000 | time windows and bc-PINN at full compute (supplement) |
 
 > *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; four successive time windows; and time windows with backward compatibility (bc-PINN) [9]. All problems of one dimension use the same network (1D: 4 × 128; 2D: 6 × 128), the same collocation points (1D: 10,000; 2D: 20,000) and 20,000 Adam and 10,000 L-BFGS steps, in every window for the time-windowed setups. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0.*
 
@@ -349,7 +359,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | **How it was run** | every example (forward, and inverse where it has one) with its Tuned settings and a short training (every Adam phase 200 steps, every L-BFGS phase 50, IC pre-training and resampling cut down the same way); both scripts written from the same configuration and run on the CPU with the same seed; the printed loss history compared line by line, and for inverse problems the identified parameters |
 | **For users** | [performance.md → Export check](performance.md#export-check-the-exported-script-trains-the-same-model) |
 | **Data and scripts** | `tools/check_export_equivalence.py` (writes `results.json` and a summary) |
-| **Status** | running: 47 of the first 50 checked are identical, 2 skipped (no inverse version), none differ; the full check runs on the GPU machine's CPU |
+| **Status** | running on the GPU machine's CPU, every example: so far 26 of 29 identical, 1 skipped (no inverse version), and 2 inverse problems (Linear ODE system, Lorenz) with an identical loss history whose learned parameters differ in the sixth significant digit (1.81166 / 1.81165), as two runs of the same script on several CPU threads can; the earlier check in the cloud found these two identical |
 
 **What to write in the paper (Section 4.3)** — a draft; the count is filled in when the check finishes:
 

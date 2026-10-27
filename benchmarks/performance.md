@@ -64,4 +64,4 @@ PINNStudio writes two scripts from one configuration: the one *Solve* runs, and 
 python tools/check_export_equivalence.py --out equivalence_runs [--names 'a|b']
 ```
 
-*Status: running. Of the first 50 problems checked, 47 are identical and 2 are skipped (two templates that have no inverse version); none differ. The full check runs on the GPU machine's CPU (1D Cahn-Hilliard of Mattey & Ghosh needs more memory than the cloud check had).*
+*Status: Running on the GPU machine's CPU, every example: so far 26 of 29 identical, 1 skipped (no inverse version), and 2 inverse problems (Linear ODE system, Lorenz) with an identical loss history whose learned parameters differ in the sixth significant digit (1.81166 / 1.81165), as two runs of the same script on several CPU threads can; the earlier check in the cloud found these two identical. A first check in the cloud found 47 of 50 identical and none different, but could not run 1D Cahn-Hilliard of Mattey & Ghosh (too little memory).*

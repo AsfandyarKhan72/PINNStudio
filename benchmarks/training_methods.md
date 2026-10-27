@@ -102,6 +102,11 @@ The study above uses each example's own settings, which differ from problem to p
 | 6 | Time windows + backward (bc-PINN) | built in | loss term | 4 windows, earlier windows' solution kept | – | every window 20,000 + 10,000 (4 × the total) |
 | 5b | Time windows, equal compute | built in | loss term | 4 windows | – | every window 5,000 + 2,500 (30,000 in total, as setups 1–4) |
 | 6b | bc-PINN windows, equal compute | built in | loss term | 4 windows + backward | – | every window 5,000 + 2,500 |
+| 7 | Exact BC + IC + causal training | built in | built in | whole interval | causal (Wang et al.: later times weighted in once earlier times are fitted; the paper's ε schedule, 32 time chunks) | 20,000 + 10,000 |
+| 8 | Exact BC + IC + causal + MsFFN | built in | built in | whole interval | causal; the network becomes a multi-scale Fourier-feature network of the same size (scales 1, 5) | 20,000 + 10,000 |
+| 9 | Exact BC + IC + RAR, equal compute | built in | built in | whole interval | residual-based refinement: 3 rounds, each adding the 500 (1D) / 1,000 (2D) highest-residual points of 50,000 candidates | 8,000 + 4,000, then 3 rounds of 4,000 + 2,000 (20,000 + 10,000 in total) |
+| 9b | Exact BC + IC + RAR, as usually run | built in | built in | whole interval | as 9 | 20,000 + 10,000, then 3 rounds of 10,000 + 10,000 (50,000 + 40,000, about 3 ×) |
+| 10 | Growing time range (Wight & Zhao's approach I) | built in | loss term | 4 windows, each training one network on $[0, t]$ with $t$ growing | – | every window 20,000 + 10,000 (4 × the total) |
 
 **How the time windows work in PINNStudio** (Adaptive training → *Time Adaptive Training*):
 
@@ -120,6 +125,7 @@ The study above uses each example's own settings, which differ from problem to p
 | Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
 | Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
 | **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | done (October 2026); the paper's Figure 7 |
+| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | running (October 2026) |
 
 Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time):
 
@@ -129,6 +135,8 @@ Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 202
 | 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (8 min) | 0.12% (9 min) | **0.074%** (10 min) | 0.40% (26 min) | 0.40% (37 min) | 0.44% (20 min) | 0.41% (22 min) |
 | 2D Allen-Cahn | 0.45% (18 min) | 0.042% (14 min) | 0.045% (14 min) | **0.031%** (27 min) | 0.079% (93 min) | 0.095% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
 | 2D Cahn-Hilliard | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | rerun queued |
+
+**Setups 7–10** (causal training, causal + MsFFN, RAR at equal and at usual compute, growing time range) are running under the same protocol; their results will be added to this table. RAR adds points as it trains (1,500 in 1D, 3,000 in 2D by the end), and causal + MsFFN also changes the network, so both are reported with that noted. In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement.
 
 What it shows: exact conditions are the largest single gain on every problem (×4 to ×270), SA-PINN gives the lowest error everywhere, and time windows, even with four times the training, stay behind the best whole-interval setup (×2.5–8) while taking 2–6 times longer; with equal compute they are about as good in 1D and clearly worse in 2D. Backward compatibility changes the windows little.
 
