@@ -233,6 +233,40 @@
  },
  {
   "example": "Allen-Cahn 1D – Wight & Zhao",
+  "extra": {
+   "layers": [
+    2,
+    128,
+    128,
+    128,
+    128,
+    1
+   ],
+   "activation": "tanh",
+   "learning_rate": 0.001,
+   "num_domain": 10000,
+   "num_boundary": 200,
+   "num_initial": 512,
+   "ta_grid_size": 512,
+   "ta_transfer_optimizer": "lbfgs",
+   "ta_backward_weight": 100.0,
+   "ta_backward_times": 10,
+   "ta_backward_points": 2000,
+   "random_seed": 2026,
+   "rar_cycles": 3,
+   "rar_adam_iters": 10000,
+   "rar_lbfgs_iters": 10000,
+   "rar_add_points": 500,
+   "rar_candidates": 50000,
+   "rar_tolerance": 0.0
+  },
+  "seed": 2026,
+  "name": "f7v2_ac1d_rarfull",
+  "setup": "Exact + RAR",
+  "match": "f7v2_ac1d_plain"
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
   "phases": [
    20000,
    10000
@@ -373,6 +407,40 @@
   "setup": "Exact + RAR",
   "match": "f7v2_ch1d_plain",
   "match_steps": false
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "extra": {
+   "layers": [
+    2,
+    128,
+    128,
+    128,
+    128,
+    2
+   ],
+   "activation": "tanh",
+   "learning_rate": 0.001,
+   "num_domain": 10000,
+   "num_boundary": 200,
+   "num_initial": 512,
+   "ta_grid_size": 512,
+   "ta_transfer_optimizer": "lbfgs",
+   "ta_backward_weight": 100.0,
+   "ta_backward_times": 10,
+   "ta_backward_points": 2000,
+   "random_seed": 2026,
+   "rar_cycles": 3,
+   "rar_adam_iters": 10000,
+   "rar_lbfgs_iters": 10000,
+   "rar_add_points": 500,
+   "rar_candidates": 50000,
+   "rar_tolerance": 0.0
+  },
+  "seed": 2026,
+  "name": "f7v2_ch1d_rarfull",
+  "setup": "Exact + RAR",
+  "match": "f7v2_ch1d_plain"
  },
  {
   "example": "Cahn-Hilliard 1D – Wight & Zhao",
@@ -525,6 +593,42 @@
  },
  {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "extra": {
+   "layers": [
+    3,
+    128,
+    128,
+    128,
+    128,
+    128,
+    128,
+    1
+   ],
+   "activation": "tanh",
+   "learning_rate": 0.001,
+   "num_domain": 20000,
+   "num_boundary": 1600,
+   "num_initial": 4096,
+   "ta_grid_size": 64,
+   "ta_transfer_optimizer": "lbfgs",
+   "ta_backward_weight": 100.0,
+   "ta_backward_times": 10,
+   "ta_backward_points": 2000,
+   "random_seed": 2026,
+   "rar_cycles": 3,
+   "rar_adam_iters": 10000,
+   "rar_lbfgs_iters": 10000,
+   "rar_add_points": 1000,
+   "rar_candidates": 50000,
+   "rar_tolerance": 0.0
+  },
+  "seed": 2026,
+  "name": "f7v2_ac2dmg_rarfull",
+  "setup": "Exact + RAR",
+  "match": "f7v2_ac2dmg_plain"
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
   "phases": [
    20000,
    10000
@@ -673,6 +777,42 @@
   "setup": "Exact + RAR",
   "match": "f7v2_ch2dmg_plain",
   "match_steps": false
+ },
+ {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "extra": {
+   "layers": [
+    3,
+    128,
+    128,
+    128,
+    128,
+    128,
+    128,
+    2
+   ],
+   "activation": "tanh",
+   "learning_rate": 0.001,
+   "num_domain": 20000,
+   "num_boundary": 1600,
+   "num_initial": 4096,
+   "ta_grid_size": 64,
+   "ta_transfer_optimizer": "lbfgs",
+   "ta_backward_weight": 100.0,
+   "ta_backward_times": 10,
+   "ta_backward_points": 2000,
+   "random_seed": 2026,
+   "rar_cycles": 3,
+   "rar_adam_iters": 10000,
+   "rar_lbfgs_iters": 10000,
+   "rar_add_points": 1000,
+   "rar_candidates": 50000,
+   "rar_tolerance": 0.0
+  },
+  "seed": 2026,
+  "name": "f7v2_ch2dmg_rarfull",
+  "setup": "Exact + RAR",
+  "match": "f7v2_ch2dmg_plain"
  },
  {
   "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
