@@ -44,6 +44,8 @@ SETUPS = {
     "Time-adaptive + RBA": ["soft_ic", "exact_bc", "windows", "rba"],
     "Time-adaptive + SA-PINN": ["soft_ic", "exact_bc", "windows", "sa"],
     "Time-adaptive + backward": ["soft_ic", "exact_bc", "windows", "backward"],   # bc-PINN (Mattey & Ghosh)
+    "Time-adaptive + growing": ["soft_ic", "exact_bc", "windows", "growing"],     # Wight & Zhao's approach I
+    "Exact + RAR": ["exact_ic", "exact_bc", "whole", "rar"],                      # residual-based refinement
     "Template": [],
 }
 IC_WEIGHT = 100.0
@@ -102,6 +104,10 @@ def apply_setup(cfg, setup, run):
                 cfg.ta_num_steps = sum(g["steps"] for g in run["windows"])
         elif sw == "backward":       # later windows are held to the stored solution of the earlier ones
             cfg.ta_backward = True
+        elif sw == "growing":        # one network on [t0, t], t growing window by window
+            cfg.ta_growing = True
+        elif sw == "rar":            # points with the largest residual added in rounds (rar_* from "extra")
+            cfg.adapt_method = "RAR"
         elif sw == "rba":
             cfg.point_weights, cfg.point_weights_lbfgs = "RBA", "keep"
         elif sw == "sa":
@@ -133,8 +139,9 @@ def apply_setup(cfg, setup, run):
                 setattr(cfg, k, copy.deepcopy(v))
         ph, ref = _phases(cfg), run["match_cfg"]["_steps"]
         assert [p["optimizer"] for p in ph] == [o for o, _ in ref], (run["name"], ph, ref)
-        for p, (_, n) in zip(ph, ref):
-            p["iterations"] = n
+        if run.get("match_steps", True):     # False: the run sets its own steps ("phases"; RAR's rounds add the rest)
+            for p, (_, n) in zip(ph, ref):
+                p["iterations"] = n
         cfg.scheduler_phases = json.dumps(ph)
     if run.get("equal_budget") and cfg.time_adaptive:
         # the same training budget as the whole-interval setups: the optimizer steps are shared out over the
@@ -197,11 +204,14 @@ def build(plan, out, smoke):
         mine["_steps"] = [(p["optimizer"], int(p["iterations"])) for p in _phases(cfg)]
         shared[run["name"]] = mine
         if run.get("match") and not run.get("equal_budget"):
-            assert mine == run["match_cfg"], run["name"]
+            assert {k: v for k, v in mine.items() if k != "_steps" or run.get("match_steps", True)} == \
+                {k: v for k, v in run["match_cfg"].items() if k != "_steps" or run.get("match_steps", True)}, run["name"]
         if smoke:
             _smoke(cfg)
         errs = cfg.validate()
-        meta = dict({k: v for k, v in run.items() if k != "match_cfg"}, layers=cfg.layers,
+        meta = dict({k: v for k, v in run.items() if k != "match_cfg"}, layers=cfg.layers, adapt=cfg.adapt_method,
+                    rar=(cfg.rar_cycles, cfg.rar_add_points, cfg.rar_adam_iters, cfg.rar_lbfgs_iters),
+                    growing=getattr(cfg, "ta_growing", False), msffn=cfg.network_type,
                     num_domain=cfg.num_domain, num_boundary=cfg.num_boundary,
                     num_initial=getattr(cfg, "num_initial", None), lr=cfg.learning_rate, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
                     ta=cfg.time_adaptive, backward=getattr(cfg, "ta_backward", False), windows=cfg.ta_step_groups if cfg.time_adaptive else None,
