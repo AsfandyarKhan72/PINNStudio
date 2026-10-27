@@ -195,7 +195,7 @@
     </div>
 
     <div class="stats">
-      <div><b>65</b>ready-to-run examples</div>
+      <div><b>63</b>ready-to-run examples</div>
       <div><b>ODE → 3D</b>steady and time-dependent</div>
       <div><b>Forward &amp; inverse</b>solve or learn from data</div>
       <div><b>No code</b>required</div>
@@ -334,8 +334,10 @@
         <h3>Adaptive methods</h3>
         <ul>
           <li>Residual-based adaptive refinement (RAR)</li>
-          <li>Time-adaptive training with transfer learning</li>
+          <li>Time windows with transfer learning, a growing time range, backward compatibility (bc-PINN) and per-window resampling</li>
           <li>Initial-condition-guided pre-training</li>
+          <li>Per-point weights (RBA, SA-PINN) and causal training</li>
+          <li>Initial and periodic conditions built into the network</li>
         </ul>
       </div>
       <div class="card">
@@ -362,7 +364,7 @@
   <div class="wrap">
     <div class="kicker">Results</div>
     <h2>Everything you need to trust a result</h2>
-    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 65 examples.</p>
+    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 63 examples.</p>
     <div class="shots">
       <figure class="shot">
         <img src="assets/burgers_error.png" alt="PINN solution, reference solution and their difference for the Burgers equation" loading="lazy">
@@ -389,8 +391,8 @@
 <section id="examples">
   <div class="wrap">
     <div class="kicker">Examples</div>
-    <h2>65 examples, ready to run</h2>
-    <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 58 come with an exact solution or reference data, and 22 can be run as inverse problems.</p>
+    <h2>63 examples, ready to run</h2>
+    <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 61 come with an exact solution or reference data, and 25 can be run as inverse problems. Each loads with its source's own settings (<em>Default</em>) or with PINNStudio's most accurate settings from the benchmarks (<em>Tuned</em>).</p>
     <div class="ex-row">
       <div class="card">
         <h3>Published benchmarks</h3>
@@ -402,7 +404,7 @@
       </div>
       <div class="card">
         <h3>ODE · 1D · 2D · 3D</h3>
-        <p>7 ODE, 32 one-dimensional, 17 two-dimensional and 4 three-dimensional problems.</p>
+        <p>7 ODE, 33 one-dimensional, 18 two-dimensional and 5 three-dimensional problems.</p>
       </div>
     </div>
     <div class="chips">
@@ -414,6 +416,8 @@
     </div>
     <div class="cta-row" style="justify-content:flex-start; margin-top:28px;">
       <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio#examples">See all examples and their results</a>
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md">Benchmarks: the accuracy of every example</a>
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/performance.md">Speed: GPU, CPU threads and the window</a>
     </div>
   </div>
 </section>

@@ -276,7 +276,7 @@ There is no need to reinstall or recreate the virtual environment.
 Your first result takes about a minute:
 
 1. Open PINNStudio from its icon <img src="pinnstudio/resources/pinnstudio.png" alt="PINNStudio icon" height="20"> in the Start menu, Applications or the app menu, or run `pinnstudio` in a terminal (`./venv/bin/pinnstudio` for a source install). It opens on the **Start** tab.
-2. Under **Examples** on the Start tab, click **Heat 1D – Dirichlet** (or pick it from the **Examples** list in the toolbar). Every setting — equation, domain, conditions, network, training — fills in, and the model tree on the left shows each part of the problem.
+2. Under **Examples** on the Start tab, click **Heat 1D – Dirichlet** (or pick it from the **Examples** list in the toolbar). Every setting — equation, domain, conditions, network, training — fills in, and the model tree on the left shows each part of the problem. The toolbar's **Settings** list chooses how an example loads: *Default* (the source's own settings: DeepXDE's, or the paper's method) or *Tuned* (PINNStudio's most accurate settings from the [benchmarks](benchmarks/README.md)).
 3. Press **Solve** (or Ctrl+Enter). The loss is plotted as it trains (*Results → Live loss*), and the status bar shows the phase, the progress and the time left.
 4. When the run finishes, the loss curve and the solution appear under *Results → Overview*, and *Results → Error analysis* lists the relative $L_2$ error against the exact solution at each reference time, with the comparison plots.
 
@@ -296,7 +296,7 @@ PINNStudio's window follows the layout of finite-element tools such as COMSOL: a
 - **Model tree.** Problem, Equations, Inverse problem (for an inverse problem), Geometry, Collocation points, Initial and Boundary conditions (one node per condition), Neural network, Training with its Loss weights and Adaptive training, Parameter sweep, and Results with Restore & visualize. A node with a setting that would stop **Solve** is marked, and the toolbar says how many there are. Right-click a node for its actions (add, duplicate or delete a boundary condition, add a training phase, fold all sections), and the **?** next to a page's title opens its part of this README.
 - **Settings.** Each page is a short form whose sections fold to their titles. Equations are typeset as you type them, and any name PINNStudio does not recognize is flagged.
 - **Graphics.** *Start* (new problem, open, recent problems, every example), *Results*, and the domain — *Geometry* for any 2D/3D shape, or the *Sketch* when the domain is drawn.
-- **Toolbar and status bar.** Examples, Open, Save, Export script, **Solve** and **Stop** are always in the toolbar; the status bar shows the run's phase, progress, loss and the time left, and the save folder.
+- **Toolbar and status bar.** Examples (with Forward / Inverse and the *Default* / *Tuned* settings), Open, Save, Export script, **Solve** and **Stop** are always in the toolbar; the status bar shows the run's phase, progress, loss and the time left, and the save folder.
 
 <table>
 <tr>
@@ -353,7 +353,7 @@ Every result shown below comes from one training run with the example's settings
 
 The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other, with Allen-Cahn and then Cahn-Hilliard first in each group.
 
-| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source | L₂, Default | L₂, PINNStudio best |
+| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source | L₂, Default | L₂, Tuned |
 |---|---|---|---|---|---|---|---|---|---|
 |  | **ODE (t only)** |  |  |  |  |  |  |  |  |
 | 1 | [Integro-differential ODE](#dx-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py) | 1.5 × 10<sup>-4</sup> | **1.5 × 10<sup>-4</sup>** |
@@ -425,7 +425,7 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 
 <!-- examples-summary:start (generated) -->
 
-**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 20, by a median factor of 7.2 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
 
 <details>
 <summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
@@ -438,12 +438,7 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 
 <!-- examples-summary:end -->
 
-The "unknown field" inverse examples learn the field as an extra network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train the DeepXDE examples from the command line and print their Error Analysis results:
-
-```bash
-python tools/run_deepxde_examples.py --out deepxde_runs            # full settings
-python tools/run_deepxde_examples.py --smoke --out deepxde_runs    # a few hundred iterations each
-```
+The "unknown field" inverse examples learn the field as an extra network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. (To train all the DeepXDE examples from the command line, see [CONTRIBUTING.md](CONTRIBUTING.md#checking-the-examples).)
 
 
 <!-- examples:start (generated by tools/make_benchmarks_readme.py) -->
@@ -823,23 +818,23 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
 <sub>y1 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png)
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (not in the tuning sweep) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png)
 
 <sub>y2 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png)
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (not in the tuning sweep) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png)
 
 <sub>y3 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png)
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (not in the tuning sweep) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png)
 
 <sub>the learned parameters during training</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png)
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png)
 
 </details>
 
@@ -887,23 +882,23 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
 <sub>y1 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y1.png)
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (not in the tuning sweep) — y1 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y1.png)
 
 <sub>y2 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y2.png)
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (not in the tuning sweep) — y2 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y2.png)
 
 <sub>y3 — PINN against the reference along a line, at the reference times</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y3.png)
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (not in the tuning sweep) — y3 — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y3.png)
 
 <sub>the learned parameters during training</sub>
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_param_plot.png)
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_param_plot.png)
 
 </details>
 
@@ -1543,15 +1538,15 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png)
+![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png)
+![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png)
 
 </details>
 
@@ -2982,9 +2977,9 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
-![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png)
+![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png)
 
 </details>
 
@@ -3769,15 +3764,15 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error over space and time](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_surface_comparison.png)
+![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — PINN, reference and error over space and time](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_surface_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_param_plot.png)
+![Fractional Poisson 2D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_param_plot.png)
 
 </details>
 
@@ -4547,23 +4542,23 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 
 ![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — 3D view: the solution and its error in the domain](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png)
 
-*Inverse problem — the example's own settings (tuning runs queued):*
+*Inverse problem — the example's own settings (not in the tuning sweep):*
 
 <sub>PINN, reference and error on slices through the domain</sub>
 
-![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error on slices through the domain](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (not in the tuning sweep) — PINN, reference and error on slices through the domain](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png)
 
 <sub>the drop (φ = 0) in the cube, and the error on the cube with one corner cut away</sub>
 
-![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop (φ = 0) in the cube, and the error on the cube with one corner cut away](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (not in the tuning sweep) — the drop (φ = 0) in the cube, and the error on the cube with one corner cut away](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png)
 
 <sub>the drop's radius over time: PINN, reference and the sharp-interface limit</sub>
 
-![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop's radius over time: PINN, reference and the sharp-interface limit](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (not in the tuning sweep) — the drop's radius over time: PINN, reference and the sharp-interface limit](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png)
 
 <sub>the learned parameters during training</sub>
 
-![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
 
 </details>
 
@@ -4963,7 +4958,7 @@ Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shi
 <!-- source: pinnstudio/core/codegen.py::_clean_phase_train_lines | training phases ; pinnstudio/core/codegen.py::_ic_pretrain_train_code | IC-guided pre-training ; pinnstudio/ui/main_window.py::MainWindow._add_scheduler_phase | phase rows -->
 **Source code:** [training phases](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L8820-L8854) (`codegen.py`) · [IC-guided pre-training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L10119-L10185) (`codegen.py`) · [phase rows](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L14936-L15037) (`main_window.py`)
 
-Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS uses DeepXDE's default options unless you set your own, and the run's precision can be set to float64 when L-BFGS needs the extra precision to converge (float32 is faster).
+Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG, the Nyström-preconditioned conjugate gradient of [Rathore et al., 2024](https://proceedings.mlr.press/v235/rathore24a.html)), number of iterations, learning rate, loss function (MSE by default; MAE, mean relative $L_2$ error, mean absolute percentage error or softplus) and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS uses DeepXDE's default options unless you set your own, and the run's precision can be set to float64 when L-BFGS needs the extra precision to converge (float32 is faster).
 
 Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $`w_i = c / L_i(0)`$), so that every term starts at the same size.
 
@@ -4983,9 +4978,9 @@ A plain PINN fits the equation, the boundary conditions and the initial conditio
 2. **Make the initial condition exact** (Initial conditions → *Exact (built into the network)*, per output): the output becomes $\text{IC}(x) + \tau N$ with $\tau = (t - t_{min})/(t_{max} - t_{min})$, so the initial condition holds exactly at the first time and needs no loss term (a hard constraint, after [Lagaris et al., 1998](https://doi.org/10.1109/72.712178)). The initial condition should be a smooth formula, since a kink (from a `max` or an `abs`) has derivatives the network cannot represent: in the 2D Cahn-Hilliard example the two bubbles did not merge until the `max` in their initial condition was replaced by a smooth function. It is still worth comparing with the initial condition as a loss term. On 3D Allen-Cahn the loss term (weight 100) was 25× more accurate, because the profile changes quickly right after $t = 0$ and $\tau N$ has to represent that change.
 3. **Make periodicity exact** (Boundary conditions → *Exact periodicity (periodic inputs)*): each periodic axis enters the network as $\cos(2\pi x/L)$, $\sin(2\pi x/L)$, so values and derivatives are equal at both ends ([Dong & Ni, 2021](https://doi.org/10.1016/j.jcp.2021.110242)).
 4. **Add one automatic weighting method** (Loss weights → *Automatic weighting*). Each follows the paper cited with it:
-   - *Per-point weights → RBA* (residual-based attention, [Anagnostopoulos et al., 2024](https://doi.org/10.1016/j.cma.2024.116805)): each training point's residual gets a weight that grows where the equation remains poorly satisfied, so training focuses on interfaces and fronts. It adds little cost and was the most reliable of the three.
-   - *Per-point weights → SA-PINN* (self-adaptive weights, [McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)): the weights are trained by gradient ascent. With *During L-BFGS: Keep the weights* it was the best on Cahn-Hilliard (1D and 2D) and on 2D Allen-Cahn (Mattey & Ghosh). It should be used with an exact initial condition: it weights only the PDE points, so with the initial condition as a loss term (as in time-adaptive training) the PDE term can dominate it. On 2D Allen-Cahn (Wight & Zhao) this made every time window converge to $u = 0$.
-   - *Causal training* ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)): the residual at later times is weighted in only once the earlier times are fitted, with ε increased in steps. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
+   - *Per-point weights → RBA* (residual-based attention, [Anagnostopoulos et al., 2024](https://doi.org/10.1016/j.cma.2024.116805)): each training point's residual gets a weight that grows where the equation remains poorly satisfied, so training focuses on interfaces and fronts (*Decay γ* and *Step η* set how fast the weights follow the residual). It adds little cost and was the most reliable of the three.
+   - *Per-point weights → SA-PINN* (self-adaptive weights, [McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)): the weights are trained by gradient ascent (with their own learning rate, and optionally kept at a mean of 1). With *During L-BFGS: Keep the weights* it was the best on Cahn-Hilliard (1D and 2D) and on 2D Allen-Cahn (Mattey & Ghosh). It should be used with an exact initial condition: it weights only the PDE points, so with the initial condition as a loss term (as in time-adaptive training) the PDE term can dominate it. On 2D Allen-Cahn (Wight & Zhao) this made every time window converge to $u = 0$.
+   - *Causal training* ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)): the time interval is split into chunks (*Time chunks*, 32 by default), and the residual of a later chunk is weighted in only once the earlier ones are fitted. *Raise ε step by step* moves ε from 0.01 to 100 as in the paper (the default); a *Fixed ε* is the alternative. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
 
    *During L-BFGS*: *Keep the weights* gave better results on the hard problems, and *Plain loss* (the default) is the safer choice otherwise. Causal training and per-point weights should not be combined; together they did worse than either one alone.
 5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and reaches 0.5% error, where every whole-interval setup failed). Per-point weights and exact periodicity can be used with it; an exact initial condition cannot yet.
@@ -5335,7 +5330,7 @@ On a processor with efficiency cores the slow cores hold every step back, and us
 ## Repository Structure
 
 ```text
-pinnstudio/
+PINNStudio/
 ├── pinnstudio/
 │   ├── main.py            # Entry point
 │   ├── ui/
@@ -5345,6 +5340,7 @@ pinnstudio/
 │   │   ├── icons.py         # Line icons and the app icon
 │   │   ├── start_page.py    # Start tab: new problem, recent files, example gallery
 │   │   ├── results.py       # Live loss, status, error analysis, run history and comparison
+│   │   ├── sci_spinbox.py   # Number fields that accept scientific notation
 │   │   ├── figure_style.py  # Plot settings (how every saved figure looks)
 │   │   ├── export_tools.py  # Copy / save figures and tables
 │   │   ├── equation.py      # Equations typeset as you type, unknown-name check
@@ -5358,9 +5354,17 @@ pinnstudio/
 │       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
 │       ├── constants.py       # Named constants in expressions
 │       ├── line_slice.py      # Where 2D/3D line plots cut the domain
+│       ├── ea_view3d.py       # Error Analysis 3D view (surface and cut-away error)
+│       ├── obs_reduce.py      # Summary of a measured-data file and its reduction (inverse problems)
 │       ├── example_catalog.py # The Examples list: order, names, categories
 │       ├── pinnstudio_examples.py # PINNStudio's own templates
 │       ├── deepxde_examples.py    # DeepXDE's documented examples
+│       ├── example_settings.py    # Examples -> Settings: Default / Tuned
+│       ├── paper_settings.py      # The papers' methods (Default for paper templates)
+│       ├── portable_paths.py  # Reference-data paths saved as @REF/...
+│       ├── pyexe.py           # The Python that runs the generated scripts
+│       ├── torch_index.py     # Which PyTorch CUDA build fits the NVIDIA driver
+│       ├── update_info.py     # The "newer version available" notice
 │       ├── bayes_opt.py       # Bayesian hyperparameter search
 │       ├── runner.py          # Runs the generated script, streams output to the Training Log
 │       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
@@ -5373,17 +5377,18 @@ pinnstudio/
 │   ├── 2D/
 │   ├── 3D/
 │   └── deepxde/             # Reference/measurement data for the DeepXDE examples
-├── benchmarks/              # Training methods study, timing study, anchors study
+├── benchmarks/              # Benchmarks of every example, tuning, training methods, performance and export checks
 ├── docs/                    # Project web page
 ├── tests/                   # Test suite (pytest)
 ├── tools/                   # Reference-data generators, example runners, window check
 ├── requirements.txt
-├── setup.py, pyproject.toml
+├── setup.py, pyproject.toml, MANIFEST.in
 ├── get-pinnstudio.sh       # One-command install with uv (macOS/Linux)
 ├── get-pinnstudio.ps1      # One-command install with uv (Windows)
 ├── install.sh              # Source install into ./venv (macOS/Linux)
 ├── install.bat             # Source install into ./venv (Windows)
-├── CHANGELOG.md
+├── select_torch_index.py  # Picks the PyTorch build for the installers
+├── CHANGELOG.md, CITATION.cff, LICENSE
 └── README.md
 ```
 
@@ -5395,6 +5400,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 @software{khan2026pinnstudio,
   author  = {Khan, Asfandyar and Mamivand, Mahmood},
   title   = {PINNStudio: A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks},
+  version = {1.5.0},
   year    = {2026},
   url     = {https://github.com/AsfandyarKhan72/PINNStudio}
 }
@@ -5426,6 +5432,7 @@ Training methods ([When a PINN struggles](#hard-problems), [training methods stu
 - Wang, S., Sankaran, S., & Perdikaris, P. (2024). Respecting causality for training physics-informed neural networks. *Computer Methods in Applied Mechanics and Engineering*, 421, 116813. https://doi.org/10.1016/j.cma.2024.116813 ([arXiv:2203.07404](https://arxiv.org/abs/2203.07404)) — *Causal training*
 - Lagaris, I. E., Likas, A., & Fotiadis, D. I. (1998). Artificial neural networks for solving ordinary and partial differential equations. *IEEE Transactions on Neural Networks*, 9(5), 987–1000. https://doi.org/10.1109/72.712178 ([arXiv:physics/9705023](https://arxiv.org/abs/physics/9705023)) — *Exact (hard) initial condition*
 - Dong, S., & Ni, N. (2021). A method for representing periodic functions and enforcing exactly periodic boundary conditions with deep neural networks. *Journal of Computational Physics*, 435, 110242. https://doi.org/10.1016/j.jcp.2021.110242 ([arXiv:2007.07442](https://arxiv.org/abs/2007.07442)) — *Exact periodicity*
+- Rathore, P., Lei, W., Frangella, Z., Lu, L., & Udell, M. (2024). Challenges in training PINNs: A loss landscape perspective. *Proceedings of the 41st International Conference on Machine Learning (ICML)*, PMLR 235. https://proceedings.mlr.press/v235/rathore24a.html
 - Wang, S., Wang, H., & Perdikaris, P. (2021). On the eigenvector bias of Fourier feature networks: From regression to solving multi-scale PDEs with physics-informed neural networks. *Computer Methods in Applied Mechanics and Engineering*, 384, 113938. https://doi.org/10.1016/j.cma.2021.113938 — *Network type MsFFN / STMsFFN*
 
 ## Acknowledgment
