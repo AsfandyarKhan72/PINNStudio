@@ -44,6 +44,35 @@ Everything else (network, points, iterations) is the example's own and is given 
 | Causal training | later times count only once earlier ones are fitted ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)) | Loss weights → *Causal training* |
 | MsFFN | multi-scale Fourier feature network, scales $\sigma = 1, 5$ ([Wang, Wang & Perdikaris, 2021](https://doi.org/10.1016/j.cma.2021.113938)) | Network → *Network type* |
 | Time-adaptive training | the time interval is solved in windows, each started from the previous one ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)) | Adaptive training → *Method* |
+| Backward compatibility (bc-PINN) | time windows in which every later window also keeps the stored solution of the earlier ones ([Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474)) | Adaptive training → *Backward compatibility (bc-PINN)* |
+| Growing time range | one network on $[t_0, t]$, $t$ growing window by window ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086), approach I) | Adaptive training → *Growing time range* |
+| RAR | points with the largest residual added to the collocation points in rounds ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)) | Adaptive training → *Method: RAR* |
+
+Each method in detail: [How each technique works in PINNStudio](#how-each-technique-works-in-pinnstudio).
+
+### How each technique works in PINNStudio
+
+Every technique is a setting in the interface; none needs code. What each one does, where it comes from, and how PINNStudio applies it:
+
+**Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*; Dong & Ni, 2021). Instead of $x$, the network gets $\cos(2\pi x/L)$ and $\sin(2\pi x/L)$ for each periodic axis, with $L$ the length of the domain in that direction. Any function of these two inputs repeats every $L$, so the solution is periodic exactly and the periodic boundary condition is no longer a loss term.
+
+**Exact initial condition** (Initial conditions → *Exact (built into the network)*; Lagaris et al., 1998). The output is written as $u = \text{IC}(x) + \tau\,N(x, t)$ with $\tau = (t - t_0)/(t_1 - t_0)$, so at $t = t_0$ it equals the initial condition whatever the network $N$ does, and the initial condition drops out of the loss. For a system it is applied to the outputs that have an initial condition (for Cahn-Hilliard, $u$ or $h$, not the chemical potential $\mu$).
+
+**RBA — residual-based attention** (Loss weights → *Per-point weights: RBA*; Anagnostopoulos et al., 2024). Every collocation point gets its own weight on its residual, starting at 1. After each Adam step the weights are updated as $\lambda \leftarrow \gamma\lambda + \eta\,|r|/\max|r|$ ($\gamma = 0.999$, $\eta = 0.01$), so points where the residual stays large gain weight. The weights are not trained; they follow the residual.
+
+**SA-PINN — self-adaptive weights** (Loss weights → *Per-point weights: SA-PINN*; McClenny & Braga-Neto, 2023). Also one weight per point, starting at 1, but here the weights are trainable: the network minimizes the weighted loss while the weights maximize it (gradient ascent, learning rate 0.005), so the weights grow where the network fails to fit. As in the paper they are not rescaled. For both RBA and SA-PINN, *During L-BFGS* sets whether the weights are kept at their last values (the setting used in this study) or dropped for the L-BFGS phase.
+
+**Causal training** (Loss weights → *Causal training*; Wang, Sankaran & Perdikaris, 2024). The time interval is cut into 32 chunks, and the residual loss of each chunk is multiplied by $\exp(-\varepsilon\cdot$ the summed residual loss of the earlier chunks$)$. A later time therefore only counts once the earlier times are fitted, which follows the direction of time the way a time-stepping solver does. With *Raise ε step by step* (the default, the paper's Algorithm 1) $\varepsilon$ steps through 0.01, 0.1, 1, 10 and 100, moving on once every chunk weight is above 0.99.
+
+**MsFFN — multi-scale Fourier features** (Network → *Network type: MsFFN*, scales `1, 5`; Wang, Wang & Perdikaris, 2021). The inputs pass through random Fourier features at each scale before the hidden layers, and the outputs of the scales are combined. It helps solutions with fine detail or several frequencies, but it changes the network, so it is not only a training technique.
+
+**RAR — residual-based adaptive refinement** (Adaptive training → *Method: RAR*; Lu et al., 2021, as in DeepXDE, and Wight & Zhao's "resampling"). After the training phases, PINNStudio evaluates the residual at a set of random candidate points (50,000 by default), adds the ones with the largest residual (500 or 1,000 here) to the collocation points, and trains again; this is repeated for a set number of rounds, each with its own Adam and L-BFGS steps. The points therefore gather where the equation is hardest to satisfy, for example at moving interfaces.
+
+**Time windows** (Adaptive training → *Method: Time Adaptive Training*; Wight & Zhao, 2021). The time interval is split into windows that are trained one after another. Each window samples its collocation points inside its own time slice, so the points are denser in time. Its initial condition is the previous window's prediction at its end time, given on a uniform grid (*IC grid*) as a loss term with weight 100; the first window has the true initial condition. With *Enable transfer learning* each window starts from the previous window's network weights (*Transfer optimizer: L-BFGS* takes them after the L-BFGS phase); the optimizers start fresh in every window. Because the initial condition of a window comes from the previous window, it cannot be imposed exactly, so time windows use it as a loss term.
+
+**Backward compatibility, bc-PINN** (Adaptive training → *Backward compatibility (bc-PINN)*; Mattey & Ghosh, 2022). With time windows and one network carried through all of them, the network can drift away from the earlier windows while it learns a new one. Here, after each window its prediction is stored on the IC grid at 10 times inside the window, and every later window gets an extra loss term (weight 100) that keeps the network close to those stored values. Mattey & Ghosh also first fit each window's starting state for a while before the equation is switched on; that is *IC-guided learning* in PINNStudio (a fraction of the first Adam phase, off in this study).
+
+**Growing time range** (Adaptive training → *Growing time range*; Wight & Zhao's approach I). One network is trained on $[t_0, t]$ with $t$ growing window by window, so every window also trains on all the earlier times, with the true initial condition at $t_0$ throughout.
 
 ## Results at a glance
 

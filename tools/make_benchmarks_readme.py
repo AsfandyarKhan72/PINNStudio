@@ -1390,7 +1390,7 @@ a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown:
 
 **Caption for the paper:**
 
-> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\\lambda_1$ and $\\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\\lambda$ and $\\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\\lambda$ and $\\lambda\\varepsilon^2$ learned from $\\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|p - p_{{\\mathrm{{true}}}}|/p_{{\\mathrm{{true}}}}$ of each unknown during training, with its final and true value. Final values: $\\lambda_1$ = 0.99994 and $\\lambda_2$ = 0.010010 (true 1 and 0.01); $\\lambda$ = 0.99974 and $\\mu$ = 0.50009 (true 1 and 0.5); $\\lambda$ = 9.969 and $\\lambda\\varepsilon^2$ = 0.02498 (true 10 and 0.025).
+> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\\lambda_1$ and $\\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\\lambda$ and $\\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\\lambda$ and $\\lambda\\varepsilon^2$ learned from $\\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\\theta - \\theta^*|/|\\theta^*|$ of each unknown parameter $\\theta$ during training ($\\theta^*$: its true value), with its final and true value. Final values: $\\lambda_1$ = 0.99994 and $\\lambda_2$ = 0.010010 (true 1 and 0.01); $\\lambda$ = 0.99974 and $\\mu$ = 0.50009 (true 1 and 0.5); $\\lambda$ = 9.969 and $\\lambda\\varepsilon^2$ = 0.02498 (true 10 and 0.025).
 
 *PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
 
@@ -1622,6 +1622,21 @@ def page(recs):
               "*Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the "
               "table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every "
               "reference time in the figure.*\n\n"
+              "**The techniques** (for the Methods part of Section 4.5; each is a setting in PINNStudio's interface, "
+              "described for users in the [training methods study](training_methods.md#how-each-technique-works-in-pinnstudio)):\n\n"
+              "> *Exact BC + IC.* Periodicity is imposed by feeding the network cos(2πx/L) and sin(2πx/L) instead of x "
+              "[Dong & Ni], and the initial condition by writing the output as u = u₀(x) + τN(x, t), τ = (t − t₀)/(t₁ − t₀) "
+              "[Lagaris et al.], so both hold exactly and leave the loss. *RBA* [11] gives every collocation point a weight, "
+              "updated after each Adam step as λ ← 0.999λ + 0.01|r|/max|r|, so that points with persistently large residuals "
+              "gain weight. *SA-PINN* [12] makes these weights trainable: they are updated by gradient ascent on the same "
+              "loss the network minimizes. In both, the weights start at 1 and are held fixed during L-BFGS. *Causal "
+              "training* [Wang et al., 2024] divides the time interval into 32 chunks and weights the residual of each by "
+              "exp(−ε × the residual loss of all earlier chunks), with ε raised from 0.01 to 100 during training, so that "
+              "later times enter the loss only once earlier times are fitted. *Time windows* [8] train the interval in "
+              "four successive windows, each initialized with the previous window's network and taking the previous "
+              "window's final prediction as its initial condition (a loss term on a uniform grid); *bc-PINN* [9] adds a loss "
+              "term that keeps the network's prediction on all earlier windows unchanged. *RAR* [Lu et al., 2021] adds, "
+              "in rounds, the candidate points with the largest residual to the collocation points.\n\n"
               "**More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, "
               "learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only "
               "the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and "

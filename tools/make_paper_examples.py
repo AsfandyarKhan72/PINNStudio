@@ -341,7 +341,8 @@ def plot(keys, path, inverse):
                          fontsize=FONT + 1, fontweight="bold")
         if inverse:
             x0, y0_, w, h = rects[2]
-            ax = fig.add_axes([x0, y0_, w + (CB_PAD + CB_W + CB_TICKS - 0.05) / WIDTH, h])
+            dx = 0.035                     # room for the y label next to the colour bar on the left
+            ax = fig.add_axes([x0 + dx, y0_, w + (CB_PAD + CB_W + CB_TICKS - 0.05) / WIDTH - dx, h])
             names = [k[3:] for k in d.files if k.startswith("it_")]
             for i, n_ in enumerate(names):
                 it, val = d["it_" + n_], d["val_" + n_]
@@ -349,6 +350,7 @@ def plot(keys, path, inverse):
                 ax.semilogy(it / 1000, np.maximum(np.abs(val - tv) / abs(tv), 1e-6), lw=1.1, color=PAR_COLORS[i],
                             label=f"{SYM.get(n_, n_)} = {val[-1]:.5g}  (true {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
+            ax.set_ylabel(r"$|\theta - \theta^{*}|\,/\,|\theta^{*}|$", labelpad=1, fontsize=FONT)   # θ*: true value
             ax.set_ylim(1e-5, 3)
             ax.grid(color="#e4e7eb", lw=0.4)
             ax.legend(fontsize=FONT - 1.5, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,

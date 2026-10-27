@@ -144,7 +144,7 @@ def fig_b(ex):
         ax.set_axisbelow(True)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
-    axs[0].set_ylabel("Relative $L_2$ error")
+    axs[0].set_ylabel("$L_2$ error")
     h = [Line2D([], [], color=INK, ls=(0, (3, 2)), lw=1.6), Line2D([], [], color=MUTED, ls="-", lw=1.6),
          Line2D([], [], color=MUTED, ls=(0, (1, 1.2)), lw=1.6)]
     fig.legend(h, ["Plain PINN (loss BC + loss IC)", "Best setup, whole time interval", "Best setup, time windows"],
@@ -233,8 +233,7 @@ def fig_c(ex, setups=SETUPS, name="paper_methods_c"):
         ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0], ["0", "0.25", "0.5", "0.75", "1"])
         ax.text(-0.16, 1.04, letter, transform=ax.transAxes, fontsize=9.5, fontweight="bold", va="bottom")
         ax.set_xlabel("$t$", labelpad=1)
-        if letter in ("(a)", "(c)"):
-            ax.set_ylabel("Relative $L_2$ error")
+        ax.set_ylabel("$L_2$ error", labelpad=2)
         ax.grid(color=GRID, lw=0.6)
         ax.set_axisbelow(True)
         for sp in ("top", "right"):

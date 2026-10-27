@@ -149,11 +149,11 @@ $$\frac{\partial \phi}{\partial t} = \lambda\varepsilon^2\nabla^2\phi - \lambda\
 
 a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\lambda$ (true 10) and $\lambda\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\lambda$ = 9.969, $\lambda\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: $\phi$ at $t = 0.5$, a time with no measured data, in the cube with one corner cut away so the drop inside is visible ($L_2$ over the cube 3.7 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
 
-![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png?v=80699aba)
+![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png?v=6e89f7f7)
 
 **Caption for the paper:**
 
-> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\lambda_1$ and $\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\lambda$ and $\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\lambda$ and $\lambda\varepsilon^2$ learned from $\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|p - p_{\mathrm{true}}|/p_{\mathrm{true}}$ of each unknown during training, with its final and true value. Final values: $\lambda_1$ = 0.99994 and $\lambda_2$ = 0.010010 (true 1 and 0.01); $\lambda$ = 0.99974 and $\mu$ = 0.50009 (true 1 and 0.5); $\lambda$ = 9.969 and $\lambda\varepsilon^2$ = 0.02498 (true 10 and 0.025).
+> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\lambda_1$ and $\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\lambda$ and $\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\lambda$ and $\lambda\varepsilon^2$ learned from $\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\theta - \theta^*|/|\theta^*|$ of each unknown parameter $\theta$ during training ($\theta^*$: its true value), with its final and true value. Final values: $\lambda_1$ = 0.99994 and $\lambda_2$ = 0.010010 (true 1 and 0.01); $\lambda$ = 0.99974 and $\mu$ = 0.50009 (true 1 and 0.5); $\lambda$ = 9.969 and $\lambda\varepsilon^2$ = 0.02498 (true 10 and 0.025).
 
 *PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
 
@@ -206,7 +206,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 **Figure 7.** Four phase-field problems under one common protocol: the equations, domains and initial conditions of the source papers, and for every problem of a dimension and every technique the same network, collocation points and training (1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS steps). Six setups: the plain PINN, exact BC + IC, + RBA, + SA-PINN, time windows and bc-PINN windows (4 windows, each trained with the full 20,000 + 10,000 steps). (a) Allen–Cahn 1D and (b) Cahn–Hilliard 1D of Wight & Zhao, (c) Allen–Cahn 2D and (d) Cahn–Hilliard 2D of Mattey & Ghosh. Drawn at 6.5 × 4.9 in for Word (PDF next to it); data in [`figures/fig7_v2.json`](figures/fig7_v2.json), runs from [`plans/fig7_v2.json`](plans/fig7_v2.json); the full description is in the [training methods study](training_methods.md#the-controlled-comparison-paper-figure-7).
 
-![Figure 7](figures/paper_methods_c.png?v=6a89719d)
+![Figure 7](figures/paper_methods_c.png?v=1660b86d)
 
 | Error at t = 1 (training time) | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
 |---|---|---|---|---|---|---|
@@ -216,6 +216,10 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |
 
 *Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every reference time in the figure.*
+
+**The techniques** (for the Methods part of Section 4.5; each is a setting in PINNStudio's interface, described for users in the [training methods study](training_methods.md#how-each-technique-works-in-pinnstudio)):
+
+> *Exact BC + IC.* Periodicity is imposed by feeding the network cos(2πx/L) and sin(2πx/L) instead of x [Dong & Ni], and the initial condition by writing the output as u = u₀(x) + τN(x, t), τ = (t − t₀)/(t₁ − t₀) [Lagaris et al.], so both hold exactly and leave the loss. *RBA* [11] gives every collocation point a weight, updated after each Adam step as λ ← 0.999λ + 0.01|r|/max|r|, so that points with persistently large residuals gain weight. *SA-PINN* [12] makes these weights trainable: they are updated by gradient ascent on the same loss the network minimizes. In both, the weights start at 1 and are held fixed during L-BFGS. *Causal training* [Wang et al., 2024] divides the time interval into 32 chunks and weights the residual of each by exp(−ε × the residual loss of all earlier chunks), with ε raised from 0.01 to 100 during training, so that later times enter the loss only once earlier times are fitted. *Time windows* [8] train the interval in four successive windows, each initialized with the previous window's network and taking the previous window's final prediction as its initial condition (a loss term on a uniform grid); *bc-PINN* [9] adds a loss term that keeps the network's prediction on all earlier windows unchanged. *RAR* [Lu et al., 2021] adds, in rounds, the candidate points with the largest residual to the collocation points.
 
 **More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and everything not in the main figure goes in the supplement.
 
@@ -275,7 +279,7 @@ The same data drawn three ways (the study: [`training_methods.md`](training_meth
 
 **Version B — where the error builds up (a second panel or a supplementary figure).** The error against time for three problems: the plain PINN, the best setup on the whole interval and the best with time windows. It explains *why* windows win on the long problems: on the whole interval the error grows with time (or never comes down), while each window starts from an accurate state.
 
-![Figure 7, version B](figures/paper_methods_b.png?v=7a53e4a0)
+![Figure 7, version B](figures/paper_methods_b.png?v=32fed0b0)
 
 </details>
 
