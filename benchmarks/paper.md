@@ -8,7 +8,7 @@
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
-| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | common-protocol runs queued on the GPU; the panels shown are the interim matched-per-problem runs |
+| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | done (31 of 32 runs; one equal-compute run of (d) is being rerun) |
 | [Supplementary Table S2 — every forward problem, each output](#supplementary-table-s2--every-forward-problem-each-output) | done |
 | [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | running (47 of the first 50 identical, none differ) |
 | [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | done |
@@ -199,52 +199,42 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | **How it was run** | one common protocol: 1D 4 × 128 with 10,000 points, 2D 6 × 128 with 20,000 points, 20,000 Adam + 10,000 L-BFGS for every setup, 4 time windows with full and with equal compute |
 | **For users** | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7) |
 | **Data and scripts** | [`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, `tools/make_methods_figure.py` |
-| **Status** | common-protocol runs queued on the GPU; the panels shown are the interim matched-per-problem runs |
+| **Status** | done (31 of 32 runs; one equal-compute run of (d) is being rerun) |
 
 <details>
 <summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
 
-**Figure 7.** Four phase-field problems, the same six training setups in each, and within each problem the same network, collocation points, learning rate, seed and total Adam / L-BFGS steps for every setup: the plain PINN (initial and boundary conditions in the loss), the initial condition and periodicity built into the network (exact BC + IC), that with RBA or with SA-PINN point weights, training in successive time windows (exact BC, each window's initial condition in the loss; the steps shared out over the windows, every window with all the points), and the same windows with backward compatibility (bc-PINN). (a) Allen–Cahn 1D and (b) Cahn–Hilliard 1D of Wight & Zhao, (c) Allen–Cahn 2D and (d) Cahn–Hilliard 2D of Mattey & Ghosh (time scaled to [0, 1]). Drawn at 6.5 × 4.9 in for Word (PDF next to it); data in [`figures/fig7_rerun.json`](figures/fig7_rerun.json), runs from [`plans/fig7_confirm.json`](plans/fig7_confirm.json).
+**Figure 7.** Four phase-field problems under one common protocol: the equations, domains and initial conditions of the source papers, and for every problem of a dimension and every technique the same network, collocation points and training (1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS steps). Six setups: the plain PINN, exact BC + IC, + RBA, + SA-PINN, time windows and bc-PINN windows (4 windows, each trained with the full 20,000 + 10,000 steps). (a) Allen–Cahn 1D and (b) Cahn–Hilliard 1D of Wight & Zhao, (c) Allen–Cahn 2D and (d) Cahn–Hilliard 2D of Mattey & Ghosh. Drawn at 6.5 × 4.9 in for Word (PDF next to it); data in [`figures/fig7_v2.json`](figures/fig7_v2.json), runs from [`plans/fig7_v2.json`](plans/fig7_v2.json); the full description is in the [training methods study](training_methods.md#the-controlled-comparison-paper-figure-7).
 
-![Figure 7](figures/paper_methods_c.png?v=e6c3afa7)
+![Figure 7](figures/paper_methods_c.png?v=6a89719d)
 
-**Status.** The panels above are the *matched-per-problem* runs (each problem with its own settings from its paper, the same for all its setups; time windows with 1/k of the steps per window). Figure 7 for the paper is now being rerun under **one common protocol**, so that every problem of a dimension and every technique uses the same training settings; it replaces these panels when it finishes. Full description: [training methods study → The controlled comparison (paper Figure 7)](training_methods.md#the-controlled-comparison-paper-figure-7).
-
-*Common protocol (running, [`plans/fig7_v2.json`](plans/fig7_v2.json)):*
-
-| | 1D: (a) Allen–Cahn, (b) Cahn–Hilliard | 2D: (c) Allen–Cahn, (d) Cahn–Hilliard |
-|---|---|---|
-| Network | 4 × 128, tanh | 6 × 128, tanh |
-| Domain / boundary / initial points | 10,000 / 200 / 512 | 20,000 / 1,600 / 4,096 (64 × 64) |
-| Training, every setup | 20,000 Adam (lr 10⁻³) + 10,000 L-BFGS | same |
-| Time windows | 4 of 0.25; each window 20,000 + 10,000 (4 × the total), plus an equal-compute version with 5,000 + 2,500 per window | same |
-| Next window's initial condition | previous window's prediction at its end time on 512 points, loss weight 100; weights carried over from the previous window's L-BFGS phase | the same on the 64 × 64 grid |
-
-*Matched-per-problem runs (the panels above, [`plans/fig7_confirm.json`](plans/fig7_confirm.json)):*
-
-| Problem | Network | Domain points | Adam + L-BFGS steps | Time windows (each gets) |
-|---|---|---|---|---|
-| (a) Allen–Cahn 1D | 4 × 128 | 2,000 | 20,000 + 10,000 | 4 (5,000 + 2,500 steps) |
-| (b) Cahn–Hilliard 1D | 4 × 128 | 10,000 | 5,000 + 5,000 | 4 (1,250 + 1,250 steps) |
-| (c) Allen–Cahn 2D | 6 × 128 | 20,000 | 12,000 + 10,000 | 5 (2,400 + 2,000 steps) |
-| (d) Cahn–Hilliard 2D | 5 × 128 | 50,000 | 40,000 + 75,000 | 4 (stopped for the common protocol) |
-
-| Error at t = 1 | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
+| Error at t = 1 (training time) | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
 |---|---|---|---|---|---|---|
-| (a) Allen–Cahn 1D | 63% | 5.4% | 0.98% | **0.43%** | 0.83% | 1.1% |
-| (b) Cahn–Hilliard 1D | 1.7% | 0.31% | 0.30% | **0.20%** | 0.29% | 0.39% |
-| (c) Allen–Cahn 2D | 0.51% | 0.045% | 0.049% | **0.032%** | 0.45% | 0.58% |
-| (d) Cahn–Hilliard 2D | 7.3% | 0.17% | 0.25% | **0.073%** | – | – |
+| (a) Allen–Cahn 1D | 10% (7 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) |
+| (b) Cahn–Hilliard 1D | 0.61% (9 min) | 0.16% (8 min) | 0.12% (9 min) | **0.074%** (10 min) | 0.40% (26 min) | 0.40% (37 min) |
+| (c) Allen–Cahn 2D | 0.45% (18 min) | 0.042% (14 min) | 0.045% (14 min) | **0.031%** (27 min) | 0.079% (93 min) | 0.095% (159 min) |
+| (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |
 
-> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; training in successive time windows; and time windows with backward compatibility (bc-PINN) [9]. All problems of one dimension use the same network and collocation points (1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points) and every setup 20,000 Adam and 10,000 L-BFGS steps, the time-windowed setups in each of their four windows. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0.* (Written for the common-protocol runs; the panels above are the matched-per-problem runs.)
+*Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every reference time in the figure.*
 
-**What the matched-per-problem runs show** (to be checked against the common-protocol runs). Building the conditions into the network is the biggest single gain on every problem (×12 in (a), ×5 in (b), ×11 in (c), ×43 in (d) at t = 1). SA-PINN weights then give the lowest error on all four problems, RBA helps only in (a). With the same budget, time windows beat exact BC + IC alone in (a), match it at t = 1 in (b) (0.29% against 0.31%) but are the worst setup early in time there (15% at t = 0.25, where the first window has only a quarter of the steps), and are ten times less accurate in (c). Backward compatibility does not change the result at this budget (the first window is identical; later windows are about the same or slightly worse).
+> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; four successive time windows; and time windows with backward compatibility (bc-PINN) [9]. All problems of one dimension use the same network (1D: 4 × 128; 2D: 6 × 128), the same collocation points (1D: 10,000; 2D: 20,000) and 20,000 Adam and 10,000 L-BFGS steps, in every window for the time-windowed setups. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0.*
 
-**Compared with the original study** (Supplementary Fig. S1; one seed, time windows with k times the budget): the order of the methods is the same, but some single values moved by a factor of 2–6 (the plain PINN on (a) 10% there, 63% here; SA-PINN 0.18% there, 0.43% here), so single runs are only read for larger differences; seeds are added once the common protocol is settled. The earlier panels are under *Earlier versions* below.
+**What it shows.** Building the conditions into the network is the largest single gain on every problem (×9 in (a), ×4 in (b), ×11 in (c), ×270 in (d) at t = 1), and on 2D Cahn–Hilliard it is what makes the PINN work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in (a) and (b) and not in 2D. Time windows, even with four times the training, are less accurate than the best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but (a), and they take 2–6 times longer; backward compatibility changes them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as good in 1D and clearly worse in 2D (×3–4 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity imposed exactly, training on the whole interval at once is both more accurate and cheaper.
 
-**What to write in the paper (Section 4.5)** — a draft for the common protocol; the numbers in [brackets] are filled in from its runs:
+**Supplementary Fig. S3 — time windows at full and at equal compute** (the best whole-interval setup for reference; *equal steps*: the 20,000 + 10,000 steps shared out over the 4 windows, 5,000 + 2,500 each, all the points in every window):
 
-> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that move in time, and an error made early in time carries over to later times. We used four of them to compare the training options PINNStudio offers. The equations, domains and initial conditions follow the source papers [8, 9]; for a consistent comparison, all one-dimensional problems used a 4 × 128 network with 10,000 collocation points and all two-dimensional problems a 6 × 128 network with 20,000 points, trained for 20,000 Adam and 10,000 L-BFGS steps, and only the technique was changed: (i) a plain PINN with the initial and boundary conditions in the loss; (ii) the initial condition and the periodic boundaries imposed exactly through the network (Exact BC + IC); (iii) the same with residual-based attention (RBA) or (iv) self-adaptive (SA-PINN) point weights; (v) training in four successive time windows, each trained like a full run and started from the previous window's network; and (vi) the same windows with backward compatibility (bc-PINN [9]), where each window is also trained to keep the solution of the earlier windows. Figure 7 shows the relative L₂ error against time. Imposing the conditions exactly gave the largest single improvement on all four problems, from [..] to [..] at t = 1 for the 1D Allen–Cahn equation and from [..] to [..] for the 2D Cahn–Hilliard equation. Adding SA-PINN weights reduced the error further [..]. Time windows [..], at about four times the training cost; with the same number of steps as the other setups they [..]. These results show that the choice of training technique matters as much as the network, and that it differs from problem to problem; in PINNStudio these techniques are options in the interface that can be combined without changing any code.
+![Time windows at full and at equal compute](figures/paper_methods_c_windows.png)
+
+| Error at t = 1 | Time windows, 4 × the steps | Time windows, equal steps | bc-PINN, 4 × the steps | bc-PINN, equal steps |
+|---|---|---|---|---|
+| (a) Allen–Cahn 1D | 0.65% | 0.41% | 0.79% | 0.54% |
+| (b) Cahn–Hilliard 1D | 0.40% | 0.44% | 0.40% | 0.41% |
+| (c) Allen–Cahn 2D | 0.079% | 0.24% | 0.095% | 0.40% |
+| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | (rerun queued: out of GPU memory) |
+
+**What to write in the paper (Section 4.5)** — a draft:
+
+> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that move in time, and an error made early in time carries over to later times. We used four of them to compare the training options PINNStudio offers. The equations, domains and initial conditions follow the source papers [8, 9]; for a consistent comparison, all one-dimensional problems used a 4 × 128 network with 10,000 collocation points and all two-dimensional problems a 6 × 128 network with 20,000 points, trained for 20,000 Adam and 10,000 L-BFGS steps, and only the technique was changed: (i) a plain PINN with the initial and boundary conditions in the loss; (ii) the initial condition and the periodic boundaries imposed exactly through the network (Exact BC + IC); (iii) the same with residual-based attention (RBA) or (iv) self-adaptive (SA-PINN) point weights; (v) training in four successive time windows, each trained like a full run and started from the previous window's network; and (vi) the same windows with backward compatibility (bc-PINN [9]), where each window is also trained to keep the solution of the earlier windows. Figure 7 shows the relative L₂ error against time. Imposing the conditions exactly gave the largest single improvement on all four problems, from 10% to 1.1% at t = 1 for the 1D Allen–Cahn equation and from 52% to 0.19% for the 2D Cahn–Hilliard equation, where the plain PINN failed. Adding SA-PINN weights reduced the error further and gave the lowest error on every problem (0.03–0.17%). Time windows, although each window was trained as long as a whole run, were less accurate than the best whole-interval setup on all four problems and took two to six times longer; with the same total number of steps they were clearly worse in 2D (Supplementary Fig. S3). For these problems, imposing the known conditions exactly is therefore the more effective remedy. Because PINNStudio offers these techniques as options in the interface, such a comparison takes no changes to code.
 
 **Supplementary Fig. S1 — every setup and problem of the study** (the error at the last reference time; darker is lower, the best per row in bold, – not run):
 
@@ -256,6 +246,10 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 <details>
 <summary>Earlier versions (all setups, all problems)</summary>
+
+**Figure 7 with the settings matched per problem** (each problem with its own paper's settings, the same for all its setups; time windows with 1/k of the steps per window; single runs):
+
+![Figure 7, settings matched per problem](figures/paper_methods_c_matched.png)
 
 **Figure 7 from the original study** (the same four panels and five setups, before the matched-settings rerun: one seed, time windows with k times the steps, no time windows for (d)):
 

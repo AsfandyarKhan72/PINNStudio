@@ -165,24 +165,36 @@ PANELS = [("ac1d", "(a)"), ("ch1d", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)
 
 # the confirmation reruns (benchmarks/plans/fig7_confirm.json): within each problem every setup has the plain
 # PINN's network, points, learning rate, seed and steps; time windows share those steps out over the windows
-RERUN = os.path.join(ROOT, "benchmarks", "figures", "fig7_rerun.json")
+RERUN = os.path.join(ROOT, "benchmarks", "figures", "fig7_v2.json")          # the common protocol (plans/fig7_v2.json)
+RERUN_OLD = os.path.join(ROOT, "benchmarks", "figures", "fig7_rerun.json")   # matched per problem (plans/fig7_confirm.json)
+PREFIX = {RERUN: "f7v2", RERUN_OLD: "f7"}
 RERUN_ID = {"ac1d": "ac1d", "ch1d": "ch1d", "ac2d_mg": "ac2dmg", "ch2d_mg": "ch2dmg"}
 SETUPS6 = SETUPS + [("bcpinn", "Time windows + backward (bc-PINN)", C["causal + MsFFN"], (0, (1.2, 1.2)), "P")]
 RERUN_KEY = dict(zip([s[0] for s in SETUPS6], ("plain", "exact", "rba", "sa", "windows", "bcpinn")))
+# Supplementary: the time windows at full and at equal compute, against the best whole-interval setup
+SETUPS_EQ = [("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN (whole interval)", C["SA-PINN"], "-", "D"),
+             ("Time windows: exact BC + loss IC", "Time windows, 4 × the steps", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v"),
+             ("windowsEq", "Time windows, equal steps", C["causal"], (0, (1.5, 1.5)), "o"),
+             ("bcpinn", "bc-PINN windows, 4 × the steps", C["causal + MsFFN"], (0, (6, 1.5, 1.5, 1.5)), "P"),
+             ("bcpinnEq", "bc-PINN windows, equal steps", C["causal + MsFFN"], (0, (1.5, 1.5)), "s")]
+RERUN_KEY.update(windowsEq="windowsEq", bcpinnEq="bcpinnEq")
 
 
-def rerun_examples():
+def rerun_examples(path=None, setups=None):
     """{eid: {"core": [{"setup", "l2"}]}} from fig7_rerun.json (the main output, not mu); seed median when there are
     several seeds (runs named <name>_s<seed>)."""
     import statistics
-    if not os.path.exists(RERUN):
+    path = path or RERUN
+    setups = setups or SETUPS6
+    if not os.path.exists(path):
         return None
-    r = json.load(open(RERUN, encoding="utf-8"))
+    r = json.load(open(path, encoding="utf-8"))
+    pre = PREFIX[path]
     out = {}
     for eid, pid in RERUN_ID.items():
         core = []
-        for st, *_ in SETUPS6:
-            runs = [v for k, v in r.items() if k == f"f7_{pid}_{RERUN_KEY[st]}" or k.startswith(f"f7_{pid}_{RERUN_KEY[st]}_s")]
+        for st, *_ in setups:
+            runs = [v for k, v in r.items() if k == f"{pre}_{pid}_{RERUN_KEY[st]}" or k.startswith(f"{pre}_{pid}_{RERUN_KEY[st]}_s")]
             runs = [v for v in runs if v.get("rc") == 0]
             if not runs:
                 continue
@@ -229,7 +241,7 @@ def fig_c(ex, setups=SETUPS, name="paper_methods_c"):
             ax.spines[sp].set_visible(False)
         ax.tick_params(labelsize=7.8)
     h = [Line2D([], [], color=col, ls=ls, lw=1.5, marker=mk, ms=3.6, mec="white", mew=0.5) for _, _, col, ls, mk in setups]
-    nc = 5 if len(setups) <= 5 else 3
+    nc = 5 if len(setups) <= 5 and max(len(s[1]) for s in setups) < 26 else 3
     fig.legend(h, [lab for _, lab, _, _, _ in setups], loc="upper center", ncol=nc, frameon=False, fontsize=7.4,
                handlelength=2.4, handletextpad=0.35, columnspacing=0.9, bbox_to_anchor=(0.5, 1.0))
     fig.subplots_adjust(left=0.11, right=0.985, top=0.885 if nc == 5 else 0.86, bottom=0.08, wspace=0.3, hspace=0.42)
@@ -245,8 +257,12 @@ def main():
     fig_b(ex)
     rr = rerun_examples()
     if rr:
-        fig_c(rr, SETUPS6)                                 # Figure 7: the matched-settings reruns
-        fig_c(ex, name="paper_methods_c_study")           # the same panels from the original study, for comparison
+        fig_c(rr, SETUPS6)                                 # Figure 7: the common protocol
+        fig_c(rerun_examples(path=RERUN, setups=SETUPS_EQ), SETUPS_EQ, name="paper_methods_c_windows")   # Suppl.
+        old = rerun_examples(path=RERUN_OLD)
+        if old:
+            fig_c(old, SETUPS6, name="paper_methods_c_matched")   # earlier: settings matched per problem
+        fig_c(ex, name="paper_methods_c_study")           # earlier: the original study
     else:
         fig_c(ex)
     print("wrote", os.path.join(OUT, "paper_methods_a.png"), "and _b")
