@@ -1530,7 +1530,7 @@ def page(recs):
       "`tools/check_export_equivalence.py` | running |\n"
       "| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
       "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
-      "[performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | running |\n\n"
+      "[performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | done |\n\n"
       "All runs are on one RTX 4090 unless stated.\n\n</details>\n\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
       "*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own "
@@ -2080,9 +2080,9 @@ def split_paper(md):
          "| Paper item | Status |\n|---|---|\n" + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
-         "| running (45 of the first 48 identical, none differ) |\n"
+         "| running (47 of the first 50 identical, none differ) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
-         "Table S3 running; Tables 6 and 5 queued |\n"]
+         "done |\n"]
     for h, rows, body in parts:
         body = body.replace("](#bench-", "](README.md#bench-")
         P.append(f"## {h}\n\n{_info(rows)}{body}\n")

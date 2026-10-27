@@ -401,7 +401,7 @@ def tables(a):
     md = []
     ov = _done(os.path.join(a.folder, "overhead.jsonl"))
     if ov:
-        md += ["### Table 5. Training time with the three ways of running (RTX 4090, full Tuned settings)", "",
+        md += ["### Table 5. Training time with the three ways of running (RTX 4090; each problem as loaded from the Examples list, see the settings in configs/)", "",
                "| Problem | Exported script (s) | Solve script, no window (s) | PINNStudio window (s) | GUI overhead | Steps (export / solve / GUI) | Main-output L₂ (export / solve / GUI) |",
                "|---|---|---|---|---|---|---|"]
         for label, _, _ in PROBLEMS:
@@ -416,7 +416,8 @@ def tables(a):
             l2 = " / ".join((lambda v: f"{v:.2e}" if v else "–")(_med([next(iter(r["l2"].values()), None) for r in rs if r["mode"] == m and r["l2"]])) for m in MODES)
             md.append(f"| {label} | {cell('export')} | {cell('solve')} | {cell('gui')} | {ovh} | {stp} | {l2} |")
         md += ["", "*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all "
-               "training phases. GUI overhead = (window − Solve script) / Solve script.*", ""]
+               "training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three "
+               "ways of a problem; the settings each problem ran with are saved in configs/.*", ""]
     tp = _done(os.path.join(a.folder, "throughput.jsonl"))
     if tp:
         md += ["### Table 6. Adam throughput, CPU (8 threads) and GPU", "",
