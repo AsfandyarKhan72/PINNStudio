@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 87 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 34 of them improve by 1.5× or more; the median improvement is 1×.
+87 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 34 of them improve by 1.5× or more; the median improvement is 1×.
 
 ## How it is done
 
@@ -26,7 +26,7 @@ So far 87 problems are included, chosen as the ones with the largest errors in t
 | **msffn** | a multi-scale Fourier-feature network (scales 1 and 10) |
 | **fracres** | 3× the resolution of the fractional operator (fractional problems) |
 
-- **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant.
+- **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant. (The *Tuned* settings shipped with the examples and shown on the [benchmarks page](README.md) use a second rule: the variant with the lowest error against the reference, the fastest one where several are within 25% of it. The two rules agree for most problems.)
 - **The error** is the relative $L_2$ error from PINNStudio's Error Analysis of the main output (u, c, phi, ...) at the last reference time, against the reference data the example ships with, the same measure as the paper's Fig. 4. (The worst over all outputs and times would often be an output such as a chemical potential at t = 0, where the reference is close to zero and a relative error says little.) For inverse problems the worst relative error of the learned parameters is given as well.
 - **Seeds.** The example's own settings and the chosen variant are run with up to 3 random seeds (1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses seed 2026.
 - **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5. Times are wall-clock training time per run.

@@ -8,9 +8,9 @@
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
-| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running |
+| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | six setups done (31 of 32 runs; the equal-compute bc-PINN run of (d) ran out of GPU memory and is queued again); causal training, causal + MsFFN, RAR and the growing time range queued |
 | [Supplementary Table S2 — every forward problem, each output](#supplementary-table-s2--every-forward-problem-each-output) | done |
-| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | running (loss histories identical so far; 2 parameters differ in the 6th digit) |
+| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | running (60 checked so far: 54 identical; 2 parameters differ in the 6th digit; 1 export bug found and fixed, being checked again) |
 | [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | done |
 
 ## Section 4.2 — accuracy on 25 representative problems (Figure 4)
@@ -29,11 +29,11 @@
 
 **No reported errors in this figure.** The errors the original papers report are left out here: they come from other networks, point counts and training, and some are over all times while this axis is the last reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They stay in the tables of each example ("as reported" rows, with the source and its setup) and in the full figure.
 
-**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 11, by a median factor of 18.3 in those (median over all 20: 1.4). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
+**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 12, by a median factor of 21.4 in those (median over all 20: 5.4). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
 
-**All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 20, by a median factor of 7.2 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
+**All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
 
-**How "tuned" was chosen.** The tuned settings are the run with the lowest error against the reference (the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
+**How "tuned" was chosen.** The tuned settings are the run of the recorded tuning study (and, for the paper templates, of the paper-method and training-methods runs) with the lowest error against the reference (the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final training loss alone would pick. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
 **For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
 
@@ -111,7 +111,7 @@ with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(
 
 **Caption for the paper:**
 
-> **Figure X.** Forward problems solved with PINNStudio. (a) Wave equation in 1D, solved with a space-time multi-scale Fourier feature network: $u(x, t)$ over the whole space-time domain (relative $L_2$ error 3.3 × 10⁻³). (b) Allen-Cahn equation in 2D (Mattey & Ghosh, 2022): $h(x, y)$ at $t = 1$ (relative $L_2$ error over all reference times 3.4 × 10⁻⁴). (c) Navier-Stokes equations in 3D (Beltrami flow): the velocity component $u$ on the visible faces of the cube $[-1, 1]^3$ at $t = 1$ (relative $L_2$ error of $u$ over the cube 1.4 × 10⁻³). Left to right: the reference solution (exact for (a) and (c), numerical for (b)), PINNStudio's prediction and the absolute error between them. The reference and the prediction share a colour scale.
+> **Figure 5.** Forward problems solved with PINNStudio. (a) Wave equation in 1D, solved with a space-time multi-scale Fourier feature network: $u(x, t)$ over the whole space-time domain (relative $L_2$ error 3.3 × 10⁻³). (b) Allen-Cahn equation in 2D (Mattey & Ghosh, 2022): $h(x, y)$ at $t = 1$ (relative $L_2$ error over all reference times 3.4 × 10⁻⁴). (c) Navier-Stokes equations in 3D (Beltrami flow): the velocity component $u$ on the visible faces of the cube $[-1, 1]^3$ at $t = 1$ (relative $L_2$ error of $u$ over the cube 1.4 × 10⁻³). Left to right: the reference solution (exact for (a) and (c), numerical for (b)), PINNStudio's prediction and the absolute error between them. The reference and the prediction share a colour scale.
 
 *PDF: [`figures/paper_forward.pdf`](figures/paper_forward.pdf). Made with [`tools/make_paper_examples.py`](../tools/make_paper_examples.py) from the saved models (the arrays are in [`paper_examples/`](paper_examples)).*
 
@@ -153,7 +153,7 @@ a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown:
 
 **Caption for the paper:**
 
-> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\lambda_1$ and $\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\lambda$ and $\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\lambda$ and $\lambda\varepsilon^2$ learned from $\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\theta - \theta^*|/|\theta^*|$ of each unknown parameter $\theta$ during training ($\theta^*$: its true value), with its final and true value. Final values: $\lambda_1$ = 0.99994 and $\lambda_2$ = 0.010010 (true 1 and 0.01); $\lambda$ = 0.99974 and $\mu$ = 0.50009 (true 1 and 0.5); $\lambda$ = 9.969 and $\lambda\varepsilon^2$ = 0.02498 (true 10 and 0.025).
+> **Figure 6.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\lambda_1$ and $\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\lambda$ and $\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\lambda$ and $\lambda\varepsilon^2$ learned from $\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\theta - \theta^*|/|\theta^*|$ of each unknown parameter $\theta$ during training ($\theta^*$: its true value), with its final and true value. Final values: $\lambda_1$ = 0.99994 and $\lambda_2$ = 0.010010 (true 1 and 0.01); $\lambda$ = 0.99974 and $\mu$ = 0.50009 (true 1 and 0.5); $\lambda$ = 9.969 and $\lambda\varepsilon^2$ = 0.02498 (true 10 and 0.025).
 
 *PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
 
@@ -199,7 +199,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | **How it was run** | one common protocol: 1D 4 × 128 with 10,000 points, 2D 6 × 128 with 20,000 points, 20,000 Adam + 10,000 L-BFGS for every setup, 4 time windows with full and with equal compute |
 | **For users** | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7) |
 | **Data and scripts** | [`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, `tools/make_methods_figure.py` |
-| **Status** | six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running |
+| **Status** | six setups done (31 of 32 runs; the equal-compute bc-PINN run of (d) ran out of GPU memory and is queued again); causal training, causal + MsFFN, RAR and the growing time range queued |
 
 <details>
 <summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
@@ -210,10 +210,10 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 | Error at t = 1 (training time) | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |
 |---|---|---|---|---|---|---|
-| (a) Allen–Cahn 1D | 10% (7 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) |
-| (b) Cahn–Hilliard 1D | 0.61% (9 min) | 0.16% (8 min) | 0.12% (9 min) | **0.074%** (10 min) | 0.40% (26 min) | 0.40% (37 min) |
-| (c) Allen–Cahn 2D | 0.45% (18 min) | 0.042% (14 min) | 0.045% (14 min) | **0.031%** (27 min) | 0.079% (93 min) | 0.095% (159 min) |
-| (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |
+| (a) Allen–Cahn 1D | 10% (8 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) |
+| (b) Cahn–Hilliard 1D | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.40% (26 min) | 0.40% (37 min) |
+| (c) Allen–Cahn 2D | 0.45% (19 min) | 0.042% (14 min) | 0.045% (15 min) | **0.031%** (28 min) | 0.079% (93 min) | 0.095% (159 min) |
+| (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |
 
 *Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every reference time in the figure.*
 
@@ -221,7 +221,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 > *Exact BC + IC.* Periodicity is imposed by feeding the network cos(2πx/L) and sin(2πx/L) instead of x [Dong & Ni], and the initial condition by writing the output as u = u₀(x) + τN(x, t), τ = (t − t₀)/(t₁ − t₀) [Lagaris et al.], so both hold exactly and leave the loss. *RBA* [11] gives every collocation point a weight, updated after each Adam step as λ ← 0.999λ + 0.01|r|/max|r|, so that points with persistently large residuals gain weight. *SA-PINN* [12] makes these weights trainable: they are updated by gradient ascent on the same loss the network minimizes. In both, the weights start at 1 and are held fixed during L-BFGS. *Causal training* [Wang et al., 2024] divides the time interval into 32 chunks and weights the residual of each by exp(−ε × the residual loss of all earlier chunks), with ε raised from 0.01 to 100 during training, so that later times enter the loss only once earlier times are fitted. *Time windows* [8] train the interval in four successive windows, each initialized with the previous window's network and taking the previous window's final prediction as its initial condition (a loss term on a uniform grid); *bc-PINN* [9] adds a loss term that keeps the network's prediction on all earlier windows unchanged. *RAR* [Lu et al., 2021] adds, in rounds, the candidate points with the largest residual to the collocation points.
 
-**More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and everything not in the main figure goes in the supplement.
+**More techniques, queued** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and everything not in the main figure goes in the supplement.
 
 | Setup | Boundary / initial condition | Training | Compared with |
 |---|---|---|---|
@@ -233,7 +233,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 > *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12]; four successive time windows; and time windows with backward compatibility (bc-PINN) [9]. All problems of one dimension use the same network (1D: 4 × 128; 2D: 6 × 128), the same collocation points (1D: 10,000; 2D: 20,000) and 20,000 Adam and 10,000 L-BFGS steps, in every window for the time-windowed setups. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0.*
 
-**What it shows.** Building the conditions into the network is the largest single gain on every problem (×9 in (a), ×4 in (b), ×11 in (c), ×270 in (d) at t = 1), and on 2D Cahn–Hilliard it is what makes the PINN work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in (a) and (b) and not in 2D. Time windows, even with four times the training, are less accurate than the best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but (a), and they take 2–6 times longer; backward compatibility changes them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as good in 1D and clearly worse in 2D (×3–4 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity imposed exactly, training on the whole interval at once is both more accurate and cheaper.
+**What it shows.** Building the conditions into the network is the largest single gain on every problem (×9 in (a), ×4 in (b), ×11 in (c), ×270 in (d) at t = 1), and on 2D Cahn–Hilliard it is what makes the PINN work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in (a) and (b) and not in 2D. Time windows, even with four times the training, are less accurate than the best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but (a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity imposed exactly, training on the whole interval at once is both more accurate and cheaper.
 
 **Supplementary Fig. S3 — time windows at full and at equal compute** (the best whole-interval setup for reference; *equal steps*: the 20,000 + 10,000 steps shared out over the 4 windows, 5,000 + 2,500 each, all the points in every window):
 
@@ -244,7 +244,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | (a) Allen–Cahn 1D | 0.65% | 0.41% | 0.79% | 0.54% |
 | (b) Cahn–Hilliard 1D | 0.40% | 0.44% | 0.40% | 0.41% |
 | (c) Allen–Cahn 2D | 0.079% | 0.24% | 0.095% | 0.40% |
-| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | (rerun queued: out of GPU memory) |
+| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | queued again (ran out of GPU memory) |
 
 **What to write in the paper (Section 4.5)** — a draft:
 
@@ -271,7 +271,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 The same data drawn three ways (the study: [`training_methods.md`](training_methods.md); the data: [`figures/study.json`](figures/study.json); redraw with `python tools/make_methods_figure.py`). Each is drawn at 6.5 in wide for Word; PDFs next to the PNGs.
 
-**Version A — every setup on one error axis.** One row per problem; each point is one training setup, coloured by the method added and shaped by whole interval (circle) or time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270), the best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems (2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.
+**Version A — every setup on one error axis.** One row per problem; each point is one training setup, coloured by the method added and shaped by whole interval (circle) or time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270, except 3D Allen-Cahn, which the plain PINN already solves: ×1.2), the best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, time windows with SA-PINN, and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems (2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.
 
 ![Figure 7, version A](figures/paper_methods_a.png?v=dd2ffada)
 
@@ -363,11 +363,11 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | **How it was run** | every example (forward, and inverse where it has one) with its Tuned settings and a short training (every Adam phase 200 steps, every L-BFGS phase 50, IC pre-training and resampling cut down the same way); both scripts written from the same configuration and run on the CPU with the same seed; the printed loss history compared line by line, and for inverse problems the identified parameters |
 | **For users** | [performance.md → Export check](performance.md#export-check-the-exported-script-trains-the-same-model) |
 | **Data and scripts** | `tools/check_export_equivalence.py` (writes `results.json` and a summary) |
-| **Status** | running on the GPU machine's CPU, every example: so far 26 of 29 identical, 1 skipped (no inverse version), and 2 inverse problems (Linear ODE system, Lorenz) with an identical loss history whose learned parameters differ in the sixth significant digit (1.81166 / 1.81165), as two runs of the same script on several CPU threads can; the earlier check in the cloud found these two identical |
+| **Status** | running on the GPU machine's CPU, every example; so far 60 checked: 54 identical, 3 skipped (a parameter sweep and examples without an inverse version), and 3 that differ. In two inverse problems (Linear ODE system: learned w = 1.81166 against 1.81165; Lorenz: the learned C's in the sixth digit) the loss history is identical and only the last printed digit of a parameter differs, as two runs of the same script on several CPU threads can. The third, 1D Cahn-Hilliard of Mattey & Ghosh, was a real difference: the short export left out IC-guided learning and backward compatibility. It is fixed (the export now writes Solve's own script for these options) and is being checked again |
 
-**What to write in the paper (Section 4.3)** — a draft; the count is filled in when the check finishes:
+**What to write in the paper (Section 4.3)** — a draft; [N] is filled in when the check finishes:
 
-> The script exported from PINNStudio is not a simplified copy: it contains the same model, constraints and training schedule as the script PINNStudio runs itself. We checked this for all [N] examples by writing both scripts from the same settings, running them with the same random seed and comparing the loss after every logged step; the two loss histories, and for the inverse problems the identified parameters, were identical in every case.
+> The script exported from PINNStudio is not a simplified copy: it contains the same model, constraints and training schedule as the script PINNStudio runs itself. We checked this for all [N] examples by writing both scripts from the same settings, running them with the same random seed and comparing the loss after every logged step; the two loss histories were identical in every case, and the identified parameters of the inverse problems agreed to at least five significant digits.
 
 ## Section 5 — performance (Tables 5, 6 and S3)
 
@@ -415,4 +415,4 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 
 **What to write in the paper (Section 5)** — a draft:
 
-> All timings were made on one desktop computer (Intel Core i9-13900KF, NVIDIA RTX 4090). Training a problem from the PINNStudio window, with the live loss plot and training log, took the same time as running the exported script from the command line: the three ways of running in Table 5 differ by at most 5%, in no consistent direction, so the interface adds no measurable cost to training. On the GPU, Adam training was 3 to 18.5 times faster than on the CPU, the gain growing with the size of the problem; only the smallest problem, the Lorenz system, ran faster on the CPU (Table 6). On the CPU, training was fastest with 8 threads, 2.7 to 3.6 times faster than with one; more threads made it no faster or slower, because the work spreads onto the processor's slower efficiency cores, and using all 32 hardware threads slowed it down 10 to 165 times (Table S3). PINNStudio therefore uses one thread per performance core, at most 8, by default (*CPU threads: Automatic*).
+> All timings were made on one desktop computer (Intel Core i9-13900KF, NVIDIA RTX 4090). Training a problem from the PINNStudio window, with the live loss plot and training log, took the same time as running the exported script from the command line: with the window, training took at most 5% longer or shorter than the same script run without it (and was slightly faster in four of the five problems), and all three ways in Table 5 agree within 7%, so the interface adds no measurable cost to training. On the GPU, Adam training was 3 to 18.5 times faster than on the CPU, the gain growing with the size of the problem; only the smallest problem, the Lorenz system, ran faster on the CPU (Table 6). On the CPU, training was fastest with 8 threads, 2.7 to 3.7 times faster than with one; more threads made it no faster or slower, because the work spreads onto the processor's slower efficiency cores, and using all 32 hardware threads slowed it down 12 to 165 times (Table S3). PINNStudio therefore uses half the logical processors, at most 8, by default (*CPU threads: Automatic*), which on this processor is one thread per performance core.

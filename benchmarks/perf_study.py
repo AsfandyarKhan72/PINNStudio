@@ -417,7 +417,8 @@ def tables(a):
             md.append(f"| {label} | {cell('export')} | {cell('solve')} | {cell('gui')} | {ovh} | {stp} | {l2} |")
         md += ["", "*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all "
                "training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three "
-               "ways of a problem; the settings each problem ran with are saved in configs/.*", ""]
+               "ways of a problem; the settings each problem ran with are saved in configs/."
+               " The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*", ""]
     tp = _done(os.path.join(a.folder, "throughput.jsonl"))
     if tp:
         md += ["### Table 6. Adam throughput, CPU (8 threads) and GPU", "",

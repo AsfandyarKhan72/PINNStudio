@@ -8,7 +8,7 @@
 | Navier-Stokes 2D, Kovasznay flow | 204.0 (203.1–217.4) | 207.4 (202.6–218.3) | 204.4 (203.0–217.6) | -1.5% | 34579 / 34579 / 34579 | 1.97e-04 / 1.97e-04 / 1.97e-04 |
 | Allen-Cahn 3D (Wight & Zhao) | 1563.2 (1551.1–1615.0) | 1615.3 (1558.8–1644.6) | 1553.7 (1547.7–1556.8) | -3.8% | 20000 / 20000 / 20000 | 4.04e-04 / 4.28e-04 / 4.28e-04 |
 
-*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three ways of a problem; the settings each problem ran with are saved in configs/.*
+*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three ways of a problem; the settings each problem ran with are saved in configs/. The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*
 
 ### Table 6. Adam throughput, CPU (8 threads) and GPU
 

@@ -1,6 +1,6 @@
 # Performance and checks
 
-*How fast PINNStudio trains, what the window costs, how to choose CPU threads, and the check that an exported script trains the same model. The tables are filled in as the runs finish; the paper's versions are on [paper.md](paper.md).*
+*How fast PINNStudio trains, what the window costs, how to choose CPU threads, and the check that an exported script trains the same model. The paper's versions of these tables are on [paper.md](paper.md).*
 
 **The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090, Ubuntu, Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15. Every run records the PINNStudio commit and these versions. Script: [`perf_study.py`](perf_study.py).
 
@@ -24,7 +24,7 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 *Training time (s) DeepXDE reports, summed over the training phases, median of 3 seeds; the same settings and number of steps in all three ways. "Default" for Wave 1D and Allen-Cahn 3D: these two ran with their Default settings because of a bug in loading Settings: Tuned after an example without Tuned settings (fixed); the comparison of the three ways is the same either way.*
 
-**What this means for you.** Use the window: watching training live costs nothing. The differences are within a few percent and go both ways, as two runs of the same script do.
+**What this means for you.** Use the window: watching training live costs nothing. The window was within 5% of the same script run without it, and slightly faster in four of the five problems; differences this small also appear between two runs of the same script.
 
 ## How much faster is the GPU?
 
@@ -54,7 +54,7 @@ Adam steps per second on the CPU only, for three fixed workloads (Heat 1D with 2
 
 *Adam steps per second on the CPU only, median of 3 repeats (the second in reverse order of thread count), each thread count in a fresh process.*
 
-**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *GPU / Hardware settings → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine. The error is the same with any thread count; only the speed changes.
+**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine. The error is the same with any thread count; only the speed changes.
 
 ## Export check: the exported script trains the same model
 
@@ -64,4 +64,4 @@ PINNStudio writes two scripts from one configuration: the one *Solve* runs, and 
 python tools/check_export_equivalence.py --out equivalence_runs [--names 'a|b']
 ```
 
-*Status: Running on the GPU machine's CPU, every example: so far 26 of 29 identical, 1 skipped (no inverse version), and 2 inverse problems (Linear ODE system, Lorenz) with an identical loss history whose learned parameters differ in the sixth significant digit (1.81166 / 1.81165), as two runs of the same script on several CPU threads can; the earlier check in the cloud found these two identical. A first check in the cloud found 47 of 50 identical and none different, but could not run 1D Cahn-Hilliard of Mattey & Ghosh (too little memory).*
+*Status: running on the GPU machine's CPU, every example. So far 60 checked: 54 identical, 3 skipped (a parameter sweep and examples without an inverse version). In two inverse problems (Linear ODE system, Lorenz) the loss history is identical and a learned parameter differs only in its sixth significant digit, as two runs of the same script on several CPU threads can. The third, 1D Cahn-Hilliard of Mattey & Ghosh, showed a real difference: the export left out IC-guided learning and backward compatibility. This is fixed, and that example is being checked again.*

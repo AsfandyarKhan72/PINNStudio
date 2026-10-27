@@ -7,7 +7,7 @@ together, with its reference result and PINNStudio's best.
 
 RESULTS are the tuning study's results.jsonl files (tools/tuning_study.py);
 --papers its runs of the papers' methods (variants plain / paper_*,
-tools/paper_methods.py); --spacetime each run's error over all reference
+pinnstudio/core/paper_settings.py); --spacetime each run's error over all reference
 times. A problem not yet run shows the README's result
 (benchmarks/tuning/readme_results.json) and its README figure.
 
@@ -408,7 +408,7 @@ def _best_label(r, inverse):
         return "the starting settings (the run with the lowest training loss was less accurate)"
     if v == "base":
         if len(s["variants"]) == 1:
-            return "the example's own settings (tuning runs queued)"
+            return "the example's own settings (not in the tuning sweep)"
         return ("the best setup as it is" if (not inverse and r.get("f_best_is_setup"))
                 else "the example's own settings (no change did better)")
     del kept
@@ -646,8 +646,14 @@ def _stats(recs):
     """Summary numbers for the text: forward errors and the gain of tuning over the starting settings
     (where there is an outside starting point), and the inverse parameter errors."""
     fwd = [r for r in recs if r.get("f_best") is not None]
-    start = [r for r in fwd if r.get("f_ref") is not None and (r["deepxde"] or (r["paper"] and r["paper_runs"]))]
-    gain = [r["f_ref"] / r["f_best"] for r in start if r["f_best"] > 0]
+    gain = []
+    for r in fwd:
+        # the same starting point as Figure 4 and its table: DeepXDE's settings, or the paper's method in PINNStudio
+        pm = [r["paper_runs"][v]["l2"] for _, _, v in (r["paper"] or []) if v in (r.get("paper_runs") or {})]
+        s0 = r.get("f_ref") if r["deepxde"] else (min(pm) if pm else None)
+        if s0 is not None and r["f_best"] > 0:
+            gain.append(s0 / r["f_best"])
+    start = gain
     better = [g for g in gain if g > SAME]
     perr = [_perr(r.get("i_best_par")) for r in recs if r.get("i_best_par")]
     perr = [x for x in perr if x is not None]
@@ -1357,7 +1363,7 @@ with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}
 
 **Caption for the paper:**
 
-> **Figure X.** Forward problems solved with PINNStudio. (a) Wave equation in 1D, solved with a space-time multi-scale Fourier feature network: $u(x, t)$ over the whole space-time domain (relative $L_2$ error 3.3 × 10⁻³). (b) Allen-Cahn equation in 2D (Mattey & Ghosh, 2022): $h(x, y)$ at $t = 1$ (relative $L_2$ error over all reference times 3.4 × 10⁻⁴). (c) Navier-Stokes equations in 3D (Beltrami flow): the velocity component $u$ on the visible faces of the cube $[-1, 1]^3$ at $t = 1$ (relative $L_2$ error of $u$ over the cube 1.4 × 10⁻³). Left to right: the reference solution (exact for (a) and (c), numerical for (b)), PINNStudio's prediction and the absolute error between them. The reference and the prediction share a colour scale.
+> **Figure 5.** Forward problems solved with PINNStudio. (a) Wave equation in 1D, solved with a space-time multi-scale Fourier feature network: $u(x, t)$ over the whole space-time domain (relative $L_2$ error 3.3 × 10⁻³). (b) Allen-Cahn equation in 2D (Mattey & Ghosh, 2022): $h(x, y)$ at $t = 1$ (relative $L_2$ error over all reference times 3.4 × 10⁻⁴). (c) Navier-Stokes equations in 3D (Beltrami flow): the velocity component $u$ on the visible faces of the cube $[-1, 1]^3$ at $t = 1$ (relative $L_2$ error of $u$ over the cube 1.4 × 10⁻³). Left to right: the reference solution (exact for (a) and (c), numerical for (b)), PINNStudio's prediction and the absolute error between them. The reference and the prediction share a colour scale.
 
 *PDF: [`figures/paper_forward.pdf`](figures/paper_forward.pdf). Made with [`tools/make_paper_examples.py`](../tools/make_paper_examples.py) from the saved models (the arrays are in [`paper_examples/`](paper_examples)).*
 
@@ -1390,7 +1396,7 @@ a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown:
 
 **Caption for the paper:**
 
-> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\\lambda_1$ and $\\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\\lambda$ and $\\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\\lambda$ and $\\lambda\\varepsilon^2$ learned from $\\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\\theta - \\theta^*|/|\\theta^*|$ of each unknown parameter $\\theta$ during training ($\\theta^*$: its true value), with its final and true value. Final values: $\\lambda_1$ = 0.99994 and $\\lambda_2$ = 0.010010 (true 1 and 0.01); $\\lambda$ = 0.99974 and $\\mu$ = 0.50009 (true 1 and 0.5); $\\lambda$ = 9.969 and $\\lambda\\varepsilon^2$ = 0.02498 (true 10 and 0.025).
+> **Figure 6.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\\lambda_1$ and $\\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\\lambda$ and $\\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\\lambda$ and $\\lambda\\varepsilon^2$ learned from $\\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, its absolute error against the reference solution (exact for (a) and (b), numerical for (c)), and the relative error $|\\theta - \\theta^*|/|\\theta^*|$ of each unknown parameter $\\theta$ during training ($\\theta^*$: its true value), with its final and true value. Final values: $\\lambda_1$ = 0.99994 and $\\lambda_2$ = 0.010010 (true 1 and 0.01); $\\lambda$ = 0.99974 and $\\mu$ = 0.50009 (true 1 and 0.5); $\\lambda$ = 9.969 and $\\lambda\\varepsilon^2$ = 0.02498 (true 10 and 0.025).
 
 *PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
 
@@ -1418,7 +1424,8 @@ def _paper_names():
 
 def _results_table(recs):
     """Every example in one table: the reference and PINNStudio's best, forward and inverse."""
-    L = ["| Example | Source | Forward: reference L₂ | Forward: PINNStudio best L₂ | L₂, all times | Time (s) | "
+    L = ["| Example | Source | Forward: reference L₂ (DeepXDE's settings, or the best of the papers' methods) | "
+         "Forward: Tuned L₂ | Tuned L₂, all times | Time (s) | "
          "Inverse: parameters found (true) | Worst parameter error | Time (s) |",
          "|---|---|---|---|---|---|---|---|---|"]
     for g in GROUPS:
@@ -1437,7 +1444,9 @@ def _results_table(recs):
             elif fs:
                 ft = mtp._med(fs["variants"][fs["chosen"]], lambda q: q["seconds"])
             st = None
-            if fs:
+            if r.get("f_best_paper"):      # the best is a base-PINN / paper-method run: its own all-times error
+                st = r["paper_runs"][r["f_best_paper"]].get("st")
+            elif fs:
                 vals = [SPACETIME.get(f"{ts._slug(q['example'])}/{fs['chosen']}_s{q['seed']}") for q in fs["variants"][fs["chosen"]]]
                 vals = [v for v in vals if v is not None]
                 st = statistics.median(vals) if vals else None
@@ -1455,7 +1464,7 @@ def _results_table(recs):
 def page(recs):
     L = []
     a = L.append
-    n_t = sum(1 for r in recs if r["f_best_s"] or r.get("i_s"))
+    n_t = sum(1 for r in recs if any(len((x or {}).get("variants") or {}) > 1 for x in (r["f_best_s"], r.get("i_s"))))
     a("# PINNStudio benchmarks\n")
     a("*Every example of PINNStudio, forward and inverse, with the result of its reference settings and "
       "PINNStudio's best. Updated as the runs finish.*\n")
@@ -1523,7 +1532,7 @@ def page(recs):
       "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
       "[training_methods.md → The controlled comparison]"
       "(training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | "
-      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | running |\n"
+      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | 31 of 32 runs done; more techniques queued |\n"
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
@@ -1564,8 +1573,10 @@ def page(recs):
           "reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They "
           "stay in the tables of each example (\"as reported\" rows, with the source and its setup) and in the full figure.\n\n"
           + _stats_md(paper_recs, "In numbers (these 25)") + _stats_md(recs, f"All {len(recs)} examples") +
-          "**How \"tuned\" was chosen.** The tuned settings are the run with the lowest error against the reference "
-          "(the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as "
+          "**How \"tuned\" was chosen.** The tuned settings are the run of the recorded tuning study (and, for "
+          "the paper templates, of the paper-method and training-methods runs) with the lowest error against the reference "
+          "(the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final "
+          "training loss alone would pick. They are shipped as "
           "the *Tuned* presets, so each point can be reloaded and run again.\n\n"
           "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
           "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
@@ -1615,10 +1626,10 @@ def page(recs):
               f"![Figure 7](figures/paper_methods_c.png{_ver(fc)})\n\n"
               "| Error at t = 1 (training time) | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows | bc-PINN windows |\n"
               "|---|---|---|---|---|---|---|\n"
-              "| (a) Allen–Cahn 1D | 10% (7 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) |\n"
-              "| (b) Cahn–Hilliard 1D | 0.61% (9 min) | 0.16% (8 min) | 0.12% (9 min) | **0.074%** (10 min) | 0.40% (26 min) | 0.40% (37 min) |\n"
-              "| (c) Allen–Cahn 2D | 0.45% (18 min) | 0.042% (14 min) | 0.045% (14 min) | **0.031%** (27 min) | 0.079% (93 min) | 0.095% (159 min) |\n"
-              "| (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |\n\n"
+              "| (a) Allen–Cahn 1D | 10% (8 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) |\n"
+              "| (b) Cahn–Hilliard 1D | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.40% (26 min) | 0.40% (37 min) |\n"
+              "| (c) Allen–Cahn 2D | 0.45% (19 min) | 0.042% (14 min) | 0.045% (15 min) | **0.031%** (28 min) | 0.079% (93 min) | 0.095% (159 min) |\n"
+              "| (d) Cahn–Hilliard 2D | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) |\n\n"
               "*Single runs (seed 2026) on one RTX 4090, two runs at a time, so the times are for comparison within the "
               "table. For a phase-field problem the error is largest early on (the interfaces form) and is given at every "
               "reference time in the figure.*\n\n"
@@ -1637,7 +1648,7 @@ def page(recs):
               "window's final prediction as its initial condition (a loss term on a uniform grid); *bc-PINN* [9] adds a loss "
               "term that keeps the network's prediction on all earlier windows unchanged. *RAR* [Lu et al., 2021] adds, "
               "in rounds, the candidate points with the largest residual to the collocation points.\n\n"
-              "**More techniques, running** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, "
+              "**More techniques, queued** ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)): the same network, points, "
               "learning rate, seed and loss weights per problem (copied from its plain run and checked by the runner), only "
               "the technique changes. When they are in, causal training replaces bc-PINN windows in the main figure, and "
               "everything not in the main figure goes in the supplement.\n\n"
@@ -1668,9 +1679,9 @@ def page(recs):
               "work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in "
               "(a) and (b) and not in 2D. Time windows, even with four times the training, are less accurate than the "
               "best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but "
-              "(a), and they take 2–6 times longer; backward compatibility changes them little. With the same "
-              "total steps as the other setups (Supplementary Fig. S3) the windows are about as good in 1D and clearly "
-              "worse in 2D (×3–4 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity "
+              "(a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes "
+              "them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as "
+              "accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity "
               "imposed exactly, training on the whole interval at once is both more accurate and cheaper.\n\n"
               "**Supplementary Fig. S3 — time windows at full and at equal compute** (the best whole-interval setup for "
               "reference; *equal steps*: the 20,000 + 10,000 steps shared out over the 4 windows, 5,000 + 2,500 each, "
@@ -1681,7 +1692,7 @@ def page(recs):
               "| (a) Allen–Cahn 1D | 0.65% | 0.41% | 0.79% | 0.54% |\n"
               "| (b) Cahn–Hilliard 1D | 0.40% | 0.44% | 0.40% | 0.41% |\n"
               "| (c) Allen–Cahn 2D | 0.079% | 0.24% | 0.095% | 0.40% |\n"
-              "| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | (rerun queued: out of GPU memory) |\n\n"
+              "| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | queued again (ran out of GPU memory) |\n\n"
               "**What to write in the paper (Section 4.5)** — a draft:\n\n"
               "> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that "
               "move in time, and an error made early in time carries over to later times. We used four of them to "
@@ -1723,8 +1734,9 @@ def page(recs):
               "**Version A — every setup on one error axis.** One row per problem; each "
               "point is one training setup, coloured by the method added and shaped by whole interval (circle) or "
               "time windows (square). The open circle is the plain PINN, the star the best setup, and the arrow the "
-              "factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270), the "
-              "best method differs from problem to problem (SA-PINN for three, causal + MsFFN, RBA with time windows, "
+              "factor between them. It shows the three findings at a glance: the gains are large (×9 to ×1270, "
+              "except 3D Allen-Cahn, which the plain PINN already solves: ×1.2), the best method differs from problem to "
+              "problem (SA-PINN for three, causal + MsFFN, RBA with time windows, time windows with SA-PINN, "
               "and for 3D Allen-Cahn and 2D Cahn-Hilliard (W&Z) no added method at all), and the long-time problems "
               "(2D Allen-Cahn to t = 10, 1D Cahn-Hilliard of M&G) are solved only with time windows.\n\n"
               f"![Figure 7, version A](figures/paper_methods_a.png{_ver(fa)})\n\n"
@@ -1979,7 +1991,7 @@ def write_front(recs):
     lines = text.split("\n")
     for i, ln in enumerate(lines):
         if ln.startswith("| # | Example | Dimension |"):
-            lines[i] = "| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source | L₂, Default | L₂, PINNStudio best |"
+            lines[i] = "| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source | L₂, Default | L₂, Tuned |"
             lines[i + 1] = "|---|---|---|---|---|---|---|---|---|---|"
             j = i + 2
             while j < len(lines) and lines[j].startswith("|"):
@@ -2061,7 +2073,7 @@ PAPER_ITEMS = [
          "(training_methods.md#the-controlled-comparison-paper-figure-7)"),
         ("Data and scripts", "[`plans/fig7_v2.json`](plans/fig7_v2.json), `benchmarks/study_runner.py`, "
          "`tools/make_methods_figure.py`"),
-        ("Status", "six setups done (31 of 32 runs; one equal-compute run of (d) is being rerun); causal training, causal + MsFFN, RAR and the growing time range running")]),
+        ("Status", "six setups done (31 of 32 runs; the equal-compute bc-PINN run of (d) ran out of GPU memory and is queued again); causal training, causal + MsFFN, RAR and the growing time range queued")]),
     ("📄 <em>Table S2 for the paper", "Supplementary Table S2 — every forward problem, each output", [
         ("What it shows", "the tuned error of every output of every forward problem with a reference solution"),
         ("How it was run", "the same runs as the benchmarks page"),
@@ -2101,7 +2113,7 @@ def split_paper(md):
          "| Paper item | Status |\n|---|---|\n" + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
-         "| running (loss histories identical so far; 2 parameters differ in the 6th digit) |\n"
+         "| running (60 checked so far: 54 identical; 2 parameters differ in the 6th digit; 1 export bug found and fixed, being checked again) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
          "done |\n"]
     for h, rows, body in parts:

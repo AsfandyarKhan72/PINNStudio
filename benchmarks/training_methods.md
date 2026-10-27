@@ -8,7 +8,7 @@ This study tests which published PINN training techniques improve accuracy, usin
 
 ## How the study is organised
 
-Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is run with the same ten **core setups**. Each setup is named after what it contains, and a name means the same setup in every table, figure and paragraph:
+Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is run with the same ten **core setups**. Each setup is named after what it contains, and a name means the same setup in every table, figure and paragraph (the Figure 7 tables shorten *Exact BC + exact IC* to *Exact BC + IC*, and call *Loss BC + loss IC* the *plain PINN*):
 
 - **BC**: the periodic boundary condition, either a **loss** term or **exact** (built into the network: Boundary conditions → *Exact periodicity*).
 - **IC**: the initial condition, either a **loss** term (weight 100) or **exact** (Initial conditions → *Exact (built into the network)*). An exact IC cannot be combined with time windows, so every time-window setup has the IC as a loss term.
@@ -93,7 +93,7 @@ Every technique is a setting in the interface; none needs code. What each one do
 | 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact BC + loss IC (template) |
 | 2D Cahn-Hilliard (Mattey & Ghosh), $t' = 1$ | 51% | 0.20% | Exact BC + exact IC + SA-PINN (template) |
 | Klein-Gordon, $t = 10$ | 8.1% | 0.22% | Plain + causal + MsFFN |
-| 1D Burgers, $t = 1$ | 0.13% | 0.13% | Plain; nothing helps |
+| 1D Burgers, $t = 1$ | 0.13% | 0.077% | Plain + causal (the other methods are worse) |
 | Diffusion-reaction 1D, $t = 1$ | 11% | 11% | Plain; causal training is worse |
 | Schrödinger 1D, Helmholtz 2D, Kovasznay flow | 0.02–0.2% | same, or MsFFN 2× lower on Kovasznay | Plain |
 
@@ -145,7 +145,7 @@ The study above uses each example's own settings, which differ from problem to p
 - **Backward compatibility (setups 6, 6b).** After each window its prediction is stored on the same grid at 10 times inside the window, and every later window has an extra loss term (weight 100) that keeps the network close to those stored values. This is the backward-compatible part of Mattey & Ghosh's bc-PINN; their initial-condition-guided pre-training of each window is not included here.
 - **Full or equal compute.** Setups 5 and 6 train every window like a full run, as the method is normally used; they cost about 4 times as much as setups 1–4, which is why the training times are reported. Setups 5b and 6b give the windows exactly the training of setups 1–4 (the steps shared out, all the points kept), so that the technique is the only difference.
 
-**Reproducing.** `python benchmarks/study_runner.py benchmarks/plans/fig7_v2.json <out> --jobs 2` (in a plan, `"match"` copies the plain run's network, points, learning rate, seed and steps into every other setup of the problem and checks them, `"equal_budget"` shares the steps out over the windows). The runner writes each run's script (`run.py`), log and errors at every reference time (`result.json`); [`tools/make_methods_figure.py`](../tools/make_methods_figure.py) draws the figure from `figures/fig7_rerun.json`.
+**Reproducing.** `python benchmarks/study_runner.py benchmarks/plans/fig7_v2.json <out> --jobs 2` (in a plan, `"match"` copies the plain run's network, points, learning rate, seed and steps into every other setup of the problem and checks them, `"equal_budget"` shares the steps out over the windows). The runner writes each run's script (`run.py`), log and errors at every reference time (`result.json`); [`tools/make_methods_figure.py`](../tools/make_methods_figure.py) draws the figure from `figures/fig7_v2.json` (the results of these runs, collected in one file).
 
 **Versions.** The figure went through three sets of runs; the paper uses the last one.
 
@@ -153,21 +153,21 @@ The study above uses each example's own settings, which differ from problem to p
 |---|---|---|---|
 | Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
 | Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
-| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | done (October 2026); the paper's Figure 7 |
-| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | running (October 2026) |
+| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | 31 of 32 runs done (October 2026; 6b on 2D Cahn-Hilliard queued again); the paper's Figure 7 |
+| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | queued |
 
 Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time):
 
 | Problem | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows (5) | bc-PINN windows (6) | Windows, equal compute (5b) | bc-PINN, equal compute (6b) |
 |---|---|---|---|---|---|---|---|---|
-| 1D Allen-Cahn | 10% (7 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) | 0.41% (9 min) | 0.54% (10 min) |
-| 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (8 min) | 0.12% (9 min) | **0.074%** (10 min) | 0.40% (26 min) | 0.40% (37 min) | 0.44% (20 min) | 0.41% (22 min) |
-| 2D Allen-Cahn | 0.45% (18 min) | 0.042% (14 min) | 0.045% (14 min) | **0.031%** (27 min) | 0.079% (93 min) | 0.095% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
-| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (39 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | rerun queued |
+| 1D Allen-Cahn | 10% (8 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) | 0.41% (10 min) | 0.54% (10 min) |
+| 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.40% (26 min) | 0.40% (37 min) | 0.44% (20 min) | 0.41% (22 min) |
+| 2D Allen-Cahn | 0.45% (19 min) | 0.042% (14 min) | 0.045% (15 min) | **0.031%** (28 min) | 0.079% (93 min) | 0.095% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
+| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | queued again (ran out of GPU memory) |
 
-**Setups 7–10** (causal training, causal + MsFFN, RAR at equal and at usual compute, growing time range) are running under the same protocol; their results will be added to this table. RAR adds points as it trains (1,500 in 1D, 3,000 in 2D by the end), and causal + MsFFN also changes the network, so both are reported with that noted. In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement.
+**Setups 7–10** (causal training, causal + MsFFN, RAR at equal and at usual compute, growing time range) are queued under the same protocol; their results go into this table when they finish. RAR adds points as it trains (1,500 in 1D, 3,000 in 2D by the end), and causal + MsFFN also changes the network, so both are reported with that noted. In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement.
 
-What it shows: exact conditions are the largest single gain on every problem (×4 to ×270), SA-PINN gives the lowest error everywhere, and time windows, even with four times the training, stay behind the best whole-interval setup (×2.5–8) while taking 2–6 times longer; with equal compute they are about as good in 1D and clearly worse in 2D. Backward compatibility changes the windows little.
+What it shows: exact conditions are the largest single gain on every problem (×4 to ×270), SA-PINN gives the lowest error everywhere, and time windows, even with four times the training, stay behind the best whole-interval setup (×2.5–8) while taking 2–6 times as long as SA-PINN (bc-PINN up to 10 times); with equal compute they are about as accurate as with four times the steps in 1D and clearly worse in 2D. Backward compatibility changes the windows little.
 
 Results of the matched-per-problem version (error at $t = 1$, seed 2026):
 
