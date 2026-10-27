@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <em>Three of the 65 built-in examples — Schrödinger in 1D, Allen-Cahn in 2D and heat in 3D — trained and animated in PINNStudio. Click one to see its setup and results.</em>
+  <em>Three of the 63 built-in examples — Schrödinger in 1D, Allen-Cahn in 2D and heat in 3D — trained and animated in PINNStudio. Click one to see its setup and results.</em>
 </p>
 
 <table>
@@ -92,7 +92,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 - Line, surface and animated solution plots, solution data export, and a saved model that can be reloaded and visualized again without retraining.
 - A standalone Python script for every problem, so the work can be inspected, shared and reproduced outside PINNStudio. Solving in the window is as fast as running that script yourself ([timing study](#speed-pinnstudio-and-a-plain-script)).
 
-**Ready-to-run examples.** PINNStudio comes with 65 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 63 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
+**Ready-to-run examples.** PINNStudio comes with 63 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 61 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
 
 PINNStudio is under active development, and we are extending it with newer scientific machine learning and PINN methods, aimed at solving harder problems more accurately and faster.
 
@@ -188,7 +188,7 @@ echo 'export PATH="<folder from the warning above>:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-(Use <code>~/.bashrc</code> instead of <code>~/.zshrc</code> if your shell is bash.) Then <code>pinnstudio</code> should launch directly. This never comes up with <code>install.sh</code>/<code>install.bat</code>, since those use a virtual environment where the command is always found automatically.
+(Use <code>~/.bashrc</code> instead of <code>~/.zshrc</code> if your shell is bash.) Then <code>pinnstudio</code> should launch directly. This never comes up with the one-command installer or <code>install.sh</code>/<code>install.bat</code>, since those use a virtual environment where the command is always found automatically.
 
 - **The GPU fix command PINNStudio suggests fails with a <code>flit_core</code> or "Could not find a version that satisfies" error?** Your pip is too old to resolve PyTorch's package index correctly. Upgrade it first, then run the commands PINNStudio printed again (they name the CUDA build that fits your driver, e.g. <code>cu126</code>):
 
@@ -342,7 +342,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 PINNStudio comes with 63 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
 - **PINNStudio templates** (14): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
-- **DeepXDE examples** (39 forward, 10 inverse; DeepXDE's Allen-Cahn 1D is left out, as the two Wight & Zhao templates cover it): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
+- **DeepXDE examples** (39 forward, 10 inverse; DeepXDE's Allen-Cahn 1D is left out, as the Allen-Cahn 1D – Wight & Zhao template covers it): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
 - **Settings: Default or Tuned** (next to the Examples list): *Default* is DeepXDE's own settings for a DeepXDE example, and for a template taken from a paper the paper's own way of solving it; *Tuned* is PINNStudio's best for the example, from the [benchmarks](benchmarks/README.md). The Training Log says what Tuned changes.
 
 Loading an example fills in every setting, and you can change any of them before pressing **Solve**; if you do, the Training Log lists what you changed. Your save folder, GPU, random-seed and plot-style settings are kept when you load one.
@@ -4785,7 +4785,7 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 
 <!-- examples:end -->
 
-> **Tips.** What improves accuracy depends on the problem; the [training methods study](benchmarks/training_methods.md) measured it on 14 of them. On hard time-dependent problems (sharp fronts, phase fields), first make periodicity and the initial condition exact, then try time-adaptive training, or causal training with a per-point weighting method; on a problem a plain PINN already solves well these can make the result worse, so compare with a plain run. More collocation points help where the solution changes sharply. For an inverse problem, measured data at several times usually pins the parameters down much better than one snapshot, and a parameter that is still moving when training stops needs more iterations: Allen-Cahn 2D – Mattey & Ghosh found its $c_1^2$ 66% off from $u$ at $t = 1$ alone and 3% off from $u$ at four times with a longer L-BFGS phase. A sweep over the measured data (*Measured data: grid points per axis*) shows how much data the parameters need.
+> **Tips.** What improves accuracy depends on the problem; the [training methods study](benchmarks/training_methods.md) measured it on 14 of them. On hard time-dependent problems (sharp fronts, phase fields), first make periodicity and the initial condition exact, then add a per-point weighting method (SA-PINN gave the lowest error on all four phase-field problems of the [controlled comparison](benchmarks/training_methods.md#the-controlled-comparison-paper-figure-7)); time windows were less accurate there and took longer, but help on long time ranges; on a problem a plain PINN already solves well these can make the result worse, so compare with a plain run. More collocation points help where the solution changes sharply. For an inverse problem, measured data at several times usually pins the parameters down much better than one snapshot, and a parameter that is still moving when training stops needs more iterations: Allen-Cahn 2D – Mattey & Ghosh found its $c_1^2$ 66% off from $u$ at $t = 1$ alone and 3% off from $u$ at four times with a longer L-BFGS phase. A sweep over the measured data (*Measured data: grid points per axis*) shows how much data the parameters need.
 >
 > **Inverse problems with a lot of measured data:** every measured point is used at every training step (the network is fitted to it, and the equation is checked there too), so a file with tens of thousands of points makes training much slower, above all on the CPU. A few hundred to a few thousand points spread over the domain are often enough to find a few parameters; if a run is too slow, set *Use* under Measured data to a coarser grid or fewer random points (see below), untick *Check the equation at the measured points too*, or train on a GPU. PINNStudio says so in the log when the data has 20,000 points or more.
 
@@ -5038,15 +5038,16 @@ Every round saves a checkpoint and two figures to `solution_results/rar_rounds/r
 <!-- source: pinnstudio/core/codegen.py::_gs_time_adaptive_loop_code | time-adaptive loop ; pinnstudio/ui/main_window.py::MainWindow._add_ta_step_group | time-step groups -->
 **Source code:** [time-adaptive loop](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L2427-L3985) (`codegen.py`) · [time-step groups](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L6899-L6953) (`main_window.py`)
 
-Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that are hard to fit with a single network in one pass; the time-adaptive Allen-Cahn 1D template, the 2D Allen-Cahn templates, Cahn-Hilliard 1D (Mattey & Ghosh) and Burgers 2D use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
+Splits the time range into steps and trains through them in order, each step taking its initial condition from the previous step's solution and, with *Enable transfer learning* (Adam or L-BFGS weights as the *Transfer optimizer*), starting from the previous step's network. This suits problems over a long time window or with fast dynamics that are hard to fit with a single network in one pass; Several templates use it in their *Default* (paper) or *Tuned* settings; the Training Log says which. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
 
 The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
 
 Further options under *Adaptive training* change how the windows work together:
 
-- **Growing time range** — one network trained on $[t_0, t]$ with $t$ growing window by window, with the true initial condition at $t_0$ (Wight & Zhao's approach I).
-- **Backward compatibility (bc-PINN)** — after each window its solution is stored, and every later window is also trained to keep it (Mattey & Ghosh); with **IC-guided learning**, each window first fits its starting state before the equations are switched on.
-- **Resampling in each window** (*Resampling rounds*) — after a window's training, the points with the largest residual are added and training continues.
+- **Growing time range** (needs transfer learning) — one network trained on $[t_0, t]$ with $t$ growing window by window, with the true initial condition at $t_0$ (Wight & Zhao's approach I).
+- **Backward compatibility (bc-PINN)** (needs transfer learning) — after each window its solution is stored, and every later window is also trained to keep it (Mattey & Ghosh); *Weight*, *Times per window* and *Points* set the extra loss term.
+- **IC-guided learning** (a fraction of the first Adam phase; 0 = off) — before each window's own training, the network first fits the window's starting state (Mattey & Ghosh).
+- **Resampling in each window** (*Resampling rounds*, *Points per round*, *Adam iterations per round*) — after a window's training, the points with the largest residual are added and training continues.
 
 How much these help on the phase-field problems, at the same training cost, is measured in the [training methods study](benchmarks/training_methods.md#the-controlled-comparison-paper-figure-7).
 
@@ -5207,7 +5208,7 @@ The exported script is not a simplified copy: it trains the same model as **Solv
 
 A whole problem setup can be saved and reopened later (**Save** and **Open** in the toolbar, Ctrl+S and Ctrl+O). Once a problem has a file, Save writes back to it. The examples themselves are never changed: saving an example you have edited asks for a name (suggesting *“<example> (copy)”*), choosing the example again gives its own settings, and the copy remembers which example it came from, so switching it between Forward and Inverse does what the example does. A problem saved before it was complete (Inverse with no measured-data file yet, say) opens again, with what is missing listed in the log. *Problem → Open Recent* and the Start tab list the last eight problems, the title bar marks unsaved changes, and PINNStudio asks before they would be lost. Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on (or the CPU, which can be faster for a small 1D problem; see [Speed](#speed-pinnstudio-and-a-plain-script)), its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
 
-**CPU threads** (*GPU / Hardware settings → CPU threads*): *Automatic* uses about one thread per performance core, at most 8, which was the fastest setting in our measurements; more threads can make CPU training much slower on processors with efficiency cores ([benchmarks/performance.md](benchmarks/performance.md#how-many-cpu-threads)).
+**CPU threads** (*Settings → GPU / Hardware → CPU threads*): *Automatic* uses half the logical processors (about one per performance core), at most 8, which was the fastest setting in our measurements; more threads can make CPU training much slower on processors with efficiency cores ([benchmarks/performance.md](benchmarks/performance.md#how-many-cpu-threads)).
 
 </details>
 
@@ -5225,7 +5226,7 @@ Point Restore & visualize (*Results → Restore & visualize* in the model tree) 
 
 ## Solving Your Own Problem
 
-The examples above cover 65 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
+The examples above cover 63 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
 
 We use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 
@@ -5248,7 +5249,7 @@ Start from a clean problem: on the Start tab, click **1D problem** (or *Problem 
    ```
 5. **Boundary conditions.** Right-click *Boundary conditions* → **Add boundary condition** (or use the button on its page): **Neumann**, value `0` (no flux through either edge), and in **Where** pick *Left and right sides* from the list. Two rows, one on the left side and one on the right, would do the same.
 6. **Neural network & Training.** The defaults (a handful of hidden layers, Adam then L-BFGS) are a reasonable starting point for a problem this size — adjust layer/neuron counts or add Time-Adaptive stepping later if training does not converge well.
-7. **Solve.** Click **Solve** and watch the loss fall in *Results → Live loss*; the loss and solution figures appear under *Overview* once training finishes. *Save* (Ctrl+S) keeps the setup for later. Try *Swap axes* in the Surface plot's settings on the result — see [Plots and animations](#analysis--output).
+7. **Solve.** Click **Solve** and watch the loss fall in *Results → Live loss*; the loss and solution figures appear under *Overview* once training finishes. *Save* (Ctrl+S) keeps the setup for later. Try *Plot settings → 1D surface → Time on the x-axis* in the Surface plot's settings on the result — see [Plots and animations](#analysis--output).
 8. **Error Analysis (optional).** Since this is not a bundled template, no reference data is loaded and Error Analysis is optional. If you have your own reference solution (from a separate FEM/FD solver, say), point the Error Analysis dialog at it the same way the built-in templates do automatically.
 
 <table>
@@ -5278,43 +5279,49 @@ Because the output of every run is an ordinary Python script, you can take it an
 
 ### Speed: PINNStudio and a plain script
 
-PINNStudio trains as fast as the plain exported script, on the GPU and on the CPU; a small 1D problem can be faster on the CPU.
+Training in the PINNStudio window takes the same time as running the exported script from a terminal; the GPU is 3 to 18.5 times faster than the CPU once a problem has a few thousand points; and on the CPU, 8 threads are fastest. The full study, with every run and the settings used, is in [benchmarks/performance.md](benchmarks/performance.md).
 
 <details>
-<summary><strong>Timing study: GPU and CPU times, and what was found</strong></summary>
+<summary><strong>Timing study: the window, GPU against CPU, and CPU threads</strong></summary>
 
-Solve writes a DeepXDE script and runs it in a Python process of its own; the window only reads what the script prints. To see how much PINNStudio adds to a run, five examples were trained in four ways, with the same settings and the same number of iterations, with [`benchmarks/timing_study.py`](benchmarks/timing_study.py):
+Solve writes a DeepXDE script and runs it in a Python process of its own; the window only reads what the script prints. Measured on one PC (Intel Core i9-13900KF, NVIDIA RTX 4090; Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15) with [`benchmarks/perf_study.py`](benchmarks/perf_study.py).
 
-- **plain script**: *Problem → Export as DeepXDE Script*, run with `python`;
-- **Solve's script**: the script Solve runs, run with `python` (no window);
-- **PINNStudio window**: Solve, with the live loss plot;
-- **live plot off**: Solve, with *Update while training* unticked above the plot.
+**The window adds no measurable time.** Five problems, each trained three ways from the same settings, median training time of three seeds:
 
-Training time per 1,000 steps on an RTX 4090 (5,000 Adam + 1,000 L-BFGS iterations, best of three runs; L-BFGS may stop before its limit, so the steps actually taken are counted). Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15:
+| Problem | Exported script | Solve's script, no window | PINNStudio window |
+|---|---|---|---|
+| Lorenz ODE, inverse | 71.5 s | 76.7 s | 72.8 s |
+| Wave 1D, multi-scale Fourier features | 75.5 s | 74.7 s | 75.0 s |
+| Allen-Cahn 2D (Mattey & Ghosh) | 266 s | 266 s | 259 s |
+| Navier-Stokes 2D (Kovasznay) | 204 s | 207 s | 204 s |
+| Allen-Cahn 3D (Wight & Zhao) | 1,563 s | 1,615 s | 1,554 s |
 
-| Example | Plain script | Solve's script | PINNStudio window | live plot off |
-|---|---|---|---|---|
-| Heat 1D | 2.10 s | 1.87 s (-11%) | 1.95 s (-7%) | 2.11 s (+0%) |
-| Burgers 1D | 2.68 s | 2.70 s (+1%) | 2.74 s (+2%) | 2.68 s (-0%) |
-| Navier-Stokes 2D (Kovasznay) | 5.78 s | 5.76 s (-0%) | 5.79 s (+0%) | 5.87 s (+2%) |
-| Allen-Cahn 1D (causal training, MsFFN) | 7.21 s | 7.31 s (+1%) | 7.20 s (-0%) | 7.32 s (+2%) |
-| Diffusion 1D, inverse | 2.50 s | 2.21 s (-12%) | 2.15 s (-14%) | 2.61 s (+4%) |
+The three differ by at most 5%, in no consistent direction, as two runs of the same script do. Starting Python and importing PyTorch and DeepXDE adds about 4 s to every run, either way.
 
-**PINNStudio trains as fast as a plain script.** The differences above are within the spread between identical runs (about ±2% for the larger examples, ±10% for the smallest, which train in a few seconds). The script trains in a separate process; the window redraws the live loss plot at most every 0.7 s, takes the log in batches every 0.5 s and pauses its settings checks while a run trains, so the live plot can stay on. The same study found that Solve's script used to train 5-10% slower on the GPU (Navier-Stokes 2D: 6.16 s per 1,000 steps against 5.67 s): a CUDA "warm-up" step before training made every step after it slower. It has been removed ([`benchmarks/timing_ab.py`](benchmarks/timing_ab.py) takes single parts of the script out to find such causes).
+**GPU against CPU.** Seconds per 1,000 Adam steps, same problems, CPU with 8 threads:
 
-**Start-up and saving cost the same either way:** about 4 s per run to start Python and import PyTorch and DeepXDE, plus a few seconds to save the figures of a 2D example.
+| Problem | CPU | GPU (RTX 4090) | GPU speed-up |
+|---|---|---|---|
+| Lorenz ODE, inverse | 1.79 | 2.96 | CPU 1.7× faster |
+| Wave 1D | 2.43 | 0.81 | 3.0× |
+| Navier-Stokes 2D (Kovasznay) | 22.5 | 5.46 | 4.1× |
+| Allen-Cahn 2D | 73.4 | 7.14 | 10.3× |
+| Allen-Cahn 3D | 526 | 28.5 | 18.5× |
 
-**A small problem can be faster on the CPU.** With a small network, a GPU step mostly waits for Python to hand it the next operation. The same examples on the CPU of the same PC (Core i9-13900KF, fewer iterations, best of three runs, plain script):
+A very small problem (an ODE with a few hundred points) is faster on the CPU, because starting work on the GPU costs more than it saves: *Settings → GPU / Hardware → Train on: CPU*.
 
-| Example | GPU (RTX 4090) | CPU (i9-13900KF, 8 threads) |
-|---|---|---|
-| Heat 1D | 2.10 s | 2.13 s (about the same) |
-| Burgers 1D | 2.68 s | 3.62 s (GPU 1.4× faster) |
-| Navier-Stokes 2D (Kovasznay) | 5.78 s | 22.77 s (GPU 3.9× faster) |
-| Allen-Cahn 1D (causal training, MsFFN) | 7.21 s | 90 s (GPU 12× faster) |
-| Diffusion 1D, inverse | 2.50 s | 1.14 s (CPU 2.2× faster) |
+**Fewer CPU threads are faster.** Adam steps per second on the CPU of the same PC (8 performance and 16 efficiency cores, 32 threads), median of three runs:
 
-For a small 1D problem, *Settings → GPU / Hardware → Train on: CPU* can be the faster choice; 2D and 3D problems, larger networks and many points belong on the GPU.
+| CPU threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
+|---|---|---|---|
+| 1 | 123 | 2.0 | 3.1 |
+| 4 | 311 | 5.3 | 7.5 |
+| **8 (Automatic)** | **330** | **7.2** | **10.0** |
+| 16 | 174 | 6.7 | 9.2 |
+| 24 (PyTorch's default) | 216 | 7.0 | 9.7 |
+| 32 (every thread) | 2.0 | 0.6 | 0.5 |
+
+On a processor with efficiency cores the slow cores hold every step back, and using every thread is 12 to 165 times slower. PINNStudio's scripts therefore train on the CPU with half the logical processors (about one per performance core), at most 8: *Settings → GPU / Hardware → CPU threads: Automatic*, or a number of your own; setting `OMP_NUM_THREADS` overrides it.
 
 **On a Mac, PINNStudio trains on the CPU.** Apple's GPU (MPS) was tried on an M1 MacBook Air with `benchmarks/mac_gpu_check.py`: it was half the speed of the CPU on Heat 1D (73 against 136 Adam iterations a second, and L-BFGS 7 times slower) and about the same on Poisson 2D and Heat 2D with 20,000 and 30,000 points (3 to 4 iterations a second either way), with the same accuracy. It also has no float64. A Mac with more GPU cores (an M-series Pro or Max) may do better on large problems; `mac_gpu_check.py` measures it. For comparison, an RTX 4090 ran the same 2D problems at 139 to 162 iterations a second (`benchmarks/gpu_check.py`, which also checks an NVIDIA GPU's setup on Windows or Linux).
 
@@ -5322,21 +5329,6 @@ For a small 1D problem, *Settings → GPU / Hardware → Train on: CPU* can be t
 
 - **Starting a run takes longer**, about 7 to 9 s against 4 s, most of it importing PyTorch and DeepXDE. Windows Defender scans every file Python loads, which adds 1.5 to 2 s; if you are comfortable with it, an exclusion for PINNStudio's own folder removes that (PowerShell as administrator: `Add-MpPreference -ExclusionPath "$env:APPDATA\uv\tools\pinnstudio"`). It is optional, and PINNStudio works the same without it.
 - **On a laptop, plug in and use the "Best performance" power mode** (Settings → System → Power). A small network on the GPU is limited by how fast the CPU hands it work, so a CPU that slows down on battery or when hot slows the GPU too. On that laptop the GPU only paid off above about 1,000 points, and the 1D examples trained 1.5 to 3 times faster with *Train on: CPU*; PINNStudio prints a tip in the Training Log when a small 1D problem trains on the GPU.
-
-**Fewer CPU threads are faster.** PyTorch uses one thread per core by default. On a processor with efficiency cores (recent Intel and Apple chips), the slow cores hold every step back: identical runs of Heat 1D took anywhere from 6.4 to 11.7 s with PyTorch's 24 threads, and 3.3 to 3.6 s with 8, one per performance core (Navier-Stokes 2D: 51-52 s against 45-46 s; Allen-Cahn 1D with causal training: 204-206 s against 135-136 s). PINNStudio's scripts therefore train on the CPU with half the logical processors, at most 8; setting `OMP_NUM_THREADS` overrides this.
-
-A second measurement on the same i9-13900KF (8 performance and 16 efficiency cores, 32 threads) with `benchmarks/gpu_check.py`'s three problems, Adam iterations a second on the CPU:
-
-| CPU threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
-|---|---|---|---|
-| 4 | 312 | 5.7 | 8.1 |
-| **8 (Automatic)** | **364** | **7.8** | **10.9** |
-| 12 | 280 | 6.2 | 9.2 |
-| 16 | 259 | 6.8 | 9.9 |
-| 24 (PyTorch's default) | 179 | 7.3 | 10.4 |
-| 32 (every thread) | 13 | 0.7 | 0.6 |
-
-Eight was the fastest for every size, and using every thread was 10 to 28 times slower. *Settings → GPU / Hardware → CPU threads* keeps *Automatic* (this rule) or takes a number of your own, for a processor where another count is faster.
 
 </details>
 
