@@ -11175,6 +11175,22 @@ model.net.load_state_dict(rar_final_state)
 print(f"RAR per-round diagnostics saved under: {{os.path.join(sol_dir, 'rar_rounds')}}")'''
 
 
+def _ta_clean_unsupported(config):
+    """The time-window options the short export script does not write yet (empty: none in use)."""
+    if not getattr(config, "time_adaptive", False) or getattr(config, "problem_type", "Forward") == "Inverse":
+        return []
+    out = []
+    if getattr(config, "ta_backward", False):
+        out.append("backward compatibility (bc-PINN)")
+    if getattr(config, "ta_growing", False):
+        out.append("a growing time range")
+    if float(getattr(config, "ta_icgl_fraction", 0.0) or 0.0) > 0:
+        out.append("initial-condition guided learning")
+    if int(getattr(config, "ta_resample_rounds", 0) or 0) > 0:
+        out.append("resampling in each window")
+    return out
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -11185,6 +11201,14 @@ def generate_clean_script(config):
     "if" dispatch over every option this app exposes. See generate_script()
     above for the generator Solve itself actually runs -- that one stays
     untouched; this is a second, independent generator."""
+    # Time windows with backward compatibility (bc-PINN), a growing time range, initial-condition guided
+    # learning or resampling in each window: these are written only by generate_script() so far, so the
+    # export is that script (standalone too), and it trains exactly the model Solve trains.
+    _ta_extras = _ta_clean_unsupported(config)
+    if _ta_extras:
+        return ("# Exported from PINNStudio. This problem uses time windows with " + ", ".join(_ta_extras)
+                + ",\n# so the export is the full script PINNStudio's Solve runs (it trains exactly the same model).\n"
+                + generate_script(config))
     from pinnstudio.core import constants as _cmod_hdr
     _const_header = _cmod_hdr.header_lines(_constant_values(config))
     config = _effective_config(config)
