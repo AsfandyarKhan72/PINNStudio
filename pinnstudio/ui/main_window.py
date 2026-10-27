@@ -6824,13 +6824,13 @@ class MainWindow(QMainWindow):
         if _item is not None:
             _item.setEnabled(_tuned_ok)
             _item.setToolTip("" if _tuned_ok else "This example's Default settings are already PINNStudio's best.")
-        if not _tuned_ok and combo.currentText() == _ex_settings.TUNED:
-            combo.blockSignals(True)
-            combo.setCurrentText(_ex_settings.DEFAULT)
-            combo.blockSignals(False)
+        mode = combo.currentText()
+        if not _tuned_ok and mode == _ex_settings.TUNED:
+            # the user's choice stays Tuned (so the next example loads Tuned too); this one has nothing
+            # separate, so it loads with its Default settings, which are its best
             self.log_box.append("ℹ️ No Tuned settings for this example: its Default settings are already "
                                 "PINNStudio's best, so it loads with those.")
-        mode = combo.currentText()
+            mode = _ex_settings.DEFAULT
         cfg = self._build_config()
         try:
             new, msg = _ex_settings.settings_for(cfg, key, self.radio_inverse.isChecked(), mode)
