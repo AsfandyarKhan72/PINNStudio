@@ -298,7 +298,7 @@ def _weight_slot_descriptors(config) -> list:
     n_out = config.num_outputs
     names = _weight_output_names(config, n_out)
     # One PDE slot per equation -- the same as one per output unless the
-    # problem sets its own equation count (Round 63, num_equations).
+    # problem sets its own equation count (num_equations).
     n_eq = int(getattr(config, "num_equations", 0) or 0) or n_out
     slots = []
     for i in range(n_eq):
@@ -378,7 +378,7 @@ def _phase_weights_set(config, idx: int, value) -> None:
     matched the current slot count) is left untouched -- codegen.py's own
     length check already falls back to the freshly-resolved shared list in
     that case, which carries the new value anyway. Shared by the loss-
-    weight sweeps and (cleanup Round 54) the Inverse data-loss-weight
+    weight sweeps and the Inverse data-loss-weight
     sweep."""
     phases = _load_phases(config)
     changed = False
@@ -536,7 +536,7 @@ def _inv_obs_set_weight(config, idx: int, value) -> None:
         # Keep the single legacy field in sync too -- see module
         # docstring. Only the primary (first) file has a legacy field.
         config.loss_weight_obs = float(value)
-    # cleanup Round 54: the scheduler phases carry their own copy of every
+    # The scheduler phases carry their own copy of every
     # loss weight, observation terms included (appended after the PDE/BC/IC
     # slots, one per measured-data file, in file order -- codegen.py's own
     # _multi_weights order). Without re-syncing them, a swept data-loss

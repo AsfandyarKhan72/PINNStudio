@@ -190,7 +190,7 @@ def build_runs(base_config):
     return [(r["label"], r["config"]) for r in build_runs_detailed(base_config)]
 
 
-# ── Bayesian search (Round 75) ──────────────────────────────────────────
+# ── Bayesian search ──────────────────────────────────────────
 
 def _fmt(v):
     return f"{v:.4g}" if isinstance(v, float) else str(v)

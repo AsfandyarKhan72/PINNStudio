@@ -99,9 +99,9 @@ def _has_lbfgs(cfg):
 
 def apply_variant(cfg, variant, tkey=None):
     """Return a changed copy of cfg, or None when the variant does not apply."""
-    if variant == "plain" or variant.startswith("paper_"):     # the papers comparison (paper_methods.py)
-        import paper_methods
-        return paper_methods.apply(cfg, variant, tkey)
+    if variant == "plain" or variant.startswith("paper_"):     # the papers comparison (pinnstudio/core/paper_settings.py)
+        from pinnstudio.core import paper_settings
+        return paper_settings.apply(cfg, variant, tkey)
     cfg = copy.deepcopy(cfg)
     if variant == "rar":                             # residual-based adaptive refinement: 5 rounds of 500 points
         if cfg.time_adaptive or cfg.adapt_method == "RAR" or "_frac(" in (cfg.pde_expressions or ""):

@@ -781,7 +781,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _add_ok_cancel_row(layout, dialog=None):
-        """cleanup Round 51 (audit §4): the right-aligned OK/Cancel footer
+        """The right-aligned OK/Cancel footer
         hand-typed in nine settings dialogs. Adds it to `layout` and returns
         (ok_btn, cancel_btn); when `dialog` is given, Cancel rejects it
         (pass None for a dialog with its own cancel handler)."""
@@ -794,7 +794,7 @@ class MainWindow(QMainWindow):
         return ok_btn, cancel_btn
 
     def _register_hint(self, widget, color, extra=""):
-        """cleanup Round 51 (audit §4): the "hint" text style, registered
+        """The "hint" text style, registered
         with one fixed color (and optional extra CSS) -- this exact
         _register_style(widget, "hint", lambda css, _c=..., _e=...: ...)
         call used to be hand-typed at 58 call sites. Same resulting
@@ -2091,7 +2091,7 @@ class MainWindow(QMainWindow):
         self.radio_1d = QRadioButton("1D  (x)")
         self.radio_2d = QRadioButton("2D  (x, y)")
         self.radio_3d = QRadioButton("3D  (x, y, z)")
-        # ODE (Round 74): only time, no space -- e.g. y1' = y2, y2' = -y1.
+        # ODE: only time, no space -- e.g. y1' = y2, y2' = -y1.
         self.radio_ode = QRadioButton("ODE  (t)")
         self.radio_ode.setToolTip("Ordinary differential equations in t only (no space): write derivatives\n"
                                   "as dy_t, dy_tt; initial conditions are values at t = t₀.")
@@ -2175,7 +2175,7 @@ class MainWindow(QMainWindow):
         self.num_outputs_spin.setFixedWidth(60)
         self.num_outputs_spin.valueChanged.connect(self._on_num_outputs_changed)
         nout_row.addWidget(self.num_outputs_spin)
-        # Equations (Round 63): how many PDE residuals -- follows Outputs
+        # Equations: how many PDE residuals -- follows Outputs
         # unless changed (DeepXDE allows any number, e.g. three for one
         # output, or one for two outputs when the second is an unknown field).
         nout_row.addSpacing(12)
@@ -2188,7 +2188,7 @@ class MainWindow(QMainWindow):
         self.num_equations_spin.setToolTip("Number of PDE residuals; resets to the number of outputs when that changes.")
         self.num_equations_spin.valueChanged.connect(self._on_num_equations_changed)
         nout_row.addWidget(self.num_equations_spin)
-        # Round 76: quadrature points for integral(...) terms (ODE mode).
+        # Quadrature points for integral(...) terms (ODE mode).
         self.integral_points_label = QLabel("∫ points:")
         self.integral_points_spin = QSpinBox()
         self.integral_points_spin.setRange(2, 200)
@@ -2213,7 +2213,7 @@ class MainWindow(QMainWindow):
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
-        # Named constants (Round 70): "Re = 20", "nu = 1/Re", ... usable by
+        # Named constants: "Re = 20", "nu = 1/Re", ... usable by
         # name in the equations, BCs, ICs, transforms and the exact-solution
         # reference. Empty by default; rows are added with the button.
         self.constants_widget = QWidget()
@@ -2265,7 +2265,7 @@ class MainWindow(QMainWindow):
         self.pde_inputs = []
         self.output_name_inputs = []
 
-        # Round 77: fractional operator settings -- shown while an equation uses frac(...).
+        # Fractional operator settings -- shown while an equation uses frac(...).
         self.frac_widget = QWidget()
         _fl = QHBoxLayout(self.frac_widget)
         _fl.setContentsMargins(0, 0, 0, 0); _fl.setSpacing(4)
@@ -2336,7 +2336,7 @@ class MainWindow(QMainWindow):
             coords = "xt"
         return {"outputs": outs, "other": other, "coords": coords}
 
-    # ── Named constants (Round 70) ────────────────────────────
+    # ── Named constants ────────────────────────────
     def _add_constant_row(self, name="", value=""):
         row = QWidget()
         lay = QHBoxLayout(row)
@@ -2647,7 +2647,7 @@ class MainWindow(QMainWindow):
         pts_dist_row.addWidget(self.pts_dist_combo)
         points_layout.addLayout(pts_dist_row)
 
-        # Extra training points ("anchors", Round 65): always included in
+        # Extra training points ("anchors"): always included in
         # training on top of the sampled ones -- from a points file, or
         # random points concentrated in a box (e.g. where the solution
         # changes fastest).
@@ -2919,7 +2919,7 @@ class MainWindow(QMainWindow):
         self.network_type_combo.setFixedHeight(28)
         self._fit_combo_width(self.network_type_combo, min_width=100)
         _nn_row("Network type:", self.network_type_combo)
-        # Fourier-feature scales (Round 73), shown for MsFFN/STMsFFN.
+        # Fourier-feature scales, shown for MsFFN/STMsFFN.
         self.msffn_sigmas_edit = QLineEdit("1, 10")
         self.msffn_sigmas_edit.setFixedHeight(28)
         self.msffn_sigmas_edit.setToolTip("Scales sigma of the random Fourier features, comma-separated, e.g. 1, 10.\n"
@@ -2979,7 +2979,7 @@ class MainWindow(QMainWindow):
         self.input_transform_widget = QWidget()
         it_layout = QVBoxLayout(self.input_transform_widget)
         it_layout.setSpacing(3); it_layout.setContentsMargins(12, 0, 0, 4)
-        # Mode (Round 62): "Scale/shift" rows, or a formula giving the
+        # Mode: "Scale/shift" rows, or a formula giving the
         # network's input features (DeepXDE's apply_feature_transform).
         self.input_transform_mode_combo, in_scale_w, in_formula_w = self._transform_mode_widgets(it_layout)
         it_scale_layout = QVBoxLayout(in_scale_w)
@@ -3021,7 +3021,7 @@ class MainWindow(QMainWindow):
         self.output_transform_widget = QWidget()
         ot_layout = QVBoxLayout(self.output_transform_widget)
         ot_layout.setSpacing(3); ot_layout.setContentsMargins(12, 0, 0, 4)
-        # Mode (Round 62): "Scale/shift" rows, or one formula per output --
+        # Mode: "Scale/shift" rows, or one formula per output --
         # DeepXDE's apply_output_transform, typically a hard constraint.
         self.output_transform_mode_combo, out_scale_w, out_formula_w = self._transform_mode_widgets(ot_layout)
         ot_scale_layout = QVBoxLayout(out_scale_w)
@@ -3560,7 +3560,7 @@ class MainWindow(QMainWindow):
         self.weights_group = QGroupBox("Loss Weights")
         _wg_outer = QVBoxLayout(self.weights_group)
         _wg_outer.setSpacing(4)
-        # Round 75: weights from the initial losses (wᵢ = c / Lᵢ(0)).
+        # Weights from the initial losses (wᵢ = c / Lᵢ(0)).
         _wi_row = QHBoxLayout()
         self.loss_w_init_cb = QCheckBox("Scale by initial losses:  wᵢ = c / Lᵢ(0),  c =")
         self.loss_w_init_cb.setToolTip(
@@ -3807,7 +3807,7 @@ class MainWindow(QMainWindow):
         self.rar_add_points  = _rar_row("Points added per round:",      500,   1,    10000,  100)
         self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 0,    100000000, 1000)
         self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    100000000, 1000)
-        # Early stop (Round 66): end refinement once the mean residual over
+        # Early stop: end refinement once the mean residual over
         # the sampled candidates is below this; 0 = always run every round.
         rar_tol_row = QHBoxLayout()
         _rar_tol_label = QLabel("Stop below mean residual:")
@@ -4126,7 +4126,7 @@ class MainWindow(QMainWindow):
         self.sweep_mode_combo.currentIndexChanged.connect(lambda _i: self._update_sweep_baseline_default())
         self._update_sweep_baseline_default()
 
-        # Round 75: Bayesian search settings.
+        # Bayesian search settings.
         self.sweep_bayes_widget = QWidget()
         _bl = QHBoxLayout(self.sweep_bayes_widget)
         _bl.setContentsMargins(0, 0, 0, 0); _bl.setSpacing(4)
@@ -4913,7 +4913,7 @@ class MainWindow(QMainWindow):
         self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
         _oh_lay.addWidget(self.plot_output_combo)
         # Multi-output problems: also save each output's own plot, named
-        # after it (solution_plot_<name>.png) -- Round 69.
+        # after it (solution_plot_<name>.png)
         self.plot_all_outputs_cb = QCheckBox("All outputs")
         self.plot_all_outputs_cb.setChecked(True)
         _oh_lay.addWidget(self.plot_all_outputs_cb)
@@ -5044,7 +5044,7 @@ class MainWindow(QMainWindow):
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
         ctrl_row2.addWidget(self.ea_btn)
 
-        # Loss Plot Settings (Round 28) -- which losses to show (Train+Test
+        # Loss Plot Settings -- which losses to show (Train+Test
         # totals / individual components / all), the shared display_every
         # sampling cadence, line thickness, and log/linear y-axis -- see
         # _on_loss_plot_settings() and codegen.py's _loss_plot_runtime_code/
@@ -5098,7 +5098,7 @@ class MainWindow(QMainWindow):
             'title': '',
             'xlabel': '',
             'ylabel': '',
-            # Round 31: figure-suptitle / per-panel-subplot-title / axis-
+            # Figure-suptitle / per-panel-subplot-title / axis-
             # label font sizes -- same 3 settings, same defaults, as
             # PINNConfig.plot_title_fontsize/plot_subplot_title_fontsize/
             # plot_axis_label_fontsize (see config.py for why these 3
@@ -5584,7 +5584,7 @@ class MainWindow(QMainWindow):
             self._fit_combo_width(combo, min_width=80)
 
     def _apply_sweep_config(self, config):
-        """Round 75: a loaded config's Parameter Sweep (enabled, mode,
+        """A loaded config's Parameter Sweep (enabled, mode,
         Bayesian settings, parameter rows) back into the panel."""
         import json
         if not hasattr(self, 'sweep_enable_cb'):
@@ -6047,7 +6047,7 @@ class MainWindow(QMainWindow):
         return hasattr(self, "radio_ode") and self.radio_ode.isChecked()
 
     def _on_ode_toggled(self, checked):
-        """ODE mode (Round 74) is 1D's machinery with t as the only variable:
+        """ODE mode is 1D's machinery with t as the only variable:
         the x row hides, the problem is always time-dependent (initial
         conditions at t₀), and Time-Adaptive training is unavailable."""
         if checked and hasattr(self, "radio_time_dependent"):
@@ -6162,7 +6162,7 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _parse_vertices(text):
         """'x1,y1;x2,y2;...' -> [(x1,y1), (x2,y2), ...]. Skips malformed pairs.
-        cleanup Round 48: delegates to codegen.py's _parse_vertex_list (the
+       : delegates to codegen.py's _parse_vertex_list (the
         parser training uses), which was already a line-for-line mirror of
         this one -- now there's only one copy to keep in sync."""
         from pinnstudio.core.codegen import _parse_vertex_list
@@ -7053,7 +7053,7 @@ class MainWindow(QMainWindow):
                 'files': _found,
                 'do_line': True,
                 'do_surface': True,
-                # Round 31: default changed to L2-only -- these three
+                # Default changed to L2-only -- these three
                 # previously had no effect at all (see PINNConfig.
                 # ea_metric_l2/mse/max's own comment), so their old
                 # all-checked default silently did nothing. Now that they
@@ -7123,7 +7123,7 @@ class MainWindow(QMainWindow):
             'files': valid_files,
             'do_line': True,
             'do_surface': True,
-            # Round 31: see the matching comment on the steady-state
+            # See the matching comment on the steady-state
             # branch above -- default changed to L2-only now that these
             # flags actually do something.
             'do_l2': True,
@@ -7833,7 +7833,7 @@ class MainWindow(QMainWindow):
 
     # ── Build PDE inputs ──────────────────────────────────────
     def _n_equations(self):
-        """Number of PDE residuals currently set (Round 63)."""
+        """Number of PDE residuals currently set."""
         return self.num_equations_spin.value() if hasattr(self, "num_equations_spin") else self.num_outputs_spin.value()
 
     def _on_num_equations_changed(self, _m):
@@ -8302,14 +8302,14 @@ class MainWindow(QMainWindow):
         return self.quick_examples_combo.currentText() == "None"
 
     def _on_network_type_changed(self, kind):
-        """Fourier scales only for MsFFN / STMsFFN (Round 73)."""
+        """Fourier scales only for MsFFN / STMsFFN."""
         if hasattr(self, "msffn_sigmas_row"):
             self.msffn_sigmas_row.setVisible(kind in ("MsFFN", "STMsFFN"))
             self.msffn_sigmas_t_row.setVisible(kind == "STMsFFN")
 
     def _bc_note_with_transform(self, text):
         """With no BC rows and an output-transform formula, say where the
-        boundary conditions are (hard constraints) -- Round 72."""
+        boundary conditions are (hard constraints)"""
         try:
             hard = (not self.custom_bc_list and self.output_transform_cb.isChecked()
                     and (self.output_transform_mode_combo.currentData() == "formula"))
@@ -8404,7 +8404,7 @@ class MainWindow(QMainWindow):
         happens as an error+hint at codegen time in
         _bc_check_interface2d_preconditions, since there's no sensible
         geometry to auto-pick the way Point Distribution was auto-corrected
-        in Round 33b -- but Dimension and Output Size can be checked here,
+        earlier -- but Dimension and Output Size can be checked here,
         so this BC type simply isn't offered until both are right."""
         return self.radio_2d.isChecked() and self.num_outputs_spin.value() == 2
 
@@ -8460,7 +8460,7 @@ class MainWindow(QMainWindow):
 
     def _bc_where_choices(self):
         """(label, expression) pairs for the "Where:" picker, for the
-        current dimension (Round 68). The side names are defined in the
+        current dimension. The side names are defined in the
         generated scripts against this problem's own domain limits."""
         is_2d = getattr(self, 'radio_2d', None) is not None and self.radio_2d.isChecked()
         is_3d = getattr(self, 'radio_3d', None) is not None and self.radio_3d.isChecked()
@@ -8592,7 +8592,7 @@ class MainWindow(QMainWindow):
         loc_layout.setContentsMargins(0, 0, 0, 0); loc_layout.setSpacing(2)
         loc_row = QHBoxLayout()
         loc_row.addWidget(QLabel("Where:"))
-        # Quick picker for the common choices (Round 68): it writes the
+        # Quick picker for the common choices: it writes the
         # expression into the field below, and follows whatever is typed
         # there ("Custom expression" when it's not one of its choices).
         loc_pick = QComboBox()
@@ -8666,7 +8666,7 @@ class MainWindow(QMainWindow):
         # PointSet / PointSetOperator: a data file of points (+ values,
         # unless PointSetOperator's Value row supplies the func instead) --
         # same convention as the existing "Load IC from file" option above.
-        # Round 71: the points can also be typed in or generated, and the
+        # The points can also be typed in or generated, and the
         # target values given as a formula -- no file needed for a few points.
         pointset_widget = QWidget()
         _ps_outer = QVBoxLayout(pointset_widget)
@@ -8769,7 +8769,7 @@ class MainWindow(QMainWindow):
         batch_layout.addStretch()
         entry_layout.addWidget(batch_widget)
 
-        # Operator BC only (Round 64): where it applies -- the spatial
+        # Operator BC only: where it applies -- the spatial
         # boundary (DeepXDE's OperatorBC default) or the initial time t = t0,
         # e.g. a wave equation's second initial condition du_t = 0.
         apply_widget = QWidget()
@@ -9157,7 +9157,7 @@ class MainWindow(QMainWindow):
         vals_map = {"left": self.bc_left_vals, "right": self.bc_right_vals,
                     "bottom": getattr(self, "bc_bottom_vals", []),
                     "top": getattr(self, "bc_top_vals", [])}
-        # Named sides (Round 68): defined against the domain's own limits in
+        # Named sides: defined against the domain's own limits in
         # the generated scripts, so they stay right if the domain changes.
         loc_map = {"left": "left", "right": "right",
                    "bottom": "bottom" if is_2d else "", "top": "top" if is_2d else ""}
@@ -9903,7 +9903,7 @@ class MainWindow(QMainWindow):
             ea_ref_grid=int((self._ea_settings or {}).get('ref_grid', 0) or 0) if getattr(self, '_ea_settings', None) else 0,
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
-            # Round 31: forward the "Error Metrics to Compute" checkboxes
+            # Forward the "Error Metrics to Compute" checkboxes
             # into config too -- previously ea['do_l2']/['do_mse']/['do_max']
             # were stored in self._ea_settings but never read past this
             # point, so the live Solve-time Error Analysis always computed
@@ -10374,7 +10374,7 @@ class MainWindow(QMainWindow):
         self.restore_output_combo.addItem("Custom...")
         self._fit_combo_width(self.plot_output_combo, min_width=130)
 
-        # Equations (Round 63; 0 = one per output) -- rebuilds the PDE rows
+        # Equations (0 = one per output) -- rebuilds the PDE rows
         # and weights, keeping the output names just set.
         n_eq = int(getattr(config, "num_equations", 0) or 0) or n_out
         self.num_equations_spin.setValue(n_eq)
@@ -10867,7 +10867,7 @@ class MainWindow(QMainWindow):
         self._plot_viz_settings.update({ui_key: getattr(config, cfg_key, PARAM_STYLE_DEFAULTS[cfg_key])
                                         for ui_key, cfg_key in self._PARAM_STYLE_KEYS})
 
-        # Loss Plot Settings (Round 28) -- getattr defaults so a config
+        # Loss Plot Settings -- getattr defaults so a config
         # saved before this feature existed restores cleanly.
         self._loss_plot_settings = {
             "mode": getattr(config, "loss_plot_mode", "train_test"),
@@ -10917,7 +10917,7 @@ class MainWindow(QMainWindow):
         # equivalent call here -- _on_dim_changed() already wipes the whole
         # Boundary Conditions list.
         self._refresh_bc_interface2d_availability()
-        # Equations follow the output count when it changes (Round 63);
+        # Equations follow the output count when it changes;
         # signals blocked so the PDE rows are built once, just below.
         if hasattr(self, "num_equations_spin"):
             self.num_equations_spin.blockSignals(True)
@@ -12728,7 +12728,7 @@ def _style_legend(ax):
 
     @staticmethod
     def _preview_single_geom_code(geom_type, **vals):
-        """cleanup Round 48: the dde.geometry constructor for a single-shape
+        """The dde.geometry constructor for a single-shape
         Domain Preview, built by the same codegen.py function the exported
         script trains on (_clean_geom_inner, behind _clean_geom_line) from
         the preview's own widget values -- previously each preview branch
@@ -12807,7 +12807,7 @@ def _style_legend(ax):
             patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
-        # cleanup Round 48: the constructor itself comes from the same
+        # The constructor itself comes from the same
         # codegen.py function training uses for a Custom leaf, so the preview
         # can never sample a different shape than the one that gets trained.
         # The branches above only validate and build the outline/bbox.
@@ -12861,7 +12861,7 @@ def _style_legend(ax):
             bbox = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
         else:
             raise ValueError(f"unsupported 3D shape type: {shape_type!r}")
-        # cleanup Round 48: same single source for the constructor as the 2D
+        # Same single source for the constructor as the 2D
         # leaf above -- codegen.py's _custom_geom_leaf_literal.
         from pinnstudio.core.codegen import _custom_geom_leaf_literal
         geom_code = _custom_geom_leaf_literal(shape_type, params)
@@ -14122,7 +14122,7 @@ print("DOMAIN_PREVIEW_DONE")
         from pinnstudio.ui.figure_style import open_figure_style
         return open_figure_style(self, viz_type, context, tab)
 
-    # ── Quick Examples: shared template-apply steps (cleanup Round 59) ──
+    # ── Quick Examples: shared template-apply steps ──
     # _on_template_selected applies five template tables (2D, 2D steady,
     # 3D, 3D steady, 1D); each used to repeat these steps by hand, and the
     # copies had drifted (only the 1D branch reset the L-BFGS float type,
@@ -15198,7 +15198,7 @@ print("DOMAIN_PREVIEW_DONE")
         # ── Error metrics ──────────────────────────────────────
         metrics_group = QGroupBox("Error Metrics to Compute")
         metrics_layout = QHBoxLayout(metrics_group)
-        # Round 31: default changed to L2-only (previously all three
+        # Default changed to L2-only (previously all three
         # were checked by default even though none of them had any
         # effect -- see PINNConfig.ea_metric_l2/mse/max's own comment).
         self._ea_l2_cb  = QCheckBox("L2 Relative"); self._ea_l2_cb.setChecked(True)
@@ -15208,7 +15208,7 @@ print("DOMAIN_PREVIEW_DONE")
             metrics_layout.addWidget(w)
         layout.addWidget(metrics_group)
 
-        # ── Reference source (Round 67): files, or an exact formula ──
+        # ── Reference source: files, or an exact formula ──
         _prev_ea = getattr(self, '_ea_settings', None) or {}
         # reopened: the boxes as they were set, not the defaults
         for _cb, _key in ((self._ea_line_cb, "do_line"), (self._ea_surface_cb, "do_surface"),
@@ -15803,7 +15803,7 @@ print("DOMAIN_PREVIEW_DONE")
         decay_type_combo.addItem("Step", "step")
         decay_type_combo.addItem("Cosine", "cosine")
         decay_type_combo.addItem("Exponential", "exponential")
-        # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
+        # DeepXDE's "inverse time": lr / (1 + rate * step / steps).
         decay_type_combo.addItem("Inverse time", "inverse time")
         decay_type_combo.setFixedHeight(26); decay_type_combo.setFixedWidth(self.PHASE_FIELD_W)
         decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
@@ -16760,7 +16760,7 @@ print("DOMAIN_PREVIEW_DONE")
                         is_ta=_use_ta_restore,
                         z_min=_ea_z_min, z_max=_ea_z_max,
                         line_slice_y=_ea_line_slice_y, line_slice_z=_ea_line_slice_z,
-                        # Round 31: the same "Error Metrics to Compute"
+                        # The same "Error Metrics to Compute"
                         # checkboxes (ea['do_l2']/['do_mse']/['do_max'],
                         # already stored by both the auto-configure path
                         # and the manual Error Analysis dialog) now also
@@ -17071,7 +17071,7 @@ def _use_log(vals):
         print("⚠️ Log-scale requested but values aren't all positive -- using linear scale instead.")
     return ok
 
-# cleanup Round 49: the static plot draws through _draw_param_ax, the same
+# The static plot draws through _draw_param_ax, the same
 # function the live Solve and exported scripts use (codegen.py's
 # _param_axis_helper_code), instead of its own hand-typed copy.
 {_param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, _pstyle)}
@@ -17158,7 +17158,7 @@ print("RESTORE_DONE")
             _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
-        # Re-attach the model's input/output transforms (Round 62) -- see
+        # Re-attach the model's input/output transforms -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.
         from pinnstudio.core.codegen import _net_transforms_code
@@ -17424,7 +17424,7 @@ def _extract_plot_field(x_grid):
             _xlabel_1d_steady = xlabel_override or _v1
             _ylabel_1d_steady = ylabel_override or out_name
             _title_1d_steady = title_override or f"Restored Model — {out_name}({_v1})"
-            # cleanup Round 45 (audit §2e, sub-round 3): this branch and its
+            # This branch and its
             # _build_restore_script_ta counterpart were two hand-typed copies
             # -- see _restore_surface_code's own docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_surface_code
@@ -17442,7 +17442,7 @@ def _extract_plot_field(x_grid):
             _ylabel_line = ylabel_override or out_name
             _slice_suffix_line = (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}, z={fmt_num(line_slice_z, number_settings(viz_settings))}" if is_3d else (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}" if is_2d else ""))
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
-            # cleanup Round 42 (audit §2e): this branch and its
+            # This branch and its
             # _build_restore_script_ta counterpart were two independently
             # hand-typed, ~90%-duplicated copies -- see
             # _restore_line_plot_code's own docstring in codegen.py for the
@@ -17468,7 +17468,7 @@ def _extract_plot_field(x_grid):
             # title_override is set, move it inside the axes instead, to
             # avoid the two overlapping into illegible text.
             _tt_x, _tt_y, _tt_ha = (0.02, 0.95, "left") if title_override else (0.5, 1.02, "center")
-            # cleanup Round 42 (audit §2e): same extraction as the
+            # Same extraction as the
             # "Line (time steps)" branch above -- see
             # _restore_line_animation_code's own docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_line_animation_code
@@ -17491,7 +17491,7 @@ def _extract_plot_field(x_grid):
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
                 else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
-            # cleanup Round 43 (audit §2e, sub-round 2): this branch and its
+            # This branch and its
             # Time-Adaptive counterpart below were ~82% textually identical --
             # see _restore_anim_surface_code's own docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_anim_surface_code
@@ -17622,7 +17622,7 @@ def _extract_plot_field(x_grid):
             _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
-        # Re-attach the model's input/output transforms (Round 62) -- see
+        # Re-attach the model's input/output transforms -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.
         from pinnstudio.core.codegen import _net_transforms_code
@@ -17805,7 +17805,7 @@ def _extract_plot_field(x_grid, _tm_model):
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
-            # cleanup Round 45 (audit §2e, sub-round 3): shared with
+            # Shared with
             # _build_restore_script's own "Surface" branch -- see
             # _restore_surface_code's docstring in codegen.py. A
             # Time-Adaptive restore is never steady-state, so the steady-1D
@@ -17825,7 +17825,7 @@ def _extract_plot_field(x_grid, _tm_model):
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
-            # cleanup Round 42 (audit §2e): shared with _build_restore_script's
+            # Shared with _build_restore_script's
             # own "Line (time steps)" branch -- see _restore_line_plot_code's
             # docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_line_plot_code
@@ -17848,7 +17848,7 @@ def _extract_plot_field(x_grid, _tm_model):
             # title_override is set, move it inside the axes instead, to
             # avoid the two overlapping into illegible text.
             _tt_x, _tt_y, _tt_ha = (0.02, 0.95, "left") if title_override else (0.5, 1.02, "center")
-            # cleanup Round 42 (audit §2e): shared with _build_restore_script's
+            # Shared with _build_restore_script's
             # own "Animation Line (GIF)" branch -- see
             # _restore_line_animation_code's docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_line_animation_code
@@ -17871,7 +17871,7 @@ def _extract_plot_field(x_grid, _tm_model):
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
                 else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
-            # cleanup Round 43 (audit §2e, sub-round 2): see
+            # See
             # _restore_anim_surface_code's docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_anim_surface_code
             script += "\n" + _restore_anim_surface_code(
@@ -17911,7 +17911,7 @@ def _extract_plot_field(x_grid, _tm_model):
         _auto     = viz_settings.get('auto_range', True)
         _vmin     = viz_settings.get('vmin', -1.0)
         _vmax     = viz_settings.get('vmax', 1.0)
-        # Round 31: same 3 font-size settings as the restore surface/line
+        # Same 3 font-size settings as the restore surface/line
         # builders above (see _build_restore_script's matching comment).
         _title_fs      = viz_settings.get('title_fontsize', 13.0)
         _subtitle_fs   = viz_settings.get('subplot_title_fontsize', 10.0)
@@ -17940,7 +17940,7 @@ def _extract_plot_field(x_grid, _tm_model):
         # actually selected above, silently analyzing the wrong field for
         # any multi-output model where "Output 1" wasn't the one chosen.
         _custom_expr_val = (custom_expr or "").strip()
-        # Round 31: build the metrics print/CSV fragments once here,
+        # Build the metrics print/CSV fragments once here,
         # honoring ea_metric_l2/mse/max (the "Error Metrics to Compute"
         # checkboxes) -- t and Mean_abs_error have no corresponding
         # checkbox in that dialog, so both always show, same as the

@@ -13,12 +13,12 @@ venv/
 !benchmarks/figures/tuning/**/*.png
 !pinnstudio/resources/*.png
 
-# Claude delivery scratch -- apply_*.py / *.patch files Claude sends for
-# review before applying a fix. Save them under this folder (anywhere
-# under it, any filename) instead of the repo root, so a plain
-# `git add -A` never picks them up again regardless of what they're
-# named.
+# Local patch scratch (apply_*.py / *.patch files kept for review before
+# applying a fix), so a plain `git add -A` never picks them up.
 _claude_patches/
+
+# Editor settings
+.vscode/
 
 # Local templates and their data, kept out of the public repository
 # (see pinnstudio/core/pinnstudio_examples.py)

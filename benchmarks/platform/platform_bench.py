@@ -57,7 +57,7 @@ def save(out, rows):
 
 
 # To hide the GPU, "-1" and not "": on Windows an empty value counts as unset for CUDA, so the GPU
-# stays visible while PyTorch's Python side sees no devices (STATUS.md, 2026-10-21).
+# stays visible while PyTorch's Python side sees no devices (seen on Windows, October 2026).
 def child(args, env=None, timeout=3600):
     """Run this file again in a new Python process; return its last JSON line."""
     e = dict(os.environ)

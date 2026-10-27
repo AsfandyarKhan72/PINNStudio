@@ -21,7 +21,7 @@ class PINNConfig:
     rar_lbfgs_iters: int = 10000
     # Stop refining early once the mean |residual| over the candidates is
     # below this (0 = off; rar_cycles is then a cap) -- DeepXDE's
-    # Burgers-RAR example loops until it's below 0.005. Round 66.
+    # Burgers-RAR example loops until it's below 0.005..
     rar_tolerance: float = 0.0
     # Which equation's residual to rank candidate points by when the PDE has
     # more than one governing equation (model.predict(x, operator=pde)
@@ -94,7 +94,7 @@ class PINNConfig:
     num_initial: int = 200
     num_test: int = 1000
     point_distribution: str = "Hammersley"
-    # Extra training points ("anchors", DeepXDE's anchors=) -- Round 65.
+    # Extra training points ("anchors", DeepXDE's anchors=)
     # "none", "file" (a points file: one column per input, x[, y[, z]][, t])
     # or "box" (anchors_count random points; anchors_box gives a "lo,hi"
     # range per input column, ';'-separated, blank = that column's domain
@@ -143,7 +143,7 @@ class PINNConfig:
     # kwarg in DeepXDE, so weight_decay is silently not applied when this is
     # "PFNN" (codegen.py suppresses the regularization arg in that case).
     network_type: str = "FNN"
-    # Multi-scale Fourier feature networks (Round 73): network_type "MsFFN"
+    # Multi-scale Fourier feature networks: network_type "MsFFN"
     # (all inputs) or "STMsFFN" (space and time separately); the scales sigma
     # of the random Fourier features, comma-separated.
     msffn_sigmas: str = "1, 10"
@@ -160,7 +160,7 @@ class PINNConfig:
     output_transform_enabled: bool = False
     output_transform_scale: List[float] = field(default_factory=lambda: [1.0])
     output_transform_shift: List[float] = field(default_factory=lambda: [0.0])
-    # Formula mode (Round 62) -- DeepXDE's apply_feature_transform /
+    # Formula mode -- DeepXDE's apply_feature_transform /
     # apply_output_transform with an arbitrary function, as its examples
     # use them: "scale" keeps the scale/shift rows above, "formula" uses:
     #   input_feature_formula   -- the network's input features, ';'-separated,
@@ -191,11 +191,11 @@ class PINNConfig:
 
     # Multi-output
     num_outputs: int = 1
-    # Number of PDE residuals (Round 63); 0 = one per output, as before.
+    # Number of PDE residuals; 0 = one per output, as before.
     num_equations: int = 0
     output_names: str = "u"
     pde_expressions: str = "du_t - 0.4 * du_xx"
-    # Named constants (Round 70): JSON list of {"name", "value"}; each value a
+    # Named constants: JSON list of {"name", "value"}; each value a
     # number or an expression in math functions and earlier constants. Usable
     # by name in every expression of the problem (see core/constants.py).
     constants: str = ""
@@ -235,14 +235,14 @@ class PINNConfig:
     # construction. Built into the input transform by the generators.
     periodic_inputs: bool = False
     loss_weights_multi: str = ""
-    # Round 75: > 0 -> before training, each loss weight becomes
+    # > 0 -> before training, each loss weight becomes
     # c / (that term's initial loss), as in DeepXDE's wave example
     # (loss_weights = 5 / initial_losses); the weights above are ignored.
     loss_weights_from_initial: float = 0.0
-    # Round 76: Gauss-Legendre points for integral(...) terms in the
+    # Gauss-Legendre points for integral(...) terms in the
     # equations (integro-differential ODEs) -- DeepXDE's quad_deg.
     integral_points: int = 20
-    # Round 77: fractional equations -- frac(u) in an equation is DeepXDE's
+    # Fractional equations -- frac(u) in an equation is DeepXDE's
     # discretized fractional operator applied to output u (1D: the sum of
     # the left and right Riemann-Liouville derivatives of order alpha; 2D/3D:
     # the integral over directions of the directional derivative, the
@@ -493,7 +493,7 @@ class PINNConfig:
 
     plot_colormap: str = "jet"
     # Multi-output problems: also save every output's own plot, as
-    # solution_plot_<name>.<ext>, besides the selected "Plot output" (Round 69).
+    # solution_plot_<name>.<ext>, besides the selected "Plot output".
     plot_all_outputs: bool = True
     plot_levels: int = 100
     plot_resolution: int = 200
@@ -510,7 +510,7 @@ class PINNConfig:
     plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
-    # Font-size standardization (Round 31): previously every plot across
+    # Font-size standardization: previously every plot across
     # the app hardcoded its own title/axis-label font sizes ad hoc, with
     # real inconsistencies even within the same plot type (e.g. Time-
     # Adaptive's own per-step suptitle was fontsize 11 in one branch and
@@ -531,7 +531,7 @@ class PINNConfig:
     # before this existed); a few minor, previously-inconsistent outlier
     # call sites (e.g. a couple of stray fontsize=11/12 suptitles)
     # intentionally converge onto these single defaults rather than
-    # preserving every prior ad hoc value, same precedent as Round 30's
+    # preserving every prior ad hoc value, same precedent as an earlier
     # plot_resolution unification.
     plot_title_fontsize: float = 13.0
     plot_subplot_title_fontsize: float = 10.0
@@ -594,7 +594,7 @@ class PINNConfig:
     plot_sci_notation: str = "auto"
     plot_sci_style: str = "times"
 
-    # Loss Plot Settings (Round 28): previously every loss plot across the
+    # Loss Plot Settings: previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
     # control, and model.train()'s own display_every -- which doubles as
     # the loss plot's own sampling granularity, since DeepXDE's
@@ -659,7 +659,7 @@ class PINNConfig:
     ea_do_line: bool = True
     ea_do_surface: bool = True
 
-    # Error Metrics to Compute (Round 31): previously the Error Analysis
+    # Error Metrics to Compute: previously the Error Analysis
     # dialog's "L2 Relative"/"MSE"/"Max Error" checkboxes were pure dead
     # UI -- their state was stored but nothing downstream ever read it,
     # so every metric was always computed and shown regardless of what
@@ -676,7 +676,7 @@ class PINNConfig:
     ea_metric_l2: bool = True
     ea_metric_mse: bool = False
     ea_metric_max: bool = False
-    # Reference solution from a formula instead of files (Round 67):
+    # Reference solution from a formula instead of files:
     # ea_ref_mode "files" | "formula"; ea_ref_formula has one expression
     # per output ('|'-separated, blank = no reference for that output) in
     # x, y, z, t with numpy math names plus erf/norm_cdf; ea_ref_times are
@@ -813,7 +813,7 @@ class PINNConfig:
     # "Specified combinations"; every parameter must have the same
     # number of values, checked in validate() below).
     sweep_mode: str = "oat"
-    # Round 75: sweep_mode "bayes" -- Bayesian search (DeepXDE's
+    # Sweep_mode "bayes" -- Bayesian search (DeepXDE's
     # Helmholtz HPO example): the baseline, then sweep_bayes_calls - 1
     # runs each chosen by a Gaussian-process model of the results so far
     # (pinnstudio/core/bayes_opt.py), minimizing the final training loss

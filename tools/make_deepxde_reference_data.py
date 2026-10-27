@@ -243,12 +243,12 @@ def main():
     xo = np.linspace(1 / 6, 1, 5, endpoint=False)
     _save("brinkman_forchheimer/u_obs.txt", np.column_stack([xo, 1 - np.cosh(20 * (xo - 0.5)) / np.cosh(10)]))
 
-    # Helmholtz sound-hard scattering (Round 75): columns x, y, value.
+    # Helmholtz sound-hard scattering: columns x, y, value.
     x, y, ure, uim = sound_hard_scattering()
     _save("helmholtz_sound_hard/u_re.txt", np.column_stack([x, y, ure]))
     _save("helmholtz_sound_hard/u_im.txt", np.column_stack([x, y, uim]))
 
-    # Inverse fractional Poisson (Round 77): measurements of the exact solutions
+    # Inverse fractional Poisson: measurements of the exact solutions
     # (alpha = 1.8), as DeepXDE's scripts make them.
     xo = np.linspace(-1, 1, 20)
     _save("fractional_inverse_1d/u_obs.txt", np.column_stack([xo, xo * np.abs(1 - xo ** 2) ** 0.9]))
@@ -257,7 +257,7 @@ def main():
     xo, yo = r * np.cos(th), r * np.sin(th)
     _save("fractional_inverse_2d/u_obs.txt", np.column_stack([xo, yo, (1 - xo ** 2 - yo ** 2) ** 1.9]))
 
-    # ODE examples (Round 74): columns t, value.
+    # ODE examples: columns t, value.
     t, (r, pp) = lotka_volterra()
     _save("lotka_volterra/r.txt", np.column_stack([t, r]))
     _save("lotka_volterra/p.txt", np.column_stack([t, pp]))

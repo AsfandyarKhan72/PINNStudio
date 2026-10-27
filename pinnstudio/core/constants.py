@@ -1,4 +1,4 @@
-"""Named constants (Round 70): "Re = 20", "nu = 1/Re", ... set once in the
+"""Named constants: "Re = 20", "nu = 1/Re", ... set once in the
 PDE panel and usable by name in every expression of a problem -- PDE,
 initial and boundary conditions, transforms, the exact-solution reference,
 custom plot fields, training monitors.

@@ -79,7 +79,7 @@ def _time_1d(a, b, t0, t1):
 
 
 def _ode(t0, t1):
-    """ODE problem (Round 74): only t, in [t0, t1]."""
+    """ODE problem: only t, in [t0, t1]."""
     return dict(problem_dim="ODE", steady_state=False, geometry_type="Interval", t_min=float(t0), t_max=float(t1),
                 num_initial=0)
 
@@ -101,7 +101,7 @@ def _phase(optimizer, iterations, lr=1e-3, decay=None):
 
 
 def _consts(*pairs):
-    """Named constants (Round 70), as DeepXDE's scripts define them at the top."""
+    """Named constants, as DeepXDE's scripts define them at the top."""
     return dict(constants=json.dumps([{"name": n, "value": v} for n, v in pairs]))
 
 
@@ -153,7 +153,7 @@ _BURGERS_NOTE = ("Time runs from 0 to 1 (DeepXDE's script stops at 0.99, where i
                  "Error Analysis compares with the exact (Cole-Hopf) solution at t = 0, 0.25, 0.5, 0.75 and 1.")
 
 EXAMPLES = [
-    # ── ODEs (Round 74) ───────────────────────────────────────────────────
+    # ── ODEs ───────────────────────────────────────────────────
     _ex("ODE system", FORWARD, _DOCS + "pinn_forward/ode.system.html",
         _ode(0, 10),
         dict(num_outputs=2, output_names="y1,y2", pde_expressions="dy1_t - y2|dy2_t + y1",

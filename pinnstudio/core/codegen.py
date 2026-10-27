@@ -174,7 +174,7 @@ def _bc_entries_use_periodic(bc_entries):
 
 
 def _bc_initial_operator_rows(bc_entries):
-    """Operator BC rows set to apply at the initial time (Round 64)."""
+    """Operator BC rows set to apply at the initial time."""
     return [i for i, e in enumerate(bc_entries or [])
             if isinstance(e, dict) and e.get("type") == "operator" and e.get("apply_at") == "initial"]
 
@@ -198,7 +198,7 @@ def _bc_check_initial_operator_preconditions(bc_entries, is_steady, time_adaptiv
 
 
 def _check_anchor_preconditions(config):
-    """Extra training points (Round 65) aren't supported with Time-Adaptive
+    """Extra training points aren't supported with Time-Adaptive
     training -- each step only covers part of the time range."""
     if (getattr(config, "anchors_mode", "none") or "none") != "none" and getattr(config, "time_adaptive", False):
         raise ValueError("Extra training points (anchors) aren't supported with Time-Adaptive training "
@@ -428,7 +428,7 @@ _PDE_TORCH_FUNCS = (
 
 
 def _fold_numeric_calls(e):
-    """sqrt(3), exp(-1), gamma((1 - 1.8)/2), ... -> their values (Round 75):
+    """sqrt(3), exp(-1), gamma((1 - 1.8)/2), ... -> their values:
     torch's functions take tensors, not numbers, so torch.sqrt(3) in a
     generated expression fails. Calls whose argument is only numbers, pi,
     arithmetic and parentheses are evaluated here (innermost first);
@@ -474,7 +474,7 @@ def _simplify_pde_expr(expr):
     """Convert user-friendly math in a PDE expression: bare function calls
     become torch calls (sin(...) -> torch.sin(...)) and pi becomes np.pi.
     A call the user already qualified (np.sin, torch.sin) is left alone.
-    (Before Round 61 these became np.sin(...), which crashed on the
+    (Earlier these became np.sin(...), which crashed on the
     network's tensors -- no built-in template used one, so it never showed.)"""
     import re
     e = _fold_numeric_calls(expr.strip())
@@ -486,7 +486,7 @@ def _simplify_pde_expr(expr):
 
 def _bc_domain_values(config):
     """{name: value} of the domain limits a Boundary Conditions expression
-    can use by name (Round 68): x_min/x_max always, y_* in 2D/3D, z_* in
+    can use by name: x_min/x_max always, y_* in 2D/3D, z_* in
     3D, t_min/t_max when time-dependent."""
     dim = getattr(config, "problem_dim", "1D")
     names = ["x_min", "x_max"]
@@ -534,7 +534,7 @@ def _clean_bc_name_lines(indent, expr, domain, is_location):
     """For the exported script: define, inside a BC helper function, only
     the domain names an expression uses -- e.g. `x_min = -1.0` and
     `left = np.isclose(x, -1.0)  # x = x_min` -- so the expression reads
-    exactly as the user typed it (Round 68)."""
+    exactly as the user typed it."""
     used = _expr_names(expr)
     lines = [f"{indent}{n} = {v!r}" for n, v in domain.items() if n in used]
     if is_location:
@@ -1106,7 +1106,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
 
 
 def _parse_sigmas(text):
-    """"1, 10" -> [1.0, 10.0] (Fourier-feature scales, Round 73)."""
+    """"1, 10" -> [1.0, 10.0] (Fourier-feature scales)."""
     out = []
     for p in str(text or "").replace(";", ",").split(","):
         p = p.strip()
@@ -1232,7 +1232,7 @@ def _loss_plot_runtime_code(config):
     script (alongside `net_helper_code`/`_tm_runtime_code`, same pattern)
     and called at every loss-plotting site in generate_script() (the
     Standard/RAR path and the Time-Adaptive path) and
-    generate_clean_script() -- honoring the Round 28 Loss Plot Settings
+    generate_clean_script() -- honoring the Loss Plot Settings
     (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth).
 
     Defining this as a reusable FUNCTION at module level, rather than a
@@ -1324,7 +1324,7 @@ def _training_monitor_runtime_code():
     definition) even though the math is identical -- this is an
     intentionally separate, self-contained copy so a diagnostic-only
     feature can never perturb the already-tested PDE-residual codegen
-    path. The duplication is the deliberate tradeoff (see Round 15's
+    path. The duplication is the deliberate tradeoff (see the earlier
     network-architecture lesson about avoiding a second place that needs
     the same derivation logic -- accepted here specifically to keep this
     feature's blast radius at zero for the PDE itself).
@@ -1631,7 +1631,7 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
 
 def _ea_metrics_csv_header(config):
     """CSV column header for an error_metrics.txt file, gated by the
-    "Error Metrics to Compute" settings (Round 31: config.ea_metric_l2/
+    "Error Metrics to Compute" settings (config.ea_metric_l2/
     mse/max, wired from the Error Analysis dialog's own checkboxes --
     previously stored but never actually read by anything, so every
     metric was always computed and shown regardless of what was
@@ -1713,7 +1713,7 @@ def _rar_optimizer(config):
 
 def _gs_rar_loop_code(config):
     """generate_script()'s Residual-based Adaptive Refinement loop, including the
-    per-round diagnostics (_rar_save_round_diagnostics) -- cleanup Round 52
+    per-round diagnostics (_rar_save_round_diagnostics)
     (audit §5): moved verbatim out of generate_script()'s template, where it
     was the largest unnamed inline block. Returns the exact same text the
     template used to contain (byte-for-byte; see the round's notes). Every
@@ -1734,7 +1734,7 @@ def _gs_rar_loop_code(config):
         # across rounds are visible afterward, not just the final model.
         # Saved under this run's own solution_results/rar_rounds/
         # round_NN/ -- the same per-run-unique save_dir every other plot
-        # already uses (see Round 19's _on_done() fix).
+        # already uses (see the _on_done() fix).
         _rar_rounds_dir = _os.path.join(_sol_dir, "rar_rounds")
         _rar_orig_pts = np.array(data.train_x_all, copy=True)
         _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
@@ -1774,14 +1774,14 @@ def _gs_rar_loop_code(config):
             # per-step diagnostics already use (a model file saved
             # alongside that unit's own plots), closing a gap RAR's own
             # per-round diagnostics had since they were first added
-            # (Round 20): this round's trained model is NOT saved anywhere
+            # This round's trained model is NOT saved anywhere
             # unless it happens to also be the FINAL round's model (saved
             # separately, after the whole RAR loop ends, as this run's one
             # overall model). Without this, every earlier round's model is
             # unrecoverable once RAR moves on -- only its plots/metrics
             # survive, not the weights themselves.
             #
-            # Round 31: this save always runs at the END of the round,
+            # This save always runs at the END of the round,
             # after whichever phase(s) ran (Adam-only, or Adam+L-BFGS).
             # Standardized on "one checkpoint per optimizer phase"
             # everywhere, matching Time-Adaptive's own per-step
@@ -2180,7 +2180,7 @@ def _gs_rar_loop_code(config):
             # -- 2D/3D: solution snapshot merged with the error comparison --
             # One single file: PINN | Reference | |Error| -- all three
             # panels now share the SAME colormap (config.plot_colormap),
-            # standardized in Round 31 (previously |Error| hardcoded its
+            # standardized earlier (previously |Error| hardcoded its
             # own "inferno" colormap here, inconsistent with the other
             # two panels) -- whenever a reference file is configured;
             # just the PINN prediction alone, same as before, when it isn't.
@@ -2419,7 +2419,7 @@ def _gs_rar_loop_code(config):
             loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every},
                                                     callbacks=list(_train_cbs))
             if {config.rar_lbfgs_iters} > 0:
-                # Round 31: when this round also runs an L-BFGS phase, save
+                # When this round also runs an L-BFGS phase, save
                 # the Adam phase's own checkpoint here -- standardized on
                 # "one checkpoint per optimizer phase" everywhere, matching
                 # Time-Adaptive's own per-step convention (previously RAR
@@ -2458,7 +2458,7 @@ def _gs_rar_loop_code(config):
 
 def _gs_ea_setup_code(config, banner, indent):
     """generate_script()'s Error Analysis setup, shared by the Standard and
-    Time-Adaptive paths (cleanup Round 58 -- these were two hand-kept
+    Time-Adaptive paths (these were two hand-kept
     copies): normalize `ea_files` entries to (time, path, output_selector)
     3-tuples, keep the ones inside [t_min, t_max], group them by output,
     and define _ea_group_label / _ea_extract.
@@ -2567,7 +2567,7 @@ def _ta_icgl_iterations(config):
 def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted, _safe_point_distribution="Hammersley"):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
-    Time-Adaptive Error Analysis) -- cleanup Round 52 (audit §5): moved
+    Time-Adaptive Error Analysis) moved
     verbatim out of generate_script()'s template, where it was the largest
     unnamed inline block (~1,600 lines). Returns the exact same text the
     template used to contain (byte-for-byte; see the round's notes)."""
@@ -3509,7 +3509,7 @@ if {config.time_adaptive}:
                                     _tea_vmax = _tea_vmin + 1e-12
                                 _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                                 _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
-                                # Round 31: standardized on "|Error|  Max=..."
+                                # Standardized on "|Error|  Max=..."
                                 # here -- matching every other per-panel error
                                 # label in the app (RAR's own round diagnostics,
                                 # this same per-step plot's sibling 3D branch,
@@ -3701,7 +3701,7 @@ if {config.time_adaptive}:
             _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
             _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
             _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
-            # cleanup Round 44: masked to the real geometry with
+            # Masked to the real geometry with
             # geom.inside(...) -- same convention the Standard path's own
             # 2D Surface branch already uses (geom here is the real
             # reconstructed geometry built at module scope above, NOT the
@@ -4326,7 +4326,7 @@ if {config.time_adaptive}:
 
 
 def _n_equations(config):
-    """How many PDE residuals the problem has (Round 63): config.num_equations,
+    """How many PDE residuals the problem has: config.num_equations,
     or one per output when it's 0 (every config saved before this round).
     DeepXDE itself allows any number -- e.g. its American-put example has
     three for one output, its unknown-field inverse problems one for two."""
@@ -4358,8 +4358,8 @@ def _feature_formula_list(cfg):
 
 def _net_transforms_code(cfg, fn_name="_apply_net_transforms"):
     """Source for `<fn_name>(net)`, which attaches this model's input and
-    output transforms to a freshly built network and returns it (cleanup
-    Round 62). Shared by the live Solve script, the exported script and
+    output transforms to a freshly built network and returns it.
+    Shared by the live Solve script, the exported script and
     both Restore & Visualize builders: DeepXDE's apply_feature_transform /
     apply_output_transform attach a Python closure to the net instance,
     not anything saved in a checkpoint, so every script that rebuilds the
@@ -4469,7 +4469,7 @@ def _ode_text(expr):
 
 
 def _ode_to_1d(config):
-    """Round 74: an ODE problem (problem_dim "ODE", independent variable t
+    """An ODE problem (problem_dim "ODE", independent variable t
     in [t_min, t_max]) solved as a 1D steady problem in x = t. Initial
     conditions become Dirichlet rows at the start (x = t_min), keeping
     their place in the loss-weight order; an Operator row "at the initial
@@ -4533,7 +4533,7 @@ _INTEGRAL_RE = None
 
 
 def _integral_text(expr, out_names, x0):
-    """Round 76: integro-differential terms. `integral(f)` in an equation
+    """Integro-differential terms. `integral(f)` in an equation
     of an ODE (or steady 1D) problem is the Volterra integral of f from the
     start of the range to the current point, f being an expression in the
     integration variable s, the current point (x, i.e. t) and the outputs
@@ -4594,7 +4594,7 @@ _FRAC_RE_SRC = r"(?<![\w.])frac\("
 
 
 def _uses_frac(config):
-    """Round 77: an equation uses the fractional operator frac(...)."""
+    """An equation uses the fractional operator frac(...)."""
     import re as _re_fr
     return bool(_re_fr.search(_FRAC_RE_SRC, getattr(config, "pde_expressions", "") or ""))
 
@@ -4617,7 +4617,7 @@ def _frac_alpha_expr(config):
 def _frac_data_text(text, config, geom, pde, cons):
     """dde.data.PDE/TimePDE(geom, pde, cons, ...) -> dde.data.FPDE/TimeFPDE(
     geom, pde, alpha, cons, resolution, meshtype=..., ...) for a fractional
-    problem (Round 77). The loss is tested on the training points
+    problem. The loss is tested on the training points
     (num_test=None, as in DeepXDE's fractional scripts; a static mesh can't
     have test points at all)."""
     import re as _re_fr
@@ -4666,7 +4666,7 @@ def _frac_apply(_im, _v):
 
 
 def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
-    """Round 75: 'Scale by initial losses' -- evaluate every loss term once
+    """'Scale by initial losses' -- evaluate every loss term once
     (no training) and set weight_i = c / L_i(0), as DeepXDE's wave example
     does (loss_weights = 5 / initial_losses). Empty when the option is off."""
     c = float(getattr(config, "loss_weights_from_initial", 0.0) or 0.0)
@@ -4837,7 +4837,7 @@ def _ta_out_label(config):
 
 
 def _effective_config(config):
-    """The config as the generators should read it -- cleanup Round 56.
+    """The config as the generators should read it
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
     (Time-Adaptive training splits a time axis a steady problem doesn't
     have), and the GUI hides it there -- but neither generator enforced
@@ -4854,7 +4854,7 @@ def _effective_config(config):
     _sb = _shape_bbox(config)
     if _sb and any(abs(float(getattr(config, k)) - v) > 1e-12 for k, v in _sb.items()):
         config = _dc.replace(config, **_sb)
-    # Round 70: named constants -> their values, in every expression.
+    # Named constants -> their values, in every expression.
     _consts = _constant_values(config)
     if _consts:
         from pinnstudio.core import constants as _cmod
@@ -4870,7 +4870,7 @@ def _effective_config(config):
         config = _dc.replace(config, constants="", **_sub)
     config = _exact_constraints(config)
     if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
-        # Round 75: weights from the initial losses replace every phase's own.
+        # Weights from the initial losses replace every phase's own.
         try:
             _ph = _bc_json_std.loads(config.scheduler_phases)
             if any(isinstance(p, dict) and "weights" in p for p in _ph):
@@ -4893,9 +4893,9 @@ def _effective_config(config):
         config = _dc.replace(config,
                              pde_expressions=_integral_text(config.pde_expressions, _names, config.x_min),
                              pde_expression=_integral_text(config.pde_expression, _names, config.x_min))
-    # Round 62: with an input feature formula the network's first layer
+    # With an input feature formula the network's first layer
     # takes one input per feature, not one per coordinate.
-    # Round 67: "reference from a formula" -> the files the scripts will
+    # "Reference from a formula" -> the files the scripts will
     # write (see _formula_reference_code), as ordinary ea_files entries.
     _ref = _formula_reference_entries(config)
     if _ref:
@@ -4904,7 +4904,7 @@ def _effective_config(config):
     if n_feat and config.layers and config.layers[0] != n_feat:
         config = _dc.replace(config, layers=[n_feat] + list(config.layers[1:]))
     if _was_ode:
-        # Round 74: plots of an ODE name its variable t, not x (a fresh
+        # Plots of an ODE name its variable t, not x (a fresh
         # copy, never the caller's config).
         config._ode = True
     return config
@@ -4963,7 +4963,7 @@ def _small_problem_gpu_tip(config):
 
 def generate_script(config):
     config = _effective_config(config)
-    # Naming convention (cleanup Round 55): generation-time Python names in
+    # Naming convention: generation-time Python names in
     # this function use the same plain spelling as generate_clean_script()'s
     # (is_2d, is_3d, is_steady, line_slice_y, sol_ext, ...), so a fix ported
     # between the two generators keeps its names. Names INSIDE the script
@@ -5055,7 +5055,7 @@ def generate_script(config):
     config_pde_expressions = "|".join(pde_exprs_converted)
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
-    # Extra training points (Round 65) -- see _anchor_points_code; the
+    # Extra training points -- see _anchor_points_code; the
     # text stays exactly as before when there are none.
     _has_user_anchors = bool(_anchor_points_code(config))
     _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file
@@ -5120,7 +5120,7 @@ def generate_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
-    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # An ODE's variable
 
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
@@ -5297,7 +5297,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # true no-op wiring point like _train_cbs_code below.
     _tm_runtime_code = _training_monitor_runtime_code()
 
-    # Loss Plot Settings (Round 28) -- see _loss_plot_runtime_code()'s own
+    # Loss Plot Settings -- see _loss_plot_runtime_code()'s own
     # docstring. Embeds a single reusable `_make_loss_plot(...)` helper
     # once at module level (same pattern as net_helper_code/_make_net);
     # every loss-plotting call site (Standard/RAR path, Time-Adaptive
@@ -5331,7 +5331,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # hand-edited) could still carry 0 -- clamp here too as a second line
     # of defense. The field's own default (1000) is unaffected either way.
     _ic_pretrain_num_initial_safe = max(1, config.ic_pretrain_num_initial)
-    # cleanup Round 47: the IC Pre-Training dataset/compile/restore-or-train
+    # The IC Pre-Training dataset/compile/restore-or-train
     # block, shared by both of this function's copies (Standard and
     # Time-Adaptive) and both of generate_clean_script()'s -- see
     # _ic_pretrain_train_code.
@@ -6162,7 +6162,7 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 
 # The domain's own limits, usable by name in every Boundary Conditions
 # expression (e.g. "x <= x_min", "x_max - x"), and the named sides of the
-# domain box usable in "Where:" (Round 68): left/right (x = x_min/x_max),
+# domain box usable in "Where:": left/right (x = x_min/x_max),
 # bottom/top (y = y_min/y_max, 2D/3D), front/back (z = z_min/z_max, 3D).
 _BC_DOMAIN = {_bc_domain_literal(config)}
 _BC_SIDES = {_bc_sides_literal(config)}
@@ -6187,7 +6187,7 @@ def _bc_loc_fn(_expr):
     return _f
 
 def _bc_init_loc_fn(_expr):
-    # Operator BC applied at the initial time t = t_min (Round 64) instead
+    # Operator BC applied at the initial time t = t_min instead
     # of on the spatial boundary -- e.g. a wave equation's du_t = 0 at t = 0.
     # TimePDE's training points include the initial-time points, so the
     # filter finds them; the location expression still applies on top.
@@ -6238,7 +6238,7 @@ def _bc_robin_fn(_expr, _comp):
             _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
             if not _is_steady:
                 _ns["t"] = _Xb[:, -1]
-        # Round 75: every output by name (e.g. -k0*u_im for a Helmholtz
+        # Every output by name (e.g. -k0*u_im for a Helmholtz
         # absorbing condition on u_re), then u = this row's own output.
         for _oi, _on in enumerate(_out_names_list):
             if _on.strip():
@@ -6310,7 +6310,7 @@ def _bc_load_points_file(_path, _bc_label, _n_values=1):
     return _data[:, :_n_coord_cols_bc], _data[:, _n_coord_cols_bc:_n_coord_cols_bc + _n_values]
 
 def _bc_parse_points(_text, _bc_label):
-    # Typed list of points (Round 71): ';' between points, ',' between
+    # Typed list of points: ';' between points, ',' between
     # coordinates (x[, y[, z]][, t]); in 1D steady problems ',' also
     # separates points ("0.2, 0.5, 0.8").
     _txt = (_text or "").strip()
@@ -6328,7 +6328,7 @@ def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
     # points from a file, a typed list or generated at random (on the part
     # of the boundary picked by "Where", or in the domain); values from the
     # file's value columns or a formula in x, y, z, t ('|' between
-    # components) -- Round 71.
+    # components)
     _mode = _be.get('points_mode', 'file') or 'file'
     _vmode = _be.get('values_mode', 'file') or 'file'
     if _mode == 'file':
@@ -6893,7 +6893,7 @@ for _pval in _param_values:
                     precision=6
                 )
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
-                # Round 31: standardized on "save one checkpoint per
+                # Standardized on "save one checkpoint per
                 # optimizer phase" everywhere (matching Time-Adaptive's own
                 # established per-step convention, and the user's explicit
                 # choice when this was flagged as an inconsistency) --
@@ -6931,7 +6931,7 @@ for _pval in _param_values:
                 # was also "none").
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=_train_cbs)
             if _use_save and not _sched_active:
-                # Round 31: standardized on "save one checkpoint per
+                # Standardized on "save one checkpoint per
                 # optimizer phase" everywhere (matching Time-Adaptive's own
                 # established per-step convention) -- previously this
                 # Adam-phase checkpoint was only saved when Adam was the
@@ -7318,7 +7318,7 @@ for _pval in _param_values:
     # on "not time_adaptive" -- which this whole section already requires
     # too, so they're guaranteed to exist here without redefining them.
     if not {config.time_adaptive}:
-        # Every output gets its own plot, named after it (Round 69): the
+        # Every output gets its own plot, named after it: the
         # selected "Plot output" is still solution_plot.<ext>, and with more
         # than one output each one is also saved as solution_plot_<name>.<ext>.
         _plot_main_job = (_plot_idx, _run_solution_path)
@@ -7447,7 +7447,7 @@ for _pval in _param_values:
                             (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
                             (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
                         ]
-                        # cleanup Round 46: mask every bounding-box face to the
+                        # Mask every bounding-box face to the
                         # real geometry, same geom.inside(...) convention as the
                         # static 3D Surface plot -- spatial-only, computed once.
                         _face_inside3a = []
@@ -7503,7 +7503,7 @@ for _pval in _param_values:
                         if _is_2d:
                             _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
                             _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
-                            # cleanup Round 46: NaN out grid points outside the
+                            # NaN out grid points outside the
                             # real geometry, same as the static 2D Surface plot.
                             _inside2d_gif = np.asarray(geom.inside(np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel()]))).reshape(_res_anim_gif, _res_anim_gif)
                             for _tv in _t_frames:
@@ -8880,7 +8880,7 @@ def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
 def _clean_geom_inner(config, is_2d, is_3d, tri_verts, poly_verts):
     """The bare dde.geometry.XXX(...) constructor call behind
     _clean_geom_line(), plus whether it needs the _DTypeSafeGeom wrapper.
-    Split out in cleanup Round 48 so the GUI's Domain Preview builds its
+    Split out earlier so the GUI's Domain Preview builds its
     geometry with exactly the constructor the exported script trains on,
     instead of its own hand-typed per-shape copy."""
     gt = config.geometry_type or "Rectangle"
@@ -8914,7 +8914,7 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d, is_steady=True, used=Non
     the problem has them -- shared by every BC location/value helper
     below so an expression like "x" or "np.isclose(x, 0)" the user typed
     means exactly what it looks like. A time-dependent problem also gets
-    t (the last column) when the expression uses it -- Round 64; before,
+    t (the last column) when the expression uses it; before,
     a value like x*cos(t) was a NameError in the exported script while
     the live script supported it."""
     lines = []
@@ -9004,7 +9004,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     defs, append = [], []
 
     def _clean_points_values(i, entry, n_values):
-        """Points and target values of a Point Set (Operator) row (Round 71):
+        """Points and target values of a Point Set (Operator) row:
         from a file, a typed list or generated; values from the file or a
         formula. Returns (def_lines, append_lines) defining _pts{i}/_pvals{i}."""
         mode = entry.get('points_mode', 'file') or 'file'
@@ -9108,7 +9108,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
         if entry.get('apply_at') == 'initial' and not is_steady:
-            # At the initial time t = t_min (Round 64), not on the boundary --
+            # At the initial time t = t_min, not on the boundary --
             # the initial-time training points pass this filter.
             init_loc = [f"def {loc_name}(X, on_boundary):",
                         f"    if not np.isclose(X[-1], {t_min!r}):",
@@ -9428,7 +9428,7 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
 
 def _clean_loss_series_lines(config, train_rows_expr, test_rows_expr, steps_expr):
     """Builds the plain `plt.<semilogy|plot>(...)` lines for one "Export as
-    DeepXDE Script" loss plot, honoring the Round 28 Loss Plot Settings
+    DeepXDE Script" loss plot, honoring the Loss Plot Settings
     (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth) -- the same
     settings generate_script()'s _make_loss_plot applies, but resolved HERE,
     directly into fixed plt calls at codegen time, since generate_clean_script
@@ -9495,7 +9495,7 @@ _DTYPE_SAFE_GEOM_CLASS = '''class _DTypeSafeGeom:
 
 def _dtype_safe_geom_class_code():
     """The _DTypeSafeGeom adapter class every generated script that needs it
-    embeds -- cleanup Round 56: it used to be hand-typed four times (live
+    embeds it used to be hand-typed four times (live
     Solve, export, both restore builders), two with a docstring and two
     without; now one copy."""
     return _DTYPE_SAFE_GEOM_CLASS
@@ -9509,7 +9509,7 @@ def _math_namespace_code(var, lib, indent=""):
     """`<var> = {"sin": ..., ..., "pi": np.pi}` -- the dict of math functions
     a generated script's eval() namespace offers user expressions, for
     lib "torch" (custom plot fields, evaluated on tensors) or "np" (BC/EA
-    expressions, evaluated on arrays). cleanup Round 56: this dict was
+    expressions, evaluated on arrays).: this dict was
     hand-typed seven times across the generators and restore builders."""
     alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"} if lib == "torch" else {}
     lines = [f"{var} = {{"]
@@ -9641,7 +9641,7 @@ def anim_dpi(src):
 def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, colors=None, fonts=None, dpi_anim=150,
                          extras=None):
     """Builds the literal Python source for a module-level `_plot_figsize(
-    default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
+    default_w, default_h)` helper -- the Plot Settings figure-size
     standardization, called at every single-panel plot site in place of a
     bare figsize=(W, H) literal. "Default" mode returns (default_w,
     default_h) unchanged, so every wrapped call site renders byte-identical
@@ -9653,8 +9653,8 @@ def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, 
     (inline, below), generate_clean_script() (via _clean_figsize_runtime_code()
     right below this function), and main_window.py's three restore/GIF
     script builders (_build_restore_param_script, _build_restore_script,
-    _build_restore_script_ta -- imported from here rather than hand-copied,
-    cleanup Round 39). Previously this exact block existed as 5 separate
+    _build_restore_script_ta -- imported from here rather than hand-copied).
+    Previously this exact block existed as 5 separate
     hand-typed copies; this is now the only one.
 
     The multi-panel Error Analysis grids use _panel_figsize(), which scales
@@ -10030,7 +10030,7 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
 
 
 def _rar_tolerance_check(config, indent):
-    """RAR early stop (Round 66): leave the refinement loop once the mean
+    """RAR early stop: leave the refinement loop once the mean
     |residual| over the candidate points is below config.rar_tolerance --
     "" (no code) when it's 0, so existing scripts are unchanged."""
     tol = float(getattr(config, "rar_tolerance", 0.0) or 0.0)
@@ -10049,7 +10049,7 @@ def _formula_reference_dir(config):
 
 def _formula_reference_entries(config):
     """[(t, path, output index, expression)] for "reference from a formula"
-    Error Analysis (Round 67) -- one reference file per output with a
+    Error Analysis -- one reference file per output with a
     formula and per comparison time (one per output when steady)."""
     if (getattr(config, "ea_ref_mode", "files") or "files") != "formula":
         return []
@@ -10147,7 +10147,7 @@ def _anchor_join(names, var="_a"):
 
 def _anchor_points_code(config):
     """Source defining `_user_anchors` (an (N, n_inputs) array) for the
-    extra training points the user asked for (Round 65), or "" when none
+    extra training points the user asked for, or "" when none
     -- shared by both generators. "box": uniformly random points in the
     given per-column ranges (blank = the column's domain range); "file":
     a points file with one column per input."""
@@ -10186,7 +10186,7 @@ def _anchor_points_code(config):
 
 def _contour_levels_helper_code():
     """Runtime source for _cf_levels(n, vmin, vmax, *data) -- cleanup Round
-    50 (open item from Round 22). matplotlib's contourf IGNORES vmin/vmax
+    50. matplotlib's contourf IGNORES vmin/vmax
     when choosing its level boundaries if `levels` is a plain integer count:
     the fill colors still go through the vmin/vmax norm, but the bands and
     the colorbar auto-range to each panel's own data. So two panels meant to
@@ -10229,7 +10229,7 @@ def _contour_levels_helper_code():
 def _clean_figsize_runtime_code(config):
     """Thin wrapper around _figsize_helper_code() for generate_clean_script()'s
     own call sites -- kept as its own name/signature since generate_clean_script()
-    already calls it this way (see Round 31). See _figsize_helper_code()'s own
+    already calls it this way. See _figsize_helper_code()'s own
     docstring for the full rationale; this just extracts the 3 relevant fields
     from a PINNConfig."""
     return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h,
@@ -10446,13 +10446,13 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     main_window.py's single-model restore (_build_restore_script) and its
     Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
     43 (audit §2e, sub-round 2). Unlike the Line/Animation-Line pair
-    (Round 42), the "Surface" branch itself turned out to be only ~47%
+   , the "Surface" branch itself turned out to be only ~47%
     textually similar between the two builders (real structural
     differences under Time-Adaptive routing -- left for a separate
     investigation, see that round's notes) -- but THIS branch,
     "Animation Surface (GIF)", measured ~82% similar, concentrated in
     large matching blocks, and is in fact a clean is_time_adaptive-only
-    difference exactly like Round 42's pair: which bbox source feeds the
+    difference exactly like the earlier pair: which bbox source feeds the
     3D face grid (geom.bbox vs. a geomtime helper's own bbox), whether a
     per-frame Time-Adaptive model needs resolving before each predict
     call (and the extra model argument that goes with it), the
@@ -10464,7 +10464,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     would be wasteful). All of it follows from one is_time_adaptive flag.
     Verified byte-for-byte identical to both original hand-typed copies
     across a 300-trial randomized fuzz check before this function
-    replaced them. cleanup Round 46 then added geometry masking (3D:
+    replaced them. Later commits added geometry masking (3D:
     alpha-0 out-of-domain face quads; 2D: NaN out-of-domain grid points),
     which neither original copy had -- the same geom.inside(...)
     convention the static Surface plot (_restore_surface_code) uses."""
@@ -10577,7 +10577,7 @@ if is_3d:
         (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
         (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
     ]
-    # cleanup Round 46: mask every bounding-box face to the real geometry
+    # Mask every bounding-box face to the real geometry
     # with geom.inside(...), same convention as the static 3D Surface plot
     # -- a Sphere/Custom-3D model would otherwise animate its full
     # bounding-box faces. Spatial-only, so computed once for every frame.
@@ -10624,7 +10624,7 @@ else:
     if is_2d:
         y_anim = np.linspace({y_min}, {y_max}, {res})
         Xg, Yg = np.meshgrid(x_anim, y_anim)
-        # cleanup Round 46: NaN out grid points outside the real geometry
+        # NaN out grid points outside the real geometry
         # (contourf leaves them unfilled), same as the static 2D Surface plot.
         _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape({res}, {res})
 {loop_2d}    else:
@@ -10663,10 +10663,10 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
                           ylabel_1d_steady, title_1d_steady, is_time_adaptive, res3d=40):
     """Builds the static "Surface" branch shared between main_window.py's
     single-model restore (_build_restore_script) and its Time-Adaptive
-    counterpart (_build_restore_script_ta) -- cleanup Round 45 (audit §2e,
-    sub-round 3). Round 43 measured this pair at only ~47% similar and left
+    counterpart (_build_restore_script_ta) (audit §2e,
+    sub-round 3). A comparison measured this pair at only ~47% similar and left
     it alone, partly because the Time-Adaptive copy never masked to the real
-    geometry; Round 44 fixed that, and with masking now in parity the two
+    geometry; that was fixed, and with masking now in parity the two
     copies differ only in things that follow from one is_time_adaptive
     flag, same as Rounds 42/43's pairs:
       - which bbox source feeds the 3D face grid (geom.bbox vs. the
@@ -10691,7 +10691,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
     cf_range = "None, None" if auto_range else f"{vmin_val}, {vmax_val}"
     if is_time_adaptive:
         suptitle_note = (
-            "# Round 31: only the 3D/2D branches below add a fig.suptitle() above\n"
+            "# Only the 3D/2D branches below add a fig.suptitle() above\n"
             "# their own per-panel subplot titles; the final 1D branch is single-panel\n"
             "# with no suptitle -- see the matching comment in _build_restore_script.\n"
         )
@@ -10708,7 +10708,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         bbox3_expr = f"_ta_build_geomtime({t_min}, {t_max}).geometry.bbox"
         mesh_xy_note = mesh_xz_note = mesh_yz_note = ""
         mask_comment_3d = (
-            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # Masked to the real geometry with geom.inside(...) --\n"
             "    # same convention _build_restore_script's own 3D Surface branch already\n"
             "    # uses (geom here is the real reconstructed geometry built above, not\n"
             "    # just its bounding box -- a Sphere/Custom-3D model would otherwise show\n"
@@ -10735,7 +10735,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         )
         comment_2d = "    # Same multi-snapshot convention as the 3D branch above.\n"
         mask_comment_2d = (
-            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # Masked to the real geometry with geom.inside(...) --\n"
             "    # same convention _build_restore_script's own 2D Surface branch already\n"
             "    # uses. Spatial-only, so computed once and reused for every panel.\n"
         )
@@ -10768,7 +10768,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         )
     else:
         suptitle_note = (
-            "# Round 31: only the 3D/2D multi-snapshot branches below ever add a\n"
+            "# Only the 3D/2D multi-snapshot branches below ever add a\n"
             "# fig.suptitle() above their own per-panel subplot titles -- the steady-1D\n"
             "# and 1D-surface branches are single-panel with no suptitle at all -- so\n"
             "# the shared plt.tight_layout() after this if/elif chain only needs to\n"
@@ -11003,7 +11003,7 @@ def _lbfgs_maxfun(config, iterations):
 def _ic_pretrain_train_code(config, indent, geomtime_var, constraints_var, num_initial, weights_expr,
                             net_expr, save_dir_expr, os_name, log_prefix, distribution):
     """Builds the IC Pre-Training "dummy-PDE dataset + compile + restore-or-
-    train" block -- cleanup Round 47 (audit §2b/§4). This block used to be
+    train" block (audit §2b/§4). This block used to be
     hand-typed four times (generate_script()'s Standard and Time-Adaptive
     paths, generate_clean_script()'s Standard path and its Time-Adaptive
     per-step loop), under four different temp-model names (_model_pre,
@@ -11070,7 +11070,7 @@ else:
 
 
 def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
-    """generate_clean_script()'s RAR per-round diagnostics -- cleanup Round 53
+    """generate_clean_script()'s RAR per-round diagnostics
     (long-standing open item: the export had none). For every RAR round,
     under <sol_dir>/rar_rounds/round_NN/: model.pt (that round's weights, in
     the same {"model_state_dict": ...} format the Restore tab loads),
@@ -11254,7 +11254,7 @@ def generate_clean_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
-    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # An ODE's variable
 
     # ---- PDE expressions (host-resolved derivative terms) --------------
     pde_exprs = [_simplify_pde_expr(e) for e in config.pde_expressions.split("|")]
@@ -11395,7 +11395,7 @@ def generate_clean_script(config):
     for sp in sched_phases:
         sp['_w'] = _clean_phase_weights(sp, expected_len, multi_weights)
     if (config.loss_weights_from_initial or 0) > 0:
-        # Round 75: weights computed at runtime from the initial losses.
+        # Weights computed at runtime from the initial losses.
         multi_weights = "loss_weights"
         for sp in sched_phases:
             sp['_w'] = "loss_weights"
@@ -11441,7 +11441,7 @@ def generate_clean_script(config):
     # as a plain float; _make_net silently drops it for PFNN).
     net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
 
-    # ---- Plot Settings: figure-size standardization (Round 31) -----------
+    # ---- Plot Settings: figure-size standardization -----------
     # Same shared-helper pattern as net_helper_code just above -- see
     # _clean_figsize_runtime_code()'s own docstring.
     figsize_helper_code = _clean_figsize_runtime_code(config) + "\n\n" + _contour_levels_helper_code()
@@ -11688,7 +11688,7 @@ if save_dir:
     parts.append(figsize_helper_code)
     # Training Monitors' own _tm_build_dvars/_tm_hess helpers are also what
     # the custom plot-field expression (_extract_plot_field, below) routes
-    # through once configured -- same derivative-aware mechanism Round 17
+    # through once configured -- the same derivative-aware mechanism
     # wired into generate_script()/the Restore scripts, now also reaching
     # this exporter. Embed the helper whenever any of these needs it, not
     # just for Training Monitors, so a custom expression works even if
@@ -12307,7 +12307,7 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     # doesn't have) -- without this, an exported script for a custom-field
     # template always plotted and error-analyzed the raw first output
     # instead of the derived field the GUI itself shows, and (before this
-    # round) couldn't reference derivatives at all -- Round 17 added
+    # round) couldn't reference derivatives at all added
     # derivative support to the Restore tab and the live Results panel but
     # explicitly left this exporter on the old NumPy-only path; this closes
     # that gap.
@@ -12338,7 +12338,7 @@ def _extract_plot_field(_x_grid, _pf_model=None):
         parts.append(_clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name))
 
     def _result_plot_parts(out_name):
-        """The result-plot code for one plotted field (Round 69: called once
+        """The result-plot code for one plotted field (called once
         for the selected output, then once per output when there are several)."""
         if use_ta:
             parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──

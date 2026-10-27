@@ -163,7 +163,7 @@ second derivatives and Adam, best of 3:
 
 Every GPU step pays this fixed cost before the GPU does any real work; for a small 1D problem it is most
 of the step, which is why the GPU is flat at 40–60 it/s up to about 8,000 points and loses to the CPU
-below about 1,000. (Linux numbers for the same test are requested in STATUS.md.)
+below about 1,000.
 
 ## PyTorch builds (same torch 2.9.0, different CUDA versions)
 
@@ -270,7 +270,7 @@ devices:
 | `"-1"` | False | 0 | RuntimeError: no CUDA GPUs |
 
 With *Train on: CPU*, Solve's script stops with "Invalid device id" before training, and the exported
-script trains on the GPU. With `"-1"` both run on the CPU. Proposed in STATUS.md (a one-line change in
+script trains on the GPU. With `"-1"` both run on the CPU. A fix is proposed (a one-line change in
 `codegen.py`, plus the tests and `timing_study.py` that use the same empty value).
 
 ## Windows checks (benchmarks/platform/win_checks.py and the job runner)

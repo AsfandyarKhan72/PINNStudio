@@ -1,6 +1,10 @@
 deepxde>=1.10.0
 torch>=2.0
 PyQt6>=6.4
+# Newer PyQt6-Qt6 builds fail to load on some Windows versions (see setup.py)
+PyQt6==6.6.1; sys_platform == 'win32'
+PyQt6-Qt6==6.6.1; sys_platform == 'win32'
 numpy<2.5
+numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'
 matplotlib
 pandas
