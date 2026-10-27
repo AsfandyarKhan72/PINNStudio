@@ -6,7 +6,7 @@
 
 ## Does the PINNStudio window slow training down?
 
-Five problems (Lorenz inverse, Wave 1D with multi-scale Fourier features, Allen-Cahn 2D of Mattey & Ghosh, Kovasznay flow, Allen-Cahn 3D of Wight & Zhao) are solved with their full *Tuned* settings in three ways from the same configuration:
+Five problems (Lorenz inverse, Wave 1D with multi-scale Fourier features, Allen-Cahn 2D of Mattey & Ghosh, Kovasznay flow, Allen-Cahn 3D of Wight & Zhao) are solved in three ways from the same configuration, with the settings given in the table:
 
 - **Exported script**: *Export as DeepXDE script*, run with Python from a terminal.
 - **Solve script**: the script PINNStudio's *Solve* runs, run with Python without the window.
