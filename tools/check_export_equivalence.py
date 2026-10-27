@@ -142,6 +142,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--names", default="", help="internal example names, '|' separates several (default: all)")
+    ap.add_argument("--skip", default="", help="internal example names to leave out, '|' separates several")
     ap.add_argument("--adam", type=int, default=200, help="steps for every Adam phase")
     ap.add_argument("--lbfgs", type=int, default=50, help="steps for every L-BFGS phase")
     ap.add_argument("--timeout", type=float, default=1800)
@@ -153,6 +154,8 @@ def main():
     want = {n for n in args.names.split("|") if n}
     for e, inverse in problems():
         if want and e.key not in want:
+            continue
+        if e.key in {n for n in args.skip.split("|") if n}:
             continue
         key = f"{e.key} | {'inverse' if inverse else 'forward'}"
         if key in results and results[key].get("status") in ("identical", "skipped"):
