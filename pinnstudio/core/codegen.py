@@ -8349,6 +8349,27 @@ for _pval in _param_values:
                                 if _nan_mask_ea.any():
                                     _fgt_nn_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='nearest')
                                     _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
+                                # Next to a cut-out the linear interpolation uses triangles that
+                                # bridge the hole, so the reference there is made up and shows as a
+                                # ring of false errors. Quads whose triangle is more than twice as long
+                                # as a typical one on that face are left out, like the outside ones, and a
+                                # quad is drawn only when all four of its corners pass (plot_surface
+                                # colours a quad by one corner).
+                                _m_ea = _inside_faces_ea[len(_pinn_faces_ea)]
+                                try:
+                                    from scipy.spatial import Delaunay as _Dl3
+                                    _pts2_ea = np.unique(np.column_stack([_free0_ea, _free1_ea]), axis=0)
+                                    _tri_ea = _Dl3(_pts2_ea)
+                                    _tp_ea = _pts2_ea[_tri_ea.simplices]
+                                    _tedge_ea = np.max([np.linalg.norm(_tp_ea[:, _k] - _tp_ea[:, (_k + 1) % 3], axis=1)
+                                                        for _k in range(3)], axis=0)   # longest edge per triangle
+                                    _sx_ea = _tri_ea.find_simplex(np.column_stack([_gridA_ea.ravel(), _gridB_ea.ravel()]))
+                                    _edge_ea = np.where(_sx_ea >= 0, _tedge_ea[_sx_ea], 0.0).reshape(_gridA_ea.shape)
+                                    _m_ea &= _edge_ea < 2.0 * float(np.median(_tedge_ea))
+                                except Exception:
+                                    pass  # no scipy.spatial or a degenerate face: keep the inside mask
+                                _m0_ea = _m_ea.copy()
+                                _m_ea[:-1, :-1] &= _m0_ea[1:, :-1] & _m0_ea[:-1, 1:] & _m0_ea[1:, 1:]
                                 _pinn_faces_ea.append(_fpinn_ea)
                                 _gt_faces_ea.append(_fgt_ea)
                             _in_vals_ea = [_f[_m] for _f, _m in zip(_pinn_faces_ea + _gt_faces_ea, _inside_faces_ea * 2) if _m.any()]

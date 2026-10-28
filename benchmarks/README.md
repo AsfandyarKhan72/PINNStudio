@@ -5050,6 +5050,19 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 | 🔴 **All of the above together** | **1.9 × 10<sup>-4</sup>** | **1096** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.9 × 10<sup>-4</sup>** | **1096** |
 
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*The template's starting settings:*
+
+![Poisson 3D – cube with spherical cut-out: The template's starting settings — PINN, reference and error over space and time](figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/base_surface_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+![Poisson 3D – cube with spherical cut-out: PINNStudio best — all of the changes together — PINN, reference and error over space and time](figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/all_surface_comparison.png)
+
+</details>
+
 </details>
 
 <details id="bench-poisson-3d-sphere">

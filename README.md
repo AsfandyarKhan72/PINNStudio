@@ -4514,6 +4514,15 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 
 </details>
 
+<details>
+<summary>📊 <em>Results — PINNStudio best</em></summary>
+
+*Forward problem — all of the changes together:*
+
+![Poisson 3D – cube with spherical cut-out: PINNStudio best — all of the changes together — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/all_surface_comparison.png)
+
+</details>
+
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-3d-cube-with-spherical-cut-out)
 
 </details>

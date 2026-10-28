@@ -42,7 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - *Export as DeepXDE Script* with time windows started the first window from different random weights than *Solve* (2D Allen-Cahn of Wight & Zhao, 2D Burgers of Mathias et al.): Solve's script builds the whole-interval model before the windows, which uses up random numbers. The exported script now does the same (and does not use it), so the two train the same model.
 - A growing time range in 2D and 3D stopped at the second window (NameError `_xyt_ic_anchor`).
 - *Settings: Tuned* switched back to *Default* after loading an example that has no separate Tuned settings; the choice is now kept for the next example (the Training Log says when an example loads with its Default settings).
-- The 3D Error Analysis surface plot of a combined geometry (e.g. a cube with a sphere cut out) drew the parts of the bounding box outside the domain, comparing an extrapolated PINN value with a filled-in reference there. They are now transparent and left out of the colour range, as in the result plots.
+- The 3D Error Analysis surface plot of a combined geometry (e.g. a cube with a sphere cut out) drew the parts of the bounding box outside the domain, comparing an extrapolated PINN value with a filled-in reference there. They are now transparent and left out of the colour range, as in the result plots. Along the edge of the cut-out the reference was also interpolated across the hole, which showed as a ring of false errors up to ten times the real maximum; squares whose interpolation triangle bridges the hole are left out as well.
 - The Error Analysis dialog called the reference "FEM" in its plot options; it now says reference.
 
 ## [1.5.0] - 2026-10-21
