@@ -2113,7 +2113,7 @@ def split_paper(md):
          "| Paper item | Status |\n|---|---|\n" + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
-         "| running (77 checked so far: 69 identical; 3 parameters differ in the 6th digit; 1 export bug found and fixed; 1 difference in the random start of time windows, being looked into) |\n"
+         "| done (91 checked: 81 identical; 4 parameters differ in the 6th digit; 1 export bug found and fixed, recheck queued; 2 time-window examples start from different random weights, fix being decided) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
          "done |\n"]
     for h, rows, body in parts:
