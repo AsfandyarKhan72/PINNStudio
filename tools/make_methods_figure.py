@@ -171,6 +171,16 @@ PREFIX = {RERUN: "f7v2", RERUN_OLD: "f7"}
 RERUN_ID = {"ac1d": "ac1d", "ch1d": "ch1d", "ac2d_mg": "ac2dmg", "ch2d_mg": "ch2dmg"}
 SETUPS6 = SETUPS + [("bcpinn", "Time windows + backward (bc-PINN)", C["causal + MsFFN"], (0, (1.2, 1.2)), "P")]
 RERUN_KEY = dict(zip([s[0] for s in SETUPS6], ("plain", "exact", "rba", "sa", "windows", "bcpinn")))
+# Figure 7 as in the paper: causal training in place of bc-PINN (bc-PINN goes to the supplement)
+SETUPS_MAIN = SETUPS + [("causal", "Exact BC + IC + causal", C["causal + MsFFN"], (0, (1.2, 1.2)), "P")]
+# Supplementary: the other techniques under the same protocol, against the best whole-interval setup
+SETUPS_MORE = [("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN", C["SA-PINN"], "-", "D"),
+               ("causalmsffn", "Exact BC + IC + causal + MsFFN", C["causal + MsFFN"], "-", "P"),
+               ("rar", "Exact BC + IC + RAR, equal steps", C["RBA"], (0, (1.5, 1.5)), "^"),
+               ("rarfull", "Exact BC + IC + RAR, 3 rounds", C["RBA"], (0, (6, 1.5, 1.5, 1.5)), "^"),
+               ("growing", "Growing time range", C["causal"], (0, (1.5, 1.5)), "v"),
+               ("bcpinn", "bc-PINN windows", "#8a8f98", (0, (6, 1.5, 1.5, 1.5)), "s")]
+RERUN_KEY.update(causal="causal", causalmsffn="causalmsffn", rar="rar", rarfull="rarfull", growing="growing")
 # Supplementary: the time windows at full and at equal compute, against the best whole-interval setup
 SETUPS_EQ = [("Exact BC + exact IC + SA-PINN", "Exact BC + IC + SA-PINN (whole interval)", C["SA-PINN"], "-", "D"),
              ("Time windows: exact BC + loss IC", "Time windows, 4 × the steps", C["causal"], (0, (6, 1.5, 1.5, 1.5)), "v"),
@@ -256,7 +266,8 @@ def main():
     fig_b(ex)
     rr = rerun_examples()
     if rr:
-        fig_c(rr, SETUPS6)                                 # Figure 7: the common protocol
+        fig_c(rerun_examples(setups=SETUPS_MAIN), SETUPS_MAIN)            # Figure 7: the common protocol
+        fig_c(rerun_examples(setups=SETUPS_MORE), SETUPS_MORE, name="paper_methods_c_more")   # Suppl. S4
         fig_c(rerun_examples(path=RERUN, setups=SETUPS_EQ), SETUPS_EQ, name="paper_methods_c_windows")   # Suppl.
         old = rerun_examples(path=RERUN_OLD)
         if old:
