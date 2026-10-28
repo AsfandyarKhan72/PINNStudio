@@ -5,6 +5,4 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Heat 2D**
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.

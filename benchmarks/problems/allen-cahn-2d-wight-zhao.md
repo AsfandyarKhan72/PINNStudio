@@ -9,8 +9,6 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own).
 
 $$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$

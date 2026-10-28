@@ -240,6 +240,18 @@ def _problem_raw(name):
         return ""
 
 
+def _problem_note(name):
+    """An extra note for the README entry of an example (benchmarks/problems/notes/<its problem file>), such as
+    the paper's reproducibility test case; written by hand and kept when the README is regenerated."""
+    ent = next((x for x in _prob_index() if x["name"] == name), None)
+    if not ent:
+        return ""
+    try:
+        return open(os.path.join(PROB_DIR, "notes", ent["file"]), encoding="utf-8").read().strip()
+    except OSError:
+        return ""
+
+
 def _problem_md(name):
     """The problem for this page: the README's text without the 'In PINNStudio' line (the settings toggles
     say how to load it), with links made relative to this page."""
@@ -1970,6 +1982,9 @@ def _front_section(r, ent, bench_sec):
     figs = _front_figures(bench_sec)
     if figs:
         L.append(figs)
+    note = _problem_note(e.name)
+    if note:
+        L.append(note + "\n")
     slug = re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")
     L.append(f"[Full benchmark: every setting tried, the errors the papers report, all figures →]"
              f"(benchmarks/README.md#bench-{slug})\n")

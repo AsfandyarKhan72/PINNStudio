@@ -1953,8 +1953,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
@@ -4193,8 +4191,6 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own).
 
 $$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$
@@ -4322,8 +4318,6 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Initial condition:** $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
-
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $h$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
 
@@ -4879,8 +4873,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
 - **Geometry:** Rectangle
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 
 <details>
@@ -5236,8 +5228,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Geometry:** Cuboid
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](../README.md#training) in Features before picking a large "IC grid resolution" value.
-
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 

@@ -9,8 +9,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$

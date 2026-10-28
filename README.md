@@ -284,6 +284,7 @@ From there:
 - Switch the toolbar's **Examples** list to **Inverse** and pick the same example to learn the unknown diffusivity from measured data instead.
 - Browse the other examples below.
 - Follow [Solving Your Own Problem](#solving-your-own-problem) to set up an equation of your own.
+- To reproduce the PINNStudio paper's test case (Section 6) step by step — load, train, compare with the reference, restore and export — open [Burgers 1D – Raissi et al.](#1d-burgers) and see *Reproducibility test case*.
 
 ## The Interface
 
@@ -1996,8 +1997,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
@@ -2073,6 +2072,19 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 ![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png)
 
 </details>
+
+<a id="reproducibility-test-case"></a>
+**Reproducibility test case (PINNStudio paper, Section 6)**
+
+This forward example is the test case the paper uses to show that a result can be reproduced from the GUI and outside it. Equations, settings and figures are above; the steps are:
+
+1. **Load it.** Toolbar → Examples: **Forward** → **Burgers 1D – Raissi et al.**, with *Settings:* **Tuned**. For this example the Tuned settings are the paper's own (Default and Tuned are the same; see ⚙️ *Settings* above).
+2. **Run it.** Press **Solve**. *Results → Live loss* shows the loss while it trains, and the Training Log and *Results → Overview* show the final loss and the solution. On an RTX 4090 it trains in about 40 s.
+3. **Compare with the reference.** Error Analysis runs at the end of training against the reference files at five times, t = 0, 0.25, 0.5, 0.75 and 1 ([`reference_data/1D/burgers/`](reference_data/1D/burgers), the exact solution computed by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). *Results → Error analysis* lists the relative L₂ error at each time with the comparison plots; the Training Log also gives the error over all five times together (`error_spacetime.txt` in the run folder). The documented forward results are a relative L₂ error of 3.3 × 10⁻⁴ at t = 1 and 4.0 × 10⁻⁴ over all reference times ([benchmark](benchmarks/README.md#bench-burgers-1d-raissi-et-al)).
+4. **Restore the trained model.** Point *Results → Restore & visualize* at the saved model in the run folder (under the Save-to folder shown in the status bar). It rebuilds the network from the saved weights and `model_config.json` and redraws the plots and the Error Analysis without training again ([Restore & visualize](#restore--visualize)).
+5. **Run it outside PINNStudio.** *Export script* (toolbar, or Ctrl+E) writes a standalone DeepXDE/PyTorch script; run it with `python <script>.py` in the same Python environment. It trains the same model as **Solve** (the [export check](benchmarks/performance.md#export-check-the-exported-script-trains-the-same-model)) and writes the loss, the solution and the Error Analysis at the same five times (`error_metrics.txt`). The script points at the reference files of the installation it was exported from (`ea_files`); on another computer, change those paths to that computer's `reference_data/1D/burgers/`.
+
+The documented runs used the random seed 2026, PINNStudio's default (*Settings → GPU / Hardware → Seed*; loading an example keeps your own seed). Even with the same seed, small differences between runs are normal: GPU arithmetic is not always done in the same order, and a different GPU, CPU, number of CPU threads or PyTorch/DeepXDE version changes the last digits of the loss, so the errors of an independent run can differ slightly from the values above.
 
 [Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-burgers-1d-raissi-et-al)
 
@@ -3794,8 +3806,6 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own).
 
 $$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$
@@ -3883,8 +3893,6 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
-
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $h$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
 
@@ -4276,8 +4284,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Geometry:** Rectangle
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Heat 2D**
 
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
-
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
@@ -4579,8 +4585,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Heat 3D**
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](#training) in Features before picking a large "IC grid resolution" value.
-
-*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode) as an unknown parameter.
 
