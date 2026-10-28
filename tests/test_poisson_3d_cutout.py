@@ -27,13 +27,18 @@ def test_scripts_use_the_combined_geometry_and_exact_solution():
 
 def test_exact_solution_satisfies_the_problem():
     import numpy as np
+    import deepxde as dde
+    u = lambda p: np.exp(-(p ** 2).sum(1))
     rng = np.random.default_rng(0)
     p = rng.uniform(-1, 1, (200, 3))
-    x, y, z = p.T
-    u = lambda x, y, z: np.sin(np.pi * x) * np.sin(np.pi * y) * np.sin(np.pi * z)
-    h = 1e-3   # -Δu = 3π² u (central differences)
-    lap = sum((u(*(p + h * e).T) - 2 * u(x, y, z) + u(*(p - h * e).T)) / h ** 2 for e in np.eye(3))
-    assert np.allclose(-lap, 3 * np.pi ** 2 * u(x, y, z), atol=1e-4)
-    for c in range(3):          # zero on the cube's faces
-        q = p.copy(); q[:, c] = 1.0
-        assert np.allclose(u(*q.T), 0, atol=1e-12)
+    h = 1e-3   # -Δu = (6 - 4 r²) exp(-r²) (central differences)
+    lap = sum((u(p + h * e) - 2 * u(p) + u(p - h * e)) / h ** 2 for e in np.eye(3))
+    r2 = (p ** 2).sum(1)
+    assert np.allclose(-lap, (6 - 4 * r2) * np.exp(-r2), atol=1e-4)
+    # the Neumann value is du/dn with DeepXDE's outward normal of the domain on the spherical surface
+    g = dde.geometry.CSGDifference(dde.geometry.Cuboid([-1, -1, -1], [1, 1, 1]), dde.geometry.Sphere([0, 0, 1], 0.7))
+    q = g.random_boundary_points(3000)
+    q = q[np.isclose(q[:, 0] ** 2 + q[:, 1] ** 2 + (q[:, 2] - 1) ** 2, 0.49)]
+    x, y, z = q.T
+    dn = ((-2 * q * u(q)[:, None]) * g.boundary_normal(q)).sum(1)
+    assert len(q) > 100 and np.allclose(dn, 2 * u(q) * (x ** 2 + y ** 2 + z * (z - 1)) / 0.7, atol=1e-5)

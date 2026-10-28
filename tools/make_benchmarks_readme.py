@@ -2153,7 +2153,7 @@ def split_paper(md):
             "| done (the 3D example's training runs are queued) |\n" if front_md else "") + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
-         "| done (91 checked: 81 identical; 4 parameters differ in the 6th digit; 1 export bug found and fixed, recheck queued; 2 time-window examples started from different random weights, fixed; rechecks queued) |\n"
+         "| done (91 checked: 84 identical, 3 skipped, 4 inverse problems differ only in the 6th digit of a parameter; 2 bugs found, fixed and checked again) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
          "done |\n"]
     if front_md:
