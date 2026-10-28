@@ -2961,7 +2961,9 @@ if {config.time_adaptive}:
             # on, weakening (though not removing -- the PointSetBC loss
             # term above is still added either way) how strongly later
             # windows are forced to match their own true starting point.
-            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
+            # with a growing time range every window takes the true IC at t_start, so there is no
+            # previous-window grid to anchor (and _xyt_ic_anchor is not set after step 0)
+            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and not _ta_growing and (_is_2d or _is_3d)) else None)
         )
 
         net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
