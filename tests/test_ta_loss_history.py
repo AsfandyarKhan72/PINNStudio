@@ -28,8 +28,8 @@ markers at each sub-domain boundary and a "Loss — All N Time
 Sub-domain(s)" title.
 
 Checks:
- - The generated Time-Adaptive script contains exactly 5
-   `_ta_accumulate_loss(lh_i)` calls (one per train() call site) and no
+ - The generated Time-Adaptive script contains one
+   `_ta_accumulate_loss(lh_i)` call per train() call site and no
    longer assigns `train_loss_ta`/`test_loss_ta` directly from a bare
    `lh_i` (the single-phase/single-sub-domain bug).
  - A REAL, tiny, 2-sub-domain Time-Adaptive run (via a side-channel JSON
@@ -127,9 +127,13 @@ def run():
         script = generate_script(config)
 
         # ── static checks on the generated script itself ────────────────
-        check(script.count("_ta_accumulate_loss(lh_i)") == 5,
-              f"expected exactly 5 _ta_accumulate_loss(lh_i) calls (one per model_i.train() site), "
-              f"got {script.count('_ta_accumulate_loss(lh_i)')}")
+        # one _ta_accumulate_loss(lh_i) after every model_i.train() site (5 phase sites, plus the
+        # per-window resampling rounds' train call since adaptive resampling was added)
+        n_train = script.count("lh_i, ts_i = model_i.train(")
+        n_acc = script.count("_ta_accumulate_loss(lh_i)")
+        check(n_train >= 5 and n_acc == n_train,
+              f"expected one _ta_accumulate_loss(lh_i) call per model_i.train() site, "
+              f"got {n_acc} calls for {n_train} train sites")
         check("train_loss_ta = _ta_all_train_loss" in script,
               "loss plot should read the accumulated _ta_all_train_loss, not a bare lh_i")
         check("train_loss_ta = lh_i.loss_train" not in script,
