@@ -5,7 +5,7 @@
 | Paper item | Status |
 |---|---|
 | [Section 3.3 — geometry and boundary conditions (Figure 3)](#section-33--geometry-and-boundary-conditions-figure-3) | done |
-| [Section 4.2 — accuracy on 25 representative problems (Figure 4)](#section-42--accuracy-on-25-representative-problems-figure-4) | done; the seed repeats for the Figure 4 medians and range bars are queued |
+| [Section 4.2 — accuracy on 25 representative problems (Figure 4)](#section-42--accuracy-on-25-representative-problems-figure-4) | done; the seed repeats for the Figure 4 medians and range bars are running on the GPU machine |
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
@@ -49,7 +49,7 @@
 | **What it shows** | the relative L₂ error of 25 forward problems and the parameter error of their inverse versions, with the starting settings (DeepXDE's example or the paper's method) and PINNStudio's tuned settings |
 | **How it was run** | every example with its starting settings and with the changes of the tuning study, seed 2026 (3 seeds for the close calls), one RTX 4090; *tuned* = lowest error, the fastest within 25% ([tuning_study.md](tuning_study.md)) |
 | **Data and scripts** | `tools/make_benchmarks_readme.py` (figure and table), [`paper_figure_examples.txt`](paper_figure_examples.txt) (the 25 names), `tools/tuning_study.py` (runs) |
-| **Status** | done; the seed repeats for the Figure 4 medians and range bars are queued |
+| **Status** | done; the seed repeats for the Figure 4 medians and range bars are running on the GPU machine |
 
 <details>
 <summary>📄 <em>Figure for the paper — 25 examples</em></summary>
