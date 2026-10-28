@@ -6,7 +6,7 @@
 | **How it was made** | each example loaded from the Examples list as it ships, one boundary condition selected in the model tree (its edges or faces are highlighted and its settings shown), the PINNStudio window drawn at twice the screen resolution; (a) above (b) so the window stays readable at full page width |
 | **For users** | [README → Geometry](../README.md#problem-setup), the examples [Helmholtz 2D – sound-hard scattering](../README.md#dx-helmholtz-sound-hard-scattering-absorbing-bc) and [Poisson 3D – cube with spherical cut-out](README.md#bench-poisson-3d-cube-with-spherical-cut-out) |
 | **Data and scripts** | `tools/make_geometry_figure.py` (writes `figures/paper_geometry.png` and `.pdf`); the examples are defined in `pinnstudio/core/deepxde_examples.py` and `pinnstudio/core/pinnstudio_examples.py` |
-| **Status** | done; the 3D example's training runs (its own settings and the tuning study's changes) are queued on the GPU machine |
+| **Status** | done; the 3D example trained on the GPU machine: relative L₂ error 3.7 × 10⁻⁴ with its own settings and 1.9 × 10⁻⁴ with the Tuned ones ([benchmark](README.md#bench-poisson-3d-cube-with-spherical-cut-out)) |
 
 <details>
 <summary>📄 <em>Figure 3 for the paper — geometry and boundary selection</em></summary>

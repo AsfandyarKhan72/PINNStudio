@@ -1874,7 +1874,7 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
+*Forward problem — also PINNStudio best* (no reference solution to measure an error against, so it was not tuned)
 
 - **Network:** FNN 4 × 128 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 6,000 domain, 1,500 initial, 1,500 boundary

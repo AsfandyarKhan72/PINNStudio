@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - README, Speed section: what differs on Windows (slower start of a run, an optional Windows Defender exclusion, power mode on laptops), from a Windows laptop study in `benchmarks/platform/windows_speed.md`.
 - The installers print the version they installed ("PINNStudio 1.5.0 installed.").
 - README: a note for anyone who installed with pip before to uninstall that copy first.
+- New example **Poisson 3D – cube with spherical cut-out**: a domain built from two primitives (a cube with a sphere subtracted), a Dirichlet condition on the cube's faces and a Neumann condition on the spherical surface, checked against the exact solution $e^{-r^2}$. 64 examples in all.
+- A reference solution for the README's *Solving Your Own Problem* walkthrough (Fisher-KPP), in `reference_data/1D/fisher_kpp/`, made by `tools/make_exact_reference_data.py`; the walkthrough now ends with its Error Analysis.
 
 ### Changed
 - DeepXDE's Allen-Cahn 1D example is no longer listed in Quick Examples or the README: the two Allen-Cahn 1D – Wight & Zhao templates cover the same problem, more accurately. A saved problem that uses it still opens.
@@ -40,6 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - *Export as DeepXDE Script* with time windows started the first window from different random weights than *Solve* (2D Allen-Cahn of Wight & Zhao, 2D Burgers of Mathias et al.): Solve's script builds the whole-interval model before the windows, which uses up random numbers. The exported script now does the same (and does not use it), so the two train the same model.
 - A growing time range in 2D and 3D stopped at the second window (NameError `_xyt_ic_anchor`).
 - *Settings: Tuned* switched back to *Default* after loading an example that has no separate Tuned settings; the choice is now kept for the next example (the Training Log says when an example loads with its Default settings).
+- The 3D Error Analysis surface plot of a combined geometry (e.g. a cube with a sphere cut out) drew the parts of the bounding box outside the domain, comparing an extrapolated PINN value with a filled-in reference there. They are now transparent and left out of the colour range, as in the result plots.
+- The Error Analysis dialog called the reference "FEM" in its plot options; it now says reference.
 
 ## [1.5.0] - 2026-10-21
 

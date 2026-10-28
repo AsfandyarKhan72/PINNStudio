@@ -1090,8 +1090,10 @@ def _settings_toggles(r):
             ran = r.get("i_s") if inverse or inv_only else (r.get("f_plain_s") or r.get("f_best_s"))
             has_result = (r.get("i_best") is not None or r.get("i_best_par")) if inverse or inv_only else \
                 r.get("f_best") is not None
+            no_ref = (getattr(cfg, "ea_files", "[]") in ("", "[]") and getattr(cfg, "ea_ref_mode", "") != "formula")
             why = (" (no change in the tuning study did better)" if ran else
                    " (already accurate, so it was not tuned)" if has_result else
+                   " (no reference solution to measure an error against, so it was not tuned)" if no_ref else
                    " (its training runs are queued; the results follow)")
             lk = study_link(inverse) if ran else ""
             why += ("\n\n" + lk) if lk else ""
@@ -2150,7 +2152,7 @@ def split_paper(md):
          "[performance.md](performance.md).*\n",
          "| Paper item | Status |\n|---|---|\n"
          + ("| [Section 3.3 — geometry and boundary conditions (Figure 3)](#section-33--geometry-and-boundary-conditions-figure-3) "
-            "| done (the 3D example's training runs are queued) |\n" if front_md else "") + "".join(
+            "| done |\n" if front_md else "") + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
          "| done (91 checked: 84 identical, 3 skipped, 4 inverse problems differ only in the 6th digit of a parameter; 2 bugs found, fixed and checked again) |\n"
