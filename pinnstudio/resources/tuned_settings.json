@@ -274,6 +274,13 @@
    "error": "parameter error 0.55%"
   }
  },
+ "3D Poisson (Cube with spherical cut-out)": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.9e-04 vs 3.7e-04 with its own settings"
+  }
+ },
  "3D Allen-Cahn (Wight & Zhao)": {
   "forward": {
    "switches": null,

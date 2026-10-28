@@ -153,7 +153,7 @@ The study above uses each example's own settings, which differ from problem to p
 |---|---|---|---|
 | Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
 | Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
-| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | 31 of 32 runs done (October 2026; 6b on 2D Cahn-Hilliard queued again); the paper's Figure 7 and Fig. S3 |
+| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | all 32 runs done (October 2026); the paper's Figure 7 and Fig. S3 |
 | Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | all 20 runs done (October 2026); causal training is in Figure 7, the rest in Fig. S4 |
 
 Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time):
@@ -163,7 +163,7 @@ Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 202
 | 1D Allen-Cahn | 10% (8 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) | 0.41% (10 min) | 0.54% (10 min) |
 | 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.40% (26 min) | 0.40% (37 min) | 0.44% (20 min) | 0.41% (22 min) |
 | 2D Allen-Cahn | 0.45% (19 min) | 0.042% (14 min) | 0.045% (15 min) | **0.031%** (28 min) | 0.079% (93 min) | 0.095% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
-| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | queued again (ran out of GPU memory) |
+| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | 5.4% (75 min) |
 
 ![Figure 7: the six main setups, error against time](figures/paper_methods_c.png)
 

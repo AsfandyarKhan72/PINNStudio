@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-87 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 34 of them improve by 1.5× or more; the median improvement is 1×.
+88 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 35 of them improve by 1.5× or more; the median improvement is 1×.
 
 ## How it is done
 
@@ -68,6 +68,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 5.9 × 10<sup>-3</sup> | 2× | times | 5.2% → 0.96% | 1741 → 5306 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template) | 2.0 × 10<sup>-3</sup> | 8.5 × 10<sup>-4</sup> | 2× | net | – | 954 → 2301 |
+| [Poisson 3D – cube with spherical cut-out (PINNStudio template)](#tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template) | 3.7 × 10<sup>-4</sup> | 1.9 × 10<sup>-4</sup> | 2× | all | – | 92 → 1096 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
@@ -1126,6 +1127,27 @@ Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inv
 Over seeds: own settings 2.0 × 10<sup>-3</sup> (1 seeds), tuned 8.5 × 10<sup>-4</sup> (1 seeds).
 
 Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template">
+<summary><strong>Poisson 3D – cube with spherical cut-out (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 64, 64, 64, 64, 1], Adam 15,000 → L-BFGS 15,000, 8,000 domain / 2,000 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.96e-07 | 3.7 × 10<sup>-4</sup> | – | 92 |
+| iters | 2.62e-07 | 3.4 × 10<sup>-4</sup> | – | 209 |
+| net | 2.69e-07 | 3.0 × 10<sup>-4</sup> | – | 141 |
+| points | 2.53e-07 | 3.3 × 10<sup>-4</sup> | – | 166 |
+| **all** | 2.13e-07 | 1.9 × 10<sup>-4</sup> | – | 1096 |
+
+**Chosen: all** (all of the changes above together): network [3, 128, 128, 128, 128, 128, 1], Adam 45,000 → L-BFGS 45,000, 24,000 / 6,000 / 0 points.
+
+Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 1.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20cube%20with%20spherical%20cut-out%20(PINNStudio%20template)%20(tuned).pinn.json)
 
 </details>
 

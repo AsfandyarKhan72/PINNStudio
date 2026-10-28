@@ -8,9 +8,9 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 **The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows give that too. Where a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds on one RTX 4090.
 
-The sweep was run on the 40 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
+The sweep was run on the 41 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=3cadba12)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=cb5309ea)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -23,7 +23,7 @@ The sweep was run on the 40 examples with the largest errors. The others were al
 | Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | [tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, `tools/make_tuning_page.py` | done; more seed repeats queued |
 | Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the paper's section and table) | [paper_comparison.md](paper_comparison.md); for the paper: [paper.md](paper.md) | `tools/tuning_study.py --variants plain,paper_*` | done |
 | Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, time windows) help on the phase-field and other hard problems | each example's own settings, the technique changed, 10 core setups | [training_methods.md](training_methods.md) | `benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |
-| Controlled comparison (paper Figure 7) | the same question under one protocol: same network, points and steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | `benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | main figure done; 51 of 52 runs |
+| Controlled comparison (paper Figure 7) | the same question under one protocol: same network, points and steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | `benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |
 | Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | `tools/check_export_equivalence.py` | running |
 | Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | [performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | done |
 
@@ -98,7 +98,7 @@ All runs are on one RTX 4090 unless stated.
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | 98 | α = 0.399893 (0.4) | 0.027% | 169 |
 | [Fractional Poisson 3D – sphere](#bench-fractional-poisson-3d-sphere) | DeepXDE | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** | – | 1343 | – | – | – |
-| [Poisson 3D – cube with spherical cut-out](#bench-poisson-3d-cube-with-spherical-cut-out) | PINNStudio | – | – | – | – | – | – | – |
+| [Poisson 3D – cube with spherical cut-out](#bench-poisson-3d-cube-with-spherical-cut-out) | PINNStudio | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | – | 1096 | – | – | – |
 | [Poisson 3D – sphere](#bench-poisson-3d-sphere) | PINNStudio | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** | – | 76 | f = 1.00005 (1) | 0.005% | 83 |
 | [Allen-Cahn 3D – Wight & Zhao](#bench-allen-cahn-3d-wight-zhao) | Paper | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | – | 2678 | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | 0.31% | 1419 |
 | [Heat 3D](#bench-heat-3d) | PINNStudio | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | – | 323 | α = 0.400303 (0.4) | 0.076% | 729 |
@@ -5012,9 +5012,9 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Boundary conditions:** Dirichlet, $u = e^{-(x^2 + y^2 + z^2)}$ on the cube's faces (the named sides *left or right or bottom or top or front or back*); Neumann, $\partial u/\partial n = 2u\,(x^2 + y^2 + z(z - 1))/R$ on the spherical surface (the coordinate expression `np.isclose(x**2 + y**2 + (z - 1)**2, R**2)`; $n$ points out of the domain, into the sphere)
 
 <details>
-<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — the template's own settings</em></summary>
 
-*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
+*Forward problem*
 
 - **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 8,000 domain, 2,000 boundary
@@ -5023,6 +5023,32 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 3D – cube with spherical cut-out** → **Default**, then Solve.
 
 </details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Forward problem*
+
+- **Network:** FNN 5 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 24,000 domain, 6,000 boundary
+- **Training:** Adam 45,000 → L-BFGS 45,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – cube with spherical cut-out** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template)
+
+</details>
+
+**Forward problem**
+
+| Training | L₂ | Time (s) |
+|---|---|---|
+| The template's starting settings | 3.7 × 10<sup>-4</sup> | 92 |
+| 3× iterations | 3.4 × 10<sup>-4</sup> | 209 |
+| Larger network (2× width, one more layer) | 3.0 × 10<sup>-4</sup> | 141 |
+| 3× training points | 3.3 × 10<sup>-4</sup> | 166 |
+| 🔴 **All of the above together** | **1.9 × 10<sup>-4</sup>** | **1096** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **1.9 × 10<sup>-4</sup>** | **1096** |
 
 </details>
 

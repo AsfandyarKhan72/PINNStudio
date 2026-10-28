@@ -42,3 +42,13 @@ def test_exact_solution_satisfies_the_problem():
     x, y, z = q.T
     dn = ((-2 * q * u(q)[:, None]) * g.boundary_normal(q)).sum(1)
     assert len(q) > 100 and np.allclose(dn, 2 * u(q) * (x ** 2 + y ** 2 + z * (z - 1)) / 0.7, atol=1e-5)
+
+
+def test_error_analysis_surface_leaves_out_quads_outside_the_domain():
+    """The 3D Error Analysis surface plot draws the bounding box's faces; for a combined geometry the parts
+    outside the domain are transparent and out of the colour range (they showed an extrapolated PINN against
+    an interpolated reference before)."""
+    cfg = ps.build_config(ps.BY_NAME[KEY], "/r")
+    script = codegen.generate_script(cfg)
+    assert "_inside_faces_ea.append(np.asarray(geom.inside(" in script
+    assert "np.where(_inside_faces_ea[_face_i_ea], 1.0, 0.0)" in script

@@ -1547,7 +1547,7 @@ def page(recs):
       "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
       "[training_methods.md → The controlled comparison]"
       "(training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | "
-      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | main figure done; 51 of 52 runs |\n"
+      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
@@ -1711,7 +1711,7 @@ def page(recs):
               "best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but "
               "(a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes "
               "them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as "
-              "accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity "
+              "accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d); bc-PINN ×4 on both). On these problems, with the initial condition and periodicity "
               "imposed exactly, training on the whole interval at once is both more accurate and cheaper.\n\n"
               "**Supplementary Fig. S3 — time windows at full and at equal compute** (the best whole-interval setup for "
               "reference; *equal steps*: the 20,000 + 10,000 steps shared out over the 4 windows, 5,000 + 2,500 each, "
@@ -1722,7 +1722,7 @@ def page(recs):
               "| (a) Allen–Cahn 1D | 0.65% | 0.41% | 0.79% | 0.54% |\n"
               "| (b) Cahn–Hilliard 1D | 0.40% | 0.44% | 0.40% | 0.41% |\n"
               "| (c) Allen–Cahn 2D | 0.079% | 0.24% | 0.095% | 0.40% |\n"
-              "| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | queued again (ran out of GPU memory) |\n\n"
+              "| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | 5.4% |\n\n"
               "**What to write in the paper (Section 4.5)** — a draft:\n\n"
               "> Phase-field problems are hard for a plain PINN because the solution develops thin interfaces that "
               "move in time, and an error made early in time carries over to later times. We used four of them to "
@@ -2109,7 +2109,7 @@ PAPER_ITEMS = [
          "(training_methods.md#the-controlled-comparison-paper-figure-7)"),
         ("Data and scripts", "[`plans/fig7_v2.json`](plans/fig7_v2.json), [`plans/fig7_v2b.json`](plans/fig7_v2b.json), `benchmarks/study_runner.py`, "
          "`tools/make_methods_figure.py`"),
-        ("Status", "main figure done; 51 of 52 runs done; missing: equal-compute bc-PINN on (d) (queued again: out of GPU memory)")]),
+        ("Status", "done: all 52 runs (October 2026)")]),
     ("📄 <em>Table S2 for the paper", "Supplementary Table S2 — every forward problem, each output", [
         ("What it shows", "the tuned error of every output of every forward problem with a reference solution"),
         ("How it was run", "the same runs as the benchmarks page"),

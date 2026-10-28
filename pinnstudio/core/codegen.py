@@ -8309,6 +8309,18 @@ for _pval in _param_values:
                             _all_coords_ea = (_bxr_ea, _byr_ea, _bzr_ea)
                             _pinn_faces_ea = []
                             _gt_faces_ea = []
+                            # Faces of the bounding box: for a combined geometry (a cube with a
+                            # sphere cut out, say) parts of them lie outside the domain. Those
+                            # quads are drawn transparent and left out of the colour ranges, as
+                            # in the result plots, instead of showing an extrapolated PINN value
+                            # against an interpolated reference there.
+                            _inside_faces_ea = []
+                            for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
+                                try:
+                                    _inside_faces_ea.append(np.asarray(geom.inside(np.column_stack(
+                                        [_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel()]))).reshape(_fX_ea.shape))
+                                except Exception:
+                                    _inside_faces_ea.append(np.ones(_fX_ea.shape, dtype=bool))
                             for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
                                 # Steady-state 3D has no time axis at all --
                                 # the network only takes 3 (x,y,z) inputs,
@@ -8339,11 +8351,15 @@ for _pval in _param_values:
                                     _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
                                 _pinn_faces_ea.append(_fpinn_ea)
                                 _gt_faces_ea.append(_fgt_ea)
-                            _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
-                            _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                            _in_vals_ea = [_f[_m] for _f, _m in zip(_pinn_faces_ea + _gt_faces_ea, _inside_faces_ea * 2) if _m.any()]
+                            if not _in_vals_ea:
+                                _in_vals_ea = _pinn_faces_ea + _gt_faces_ea
+                            _vmin3_ea = min(_v.min() for _v in _in_vals_ea)
+                            _vmax3_ea = max(_v.max() for _v in _in_vals_ea)
                             _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)
                             _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
-                            _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
+                            _err_in_ea = [_f[_m] for _f, _m in zip(_err_faces_ea, _inside_faces_ea) if _m.any()] or _err_faces_ea
+                            _vmax_err_ea = max(_v.max() for _v in _err_in_ea)
                             # See the matching comment on the Line comparison
                             # title above -- steady-state has no time axis,
                             # so "t=..." is dropped from every column title.
@@ -8359,7 +8375,8 @@ for _pval in _param_values:
                                 for _face_i_ea, (_fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea) in enumerate(_faces3_ea):
                                     _ax3_ea.plot_surface(
                                         _fX_ea, _fY_ea, _fZ_ea,
-                                        facecolors=_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])),
+                                        facecolors=np.concatenate([np.asarray(_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])))[..., :3],
+                                                                   np.where(_inside_faces_ea[_face_i_ea], 1.0, 0.0)[..., None]], axis=-1),
                                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False,
                                     )
                                 _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)

@@ -420,19 +420,19 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 |  | **3D** |  |  |  |  |  |  |  |  |
 | 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** |
 | 60 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** |
-| 61 | [Poisson 3D – cube with spherical cut-out](#3d-poisson-cube-with-spherical-cut-out) | 3D | Steady | Forward | Cuboid − Sphere | Exact solution | — | – | – |
+| 61 | [Poisson 3D – cube with spherical cut-out](#3d-poisson-cube-with-spherical-cut-out) | 3D | Steady | Forward | Cuboid − Sphere | Exact solution | — | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** |
 | 62 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** |
 | 63 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** |
 | 64 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** |
 
 <!-- examples-summary:start (generated) -->
 
-**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 48 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
 
 <details>
 <summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=3cadba12)
+![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=cb5309ea)
 
 *Circles: forward problems (relative L₂ at the last reference time); diamonds: inverse problems (error of each learned parameter). Open: the Default settings (DeepXDE's, or the paper's method run in PINNStudio); filled: PINNStudio's best; a ring: the two are the same. ⭐: the error the paper reports, for the templates taken from a paper.*
 
@@ -4485,18 +4485,32 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Boundary conditions:** Dirichlet, $u = e^{-(x^2 + y^2 + z^2)}$ on the cube's faces (the named sides *left or right or bottom or top or front or back*); Neumann, $\partial u/\partial n = 2u\,(x^2 + y^2 + z(z - 1))/R$ on the spherical surface (the coordinate expression `np.isclose(x**2 + y**2 + (z - 1)**2, R**2)`; $n$ points out of the domain, into the sphere)
 - **In PINNStudio:** Examples → **Forward** → **Poisson 3D – cube with spherical cut-out**
 
+**Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 1096 |
+
 <details>
 <summary>⚙️ <em>Settings</em></summary>
 
-**Default (*Settings: Default*) — also PINNStudio best**
+**PINNStudio best (*Settings: Tuned*)**
 
-*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
+*Forward problem*
 
-- **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
-- **Points:** 8,000 domain, 2,000 boundary
-- **Training:** Adam 15,000 → L-BFGS 15,000
+- **Network:** FNN 5 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 24,000 domain, 6,000 boundary
+- **Training:** Adam 45,000 → L-BFGS 45,000
 
-*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – cube with spherical cut-out** → **Default**, then Solve.
+*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – cube with spherical cut-out** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template)
+
+**Default (*Settings: Default*)** — what loads first; in short:
+
+*Forward problem:* Network FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform; Points 8,000 domain, 2,000 boundary; Training Adam 15,000 → L-BFGS 15,000
+
+The full Default settings, and where they come from: [benchmark](benchmarks/README.md#bench-poisson-3d-cube-with-spherical-cut-out).
 
 </details>
 

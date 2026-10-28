@@ -9,7 +9,7 @@
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
-| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | main figure done; 51 of 52 runs done; missing: equal-compute bc-PINN on (d) (queued again: out of GPU memory) |
+| [Section 4.5 — training techniques on phase-field problems (Figure 7)](#section-45--training-techniques-on-phase-field-problems-figure-7) | done: all 52 runs (October 2026) |
 | [Supplementary Table S2 — every forward problem, each output](#supplementary-table-s2--every-forward-problem-each-output) | done |
 | [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) | done (91 checked: 84 identical, 3 skipped, 4 inverse problems differ only in the 6th digit of a parameter; 2 bugs found, fixed and checked again) |
 | [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | done |
@@ -60,7 +60,7 @@
 
 **In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 12, by a median factor of 21.4 in those (median over all 20: 5.4). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
 
-**All 64 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
+**All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 48 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
 
 **How "tuned" was chosen.** The tuned settings are the run of the recorded tuning study (and, for the paper templates, of the paper-method and training-methods runs) with the lowest error against the reference (the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final training loss alone would pick. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
@@ -228,7 +228,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | **How it was run** | one common protocol: 1D 4 × 128 with 10,000 points, 2D 6 × 128 with 20,000 points, 20,000 Adam + 10,000 L-BFGS for every setup, 4 time windows with full and with equal compute |
 | **For users** | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7) |
 | **Data and scripts** | [`plans/fig7_v2.json`](plans/fig7_v2.json), [`plans/fig7_v2b.json`](plans/fig7_v2b.json), `benchmarks/study_runner.py`, `tools/make_methods_figure.py` |
-| **Status** | main figure done; 51 of 52 runs done; missing: equal-compute bc-PINN on (d) (queued again: out of GPU memory) |
+| **Status** | done: all 52 runs (October 2026) |
 
 <details>
 <summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>
@@ -276,7 +276,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 > *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with loss-based initial and boundary conditions; exactly imposed periodic boundary and initial conditions (Exact BC + IC); the same with residual-based attention (RBA) [11] or self-adaptive weights (SA-PINN) [12] or causal training [Wang et al., 2024]; and four successive time windows. All problems of one dimension use the same network (1D: 4 × 128; 2D: 6 × 128), the same collocation points (1D: 10,000; 2D: 20,000) and 20,000 Adam and 10,000 L-BFGS steps, in every window for the time-windowed setups. Hollow markers on the lower edge mark the zero error of an exactly imposed initial condition at t = 0.*
 
-**What it shows.** Building the conditions into the network is the largest single gain on every problem (×9 in (a), ×4 in (b), ×11 in (c), ×270 in (d) at t = 1), and on 2D Cahn–Hilliard it is what makes the PINN work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in (a) and (b) and not in 2D. Causal training comes close to SA-PINN on the Cahn–Hilliard problems (0.091% against 0.074% in (b), 0.20% against 0.17% in (d)) and is the cheapest setup in (a) and (c), but is less accurate on 1D Allen–Cahn. None of the other techniques (Supplementary Fig. S4) does better than SA-PINN: causal training with a Fourier-feature network ties it on 1D Allen–Cahn, RAR run three times longer ties it on 2D Cahn–Hilliard (0.173% against 0.175%) and comes close in (a), and the growing time range is the least accurate in 1D and close to the other time windows in 2D (0.087% in (c), 1.8% in (d)). Time windows, even with four times the training, are less accurate than the best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but (a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d)). On these problems, with the initial condition and periodicity imposed exactly, training on the whole interval at once is both more accurate and cheaper.
+**What it shows.** Building the conditions into the network is the largest single gain on every problem (×9 in (a), ×4 in (b), ×11 in (c), ×270 in (d) at t = 1), and on 2D Cahn–Hilliard it is what makes the PINN work at all (52% → 0.19%). SA-PINN weights then give the lowest error on all four problems; RBA helps in (a) and (b) and not in 2D. Causal training comes close to SA-PINN on the Cahn–Hilliard problems (0.091% against 0.074% in (b), 0.20% against 0.17% in (d)) and is the cheapest setup in (a) and (c), but is less accurate on 1D Allen–Cahn. None of the other techniques (Supplementary Fig. S4) does better than SA-PINN: causal training with a Fourier-feature network ties it on 1D Allen–Cahn, RAR run three times longer ties it on 2D Cahn–Hilliard (0.173% against 0.175%) and comes close in (a), and the growing time range is the least accurate in 1D and close to the other time windows in 2D (0.087% in (c), 1.8% in (d)). Time windows, even with four times the training, are less accurate than the best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but (a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as accurate as with four times the steps in 1D and clearly worse in 2D (×3 on (c), ×4 on (d); bc-PINN ×4 on both). On these problems, with the initial condition and periodicity imposed exactly, training on the whole interval at once is both more accurate and cheaper.
 
 **Supplementary Fig. S3 — time windows at full and at equal compute** (the best whole-interval setup for reference; *equal steps*: the 20,000 + 10,000 steps shared out over the 4 windows, 5,000 + 2,500 each, all the points in every window):
 
@@ -287,7 +287,7 @@ For each template taken from a paper: the plain PINN (the template's equations w
 | (a) Allen–Cahn 1D | 0.65% | 0.41% | 0.79% | 0.54% |
 | (b) Cahn–Hilliard 1D | 0.40% | 0.44% | 0.40% | 0.41% |
 | (c) Allen–Cahn 2D | 0.079% | 0.24% | 0.095% | 0.40% |
-| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | queued again (ran out of GPU memory) |
+| (d) Cahn–Hilliard 2D | 1.3% | 5.6% | 1.3% | 5.4% |
 
 **What to write in the paper (Section 4.5)** — a draft:
 
@@ -391,6 +391,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | Burgers 2D – Mathias et al. | PINNStudio | u, v | 8.4 × 10<sup>-3</sup>, 4.7 × 10<sup>-3</sup> |
 | Heat 2D | PINNStudio | u | 3.9 × 10<sup>-3</sup> |
 | Fractional Poisson 3D – sphere | DeepXDE | u | 7.2 × 10<sup>-3</sup> |
+| Poisson 3D – cube with spherical cut-out | PINNStudio | u | 1.9 × 10<sup>-4</sup> |
 | Poisson 3D – sphere | PINNStudio | solution | 1.5 × 10<sup>-3</sup> |
 | Allen-Cahn 3D – Wight & Zhao | PINNStudio | u | 1.9 × 10<sup>-4</sup> |
 | Heat 3D | PINNStudio | u | 2.6 × 10<sup>-3</sup> |
