@@ -154,7 +154,7 @@ The study above uses each example's own settings, which differ from problem to p
 | Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
 | Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
 | **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | 31 of 32 runs done (October 2026; 6b on 2D Cahn-Hilliard queued again); the paper's Figure 7 and Fig. S3 |
-| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | 18 of 20 runs done (October 2026): the growing range in 2D is queued again after a fix; causal training is in Figure 7, the rest in Fig. S4 |
+| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | 19 of 20 runs done (October 2026): the growing range on 2D Cahn-Hilliard is running again after a fix; causal training is in Figure 7, the rest in Fig. S4 |
 
 Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time):
 
@@ -173,12 +173,12 @@ Results of setups 7–10 under the same protocol (error at $t = 1$, seed 2026; S
 |---|---|---|---|---|---|---|
 | 1D Allen-Cahn | **0.14%** (7 min) | 0.37% (5 min) | **0.14%** (7 min) | 0.44% (8 min) | 0.15% (12 min) | 3.9% (19 min) |
 | 1D Cahn-Hilliard | **0.074%** (11 min) | 0.091% (9 min) | 0.21% (8 min) | 0.29% (11 min) | 0.18% (22 min) | 0.20% (58 min) |
-| 2D Allen-Cahn | **0.031%** (28 min) | 0.048% (8 min) | 0.093% (16 min) | 0.047% (15 min) | 0.047% (31 min) | queued again |
-| 2D Cahn-Hilliard | 0.17% (40 min) | 0.20% (53 min) | 0.40% (56 min) | 2.1% (40 min) | **0.17%** (82 min) | queued again |
+| 2D Allen-Cahn | **0.031%** (28 min) | 0.048% (8 min) | 0.093% (16 min) | 0.047% (15 min) | 0.047% (31 min) | 0.087% (98 min) |
+| 2D Cahn-Hilliard | 0.17% (40 min) | 0.20% (53 min) | 0.40% (56 min) | 2.1% (40 min) | **0.17%** (82 min) | running |
 
 ![The other techniques against SA-PINN, error against time](figures/paper_methods_c_more.png)
 
-*The growing time range in 2D stopped at its second window because of a bug in PINNStudio (fixed); both runs are queued again.* In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement (Figs. S3 and S4).
+*The growing time range in 2D first stopped at its second window because of a bug in PINNStudio (fixed); 2D Allen-Cahn has been run again, 2D Cahn-Hilliard is running.* In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement (Figs. S3 and S4).
 
 What it shows: exact conditions are the largest single gain on every problem (×4 to ×270), SA-PINN gives the lowest error everywhere (causal + MsFFN ties it on 1D Allen-Cahn), causal training comes close to it on both Cahn-Hilliard problems at the same or lower cost, RAR helps only when run about three times longer (then it ties SA-PINN on 2D Cahn-Hilliard, 0.173% against 0.175%), and time windows, even with four times the training, stay behind the best whole-interval setup (×2.5–8) while taking 2–6 times as long as SA-PINN (bc-PINN up to 10 times); with equal compute they are about as accurate as with four times the steps in 1D and clearly worse in 2D. Backward compatibility changes the windows little.
 

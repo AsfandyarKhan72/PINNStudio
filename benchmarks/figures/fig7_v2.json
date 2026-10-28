@@ -1081,6 +1081,72 @@
    ]
   }
  },
+ "f7v2_ac2dmg_growing": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "setup": "Time-adaptive + growing",
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": true,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 5893,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00017371
+    ],
+    [
+     0.25,
+     0.00046563
+    ],
+    [
+     0.5,
+     0.00071725
+    ],
+    [
+     0.75,
+     0.00093296
+    ],
+    [
+     1.0,
+     0.00086668
+    ]
+   ]
+  }
+ },
  "f7v2_ac2dmg_plain": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
   "setup": "Plain",
