@@ -360,6 +360,12 @@
   "file": "poisson-3d-sphere.md"
  },
  {
+  "name": "Poisson 3D – cube with spherical cut-out",
+  "anchor": "3d-poisson-cube-with-spherical-cut-out",
+  "group": "3D examples",
+  "file": "poisson-3d-cube-with-spherical-cut-out.md"
+ },
+ {
   "name": "Allen-Cahn 3D – Wight & Zhao",
   "anchor": "3d-allen-cahn-wight--zhao",
   "group": "3D examples",

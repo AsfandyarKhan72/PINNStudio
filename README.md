@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <em>Three of the 63 built-in examples — Schrödinger in 1D, Allen-Cahn in 2D and heat in 3D — trained and animated in PINNStudio. Click one to see its setup and results.</em>
+  <em>Three of the 64 built-in examples — Schrödinger in 1D, Allen-Cahn in 2D and heat in 3D — trained and animated in PINNStudio. Click one to see its setup and results.</em>
 </p>
 
 <table>
@@ -92,7 +92,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 - Line, surface and animated solution plots, solution data export, and a saved model that can be reloaded and visualized again without retraining.
 - A standalone Python script for every problem, so the work can be inspected, shared and reproduced outside PINNStudio. Solving in the window is as fast as running that script yourself ([timing study](#speed-pinnstudio-and-a-plain-script)).
 
-**Ready-to-run examples.** PINNStudio comes with 63 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 61 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
+**Ready-to-run examples.** PINNStudio comes with 64 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 62 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
 
 PINNStudio is under active development, and we are extending it with newer scientific machine learning and PINN methods, aimed at solving harder problems more accurately and faster.
 
@@ -340,7 +340,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 
 ## Examples
 
-PINNStudio comes with 63 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
+PINNStudio comes with 64 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
 - **PINNStudio templates** (14): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
 - **DeepXDE examples** (39 forward, 10 inverse; DeepXDE's Allen-Cahn 1D is left out, as the Allen-Cahn 1D – Wight & Zhao template covers it): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
@@ -420,18 +420,19 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 |  | **3D** |  |  |  |  |  |  |  |  |
 | 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** |
 | 60 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** |
-| 61 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** |
-| 62 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** |
-| 63 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** |
+| 61 | [Poisson 3D – cube with spherical cut-out](#3d-poisson-cube-with-spherical-cut-out) | 3D | Steady | Forward | Cuboid − Sphere | Exact solution | — | – | – |
+| 62 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** |
+| 63 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** |
+| 64 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** |
 
 <!-- examples-summary:start (generated) -->
 
-**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 63 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 52 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 23 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
 
 <details>
 <summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=2c306950)
+![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=3cadba12)
 
 *Circles: forward problems (relative L₂ at the last reference time); diamonds: inverse problems (error of each learned parameter). Open: the Default settings (DeepXDE's, or the paper's method run in PINNStudio); filled: PINNStudio's best; a ring: the two are the same. ⭐: the error the paper reports, for the templates taken from a paper.*
 
@@ -1914,7 +1915,7 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 
 **Default (*Settings: Default*) — also PINNStudio best**
 
-*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
+*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
 
 - **Network:** FNN 4 × 128 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 6,000 domain, 1,500 initial, 1,500 boundary
@@ -4473,6 +4474,36 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 </details>
 
+<details id="3d-poisson-cube-with-spherical-cut-out">
+<summary><strong>Poisson 3D – cube with spherical cut-out</strong></summary>
+
+A Poisson problem on a domain built from two primitives: a cube with a sphere subtracted from its top. It shows a combined 3D geometry and boundary conditions on different parts of its boundary, and is checked against the exact solution $u = \sin(\pi x)\sin(\pi y)\sin(\pi z)$.
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 3\pi^2 \sin(\pi x)\sin(\pi y)\sin(\pi z)$$
+
+- **Geometry:** Custom: the cube $[-1, 1]^3$ minus the sphere of radius $R = 0.7$ centred at $(0, 0, 1)$ (*Cuboid − Sphere*)
+- **Boundary conditions:** Dirichlet, $u = 0$ on the cube's faces (the named sides *left or right or bottom or top or front or back*), and $u = \sin(\pi x)\sin(\pi y)\sin(\pi z)$ on the spherical surface (the coordinate expression `np.isclose(x**2 + y**2 + (z - 1)**2, R**2)`)
+- **In PINNStudio:** Examples → **Forward** → **Poisson 3D – cube with spherical cut-out**
+
+<details>
+<summary>⚙️ <em>Settings</em></summary>
+
+**Default (*Settings: Default*) — also PINNStudio best**
+
+*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
+
+- **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 8,000 domain, 2,000 boundary
+- **Training:** Adam 15,000 → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – cube with spherical cut-out** → **Default**, then Solve.
+
+</details>
+
+[Full benchmark: every setting tried, the errors the papers report, all figures →](benchmarks/README.md#bench-poisson-3d-cube-with-spherical-cut-out)
+
+</details>
+
 <details id="3d-allen-cahn-wight--zhao">
 <summary><strong>Allen-Cahn 3D – Wight & Zhao</strong></summary>
 
@@ -5225,7 +5256,7 @@ Point Restore & visualize (*Results → Restore & visualize* in the model tree) 
 
 ## Solving Your Own Problem
 
-The examples above cover 63 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
+The examples above cover 64 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
 
 We use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 

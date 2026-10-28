@@ -1088,8 +1088,11 @@ def _settings_toggles(r):
         why = ""
         if also:
             ran = r.get("i_s") if inverse or inv_only else (r.get("f_plain_s") or r.get("f_best_s"))
+            has_result = (r.get("i_best") is not None or r.get("i_best_par")) if inverse or inv_only else \
+                r.get("f_best") is not None
             why = (" (no change in the tuning study did better)" if ran else
-                   " (already accurate, so it was not tuned)")
+                   " (already accurate, so it was not tuned)" if has_result else
+                   " (its training runs are queued; the results follow)")
             lk = study_link(inverse) if ran else ""
             why += ("\n\n" + lk) if lk else ""
         body.append(f"*{head}{also}*{why}\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n"
@@ -1544,7 +1547,7 @@ def page(recs):
       "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
       "[training_methods.md → The controlled comparison]"
       "(training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | "
-      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | main figure done; 50 of 52 runs |\n"
+      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | main figure done; 51 of 52 runs |\n"
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
@@ -1562,7 +1565,7 @@ def page(recs):
         by_name = {r["entry"].name: r for r in recs}
         paper_recs = [by_name[n] for n in names if n in by_name]
         a("<details>\n<summary>📄 <em>Figure for the paper — " + f"{len(names)} examples" + "</em></summary>\n\n"
-          "**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, "
+          "**Why these examples.** The full figure has " f"{len(recs)} examples, which is too many for one page in a paper, "
           "so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each "
           "dimension from steady to time-dependent problems. Together they cover the main equation types: "
           "elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), "
@@ -1683,9 +1686,9 @@ def page(recs):
               "| (a) Allen–Cahn 1D | **0.14%** (7 min) | **0.14%** (7 min) | 0.44% (8 min) | 0.15% (12 min) | 3.9% (19 min) | 0.79% (18 min) |\n"
               "| (b) Cahn–Hilliard 1D | **0.074%** (11 min) | 0.21% (8 min) | 0.29% (11 min) | 0.18% (22 min) | 0.20% (58 min) | 0.40% (37 min) |\n"
               "| (c) Allen–Cahn 2D | **0.031%** (28 min) | 0.093% (16 min) | 0.047% (15 min) | 0.047% (31 min) | 0.087% (98 min) | 0.095% (159 min) |\n"
-              "| (d) Cahn–Hilliard 2D | 0.17% (40 min) | 0.40% (56 min) | 2.1% (40 min) | **0.17%** (82 min) | running | 1.3% (410 min) |\n\n"
+              "| (d) Cahn–Hilliard 2D | 0.17% (40 min) | 0.40% (56 min) | 2.1% (40 min) | **0.17%** (82 min) | 1.8% (120 min) | 1.3% (410 min) |\n\n"
               "*The growing time range in 2D first stopped at its second window because of a bug in PINNStudio (fixed); "
-              "2D Allen–Cahn has been run again, 2D Cahn–Hilliard is running.*\n\n"
+              "both 2D runs were run again after the fix.*\n\n"
               "> *Caption to start from: Relative L₂ error against time for the one-dimensional (a) Allen–Cahn and (b) "
               "Cahn–Hilliard equations of Wight and Zhao [8] and the two-dimensional (c) Allen–Cahn and (d) "
               "Cahn–Hilliard equations of Mattey and Ghosh [9], trained in PINNStudio with: the plain PINN with "
@@ -1704,7 +1707,7 @@ def page(recs):
               "is less accurate on 1D Allen–Cahn. None of the other techniques (Supplementary Fig. S4) does better than "
               "SA-PINN: causal training with a Fourier-feature network ties it on 1D Allen–Cahn, RAR run three times "
               "longer ties it on 2D Cahn–Hilliard (0.173% against 0.175%) and comes close in (a), and the growing time "
-              "range is the least accurate in 1D and close to the other time windows in 2D (0.087% in (c)). Time windows, even with four times the training, are less accurate than the "
+              "range is the least accurate in 1D and close to the other time windows in 2D (0.087% in (c), 1.8% in (d)). Time windows, even with four times the training, are less accurate than the "
               "best whole-interval setup (SA-PINN) on every problem, by ×2.5–8, and than exact BC + IC alone on all but "
               "(a), and they take 2–6 times as long as SA-PINN (bc-PINN up to 10 times); backward compatibility changes "
               "them little. With the same total steps as the other setups (Supplementary Fig. S3) the windows are about as "
@@ -2106,7 +2109,7 @@ PAPER_ITEMS = [
          "(training_methods.md#the-controlled-comparison-paper-figure-7)"),
         ("Data and scripts", "[`plans/fig7_v2.json`](plans/fig7_v2.json), [`plans/fig7_v2b.json`](plans/fig7_v2b.json), `benchmarks/study_runner.py`, "
          "`tools/make_methods_figure.py`"),
-        ("Status", "main figure done; 50 of 52 runs done; missing: the growing time range on (d) (running again after a fix), equal-compute bc-PINN on (d) (queued again: out of GPU memory)")]),
+        ("Status", "main figure done; 51 of 52 runs done; missing: equal-compute bc-PINN on (d) (queued again: out of GPU memory)")]),
     ("📄 <em>Table S2 for the paper", "Supplementary Table S2 — every forward problem, each output", [
         ("What it shows", "the tuned error of every output of every forward problem with a reference solution"),
         ("How it was run", "the same runs as the benchmarks page"),
@@ -2136,6 +2139,8 @@ def split_paper(md):
         parts.append((h, rows, block[k:nxt].strip()))
     extra = os.path.join(os.path.dirname(PAGE), "paper_extra.md")      # hand-written items (Sections 4.3, 5)
     extra_md = open(extra, encoding="utf-8").read().strip() + "\n" if os.path.exists(extra) else ""
+    front = os.path.join(os.path.dirname(PAGE), "paper_front.md")      # hand-written items before Section 4 (Figure 3)
+    front_md = open(front, encoding="utf-8").read().strip() + "\n" if os.path.exists(front) else ""
     P = ["# PINNStudio paper — figures, tables and text\n",
          "*Everything the paper uses, in the order of the paper. Each item has a short box (what it shows, how it "
          "was run, the data and scripts, its status) above the figure or table, its caption and a draft of the text. "
@@ -2143,19 +2148,23 @@ def split_paper(md):
          "the studies themselves are written up for users in [tuning_study.md](tuning_study.md), "
          "[training_methods.md](training_methods.md), [paper_comparison.md](paper_comparison.md) and "
          "[performance.md](performance.md).*\n",
-         "| Paper item | Status |\n|---|---|\n" + "".join(
+         "| Paper item | Status |\n|---|---|\n"
+         + ("| [Section 3.3 — geometry and boundary conditions (Figure 3)](#section-33--geometry-and-boundary-conditions-figure-3) "
+            "| done (the 3D example's training runs are queued) |\n" if front_md else "") + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
          "| done (91 checked: 81 identical; 4 parameters differ in the 6th digit; 1 export bug found and fixed, recheck queued; 2 time-window examples started from different random weights, fixed; rechecks queued) |\n"
          "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
          "done |\n"]
+    if front_md:
+        P.append(front_md)
     for h, rows, body in parts:
         body = body.replace("](#bench-", "](README.md#bench-")
         P.append(f"## {h}\n\n{_info(rows)}{body}\n")
     if extra_md:
         P.append(extra_md)
     paper_md = re.sub(r"\n{3,}", "\n\n", "\n".join(P))
-    link = ("**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 4, the forward and "
+    link = ("**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 3, Figure 4, the forward and "
             "inverse examples, the published methods, Figure 7, Table S2, Sections 4.3 and 5) are on their own page: "
             "[paper.md](paper.md).\n\n")
     return md[:first] + link + md[end:].lstrip("\n"), paper_md
