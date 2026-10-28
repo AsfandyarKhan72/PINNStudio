@@ -201,6 +201,39 @@ SPECTRAL = [
 ]
 
 
+FISHER_KPP_TIMES = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+def fisher_kpp(times, n=4001, D=0.01, r=1.0):
+    """Fisher-KPP u_t = D u_xx + r u (1 - u) on [0, 1], u_x = 0 at both ends, u(x, 0) = exp(-50 (x - 0.5)^2):
+    the README's "Solving Your Own Problem" walkthrough. No closed form, so a fine finite-difference solve
+    (n points, second order, ghost points for the no-flux ends) integrated with Radau to rtol 1e-11. Halving
+    the grid spacing (2001 -> 4001 points) changes u by at most 3e-7."""
+    from scipy.integrate import solve_ivp
+    from scipy.sparse import diags
+    x = np.linspace(0.0, 1.0, n)
+    h = x[1] - x[0]
+    up, lo = np.ones(n - 1), np.ones(n - 1)
+    up[0] = lo[-1] = 2.0
+    A = (diags([lo, -2.0 * np.ones(n), up], [-1, 0, 1]) * (D / h ** 2)).tocsr()
+    sol = solve_ivp(lambda t, u: A @ u + r * u * (1 - u), (0.0, max(times)), np.exp(-50 * (x - 0.5) ** 2),
+                    method="Radau", t_eval=list(times), jac=lambda t, u: A + diags(r * (1 - 2 * u)),
+                    rtol=1e-11, atol=1e-13)
+    return x, {t: sol.y[:, k] for k, t in enumerate(times)}
+
+
+def write_fisher_kpp():
+    d = os.path.join(ROOT, "fisher_kpp")
+    os.makedirs(d, exist_ok=True)
+    x, u = fisher_kpp(FISHER_KPP_TIMES)
+    keep = slice(None, None, 4)                 # every 4th point: x = 0, 0.001, ..., 1
+    for t in FISHER_KPP_TIMES:
+        with open(os.path.join(d, f"t_{t:g}.txt"), "w") as fh:
+            for xi, ui in zip(x[keep], u[t][keep]):
+                fh.write(f"{xi:.6f}\t{t:.4f}\t{ui:.12e}\n")
+        print(f"fisher_kpp/t_{t:g}.txt: {len(x[keep])} points")
+
+
 def main():
     sets = list(SETS) + [(f, _spectral_set(f, solver, files), x, files) for f, solver, x, files in SPECTRAL]
     for folder, exact, x, files in sets:
@@ -213,6 +246,7 @@ def main():
                     fh.write(f"{xi:.6f}\t{t:.4f}\t{ui:.12e}\n")
             print(f"{folder}/{name}: {len(x)} points, t = {t}")
     write_cahn_hilliard()
+    write_fisher_kpp()
 
 
 if __name__ == "__main__":

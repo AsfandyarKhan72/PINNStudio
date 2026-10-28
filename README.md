@@ -5256,7 +5256,7 @@ Point Restore & visualize (*Results → Restore & visualize* in the model tree) 
 
 ## Solving Your Own Problem
 
-The examples above cover 64 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
+The examples above cover 64 specific problems, but PINNStudio is not limited to them, and every setting in an example can be changed. Below is a complete walkthrough for a PDE that is **not** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN." (To reproduce a documented result from one of the configured examples instead, see the *Reproducibility test case* under [Burgers 1D – Raissi et al.](#1d-burgers).)
 
 We use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 
@@ -5273,20 +5273,20 @@ Start from a clean problem: on the Start tab, click **1D problem** (or *Problem 
    ```
    This is the `d<output>_<vars>` convention described under [Equation editor for single equations and coupled systems](#problem-setup) — `du_t` is $\partial u/\partial t$, `du_xx` is $\partial^2 u/\partial x^2$, and the coefficients $D=0.01$ and $r=1$ are just written inline.
 3. **Geometry.** Set the interval to `0` to `1` for x and the time interval to `0` to `1`.
-4. **Initial conditions.** A localized bump that will spread and saturate toward 1:
+4. **Initial conditions.** A localized bump; up to $t = 1$ diffusion spreads it and lowers its peak to about 0.76 while the logistic term lifts the tails:
    ```
    exp(-50*(x-0.5)**2)
    ```
 5. **Boundary conditions.** Right-click *Boundary conditions* → **Add boundary condition** (or use the button on its page): **Neumann**, value `0` (no flux through either edge), and in **Where** pick *Left and right sides* from the list. Two rows, one on the left side and one on the right, would do the same.
-6. **Neural network & Training.** The defaults (a handful of hidden layers, Adam then L-BFGS) are a reasonable starting point for a problem this size — adjust layer/neuron counts or add Time-Adaptive stepping later if training does not converge well.
+6. **Neural network & Training.** Keep the defaults: three hidden layers of 64 neurons (tanh), 2,000 collocation points, 10,000 Adam iterations then 10,000 L-BFGS iterations, and the initial condition weighted 100. They are enough for this problem (step 8); for a harder one, more layers or points, or the methods under [When a PINN struggles](#hard-problems), are the next things to try.
 7. **Solve.** Click **Solve** and watch the loss fall in *Results → Live loss*; the loss and solution figures appear under *Overview* once training finishes. *Save* (Ctrl+S) keeps the setup for later. Try *Plot settings → 1D surface → Time on the x-axis* in the Surface plot's settings on the result — see [Plots and animations](#analysis--output).
-8. **Error Analysis (optional).** Since this is not a bundled template, no reference data is loaded and Error Analysis is optional. If you have your own reference solution (from a separate FEM/FD solver, say), point the Error Analysis dialog at it the same way the built-in templates do automatically.
+8. **Error Analysis.** A new problem has no reference data, so you add your own. For this walkthrough PINNStudio ships one: a fine finite-difference solution at $t$ = 0, 0.25, 0.5, 0.75 and 1 in [`reference_data/1D/fisher_kpp/`](reference_data/1D/fisher_kpp) (three columns x, t, u; written by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py), accurate to about $10^{-7}$). On the *Results* page press **Error Analysis**, keep *Reference files*, **Browse** to `t_0.txt`, add the other four with **➕ Add another file** (the time is read from each file), and press **Run Error Analysis**. With the defaults above, the relative $L_2$ error is $1.3 \times 10^{-3}$ at $t = 1$ and $8.8 \times 10^{-4}$ over all five times (one run, seed 2026; about 6 minutes on 8 CPU threads). For your own problem, use files from your own solver in the same format, or an exact formula if there is one.
 
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_line_plot.png" alt="Fisher-KPP — PINN solution, line snapshots at several times" width="100%">
-<sub>Line snapshots over time</sub>
+<img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_line_comparison.png" alt="Fisher-KPP — Error Analysis: PINN against the finite-difference reference at t = 0, 0.25, 0.5, 0.75 and 1" width="100%">
+<sub>Error Analysis: PINN against the reference</sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_surface_plot.png" alt="Fisher-KPP — PINN solution surface" width="100%">
