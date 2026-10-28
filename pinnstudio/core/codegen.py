@@ -12064,8 +12064,26 @@ _ta_loss_offset = 0''')
                       f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
                       "    return list(w) if len(w) == n else [1.0] * n",
                       "",
-                      "",
-                      "for step_i, (t0, t1) in enumerate(intervals):",
+                      ""]
+        # Solve's script builds the model for the whole time interval (its data, then its network) before the
+        # time windows start. That uses up random numbers, so the same is done here, unused, so that the first
+        # window's points and starting weights are the same as Solve's and the two scripts train the same model.
+        full_bc = [ln.replace("geomtime", "_gt_full").replace("constraints.append", "_c_full.append") for ln in bc_appends]
+        full_ic = [ln.replace("geomtime", "_gt_full").replace("constraints.append", "_c_full.append") for ln in ic_appends]
+        loop_lines += ["# Solve's script builds the whole-interval model before the time windows; doing the same here",
+                       "# (and not using it) keeps the random numbers, and so the first window's points and starting",
+                       "# weights, the same as Solve's.",
+                       "_gt_full = dde.geometry.GeometryXTime(_build_geom(), dde.geometry.TimeDomain(intervals[0][0], intervals[-1][1]))",
+                       "_c_full = []",
+                       *full_bc, *full_ic,
+                       f"dde.data.TimePDE(_gt_full, pde, _c_full, num_domain={config.num_domain}, num_boundary={config.num_boundary},",
+                       f"                 num_initial={config.num_initial}, num_test={_safe_num_test!r},",
+                       f'                 train_distribution="{_safe_point_distribution}", anchors=None)',
+                       (f'_apply_transforms(_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))'
+                        if needs_transform_helper else
+                        f'_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})'),
+                       "",
+                       "for step_i, (t0, t1) in enumerate(intervals):",
                       *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
                          "        if isinstance(_cb, dde.callbacks.Timer):",
                          "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),

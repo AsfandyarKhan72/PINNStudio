@@ -25,3 +25,14 @@ def test_window_options_export_solves_own_script():
         out = codegen.generate_clean_script(c)
         assert word in out.splitlines()[0], kw
         assert out.endswith(codegen.generate_script(c)), kw
+
+
+def test_short_export_uses_up_random_numbers_like_solve():
+    """Solve's script builds the whole-interval model before the time windows; the short export does the same
+    (unused), so the first window starts from the same points and weights and the two train the same model."""
+    out = codegen.generate_clean_script(_ta())
+    i_full, i_loop = out.index("_gt_full = dde.geometry.GeometryXTime("), out.index("for step_i, (t0, t1) in enumerate(intervals):")
+    assert i_full < i_loop
+    block = out[i_full:i_loop]
+    assert "dde.data.TimePDE(_gt_full, pde, _c_full," in block and "_make_net(" in block
+    compile(out, "export.py", "exec")
