@@ -106,7 +106,7 @@ All runs are on one RTX 4090 unless stated.
 
 </details>
 
-**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 3, Figure 4, the forward and inverse examples, the published methods, Figure 7, Table S2, Sections 4.3 and 5) are on their own page: [paper.md](paper.md).
+**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 3, Figure 4, the forward and inverse examples, the published methods, Figure 7, Table S2, Section 4.6, and Section 5 with Table 2 and Supplementary Tables S3 and S4) are on their own page: [paper.md](paper.md).
 
 ## ODEs
 

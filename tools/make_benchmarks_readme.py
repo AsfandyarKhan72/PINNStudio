@@ -2139,7 +2139,7 @@ def split_paper(md):
     for i, (k, t, h, rows) in enumerate(starts):
         nxt = starts[i + 1][0] if i + 1 < len(starts) else len(block)
         parts.append((h, rows, block[k:nxt].strip()))
-    extra = os.path.join(os.path.dirname(PAGE), "paper_extra.md")      # hand-written items (Sections 4.3, 5)
+    extra = os.path.join(os.path.dirname(PAGE), "paper_extra.md")      # hand-written items (Sections 4.6, 5)
     extra_md = open(extra, encoding="utf-8").read().strip() + "\n" if os.path.exists(extra) else ""
     front = os.path.join(os.path.dirname(PAGE), "paper_front.md")      # hand-written items before Section 4 (Figure 3)
     front_md = open(front, encoding="utf-8").read().strip() + "\n" if os.path.exists(front) else ""
@@ -2154,9 +2154,9 @@ def split_paper(md):
          + ("| [Section 3.3 — geometry and boundary conditions (Figure 3)](#section-33--geometry-and-boundary-conditions-figure-3) "
             "| done |\n" if front_md else "") + "".join(
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
-             for h, rows, _ in parts) + "| [Section 4.3 — the exported script trains the same model](#section-43--the-exported-script-trains-the-same-model) "
+             for h, rows, _ in parts) + "| [Section 4.6 — consistency of generated scripts](#section-46--consistency-of-generated-scripts) "
          "| done (91 checked: 84 identical, 3 skipped, 4 inverse problems differ only in the 6th digit of a parameter; 2 bugs found, fixed and checked again) |\n"
-         "| [Section 5 — performance (Tables 5, 6 and S3)](#section-5--performance-tables-5-6-and-s3) | "
+         "| [Section 5 — computational performance (Table 2, Supplementary Tables S3 and S4)](#section-5--computational-performance-table-2-supplementary-tables-s3-and-s4) | "
          "done |\n"]
     if front_md:
         P.append(front_md)
@@ -2167,7 +2167,7 @@ def split_paper(md):
         P.append(extra_md)
     paper_md = re.sub(r"\n{3,}", "\n\n", "\n".join(P))
     link = ("**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 3, Figure 4, the forward and "
-            "inverse examples, the published methods, Figure 7, Table S2, Sections 4.3 and 5) are on their own page: "
+            "inverse examples, the published methods, Figure 7, Table S2, Section 4.6, and Section 5 with Table 2 and Supplementary Tables S3 and S4) are on their own page: "
             "[paper.md](paper.md).\n\n")
     return md[:first] + link + md[end:].lstrip("\n"), paper_md
 

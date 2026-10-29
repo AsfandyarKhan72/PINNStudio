@@ -1,32 +1,32 @@
 # Performance and checks
 
-*How fast PINNStudio trains, what the window costs, how to choose CPU threads, and the check that an exported script trains the same model. The paper's versions of these tables are on [paper.md](paper.md).*
+*How fast PINNStudio trains, whether training from the GUI takes longer, how to choose CPU threads, and the check that an exported script trains the same model. The paper's versions of these tables (Table 2, Supplementary Tables S3 and S4) are on [paper.md](paper.md).*
 
 **The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090, Ubuntu, Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15. Every run records the PINNStudio commit and these versions. Script: [`perf_study.py`](perf_study.py).
 
-## Does the PINNStudio window slow training down?
+## Does the PINNStudio GUI slow training down? (paper Table 2)
 
 Five problems (Lorenz inverse, Wave 1D with multi-scale Fourier features, Allen-Cahn 2D of Mattey & Ghosh, Kovasznay flow, Allen-Cahn 3D of Wight & Zhao) are solved in three ways from the same configuration, with the settings given in the table:
 
-- **Exported script**: *Export as DeepXDE script*, run with Python from a terminal.
-- **Solve script**: the script PINNStudio's *Solve* runs, run with Python without the window.
-- **PINNStudio window**: *Solve* in the window, with the live loss plot and training log on.
+- **Exported standalone script**: *Export as DeepXDE script*, run with Python from a terminal.
+- **Internal Solve script**: the script PINNStudio's *Solve* runs, run with Python on its own, without the GUI.
+- **PINNStudio GUI**: *Solve* in the GUI, with the live loss plot and training log on.
 
 Each with three seeds; the order of the three rotates with the seed so that none always runs first.
 
-| Problem (settings) | Exported script (s) | Solve script, no window (s) | PINNStudio window (s) | Window vs Solve script |
+| Problem (settings) | Exported script (s) | Solve script (s) | PINNStudio GUI (s) | GUI vs. Solve (%) |
 |---|---|---|---|---|
-| Lorenz ODE, inverse (Default = best) | 71.5 | 76.7 | 72.8 | −5.0% |
-| Wave 1D, multi-scale Fourier features (Default) | 75.5 | 74.7 | 75.0 | +0.5% |
-| Allen-Cahn 2D, Mattey & Ghosh (Tuned) | 266.3 | 265.7 | 259.4 | −2.4% |
-| Navier-Stokes 2D, Kovasznay flow (Default = best) | 204.0 | 207.4 | 204.4 | −1.5% |
-| Allen-Cahn 3D, Wight & Zhao (Default) | 1563.2 | 1615.3 | 1553.7 | −3.8% |
+| Lorenz ODE, inverse (Default = best) | 71.5 | 76.7 | 72.8 | −5.0 |
+| Wave 1D, multi-scale Fourier features (Default) | 75.5 | 74.7 | 75.0 | +0.5 |
+| Allen-Cahn 2D, Mattey & Ghosh (Tuned) | 266.3 | 265.7 | 259.4 | −2.4 |
+| Navier-Stokes 2D, Kovasznay flow (Default = best) | 204.0 | 207.4 | 204.4 | −1.5 |
+| Allen-Cahn 3D, Wight & Zhao (Default) | 1563.2 | 1615.3 | 1553.7 | −3.8 |
 
-*Training time (s) DeepXDE reports, summed over the training phases, median of 3 seeds; the same settings and number of steps in all three ways. "Default" for Wave 1D and Allen-Cahn 3D: these two ran with their Default settings because of a bug in loading Settings: Tuned after an example without Tuned settings (fixed); the comparison of the three ways is the same either way.*
+*Training duration (s) reported by DeepXDE, summed over the optimization phases, median of 3 seeds. It is not the total wall-clock time: building the data and network before training and the plots and error analysis after it are not included. GUI vs. Solve = 100 × (GUI − Solve script) / Solve script; the negative values are within the run-to-run variation (ranges in [`performance/tables.md`](performance/tables.md)), not a speed-up caused by the GUI. The same settings and number of optimizer steps in all three modes. "Default" for Wave 1D and Allen-Cahn 3D: these two ran with their Default settings because of a bug in loading Settings: Tuned after an example without Tuned settings (fixed); the comparison of the three modes is the same either way.*
 
-**What this means for you.** Use the window: watching training live costs nothing. The window was within 5% of the same script run without it, and slightly faster in four of the five problems; differences this small also appear between two runs of the same script.
+**What this means for you.** Use the GUI: watching training live did not make it slower. The GUI runs were within 5% of the same Solve script run on its own, and differences this small also appear between two runs of the same script, so there was no systematic increase in training time from the GUI in these tests.
 
-## How much faster is the GPU?
+## How much faster is the GPU? (paper Supplementary Table S3)
 
 The same five problems, Adam only: 200 warm-up steps, then a fixed number of timed Adam steps, on the CPU (8 threads) and on the GPU, with the same network, points and float precision. Reported: seconds per 1,000 Adam steps and the GPU speed-up, median of 3 repeats.
 
@@ -42,7 +42,7 @@ The same five problems, Adam only: 200 warm-up steps, then a fixed number of tim
 
 **What this means for you.** A GPU pays off as soon as a problem has a few thousand points or more: about 3× for a 1D problem, 4–10× in 2D and close to 20× in 3D. For a very small problem (an ODE with a few hundred points) the CPU is faster, because starting work on the GPU costs more than it saves.
 
-## How many CPU threads?
+## How many CPU threads? (paper Supplementary Table S4)
 
 Adam steps per second on the CPU only, for three fixed workloads (Heat 1D with 2,000 points, Poisson 2D with 20,000 points, Heat 2D with 30,000 points), with 1 to 32 threads, each thread count in a fresh process. Three repeats; the second runs the thread counts in reverse order, so that a slow-down caused by the order would show.
 

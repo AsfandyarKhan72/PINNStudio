@@ -1,16 +1,16 @@
-### Table 5. Training time with the three ways of running (RTX 4090; each problem as loaded from the Examples list, see the settings in configs/)
+### Table 2. Training time in the three execution modes: exported standalone script, internal Solve script and PINNStudio GUI (RTX 4090; each problem as loaded from the Examples list, see the settings in configs/)
 
-| Problem | Exported script (s) | Solve script, no window (s) | PINNStudio window (s) | GUI overhead | Steps (export / solve / GUI) | Main-output L₂ (export / solve / GUI) |
+| Problem | Exported script (s) | Solve script (s) | PINNStudio GUI (s) | GUI vs. Solve (%) | Steps (export / solve / GUI) | Main-output L₂ (export / solve / GUI) |
 |---|---|---|---|---|---|---|
-| Lorenz ODE, inverse | 71.5 (68.5–75.5) | 76.7 (76.2–77.0) | 72.8 (71.6–79.3) | -5.0% | 22670 / 22670 / 22670 | 1.10e-04 / 1.10e-04 / 1.10e-04 |
-| Wave 1D, multi-scale Fourier features | 75.5 (75.5–75.9) | 74.7 (73.0–75.4) | 75.0 (74.4–75.7) | +0.5% | 10000 / 10000 / 10000 | 3.04e-01 / 3.04e-01 / 3.04e-01 |
-| Allen-Cahn 2D (Mattey & Ghosh) | 266.3 (264.9–266.9) | 265.7 (259.9–269.3) | 259.4 (259.4–262.9) | -2.4% | 30000 / 30000 / 30000 | 3.56e-04 / 3.56e-04 / 3.56e-04 |
-| Navier-Stokes 2D, Kovasznay flow | 204.0 (203.1–217.4) | 207.4 (202.6–218.3) | 204.4 (203.0–217.6) | -1.5% | 34579 / 34579 / 34579 | 1.97e-04 / 1.97e-04 / 1.97e-04 |
-| Allen-Cahn 3D (Wight & Zhao) | 1563.2 (1551.1–1615.0) | 1615.3 (1558.8–1644.6) | 1553.7 (1547.7–1556.8) | -3.8% | 20000 / 20000 / 20000 | 4.04e-04 / 4.28e-04 / 4.28e-04 |
+| Lorenz ODE, inverse | 71.5 (68.5–75.5) | 76.7 (76.2–77.0) | 72.8 (71.6–79.3) | -5.0 | 22670 / 22670 / 22670 | 1.10e-04 / 1.10e-04 / 1.10e-04 |
+| Wave 1D, multi-scale Fourier features | 75.5 (75.5–75.9) | 74.7 (73.0–75.4) | 75.0 (74.4–75.7) | +0.5 | 10000 / 10000 / 10000 | 3.04e-01 / 3.04e-01 / 3.04e-01 |
+| Allen-Cahn 2D (Mattey & Ghosh) | 266.3 (264.9–266.9) | 265.7 (259.9–269.3) | 259.4 (259.4–262.9) | -2.4 | 30000 / 30000 / 30000 | 3.56e-04 / 3.56e-04 / 3.56e-04 |
+| Navier-Stokes 2D, Kovasznay flow | 204.0 (203.1–217.4) | 207.4 (202.6–218.3) | 204.4 (203.0–217.6) | -1.5 | 34579 / 34579 / 34579 | 1.97e-04 / 1.97e-04 / 1.97e-04 |
+| Allen-Cahn 3D (Wight & Zhao) | 1563.2 (1551.1–1615.0) | 1615.3 (1558.8–1644.6) | 1553.7 (1547.7–1556.8) | -3.8 | 20000 / 20000 / 20000 | 4.04e-04 / 4.28e-04 / 4.28e-04 |
 
-*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three ways of a problem; the settings each problem ran with are saved in configs/. The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*
+*Median of three seeds (range in brackets) of the training duration DeepXDE reports, summed over all optimization phases. This is not the total wall-clock time: building the data and network before training and the plots and error analysis after it are not included. GUI vs. Solve = 100 × (GUI − Solve script) / Solve script; a negative value is within the run-to-run variation, not a speed-up caused by the GUI. The same settings in all three execution modes of a problem; the settings each problem ran with are saved in configs/. The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*
 
-### Table 6. Adam throughput, CPU (8 threads) and GPU
+### Supplementary Table S3. CPU versus GPU Adam training throughput (CPU: 8 threads)
 
 | Problem | CPU, s per 1,000 Adam steps | GPU, s per 1,000 Adam steps | GPU speedup |
 |---|---|---|---|
@@ -22,7 +22,7 @@
 
 *Median of the repeats; a separately timed warm-up comes first.*
 
-### Table S3. CPU threads and Adam throughput (iterations per second)
+### Supplementary Table S4. CPU-thread scaling of Adam throughput (iterations per second)
 
 | Threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
 |---|---|---|---|

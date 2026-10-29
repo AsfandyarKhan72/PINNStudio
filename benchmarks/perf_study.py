@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Performance study for the paper (Section 5): three parts, one results file each.
+Performance study for the paper (Section 5, computational performance): three parts, one results file each.
 
-  overhead     Table 5. Five problems with their full Tuned settings, each solved three ways from the same
-               configuration: the exported script run with python ("export"), the script Solve runs, run with
-               python and no window ("solve"), and Solve in the PINNStudio window with the live loss plot and log
-               on ("gui"). Three seeds; the order of the three modes rotates with the seed. Run it in a real
+  overhead     Table 2 (Section 5.1). Five problems with their full Tuned settings, each solved three ways from the same
+               configuration: the exported standalone script run with python ("export"), the internal Solve
+               script run with python and no GUI ("solve"), and Solve in the PINNStudio GUI with the live loss plot
+               and log on ("gui"). Three seeds; the order of the three modes rotates with the seed. Run it in a real
                desktop session (DISPLAY set); --offscreen only for a quick check.
-  throughput   Table 6. The same five problems on the CPU (8 threads) and on the GPU: a short Adam warm-up and
+  throughput   Supplementary Table S3 (Section 5.2). The same five problems on the CPU (8 threads) and on the GPU: a short Adam warm-up and
                then a fixed number of Adam steps, timed separately (DeepXDE's own per-call timing), same
                network, points and float precision on both devices.
-  threads      Table S3. Adam throughput of three fixed workloads (benchmarks/gpu_check.py: Heat 1D 2k points,
+  threads      Supplementary Table S4 (Section 5.2). Adam throughput of three fixed workloads (benchmarks/gpu_check.py: Heat 1D 2k points,
                Poisson 2D 20k, Heat 2D 30k) on the CPU with 1, 2, 4, 8, 12, 16, 24 and 32 threads, each thread
                count in a fresh process with OMP_NUM_THREADS and MKL_NUM_THREADS set; the thread count PyTorch
                actually used is recorded.
@@ -401,8 +401,8 @@ def tables(a):
     md = []
     ov = _done(os.path.join(a.folder, "overhead.jsonl"))
     if ov:
-        md += ["### Table 5. Training time with the three ways of running (RTX 4090; each problem as loaded from the Examples list, see the settings in configs/)", "",
-               "| Problem | Exported script (s) | Solve script, no window (s) | PINNStudio window (s) | GUI overhead | Steps (export / solve / GUI) | Main-output L₂ (export / solve / GUI) |",
+        md += ["### Table 2. Training time in the three execution modes: exported standalone script, internal Solve script and PINNStudio GUI (RTX 4090; each problem as loaded from the Examples list, see the settings in configs/)", "",
+               "| Problem | Exported script (s) | Solve script (s) | PINNStudio GUI (s) | GUI vs. Solve (%) | Steps (export / solve / GUI) | Main-output L₂ (export / solve / GUI) |",
                "|---|---|---|---|---|---|---|"]
         for label, _, _ in PROBLEMS:
             rs = [r for r in ov if r["problem"] == label and r["rc"] == 0]
@@ -411,17 +411,20 @@ def tables(a):
             t = {m: [r["train"] for r in rs if r["mode"] == m] for m in MODES}
             med = {m: _med(t[m]) for m in MODES}
             cell = lambda m: ("–" if med[m] is None else f"{med[m]:.1f} ({_rng(t[m])[0]:.1f}–{_rng(t[m])[1]:.1f})")
-            ovh = (f"{100 * (med['gui'] - med['solve']) / med['solve']:+.1f}%" if med["gui"] and med["solve"] else "–")
+            ovh = (f"{100 * (med['gui'] - med['solve']) / med['solve']:+.1f}" if med["gui"] and med["solve"] else "–")
             stp = " / ".join(str(_med([r["steps"] for r in rs if r["mode"] == m])) for m in MODES)
             l2 = " / ".join((lambda v: f"{v:.2e}" if v else "–")(_med([next(iter(r["l2"].values()), None) for r in rs if r["mode"] == m and r["l2"]])) for m in MODES)
             md.append(f"| {label} | {cell('export')} | {cell('solve')} | {cell('gui')} | {ovh} | {stp} | {l2} |")
-        md += ["", "*Median of three seeds (range in brackets) of the training time DeepXDE reports, summed over all "
-               "training phases. GUI overhead = (window − Solve script) / Solve script. The same settings in all three "
-               "ways of a problem; the settings each problem ran with are saved in configs/."
+        md += ["", "*Median of three seeds (range in brackets) of the training duration DeepXDE reports, summed over all "
+               "optimization phases. This is not the total wall-clock time: building the data and network before "
+               "training and the plots and error analysis after it are not included. GUI vs. Solve = 100 × (GUI − "
+               "Solve script) / Solve script; a negative value is within the run-to-run variation, not a speed-up "
+               "caused by the GUI. The same settings in all three execution modes of a problem; the settings each "
+               "problem ran with are saved in configs/."
                " The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*", ""]
     tp = _done(os.path.join(a.folder, "throughput.jsonl"))
     if tp:
-        md += ["### Table 6. Adam throughput, CPU (8 threads) and GPU", "",
+        md += ["### Supplementary Table S3. CPU versus GPU Adam training throughput (CPU: 8 threads)", "",
                "| Problem | CPU, s per 1,000 Adam steps | GPU, s per 1,000 Adam steps | GPU speedup |", "|---|---|---|---|"]
         for label, _, _ in PROBLEMS:
             c = _med([r["s_per_1000"] for r in tp if r["problem"] == label and r["device"] == "cpu" and r["rc"] == 0])
@@ -434,7 +437,7 @@ def tables(a):
     th = _done(os.path.join(a.folder, "threads.jsonl"))
     if th:
         probs = list(dict.fromkeys(r["problem"] for r in th))
-        md += ["### Table S3. CPU threads and Adam throughput (iterations per second)", "",
+        md += ["### Supplementary Table S4. CPU-thread scaling of Adam throughput (iterations per second)", "",
                "| Threads | " + " | ".join(probs) + " |", "|---" * (len(probs) + 1) + "|"]
         for n in THREADS:
             row = [str(n)]
