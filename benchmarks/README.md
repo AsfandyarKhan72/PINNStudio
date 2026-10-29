@@ -4524,10 +4524,10 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Base PINN | 1.1 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 6.5 × 10<sup>-3</sup> | 4.7 × 10<sup>-1</sup> | 830 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | 2.4 × 10<sup>-1</sup> | 6.1 × 10<sup>-1</sup> | 2.3 × 10<sup>-2</sup> | 7.5 × 10<sup>-1</sup> | 5551 |
-| 🔴 **The template's starting settings (3 seeds, median)** | **8.6 × 10<sup>-3</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
 | 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | – | 7.2 × 10<sup>-3</sup> | 1464 |
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | – | 1.1 × 10<sup>-2</sup> | 1995 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.6 × 10<sup>-3</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by φ and μ together (the worse of the two).*
 
