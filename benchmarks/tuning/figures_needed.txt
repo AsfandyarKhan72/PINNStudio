@@ -8,9 +8,9 @@ Second_order_ODE base
 Second_order_ODE_inv net
 Inverse_Lorenz_system base
 Inverse_Lorenz_system_with_exogenous_input base
-Euler_beam lbfgs
+Euler_beam all
 Euler_beam base
-Euler_beam_inv all
+Euler_beam_inv net
 Fractional_Poisson_equation_1D net
 Fractional_Poisson_equation_1D base
 Poisson_1D_Dirichlet base
@@ -33,7 +33,7 @@ Inverse_Poisson_with_unknown_forcing_field_batches all
 Template_1D_Allen_Cahn_whole_interval net
 Template_1D_Allen_Cahn_whole_interval paper_wz
 Template_1D_Allen_Cahn_whole_interval paper_mg
-Template_1D_Allen_Cahn_whole_interval_inv times
+Template_1D_Allen_Cahn_whole_interval_inv base
 Template_1D_Cahn_Hilliard base
 Template_1D_Cahn_Hilliard paper_wz
 Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup base
@@ -41,6 +41,7 @@ Template_1D_Cahn_Hilliard_Mattey_Ghosh paper_mg
 Black_Scholes_equation_call_option base
 Template_1D_Burgers_best_setup iters
 Template_1D_Burgers paper_raissi
+Template_1D_Burgers plain
 Template_1D_Burgers_inv invall
 Burgers_equation_with_RAR base
 Diffusion_equation all
@@ -61,7 +62,7 @@ Klein_Gordon_equation net
 Klein_Gordon_equation base
 Klein_Gordon_equation_inv all
 Schr_dinger_equation base
-Schr_dinger_equation_inv net
+Schr_dinger_equation_inv points
 Wave_propagation_space_time_multi_scale_Fourier_features all
 Wave_propagation_space_time_multi_scale_Fourier_features base
 Wave_propagation_space_time_multi_scale_Fourier_features_inv all
@@ -77,7 +78,7 @@ Helmholtz_2D_with_a_hole base
 Laplace_equation_on_a_disk base
 Linear_elastostatic_plate all
 Linear_elastostatic_plate base
-Linear_elastostatic_plate_inv base
+Linear_elastostatic_plate_inv lbfgs3
 Linear_elastostatic_plate_soft_BCs base
 Kovasznay_flow base
 Kovasznay_flow_inv net
@@ -91,7 +92,7 @@ Template_2D_Allen_Cahn_Wight_Zhao paper_wz
 Template_2D_Allen_Cahn_Wight_Zhao_inv invall
 Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup base
 Template_2D_Allen_Cahn_Mattey_Ghosh paper_mg
-Template_2D_Allen_Cahn_Mattey_Ghosh_inv dataw
+Template_2D_Allen_Cahn_Mattey_Ghosh_inv setup
 Template_2D_Cahn_Hilliard_Wight_Zhao base
 Template_2D_Cahn_Hilliard_Wight_Zhao paper_wz
 Template_2D_Cahn_Hilliard_Wight_Zhao_inv base
@@ -100,7 +101,7 @@ Template_2D_Cahn_Hilliard_Mattey_Ghosh paper_mg
 Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv times
 Template_2D_Burgers_Mathias iters
 Template_2D_Burgers_Mathias paper_mathias
-Template_2D_Burgers_Mathias_inv invall
+Template_2D_Burgers_Mathias_inv times
 Template_2D_Heat base
 Template_2D_Heat_inv base
 Fractional_Poisson_equation_3D base

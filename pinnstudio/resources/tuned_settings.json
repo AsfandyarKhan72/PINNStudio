@@ -16,13 +16,13 @@
  "Euler beam": {
   "forward": {
    "switches": null,
-   "variant": "lbfgs",
-   "error": "L2 2.4e-04 vs 3.5e-03 with its own settings"
+   "variant": "all",
+   "error": "L2 2.8e-04 vs 3.5e-03 with its own settings"
   },
   "inverse": {
    "switches": null,
-   "variant": "all",
-   "error": "parameter error 0.075%"
+   "variant": "net",
+   "error": "parameter error 0.15%"
   }
  },
  "Fractional Poisson equation 1D": {
@@ -71,12 +71,7 @@
   "forward": {
    "switches": null,
    "variant": "net",
-   "error": "L2 6.3e-04 vs 1.4e-03 with its own settings"
-  },
-  "inverse": {
-   "switches": null,
-   "variant": "times",
-   "error": "parameter error 0.47%"
+   "error": "L2 7.0e-04 vs 1.4e-03 with its own settings"
   }
  },
  "1D Cahn-Hilliard (Mattey & Ghosh)": {
@@ -89,13 +84,13 @@
  "1D Burgers": {
   "forward": {
    "switches": null,
-   "variant": "paper_raissi",
+   "variant": "plain",
    "error": "L2 3.3e-04"
   },
   "inverse": {
    "switches": null,
    "variant": "invall",
-   "error": "parameter error 0.099%"
+   "error": "parameter error 0.02%"
   }
  },
  "Diffusion equation": {
@@ -121,7 +116,7 @@
   "inverse": {
    "switches": null,
    "variant": "all",
-   "error": "parameter error 0.023%"
+   "error": "parameter error 0.012%"
   }
  },
  "Heat equation": {
@@ -158,8 +153,8 @@
  "Schrödinger equation": {
   "inverse": {
    "switches": null,
-   "variant": "net",
-   "error": "parameter error 0.0072%"
+   "variant": "points",
+   "error": "parameter error 0.023%"
   }
  },
  "Wave propagation – space-time multi-scale Fourier features": {
@@ -200,6 +195,11 @@
    "switches": null,
    "variant": "all",
    "error": "L2 1.3e-04 vs 6.7e-02 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "lbfgs3",
+   "error": "parameter error 0.026%"
   }
  },
  "Kovasznay flow": {
@@ -245,9 +245,14 @@
    "error": "L2 3.6e-04 vs 6.6e-03 with its own settings"
   },
   "inverse": {
-   "switches": null,
-   "variant": "dataw",
-   "error": "parameter error 2.5%"
+   "switches": [
+    "exact_ic",
+    "exact_bc",
+    "whole",
+    "sa"
+   ],
+   "variant": "base",
+   "error": "parameter error 4.3%"
   }
  },
  "2D Cahn-Hilliard (Mattey & Ghosh)": {
@@ -266,12 +271,12 @@
   "forward": {
    "switches": null,
    "variant": "iters",
-   "error": "L2 8.4e-03 vs 1.1e-02 with its own settings"
+   "error": "L2 9.7e-03 vs 1.1e-02 with its own settings"
   },
   "inverse": {
    "switches": null,
-   "variant": "invall",
-   "error": "parameter error 0.55%"
+   "variant": "times",
+   "error": "parameter error 0.77%"
   }
  },
  "3D Poisson (Cube with spherical cut-out)": {
@@ -292,7 +297,7 @@
   "inverse": {
    "switches": null,
    "variant": "lbfgs3",
-   "error": "parameter error 0.12%"
+   "error": "parameter error 0.17%"
   }
  }
 }
