@@ -7,7 +7,12 @@
 <meta name="description" content="A graphical platform for forward and inverse physics-informed neural networks.">
 <meta property="og:title" content="PINNStudio: A graphical platform for forward and inverse physics-informed neural networks">
 <meta property="og:description" content="A graphical platform for forward and inverse physics-informed neural networks.">
-<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/interface.png">
+<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/social_preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/pinnstudio_icon.png">
+<link rel="apple-touch-icon" href="assets/pinnstudio_icon.png">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -47,7 +52,9 @@
     border-bottom: 1px solid var(--border);
   }
   nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 16px; }
-  nav.top .brand { font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  nav.top .brand { font-weight: 700; color: var(--text); letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 9px; }
+  nav.top .brand img { border-radius: 6px; }
+  .hero-icon { display: block; margin: 0 auto 18px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
   nav.top .links { display: flex; gap: 22px; font-size: 14.5px; }
   nav.top .links a { color: var(--text-dim); }
   nav.top .links a:hover { color: var(--text); text-decoration: none; }
@@ -162,7 +169,7 @@
 
 <nav class="top">
   <div class="wrap">
-    <a class="brand" href="#">PINNStudio</a>
+    <a class="brand" href="#"><img src="assets/pinnstudio_icon.png" alt="" width="26" height="26">PINNStudio</a>
     <div class="links">
       <a href="#why">Why</a>
       <a href="#interface">Interface</a>
@@ -178,7 +185,8 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow">Open source · MIT license · Python</span>
+    <span class="eyebrow">Open source · GPLv3 · Python</span>
+    <img class="hero-icon" src="assets/pinnstudio_icon.png" alt="PINNStudio icon" width="88" height="88">
     <h1>PINNStudio</h1>
     <p class="tagline">A graphical platform for forward and inverse physics-informed neural networks.</p>
 
@@ -471,7 +479,7 @@
       <a href="https://github.com/AsfandyarKhan72/PINNStudio">GitHub</a>
       <a href="https://pypi.org/project/pinnstudio/">PyPI</a>
       <a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
-      <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">GNU GPL v3</a>
     </div>
   </div>
 </footer>

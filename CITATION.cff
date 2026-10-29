@@ -11,9 +11,11 @@ authors:
     given-names: "Mahmood"
     affiliation: "Boise State University"
 repository-code: "https://github.com/AsfandyarKhan72/PINNStudio"
-license: MIT
-version: 1.5.0
-date-released: 2026-10-21
+# This file describes the development source in this repository, which is licensed GPL-3.0-only (see LICENSE).
+# It has no version or release date because the development source is not a release; both are added again when
+# the next version is published. Releases up to and including 1.5.0 (tag v1.5.0, 2026-10-21, on PyPI) were
+# published under the MIT License, and their own copy of this file keeps saying so.
+license: GPL-3.0-only
 keywords:
   - physics-informed neural networks
   - PINN

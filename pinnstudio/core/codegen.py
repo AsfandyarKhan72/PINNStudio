@@ -11590,7 +11590,9 @@ Time:    t in [{config.t_min}, {config.t_max}]''') +
                  f'''
 
 Edit anything below and re-run -- this is a plain script, not tied to
-the PINNStudio GUI.
+the PINNStudio GUI. PINNStudio's copyright holders permit you to use, change
+and share this generated script under terms of your choice; the libraries it
+imports keep their own licenses (see "License" in PINNStudio's README).
 """
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
