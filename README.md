@@ -1,4 +1,4 @@
-# PINNStudio
+# <img src="pinnstudio/resources/pinnstudio.png" alt="PINNStudio icon" height="44" align="top"> PINNStudio
 
 *A graphical platform for forward and inverse physics-informed neural networks.*
 

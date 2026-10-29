@@ -3,6 +3,7 @@
     pinnstudio/resources/pinnstudio.png    256 x 256 (Linux app menu, README)
     pinnstudio/resources/pinnstudio.ico    16-256 px (Windows shortcuts)
     pinnstudio/resources/pinnstudio.icns   16-1024 px (macOS app bundle)
+    docs/assets/pinnstudio_icon.png        192 x 192 (the project page's icon and favicon)
 
 The icon was drawn for PINNStudio with the assistance of Claude (Oct 2026) and is part of PINNStudio under its
 license. Run from the repository root:
@@ -46,6 +47,7 @@ def main():
     render(_APP, 256).save(os.path.join(RES, "pinnstudio.ico"), sizes=[(s, s) for s in sizes],
                            append_images=[render(_APP, s) for s in sizes])
     render(_APP, 1024).save(os.path.join(RES, "pinnstudio.icns"))
+    render(_APP, 192).save(os.path.join(ROOT, "docs", "assets", "pinnstudio_icon.png"), optimize=True)
     print("wrote", ", ".join(f"pinnstudio.{e}" for e in ("png", "ico", "icns")), "in", RES)
 
 
