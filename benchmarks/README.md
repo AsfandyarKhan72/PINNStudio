@@ -94,7 +94,7 @@ All runs are on one RTX 4090 unless stated.
 | [Fractional Poisson 2D – unknown order α](#bench-fractional-poisson-2d-unknown-order) | DeepXDE | – | – | – | – | α = 1.80386 (1.8) | 0.21% | 1395 |
 | [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
 | [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 283 | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | 4.3% | 1774 |
-| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 872 | ε² = 0.00251029 (0.0025) | 0.41% | 3793 |
+| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.3 × 10<sup>-2</sup> | 872 | ε² = 0.00251029 (0.0025) | 0.41% | 3793 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | – | 1964 | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **9.7 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3998 | ν = 0.00320754 (0.0031831) | 0.77% | 4231 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | – | 98 | α = 0.399893 (0.4) | 0.027% | 169 |
@@ -2008,7 +2008,7 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 |---|---|---|---|
 | 🔴 **Base PINN** | **3.3 × 10<sup>-4</sup>** | **4.0 × 10<sup>-4</sup>** | **42** |
 | Raissi et al.'s settings, as reported (Raissi et al. (2019), Sec. 2.1) | – | 6.7 × 10<sup>-4</sup> | – |
-| Raissi et al.'s settings, run in PINNStudio | 5.2 × 10<sup>-4</sup> | 4.0 × 10<sup>-4</sup> | 40 |
+| Raissi et al.'s settings, run in PINNStudio | 5.2 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 40 |
 | Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | 1.0 × 10<sup>-3</sup> | 86 |
 | Best setup + 3× iterations | 5.5 × 10<sup>-4</sup> | 6.7 × 10<sup>-4</sup> | 148 |
 | Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 75 |
@@ -4524,10 +4524,10 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Base PINN | 1.1 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 6.5 × 10<sup>-3</sup> | 4.7 × 10<sup>-1</sup> | 830 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | 2.4 × 10<sup>-1</sup> | 6.1 × 10<sup>-1</sup> | 2.3 × 10<sup>-2</sup> | 7.5 × 10<sup>-1</sup> | 5551 |
-| 🔴 **The template's starting settings (3 seeds, median)** | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.3 × 10<sup>-2</sup>** | **872** |
 | 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | – | 7.2 × 10<sup>-3</sup> | 1464 |
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | – | 1.1 × 10<sup>-2</sup> | 1995 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.3 × 10<sup>-2</sup>** | **872** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by φ and μ together (the worse of the two).*
 
