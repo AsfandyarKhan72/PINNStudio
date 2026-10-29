@@ -174,17 +174,25 @@ def iconize(btn):
             return
 
 
+# The application icon: a small neural network whose output node draws a solution curve. Drawn for PINNStudio
+# (with the assistance of Claude, Oct 2026) and part of PINNStudio under its license; the files in
+# pinnstudio/resources/ (pinnstudio.png, .ico, .icns) are rendered from it by tools/make_app_icon.py.
 _APP = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-        '<rect x="2" y="2" width="60" height="60" rx="14" fill="#2f6fde"/>'
-        '<path d="M10 44 C 20 44, 22 20, 32 20 S 44 40, 54 40" fill="none" stroke="#ffffff" stroke-width="4.5" '
-        'stroke-linecap="round"/>'
-        '<circle cx="21" cy="32" r="3.6" fill="#ffd166"/><circle cx="32" cy="20" r="3.6" fill="#ffd166"/>'
-        '<circle cx="43" cy="30" r="3.6" fill="#ffd166"/></svg>')
+        '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b3a6b"/>'
+        '<stop offset="1" stop-color="#0e6f8a"/></linearGradient></defs>'
+        '<rect x="2" y="2" width="60" height="60" rx="13" fill="url(#bg)"/>'
+        '<path d="M11 24 L22 16 M11 24 L22 32 M11 24 L22 48 M11 40 L22 16 M11 40 L22 32 M11 40 L22 48 '
+        'M22 16 L32 32 M22 32 L32 32 M22 48 L32 32" stroke="#a8d8ff" stroke-opacity="0.6" stroke-width="1.8" fill="none"/>'
+        '<path d="M32 32 C 38 32, 39 17, 44.5 17 S 50 44, 55 41" fill="none" stroke="#ffc94d" stroke-width="4.4" '
+        'stroke-linecap="round" stroke-linejoin="round"/>'
+        '<g fill="#ffffff"><circle cx="11" cy="24" r="3.5"/><circle cx="11" cy="40" r="3.5"/>'
+        '<circle cx="22" cy="16" r="3.5"/><circle cx="22" cy="32" r="3.5"/><circle cx="22" cy="48" r="3.5"/></g>'
+        '<circle cx="32" cy="32" r="4.4" fill="#ffc94d"/></svg>')
 
 
 def app_icon():
-    """PINNStudio's window icon: a smooth solution curve through a few
-    training points."""
+    """PINNStudio's window icon: a small neural network whose output draws a
+    solution curve."""
     ic = QIcon()
     for size in (16, 24, 32, 48, 64, 128, 256):
         r = QSvgRenderer(QByteArray(_APP.encode()))

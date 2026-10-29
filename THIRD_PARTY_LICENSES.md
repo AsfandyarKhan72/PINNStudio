@@ -30,8 +30,14 @@ Not included from other projects:
 - **No dataset is copied from DeepXDE's repository.** The reference and measured data under `reference_data/` were
   computed for PINNStudio: by the scripts in `tools/` (`make_exact_reference_data.py`,
   `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`), except the data of four templates
-  (Burgers 2D – Mathias et al., Poisson 2D – disk and L-shape, Poisson 3D – sphere), which was computed outside this
-  repository for PINNStudio.
+  (`reference_data/2D/burgers_mathias`, `2D/poisson_disk`, `2D/poisson_lshape`, `3D/poisson_sphere`). These four
+  were computed by PINNStudio's author with COMSOL Multiphysics on a computer of the Computational Materials Design
+  Lab at Boise State University; they were not copied from DeepXDE or from the published papers whose problems the
+  templates follow.
+- **The application icon** (`pinnstudio/resources/pinnstudio.png`, `.ico`, `.icns`, and the window icon drawn in
+  `pinnstudio/ui/icons.py`) was created for PINNStudio, with the assistance of Claude (Anthropic), in October 2026,
+  replacing an earlier icon. It is part of PINNStudio and is licensed with it; `tools/make_app_icon.py` renders the
+  icon files from its SVG source.
 - **No fonts are bundled.** The interface uses the system's fonts. The project page (`docs/index.html`) loads its
   web fonts from Google Fonts at viewing time.
 
@@ -60,18 +66,20 @@ The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download 
 
 ### What these licenses mean for PINNStudio
 
-- **PyQt6 (GPL-3.0)** is the reason PINNStudio is distributed under the GPL version 3: a program built on the GPL
-  version of PyQt6 must itself be distributed under GPL-compatible terms. Anyone who distributes PINNStudio, changed
-  or not, must do so under the GPL version 3 and make the corresponding source code available.
-- **DeepXDE (LGPL-2.1)** allows programs that use the library to be distributed under their own terms. PINNStudio
-  uses DeepXDE unchanged, as an installed package, so the LGPL requires no more than respecting DeepXDE's license
-  and attributing it, which PINNStudio does (README, *Acknowledgment* and *References*). The LGPL-2.1 is also
-  compatible with the GPL version 3.
+*This is a summary for orientation, not legal advice.*
+
+- **PyQt6 (GPL-3.0)** is the reason PINNStudio is distributed under the GPL version 3: Riverbank Computing licenses
+  PyQt6 under the GPL version 3 or a commercial license, and a program built on the GPL version is distributed under
+  GPL-compatible terms. Anyone who distributes PINNStudio, changed or not, does so under the GPL version 3, with its
+  corresponding source code.
+- **DeepXDE (LGPL-2.1)** is a library that programs may use and be distributed with under their own terms, subject
+  to the conditions of the LGPL. PINNStudio uses DeepXDE unchanged, as a separately installed package, and attributes
+  it (README, *Acknowledgment* and *References*). The LGPL-2.1 is compatible with the GPL version 3.
 - **Qt (LGPL-3.0)** and the BSD, MIT, Apache-2.0 and PSF-style licenses of the other packages are compatible with
   the GPL version 3.
-- **The scripts PINNStudio writes** import DeepXDE, PyTorch, NumPy and Matplotlib, not PyQt6. PINNStudio's
-  copyright holders allow these scripts to be used under any terms (see the README's License section); the
-  libraries they import keep their own licenses.
+- **The scripts PINNStudio writes** import DeepXDE, PyTorch, NumPy and Matplotlib, not PyQt6. They contain code
+  from PINNStudio's own templates, which PINNStudio's copyright holders allow to be used under any terms (the
+  additional permission in the README's License section); the libraries they import keep their own licenses.
 
 ### If PINNStudio is ever distributed as a bundled application
 

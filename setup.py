@@ -5,7 +5,7 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    version="1.5.0",
+    version="1.5.0",   # the latest release (MIT); set to the next release number when it is published under GPL-3.0-only
     author="AsfandyarKhan72",
     description="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.",
     long_description=long_description,

@@ -11,7 +11,10 @@ authors:
     given-names: "Mahmood"
     affiliation: "Boise State University"
 repository-code: "https://github.com/AsfandyarKhan72/PINNStudio"
-license: GPL-3.0-only
+# version, date-released and license describe the latest published release, 1.5.0, which was released under the
+# MIT License. The development version is licensed GPL-3.0-only (see LICENSE); these three fields change together
+# when the next release is published.
+license: MIT
 version: 1.5.0
 date-released: 2026-10-21
 keywords:
