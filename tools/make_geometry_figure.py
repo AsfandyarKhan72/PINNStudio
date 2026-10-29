@@ -4,7 +4,13 @@ selected so its edges (2D) or faces (3D) are highlighted and its settings are sh
 (a) Helmholtz 2D – sound-hard scattering: a square with a disk subtracted; BC 3 (Robin, u_re) on the four
     outer edges, picked with the named sides "left or right or bottom or top".
 (b) Poisson 3D – cube with spherical cut-out: a cube with a sphere subtracted, in the 3D view; BC 2
-    (Dirichlet) on the spherical surface, picked with a coordinate expression.
+    (Neumann, du/dn = 2 e^{-r^2} (x^2 + y^2 + z(z - 1)) / R) on the spherical surface F7, picked with the
+    coordinate expression np.isclose(x**2 + y**2 + (z - 1)**2, R**2); BC 1 (Dirichlet, u = e^{-r^2}) on the
+    cube's faces.
+
+Only the parts that carry information are kept: the model tree and the empty training log are collapsed with
+their splitters, as a user can (the BC types are in the settings and in the legend of the graphics), and the
+menu bar and status bar are cropped off; nothing in the window is changed or drawn over.
 
 The window is drawn offscreen at twice the screen resolution and the two panels are stacked, (a) above (b):
     QT_QPA_PLATFORM=offscreen python tools/make_geometry_figure.py
@@ -22,7 +28,8 @@ OUT = os.path.join(ROOT, "benchmarks", "figures")
 
 PANELS = [("Helmholtz sound-hard scattering (absorbing BC)", 2, False),   # (example key, BC row, 3D view)
           ("3D Poisson (Cube with spherical cut-out)", 1, True)]
-SIZE = (1600, 900)          # window size in screen pixels (twice that in the image)
+SIZE = (1360, 740)          # window size in screen pixels (twice that in the image)
+SETTINGS_W = 660            # wide enough for the whole Where: expression of (b)
 
 
 def _pump(app, s):
@@ -49,14 +56,24 @@ def shot(app, key, bc_row, view3d):
     combo.activated.emit(i)
     _pump(app, 2.0)
     w.log_box.clear()
-    w.right_splitter.setSizes([SIZE[1] - 230, 70])      # most of the right side for the graphics
     w.workspace.select(w.custom_bc_list[bc_row]["_node"])  # the BC's settings, its edges/faces highlighted
     _pump(app, 1.5)
     if view3d:
         v = w.domain_view.view_combo
         v.setCurrentIndex(v.findData("3d"))
         _pump(app, 3.0)
-    img = w.grab().toImage()
+    # the model tree collapsed with its splitter, as a user can (the BC types are in the settings and in the
+    # legend of the graphics)
+    w.main_splitter.setCollapsible(0, True)
+    w.main_splitter.setSizes([0, SETTINGS_W, w.main_splitter.width() - SETTINGS_W])
+    w.right_splitter.setCollapsible(1, True)
+    w.right_splitter.setSizes([w.right_splitter.height(), 0])   # the empty training log closed
+    _pump(app, 1.5)
+    # leave out the menu bar and the status bar
+    top = w.menuBar().height() if w.menuBar().isVisible() else 0
+    bottom = w.statusBar().geometry().top() if w.statusBar().isVisible() else w.height()
+    from PyQt6.QtCore import QRect
+    img = w.grab(QRect(0, top, w.width(), bottom - top)).toImage()
     w.close()
     return img
 
@@ -87,7 +104,7 @@ def main():
         fig.paste(im, (0, y))
         y += im.height + pad // len(ims)
     fig.save(os.path.join(OUT, "paper_geometry.png"), optimize=True)
-    fig.save(os.path.join(OUT, "paper_geometry.pdf"), resolution=300)
+    fig.save(os.path.join(OUT, "paper_geometry.pdf"), resolution=fig.width / 6.5)   # 6.5 in wide, the print width
     for p in tmp:
         os.remove(p)
     print("wrote", os.path.join(OUT, "paper_geometry.png"), fig.size)
