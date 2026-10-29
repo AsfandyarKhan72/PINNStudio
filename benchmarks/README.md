@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 41 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=89815c0b)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=3773a108)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -87,7 +87,6 @@ All runs are on one RTX 4090 unless stated.
 | [Laplace 2D – disk](#bench-laplace-2d-disk) | DeepXDE | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | – | 72 | – | – | – |
 | [Linear elasticity 2D – plate](#bench-linear-elasticity-2d-plate) | DeepXDE | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | – | 1147 | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 561 |
 | [Linear elasticity 2D – plate, soft BCs](#bench-linear-elasticity-2d-plate-soft-bcs) | DeepXDE | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | – | 654 | – | – | – |
-| [Mixed convection 2D – Soomro et al.](#bench-mixed-convection-2d-soomro-et-al) | PINNStudio | – | – | – | – | – | – | – |
 | [Navier-Stokes 2D – Kovasznay flow](#bench-navier-stokes-2d-kovasznay-flow) | DeepXDE | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup>** | – | 213 | Re = 19.9978 (20) | 0.011% | 263 |
 | [Poisson 2D – disk](#bench-poisson-2d-disk) | PINNStudio | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | – | 156 | f = 1.00002 (1) | 0.002% | 162 |
 | [Poisson 2D – L-shape](#bench-poisson-2d-l-shape) | DeepXDE | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | – | 500 | – | – | – |
@@ -3848,24 +3847,6 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 <sub>uᵧ — PINN, reference and error over space and time</sub>
 
 ![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_uy.png)
-
-</details>
-
-</details>
-
-<details id="bench-mixed-convection-2d-soomro-et-al">
-<summary><strong>Mixed convection 2D – Soomro et al.</strong> · PINNStudio template</summary>
-
-<details>
-<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
-
-*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
-
-- **Network:** multi-scale Fourier features (MsFFN) 5 × 64 (2 inputs, 4 outputs), tanh, Glorot normal, scales 1, 5
-- **Points:** 12,000 domain, 3,000 boundary
-- **Training:** Adam 30,000 → L-BFGS 20,000
-
-*Load it:* toolbar → Examples: **Forward** → **Mixed convection 2D – Soomro et al.** → **Default**, then Solve.
 
 </details>
 
