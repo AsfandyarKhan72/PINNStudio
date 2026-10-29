@@ -10,7 +10,9 @@ selected so its edges (2D) or faces (3D) are highlighted and its settings are sh
 
 Only the parts that carry information are kept: the model tree and the empty training log are collapsed with
 their splitters, as a user can (the BC types are in the settings and in the legend of the graphics), and the
-menu bar and status bar are cropped off; nothing in the window is changed or drawn over.
+menu bar, the general help line under the graphics and the status bar are cropped off; nothing in the window
+is changed or drawn over. The window has PINNStudio's smallest size, so that the text prints at about 6 pt at
+6.5 in (at this width the toolbar leaves out its "PINNStudio" title by itself).
 
 The window is drawn offscreen at twice the screen resolution and the two panels are stacked, (a) above (b):
     QT_QPA_PLATFORM=offscreen python tools/make_geometry_figure.py
@@ -28,8 +30,9 @@ OUT = os.path.join(ROOT, "benchmarks", "figures")
 
 PANELS = [("Helmholtz sound-hard scattering (absorbing BC)", 2, False),   # (example key, BC row, 3D view)
           ("3D Poisson (Cube with spherical cut-out)", 1, True)]
-SIZE = (1360, 740)          # window size in screen pixels (twice that in the image)
-SETTINGS_W = 660            # wide enough for the whole Where: expression of (b)
+SIZE = (1100, 750)          # PINNStudio's smallest window, in screen pixels (twice that in the image): its
+                            # 14 px text prints at 6 pt when the figure is 6.5 in wide
+SETTINGS_W = 640            # wide enough for the whole Where: and Value: expressions of (b)
 
 
 def _pump(app, s):
@@ -69,9 +72,12 @@ def shot(app, key, bc_row, view3d):
     w.right_splitter.setCollapsible(1, True)
     w.right_splitter.setSizes([w.right_splitter.height(), 0])   # the empty training log closed
     _pump(app, 1.5)
-    # leave out the menu bar and the status bar
+    # leave out the menu bar, the help line under the graphics and the status bar
     top = w.menuBar().height() if w.menuBar().isVisible() else 0
     bottom = w.statusBar().geometry().top() if w.statusBar().isVisible() else w.height()
+    h = w.domain_view.hint                                  # the general help line under the graphics
+    if h.isVisible():
+        bottom = min(bottom, h.mapTo(w, h.rect().topLeft()).y())
     from PyQt6.QtCore import QRect
     img = w.grab(QRect(0, top, w.width(), bottom - top)).toImage()
     w.close()
