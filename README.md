@@ -342,7 +342,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 
 PINNStudio comes with 64 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
-- **PINNStudio templates** (14): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
+- **PINNStudio templates** (15): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat templates and the Poisson templates on a disk, a sphere and a cube with a spherical cut-out are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates and the Poisson cube with a spherical cut-out in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
 - **DeepXDE examples** (39 forward, 10 inverse; DeepXDE's Allen-Cahn 1D is left out, as the Allen-Cahn 1D – Wight & Zhao template covers it): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
 - **Settings: Default or Tuned** (next to the Examples list): *Default* is DeepXDE's own settings for a DeepXDE example, and for a template taken from a paper the paper's own way of solving it; *Tuned* is PINNStudio's best for the example, from the [benchmarks](benchmarks/README.md). The Training Log says what Tuned changes.
 
@@ -5391,6 +5391,10 @@ On a processor with efficiency cores the slow cores hold every step back, and us
 PINNStudio/
 ├── pinnstudio/
 │   ├── main.py            # Entry point
+│   ├── __main__.py        # python -m pinnstudio (what the desktop shortcut runs)
+│   ├── shortcut.py        # pinnstudio --create-shortcut / --remove-shortcut
+│   ├── errors.py          # Error reports when started without a console
+│   ├── resources/         # App icons and the Tuned settings of every example
 │   ├── ui/
 │   │   ├── main_window.py   # PyQt6 interface — every page, dialog, and control
 │   │   ├── workspace.py     # Model tree + settings pages (the three-panel layout)
@@ -5438,7 +5442,7 @@ PINNStudio/
 ├── benchmarks/              # Benchmarks of every example, tuning, training methods, performance and export checks
 ├── docs/                    # Project web page
 ├── tests/                   # Test suite (pytest)
-├── tools/                   # Reference-data generators, example runners, window check
+├── tools/                   # Reference-data generators, example runners and checks, the paper's figures and pages
 ├── requirements.txt
 ├── setup.py, pyproject.toml, MANIFEST.in
 ├── get-pinnstudio.sh       # One-command install with uv (macOS/Linux)

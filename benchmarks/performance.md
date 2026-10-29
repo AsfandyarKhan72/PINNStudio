@@ -4,9 +4,9 @@
 
 **The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090, Ubuntu, Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15. Every run records the PINNStudio commit and these versions. Script: [`perf_study.py`](perf_study.py).
 
-## Does the PINNStudio GUI slow training down? (paper Table 2)
+## Does the PINNStudio GUI slow training down?
 
-Five problems (Lorenz inverse, Wave 1D with multi-scale Fourier features, Allen-Cahn 2D of Mattey & Ghosh, Kovasznay flow, Allen-Cahn 3D of Wight & Zhao) are solved in three ways from the same configuration, with the settings given in the table:
+*Paper: Table 2.* Five problems (Lorenz inverse, Wave 1D with multi-scale Fourier features, Allen-Cahn 2D of Mattey & Ghosh, Kovasznay flow, Allen-Cahn 3D of Wight & Zhao) are solved in three ways from the same configuration, with the settings given in the table:
 
 - **Exported standalone script**: *Export as DeepXDE script*, run with Python from a terminal.
 - **Internal Solve script**: the script PINNStudio's *Solve* runs, run with Python on its own, without the GUI.
@@ -26,9 +26,9 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 **What this means for you.** Use the GUI: watching training live did not make it slower. The GUI runs were within 5% of the same Solve script run on its own, and differences this small also appear between two runs of the same script, so there was no systematic increase in training time from the GUI in these tests.
 
-## How much faster is the GPU? (paper Supplementary Table S3)
+## How much faster is the GPU?
 
-The same five problems, Adam only: 200 warm-up steps, then a fixed number of timed Adam steps, on the CPU (8 threads) and on the GPU, with the same network, points and float precision. Reported: seconds per 1,000 Adam steps and the GPU speed-up, median of 3 repeats.
+*Paper: Supplementary Table S3.* The same five problems, Adam only: 200 warm-up steps, then a fixed number of timed Adam steps, on the CPU (8 threads) and on the GPU, with the same network, points and float precision. Reported: seconds per 1,000 Adam steps and the GPU speed-up, median of 3 repeats.
 
 | Problem | CPU, 8 threads (s per 1,000 Adam steps) | GPU (s per 1,000 Adam steps) | GPU speed-up |
 |---|---|---|---|
@@ -42,9 +42,9 @@ The same five problems, Adam only: 200 warm-up steps, then a fixed number of tim
 
 **What this means for you.** A GPU pays off as soon as a problem has a few thousand points or more: about 3× for a 1D problem, 4–10× in 2D and close to 20× in 3D. For a very small problem (an ODE with a few hundred points) the CPU is faster, because starting work on the GPU costs more than it saves.
 
-## How many CPU threads? (paper Supplementary Table S4)
+## How many CPU threads?
 
-Adam steps per second on the CPU only, for three fixed workloads (Heat 1D with 2,000 points, Poisson 2D with 20,000 points, Heat 2D with 30,000 points), with 1 to 32 threads, each thread count in a fresh process. Three repeats; the second runs the thread counts in reverse order, so that a slow-down caused by the order would show.
+*Paper: Supplementary Table S4.* Adam steps per second on the CPU only, for three fixed workloads (Heat 1D with 2,000 points, Poisson 2D with 20,000 points, Heat 2D with 30,000 points), with 1 to 32 threads, each thread count in a fresh process. Three repeats; the second runs the thread counts in reverse order, so that a slow-down caused by the order would show.
 
 | Threads | 1 | 2 | 4 | 8 | 12 | 16 | 24 | 32 |
 |---|---|---|---|---|---|---|---|---|
