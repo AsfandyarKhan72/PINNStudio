@@ -1553,7 +1553,7 @@ def page(recs):
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
-      "`tools/check_export_equivalence.py` | running |\n"
+      "`tools/check_export_equivalence.py` | done (91 checked; see performance.md) |\n"
       "| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
       "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
       "[performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | done |\n\n"
