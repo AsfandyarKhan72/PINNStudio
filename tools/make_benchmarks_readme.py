@@ -1534,7 +1534,7 @@ def page(recs):
       "the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time "
       "from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | "
       "[tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, "
-      "`tools/make_tuning_page.py` | done; more seed repeats queued |\n"
+      "`tools/make_tuning_page.py` | done |\n"
       "| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes "
       "from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme "
       "as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the "
@@ -2083,7 +2083,7 @@ PAPER_ITEMS = [
          "([tuning_study.md](tuning_study.md))"),
         ("Data and scripts", "`tools/make_benchmarks_readme.py` (figure and table), "
          "[`paper_figure_examples.txt`](paper_figure_examples.txt) (the 25 names), `tools/tuning_study.py` (runs)"),
-        ("Status", "done; the seed repeats for the Figure 4 medians and range bars are running on the GPU machine")]),
+        ("Status", "done, with the seed repeats (seeds 2026, 1 and 2) behind the medians and range bars")]),
     ("🧪 <em>Forward examples for the paper", "Forward examples in 1D, 2D and 3D (Figure 5)", [
         ("What it shows", "three forward problems, one per dimension: PINNStudio's solution, the reference and the error"),
         ("How it was run", "PINNStudio's best run of each problem (the same run as on the benchmarks page), drawn from its saved model"),
