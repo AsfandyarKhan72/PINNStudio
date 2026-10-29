@@ -2195,6 +2195,14 @@ def main():
                         if "mu" in o and (r.get("abs") or {}).get("mu") is not None:
                             o["abs_mu"] = r["abs"]["mu"]
                         OUTS[(slug, variant, str(r["seed"]))] = o
+        # runs from before a template renamed its output (u -> phi, as its paper writes it) logged it as u:
+        # one output, one name
+        for slug in {k[0] for k in OUTS}:
+            keys = [k for k in OUTS if k[0] == slug]
+            if any("phi" in OUTS[k] for k in keys) and not any("phi" in OUTS[k] and "u" in OUTS[k] for k in keys):
+                for k in keys:
+                    if "u" in OUTS[k]:
+                        OUTS[k]["phi"] = OUTS[k].pop("u")
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([x for x in args.papers.split(",") if x]) if args.papers else []   # later files first
