@@ -7,7 +7,7 @@ name: Platform matrix
 # contains [matrix] (or by hand), not for every push.
 on:
   push:
-    branches: [cleanup]
+    branches: [main, cleanup, "integration/**"]
   workflow_dispatch:
 
 jobs:

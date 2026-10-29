@@ -5,7 +5,9 @@ name: Platform tests
 # the run (tools/junit_annotations.py), so they can be read without the log.
 on:
   push:
-    branches: [cleanup]
+    branches: [main, cleanup, "integration/**"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:

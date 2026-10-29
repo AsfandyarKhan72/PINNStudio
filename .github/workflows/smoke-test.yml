@@ -2,7 +2,7 @@ name: Smoke test
 
 on:
   push:
-    branches: [main, cleanup]
+    branches: [main, cleanup, "integration/**"]
   pull_request:
     branches: [main]
 
