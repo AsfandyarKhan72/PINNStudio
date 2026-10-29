@@ -2,7 +2,9 @@
 
 Forward: Wave 1D (multi-scale Fourier features), Allen-Cahn 2D (Mattey & Ghosh), Navier-Stokes 3D (Beltrami
 flow); columns PINN | reference | |error|. Inverse: Burgers 1D (Raissi et al.), linear elasticity 2D (plate),
-Allen-Cahn 3D (Wight & Zhao); columns PINN | reference | the unknown parameters' relative error during training.
+Allen-Cahn 3D (Wight & Zhao); columns: the field reconstructed by the trained inverse PINN | its absolute error
+against the reference | the unknown parameters' relative error (%) during training. The field and the parameters
+come from the same inverse run; no separate forward model is involved.
 Each row is PINNStudio's best run of that problem (see benchmarks/README.md).
 
 Two steps:
@@ -290,8 +292,8 @@ def plot(keys, path, inverse):
     H = TOP + len(keys) * PANEL + (len(keys) - 1) * ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(WIDTH, H))
     cmap = plt.get_cmap("jet")
-    # forward: reference | PINNStudio | error; inverse: PINNStudio | error | the unknowns
-    titles = (["PINNStudio", "Absolute error", "Parameter error"] if inverse
+    # forward: reference | PINNStudio | error; inverse: the inverse PINN's field | error | the unknowns
+    titles = (["Inverse prediction", "Absolute error", "Parameter recovery"] if inverse
               else ["Reference", "PINNStudio", "Absolute error"])
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
@@ -347,11 +349,15 @@ def plot(keys, path, inverse):
             for i, n_ in enumerate(names):
                 it, val = d["it_" + n_], d["val_" + n_]
                 tv = meta["true"][n_]
-                ax.semilogy(it / 1000, np.maximum(np.abs(val - tv) / abs(tv), 1e-6), lw=1.1, color=PAR_COLORS[i],
+                ax.semilogy(it / 1000, np.maximum(100 * np.abs(val - tv) / abs(tv), 1e-4), lw=1.1, color=PAR_COLORS[i],
                             label=f"{SYM.get(n_, n_)} = {val[-1]:.5g}  (true {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
-            ax.set_ylabel(r"$|\theta - \theta^{*}|\,/\,|\theta^{*}|$", labelpad=1, fontsize=FONT)   # θ*: true value
-            ax.set_ylim(1e-5, 3)
+            ax.set_ylabel("Relative parameter error (%)", labelpad=1, fontsize=FONT - 1)   # 100 |θ − θ*| / |θ*|
+            ax.set_ylim(1e-4, 2e4)          # the largest early errors are ~10⁴ %; room below the curves for the legend
+            ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=20))
+            ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
+                lambda v, _: (f"$10^{{{int(round(np.log10(v)))}}}$" if int(round(np.log10(v))) % 2 == 1 else "")))
+            ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
             ax.grid(color="#e4e7eb", lw=0.4)
             ax.legend(fontsize=FONT - 1.5, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,
                       handletextpad=0.4)
