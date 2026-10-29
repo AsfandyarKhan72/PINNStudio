@@ -7,7 +7,7 @@ setup(
     name="pinnstudio",
     version="1.5.0",   # the latest release (MIT); set to the next release number when it is published under GPL-3.0-only
     author="AsfandyarKhan72",
-    description="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.",
+    description="A graphical platform for forward and inverse physics-informed neural networks",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/AsfandyarKhan72/PINNStudio",

@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software in your research or workflow, please cite it as below."
 type: software
 title: "PINNStudio"
-abstract: "A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization."
+abstract: "A graphical platform for forward and inverse physics-informed neural networks."
 authors:
   - family-names: "Khan"
     given-names: "Asfandyar"
