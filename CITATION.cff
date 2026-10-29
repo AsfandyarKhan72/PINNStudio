@@ -11,7 +11,7 @@ authors:
     given-names: "Mahmood"
     affiliation: "Boise State University"
 repository-code: "https://github.com/AsfandyarKhan72/PINNStudio"
-license: MIT
+license: GPL-3.0-only
 version: 1.5.0
 date-released: 2026-10-21
 keywords:

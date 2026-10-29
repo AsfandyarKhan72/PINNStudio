@@ -1,5 +1,8 @@
 """PINNStudio's icons: one line-icon set (24-unit grid, 2-unit round
 strokes, in the style of Lucide/Feather), drawn in the theme's colours.
+The path data of "log", "fit", "delete", "add", "code" and "down", and part of
+"sketch", comes from Lucide (ISC) and Feather (MIT); their notices are in
+LICENSES/ and THIRD_PARTY_LICENSES.md.
 
 Emoji render differently on every platform and look informal in a
 toolbar; these are crisp at any size and follow the theme. `icon(name)`

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generates the reference / measured data used by the DeepXDE Examples
 Quick Examples (reference_data/deepxde/), with our own solvers -- no data
-is copied from the DeepXDE repository (LGPL-2.1; PINNStudio is MIT).
+is copied from the DeepXDE repository.
 
 Problems with a closed-form solution use the "Reference from formula"
 Error Analysis option instead and need no files here; the DeepXDE Burgers
