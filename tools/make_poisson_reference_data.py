@@ -16,8 +16,15 @@ differences between successive grids show the convergence, and the finest grid i
 extrapolation is not applied: the corner singularity makes the order point-dependent (about 4/3 near the
 corner, 2 away from it), and the finest-grid differences already sit well below the template's tolerances.
 
-Each output has the layout of the existing file: solution.txt on the same grid points in the same order, NaN at
-the same points outside the domain, and u_obs.txt with the same observation points (CSV header x,y[,z],u).
+The points are defined here, not read from earlier files (POINTS below), and they are the points of the files
+in reference_data/:
+  2D (disk, L-shape)  solution.txt on x, y = numpy.linspace(-1, 1, 201), x running fastest, columns x y u;
+  3D (ball)           solution.txt on x, y, z = numpy.round(numpy.linspace(-1, 1, 41), 2), z running fastest,
+                      columns x y z u;
+  points outside the domain get NaN (written NaN in 2D, nan in 3D): r^2 > 1 for the disk and the ball, x > 0
+  and y > 0 for the L-shape (its edges x = 0 and y = 0 are in the domain, with u = 0);
+  u_obs.txt (CSV, header x,y[,z],u) at the 300 measurement points listed in tools/reference_points/<name>_obs.csv,
+  which are points of the grid above.
 
     python tools/make_poisson_reference_data.py --out DIR                       # all three, L-shape N=1600
     python tools/make_poisson_reference_data.py --out DIR --only lshape --levels 100,200,400,800,1600
@@ -31,17 +38,32 @@ import time
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REF = os.path.join(ROOT, "reference_data")
 SRC = {"disk": ("2D", "poisson_disk"), "lshape": ("2D", "poisson_lshape"), "sphere": ("3D", "poisson_sphere")}
 
 
-def read_layout(name):
-    """The existing files' points (solution.txt columns without the value; u_obs.txt points) and NaN mask."""
-    d = os.path.join(REF, *SRC[name])
-    sol = np.genfromtxt(os.path.join(d, "solution.txt"))
-    obs = np.genfromtxt(os.path.join(d, "u_obs.txt"), delimiter=",", names=True)
-    pts = np.column_stack([obs[c] for c in obs.dtype.names[:-1]])
-    return sol[:, :-1], np.isnan(sol[:, -1]), pts, sol[:, -1], obs[obs.dtype.names[-1]]
+POINTS = os.path.join(ROOT, "tools", "reference_points")
+
+
+def grid_points(name):
+    """The evaluation points of solution.txt, in file order, and the mask of the points outside the domain."""
+    if SRC[name][0] == "2D":
+        g = np.linspace(-1.0, 1.0, 201)
+        Y, X = np.meshgrid(g, g, indexing="ij")             # x fastest
+        P = np.column_stack([X.ravel(), Y.ravel()])
+    else:
+        g = np.round(np.linspace(-1.0, 1.0, 41), 2)
+        X, Y, Z = np.meshgrid(g, g, g, indexing="ij")       # z fastest
+        P = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+    if name == "lshape":
+        out = (P[:, 0] > 0) & (P[:, 1] > 0)
+    else:
+        out = (P ** 2).sum(1) > 1.0 + 1e-12
+    return P, out
+
+
+def obs_points(name):
+    """The measurement points of u_obs.txt (tools/reference_points/<folder>_obs.csv)."""
+    return np.genfromtxt(os.path.join(POINTS, f"{SRC[name][1]}_obs.csv"), delimiter=",", skip_header=1)
 
 
 # --- L-shape: five-point finite differences ------------------------------------------------------------------
@@ -94,7 +116,8 @@ def sample(g, U, pts):
 
 
 def lshape(levels, log=print):
-    xy, nan, obs, old, old_obs = read_layout("lshape")
+    xy, nan = grid_points("lshape")
+    obs = obs_points("lshape")
     out, prev, coarse = {}, None, xy                                    # compare all levels on the 0.01 grid
     for N in levels:
         if N % 100:
@@ -114,29 +137,27 @@ def lshape(levels, log=print):
 
 # --- disk and ball: the exact solutions ----------------------------------------------------------------------
 def exact(name):
-    xyz, nan, obs, old, old_obs = read_layout(name)
+    xyz, nan = grid_points(name)
+    obs = obs_points(name)
     dim = xyz.shape[1]
     f = lambda p: (1.0 - (p ** 2).sum(1)) / (2 * dim)
     v = f(xyz)
-    mask = (xyz ** 2).sum(1) > 1.0 + 1e-12
-    assert np.array_equal(mask, nan), f"{name}: the existing NaN points are not exactly the points outside r = 1"
     v[nan] = np.nan
     return xyz, v, obs, f(obs)
 
 
-def write(dirname, name, v, obs, vo):
-    """solution.txt: each line of the existing file with its last column replaced (the coordinates are kept as
-    written there, and NaN keeps the existing file's spelling); u_obs.txt: the same points, the new values."""
+def _num(c):
+    """A coordinate as the shortest text that reads back as the same number ("-1", "0.010000000000000009")."""
+    t = repr(float(c))
+    return t[:-2] if t.endswith(".0") else t
+
+
+def write(dirname, name, xyz, v, obs, vo):
     os.makedirs(dirname, exist_ok=True)
-    src = os.path.join(REF, *SRC[name])
-    with open(os.path.join(src, "solution.txt")) as fh:
-        lines = fh.read().splitlines()
-    assert len(lines) == len(v)
+    nan_text = "NaN" if SRC[name][0] == "2D" else "nan"
     with open(os.path.join(dirname, "solution.txt"), "w") as fh:
-        for line, val in zip(lines, v):
-            last = line.split()[-1]
-            head = line[: line.rstrip().rindex(last)]
-            fh.write(head + (f"{val:.16E}" if np.isfinite(val) else last) + "\n")
+        for p, val in zip(xyz, v):
+            fh.write("".join(f"{_num(c):<25}" for c in p) + (f"{val:.16E}" if np.isfinite(val) else nan_text) + "\n")
     cols = "xyz"[: obs.shape[1]]
     with open(os.path.join(dirname, "u_obs.txt"), "w") as fh:
         fh.write(",".join(cols) + ",u\n")
@@ -160,7 +181,7 @@ def main():
                                 **{f"obs_N{N}": lv[1] for N, lv in levels.items()})
         else:
             xyz, v, obs, vo = exact(name)
-        write(os.path.join(a.out, *SRC[name]), name, v, obs, vo)
+        write(os.path.join(a.out, *SRC[name]), name, xyz, v, obs, vo)
 
 
 if __name__ == "__main__":

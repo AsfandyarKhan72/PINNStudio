@@ -1,20 +1,31 @@
 #!/usr/bin/env python3
-"""Numbers of the validation report (README.md next to this file): the regenerated reference solutions
-against the COMSOL files in reference_data/, and their convergence.
+"""Numbers of the validation report (README.md next to this file): the regenerated reference solutions in
+reference_data/ against the COMSOL files they replaced, and their convergence.
 
     python benchmarks/reference_regeneration/validate.py
 
-Reads candidates/ (the regenerated files, in the layout of reference_data/) and convergence/ (the solutions
-on each grid, from tools/make_burgers2d_reference_data.py and tools/make_poisson_reference_data.py).
+The COMSOL files are read from the repository history (commit COMSOL_COMMIT, the last one with them), so this
+needs a git checkout. convergence/ holds the solutions on each grid, from tools/make_burgers2d_reference_data.py
+and tools/make_poisson_reference_data.py.
 """
+import io
 import os
+import subprocess
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 REF = os.path.join(ROOT, "reference_data")
-CAND = os.path.join(HERE, "candidates")
+CAND = REF                      # the regenerated files
+COMSOL_COMMIT = "1adc3446fd232dca3e8668420e4cea1516624780"
+
+
+def comsol(*parts):
+    rel_path = "/".join(["reference_data", *parts]).replace(os.sep, "/")
+    data = subprocess.run(["git", "-C", ROOT, "show", f"{COMSOL_COMMIT}:{rel_path}"], check=True,
+                          capture_output=True).stdout
+    return io.StringIO(data.decode())
 CONV = os.path.join(HERE, "convergence")
 TIMES = [0.0, 0.25, 0.5, 0.75, 1.0]
 NAMES = {0.0: "0", 0.25: "0.25", 0.5: "0.50", 0.75: "0.75", 1.0: "1.0"}
@@ -34,16 +45,16 @@ def poisson():
     print("|---|---|---|---|---|")
     for d in ("2D/poisson_disk", "2D/poisson_lshape", "3D/poisson_sphere"):
         a = np.genfromtxt(os.path.join(CAND, d, "solution.txt"))
-        b = np.genfromtxt(os.path.join(REF, d, "solution.txt"))
+        b = np.genfromtxt(comsol(d, "solution.txt"))
         assert np.array_equal(a[:, :-1], b[:, :-1]) and np.array_equal(np.isnan(a[:, -1]), np.isnan(b[:, -1]))
         m = np.isfinite(b[:, -1])
         oa = np.genfromtxt(os.path.join(CAND, d, "u_obs.txt"), delimiter=",", skip_header=1)
-        ob = np.genfromtxt(os.path.join(REF, d, "u_obs.txt"), delimiter=",", skip_header=1)
+        ob = np.genfromtxt(comsol(d, "u_obs.txt"), delimiter=",", skip_header=1)
         assert np.allclose(oa[:, :-1], ob[:, :-1])
         print(f"| {d} | {m.sum()} | {e(np.abs(a[m, -1] - b[m, -1]).max())} | {e(rel(a[m, -1], b[m, -1]))} | "
               f"{e(np.abs(oa[:, -1] - ob[:, -1]).max())} |")
     L = np.load(os.path.join(CONV, "lshape_levels.npz"))
-    b = np.genfromtxt(os.path.join(REF, "2D/poisson_lshape/solution.txt"))
+    b = np.genfromtxt(comsol("2D/poisson_lshape/solution.txt"))
     m = np.isfinite(b[:, -1])
     r = np.hypot(b[m, 0], b[m, 1])
     Ns = sorted(int(k[1:]) for k in L.files if k.startswith("N"))
@@ -71,7 +82,7 @@ def burgers():
     G = {d: np.load(os.path.join(CONV, d)) for d in levels}
     fin = G[levels[-1]]
     print(f"Finest: {levels[-1][:-4]}.\n")
-    com = {(c, t): np.loadtxt(os.path.join(REF, "2D/burgers_mathias", f"t_{NAMES[t]}_{c}.txt"))[:, 3].reshape(101, 101)
+    com = {(c, t): np.loadtxt(comsol("2D/burgers_mathias", f"t_{NAMES[t]}_{c}.txt"))[:, 3].reshape(101, 101)
            for c in "uv" for t in TIMES}
     print("Relative L2 difference to the finest solution, per output time (u / v):\n")
     print("| solution | " + " | ".join(f"t = {t}" for t in TIMES[1:]) + " |")
