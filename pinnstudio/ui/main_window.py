@@ -530,7 +530,7 @@ def _training_error_tip(log_tail):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PINNStudio — A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks")
+        self.setWindowTitle("PINNStudio — A graphical platform for forward and inverse physics-informed neural networks")
         self.setMinimumSize(1100, 750)
         try:
             from pinnstudio.ui import icons as _icons_app

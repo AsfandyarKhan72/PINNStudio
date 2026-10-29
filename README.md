@@ -1,6 +1,6 @@
 # PINNStudio
 
-*A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.*
+*A graphical platform for forward and inverse physics-informed neural networks.*
 
 <p align="center">
   <a href="https://pypi.org/project/pinnstudio/"><img src="https://img.shields.io/pypi/v/pinnstudio.svg" alt="PyPI version"></a>
@@ -5465,7 +5465,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 ```bibtex
 @software{khan2026pinnstudio,
   author  = {Khan, Asfandyar and Mamivand, Mahmood},
-  title   = {PINNStudio: A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks},
+  title   = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
   version = {1.5.0},
   year    = {2026},
   url     = {https://github.com/AsfandyarKhan72/PINNStudio}
