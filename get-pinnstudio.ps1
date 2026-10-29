@@ -62,7 +62,7 @@ if ($gpu) {
     Write-Host "PyTorch will train on the GPU: $gpu"
 } elseif (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
     Write-Host "An NVIDIA GPU was found, but PyTorch cannot use it; PINNStudio will train on the CPU."
-    Write-Host "See 'GPU troubleshooting' in the README: https://github.com/AsfandyarKhan72/PINNStudio#installation"
+    Write-Host "See 'Troubleshooting' under Installation in the README: https://github.com/AsfandyarKhan72/PINNStudio#installation"
 } else {
     Write-Host "No NVIDIA GPU found: PINNStudio will train on the CPU."
 }

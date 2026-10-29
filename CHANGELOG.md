@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A Parameter Sweep checks every run's settings before training it, as Solve does: a combination that can't be run (e.g. time windows together with an exact initial condition) is skipped with the reason in the Training Log and marked "invalid" in the summary, instead of failing inside the training script.
 - TF32 is turned off with PyTorch's `fp32_precision` setting when the installed PyTorch has it (2.9 and newer), which avoids the warning about the old `allow_tf32` setting. Older PyTorch uses `allow_tf32` as before.
 
+- The paper's figures and tables on `benchmarks/paper.md` follow the manuscript: Figure 3 (geometry and boundary selection) is made from screenshots of the running window by `tools/make_geometry_figure.py` (each panel from three crops of one screenshot, for a 5.4 in text width) or, full-window, by `tools/make_geometry_figure_fullwindow.py`; Figure 6's columns are *Inverse prediction*, *Absolute error* and *Parameter recovery*, with the parameter error in percent; the performance tables are Table 2 and Supplementary Tables S3 and S4, the export check Section 4.6. The timing in Table 2 is DeepXDE's training time summed over the optimization phases, not the wall-clock time of the run.
+- `tools/make_readme_screenshots.py` retakes the README's screenshots of the main window from a real training run in the window.
 ### Fixed
 - Allen-Cahn 2D – Wight & Zhao with the initial condition built into the network could fail at the first step (loss NaN): the initial condition's square root has an infinite second derivative at the drop's centre, and Hammersley sampling puts a training point exactly there. It is now written with $+10^{-6}$ under the square root, as the 3D example already was (the change to the initial condition is below $10^{-6}$).
 - The base PINN of the paper comparison left out an initial condition of 0 (Schrödinger's $v(x, 0) = 0$), so $v$ was free at $t = 0$, and for Mathias et al.'s 2D Burgers kept the initial and boundary conditions built into the output; it now trains every initial condition the template has, and for 2D Burgers the conditions as loss terms.
@@ -44,6 +46,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - *Settings: Tuned* switched back to *Default* after loading an example that has no separate Tuned settings; the choice is now kept for the next example (the Training Log says when an example loads with its Default settings).
 - The 3D Error Analysis surface plot of a combined geometry (e.g. a cube with a sphere cut out) drew the parts of the bounding box outside the domain, comparing an extrapolated PINN value with a filled-in reference there. They are now transparent and left out of the colour range, as in the result plots. Along the edge of the cut-out the reference was also interpolated across the hole, which showed as a ring of false errors up to ten times the real maximum; squares whose interpolation triangle bridges the hole are left out as well.
 - The Error Analysis dialog called the reference "FEM" in its plot options; it now says reference.
+- The Error Analysis dialog's reference group still said "FEM/Exact"; the solution-export dialog said it writes CSV files (it writes `.txt`); the boundary-condition type "Point Set BC (from file)" also takes typed or random points, so it is now "Point Set BC".
+- The installers pointed to a "GPU troubleshooting" section the README does not have; they now point to *Troubleshooting* under Installation.
+
+### Removed
+- Removed files nothing used any more: figures of variants the pages no longer show, the batch files of the first training-methods plan (all of them are in `benchmarks/plans/all.json`), two tuned-settings files under an old example name, and `benchmarks/timing_table.py`.
 
 ## [1.5.0] - 2026-10-21
 

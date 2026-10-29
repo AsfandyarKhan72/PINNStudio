@@ -8366,7 +8366,7 @@ class MainWindow(QMainWindow):
         ("Neumann BC", "neumann"),
         ("Robin BC", "robin"),
         ("Periodic BC", "periodic"),
-        ("Point Set BC (from file)", "pointset"),
+        ("Point Set BC", "pointset"),
         ("Point Set Operator BC (advanced, from file)", "pointset_operator"),
         ("Operator BC (advanced)", "operator"),
         ("Interface 2D BC (advanced, Rectangle/Polygon only)", "interface2d"),
@@ -13931,7 +13931,7 @@ print("DOMAIN_PREVIEW_DONE")
         dialog.setMinimumWidth(320)
         layout = QVBoxLayout(dialog)
 
-        info = QLabel("Saves solution as CSV files (one per time step)\nfor forward problems after training.")
+        info = QLabel("Saves the solution as text files (one per time step)\nfor forward problems after training.")
         self._register_hint(info, '#74c0fc')
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -15261,7 +15261,7 @@ print("DOMAIN_PREVIEW_DONE")
         layout.addWidget(formula_group)
 
         # ── Reference files ────────────────────────────────────
-        files_group = QGroupBox("Reference Files (FEM/Exact)")
+        files_group = QGroupBox("Reference Files")
         files_layout = QVBoxLayout(files_group)
 
         def _sync_ref_mode(_i=None):
