@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 41 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=cb5309ea)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=89815c0b)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -20,7 +20,7 @@ The sweep was run on the 41 examples with the largest errors. The others were al
 | Study | What it answers | How it is run | Written up in | Plans and scripts | Status |
 |---|---|---|---|---|---|
 | Reference runs | the error of every example with its own settings (DeepXDE's, or the template's) | each example as shipped, seed 2026 | this page, first row of every example | `tools/tuning_study.py`, variant `base` | done |
-| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | [tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, `tools/make_tuning_page.py` | done; more seed repeats queued |
+| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | [tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, `tools/make_tuning_page.py` | done |
 | Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the paper's section and table) | [paper_comparison.md](paper_comparison.md); for the paper: [paper.md](paper.md) | `tools/tuning_study.py --variants plain,paper_*` | done |
 | Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, time windows) help on the phase-field and other hard problems | each example's own settings, the technique changed, 10 core setups | [training_methods.md](training_methods.md) | `benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |
 | Controlled comparison (paper Figure 7) | the same question under one protocol: same network, points and steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | `benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |
@@ -39,14 +39,14 @@ All runs are on one RTX 4090 unless stated.
 
 | Example | Source | Forward: reference L₂ (DeepXDE's settings, or the best of the papers' methods) | Forward: Tuned L₂ | Tuned L₂, all times | Time (s) | Inverse: parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|---|---|---|---|
-| [Integro-differential ODE](#bench-integro-differential-ode) | DeepXDE | 1.5 × 10<sup>-4</sup> | **1.5 × 10<sup>-4</sup>** | – | 23 | – | – | – |
+| [Integro-differential ODE](#bench-integro-differential-ode) | DeepXDE | 6.5 × 10<sup>-5</sup> | **6.5 × 10<sup>-5</sup>** | – | 23 | – | – | – |
 | [Integro-differential ODE – Volterra kernel](#bench-integro-differential-ode-volterra-kernel) | DeepXDE | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** | – | 5 | – | – | – |
 | [Linear ODE system](#bench-linear-ode-system) | DeepXDE | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** | – | 42 | ω = 0.999912 (1) | 0.0088% | 135 |
-| [Lotka-Volterra ODE](#bench-lotka-volterra-ode) | DeepXDE | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | – | 219 | a = 2.00001 (2); d = 1.06 (1.06) | 0.0005% | 230 |
+| [Lotka-Volterra ODE](#bench-lotka-volterra-ode) | DeepXDE | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | – | 219 | a = 2 (2); d = 1.06 (1.06) | 0% | 242 |
 | [Second-order ODE](#bench-second-order-ode) | DeepXDE | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** | – | 28 | a = 10.0003 (10); b = 8.99262 (9) | 0.082% | 30 |
-| [Lorenz ODE – unknown C₁, C₂, C₃](#bench-lorenz-ode-unknown-c-c-c) | DeepXDE | – | – | – | – | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | 86 |
+| [Lorenz ODE – unknown C₁, C₂, C₃](#bench-lorenz-ode-unknown-c-c-c) | DeepXDE | – | – | – | – | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | 84 |
 | [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#bench-lorenz-ode-unknown-c-c-c-exogenous-input) | DeepXDE | – | – | – | – | C₁ = 9.97389 (10); C₂ = 14.9961 (15); C₃ = 2.66686 (2.66667) | 0.26% | 196 |
-| [Euler beam 1D](#bench-euler-beam-1d) | DeepXDE | 3.5 × 10<sup>-3</sup> | **2.4 × 10<sup>-4</sup>** | – | 59 | EI = 1.00075 (1) | 0.075% | 231 |
+| [Euler beam 1D](#bench-euler-beam-1d) | DeepXDE | 3.5 × 10<sup>-3</sup> | **2.8 × 10<sup>-4</sup>** | – | 217 | EI = 1.00153 (1) | 0.15% | 80 |
 | [Fractional Poisson 1D](#bench-fractional-poisson-1d) | DeepXDE | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** | – | 21 | – | – | – |
 | [Poisson 1D – Dirichlet](#bench-poisson-1d-dirichlet) | DeepXDE | 3.7 × 10<sup>-4</sup> | **3.7 × 10<sup>-4</sup>** | – | 23 | – | – | – |
 | [Poisson 1D – Dirichlet/Neumann](#bench-poisson-1d-dirichlet-neumann) | DeepXDE | 2.3 × 10<sup>-4</sup> | **2.3 × 10<sup>-4</sup>** | – | 27 | – | – | – |
@@ -57,52 +57,53 @@ All runs are on one RTX 4090 unless stated.
 | [Poisson 1D – multi-scale Fourier features](#bench-poisson-1d-multi-scale-fourier-features) | DeepXDE | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | 70 | – | – | – |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#bench-brinkman-forchheimer-1d-unknown-e-k) | DeepXDE | – | – | – | – | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | 15% | 234 |
 | [Diffusion-reaction 1D – unknown rate field](#bench-diffusion-reaction-1d-unknown-rate-field) | DeepXDE | – | – | – | – | field | – | 61 |
-| [Fractional Poisson 1D – unknown order α](#bench-fractional-poisson-1d-unknown-order) | DeepXDE | – | – | – | – | α = 1.79183 (1.8) | 0.45% | 255 |
+| [Fractional Poisson 1D – unknown order α](#bench-fractional-poisson-1d-unknown-order) | DeepXDE | – | – | – | – | α = 1.79135 (1.8) | 0.48% | 255 |
 | [Poisson 1D – unknown forcing field](#bench-poisson-1d-unknown-forcing-field) | DeepXDE | – | – | – | – | field | – | 221 |
 | [Poisson 1D – unknown forcing field (batches)](#bench-poisson-1d-unknown-forcing-field-batches) | DeepXDE | – | – | – | – | field | – | 215 |
-| [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 2.4 × 10<sup>-3</sup> | **6.3 × 10<sup>-4</sup>** | – | 359 | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | 0.47% | 302 |
-| [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 8.6 × 10<sup>-3</sup> | **6.0 × 10<sup>-4</sup>** | – | 380 | – | – | – |
+| [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 2.4 × 10<sup>-3</sup> | **7.0 × 10<sup>-4</sup>** | – | 359 | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5) | 0.77% | 253 |
+| [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 8.6 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** | – | 350 | – | – | – |
 | [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | 5.5 × 10<sup>-3</sup> | 2864 | – | – | – |
 | [Black-Scholes 1D – American put](#bench-black-scholes-1d-american-put) | DeepXDE | – | – | – | – | – | – | – |
-| [Black-Scholes 1D – European call](#bench-black-scholes-1d-european-call) | DeepXDE | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | – | 60 | – | – | – |
-| [Burgers 1D – Raissi et al.](#bench-burgers-1d-raissi-et-al) | Paper | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 4.0 × 10<sup>-4</sup> | 40 | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | 0.099% | 101 |
+| [Black-Scholes 1D – European call](#bench-black-scholes-1d-european-call) | DeepXDE | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | – | 59 | – | – | – |
+| [Burgers 1D – Raissi et al.](#bench-burgers-1d-raissi-et-al) | Paper | 5.2 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 4.0 × 10<sup>-4</sup> | 42 | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | 0.02% | 119 |
 | [Burgers 1D – RAR](#bench-burgers-1d-rar) | DeepXDE | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** | – | 170 | – | – | – |
 | [Diffusion 1D](#bench-diffusion-1d) | DeepXDE | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** | – | 76 | – | – | – |
 | [Diffusion 1D – hard IC and BCs](#bench-diffusion-1d-hard-ic-and-bcs) | DeepXDE | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** | – | 40 | – | – | – |
 | [Diffusion 1D – resampling](#bench-diffusion-1d-resampling) | DeepXDE | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** | – | 12 | – | – | – |
-| [Diffusion-reaction 1D](#bench-diffusion-reaction-1d) | DeepXDE | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | – | 290 | D = 0.999773 (1) | 0.023% | 334 |
+| [Diffusion-reaction 1D](#bench-diffusion-reaction-1d) | DeepXDE | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | – | 290 | D = 0.99988 (1) | 0.012% | 334 |
 | [Fractional diffusion 1D](#bench-fractional-diffusion-1d) | DeepXDE | 3.3 × 10<sup>-3</sup> | **3.3 × 10<sup>-3</sup>** | – | 39 | – | – | – |
 | [Heat 1D – Dirichlet](#bench-heat-1d-dirichlet) | DeepXDE | 5.0 × 10<sup>-2</sup> | **1.3 × 10<sup>-2</sup>** | – | 128 | a = 0.400406 (0.4) | 0.1% | 146 |
 | [Heat 1D – resampling](#bench-heat-1d-resampling) | DeepXDE | 1.4 × 10<sup>-2</sup> | **3.1 × 10<sup>-3</sup>** | – | 558 | – | – | – |
-| [Klein-Gordon 1D](#bench-klein-gordon-1d) | DeepXDE | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | – | 151 | γ = 1.00912 (1) | 0.91% | 1361 |
-| [Schrödinger 1D](#bench-schr-dinger-1d) | DeepXDE | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | – | 108 | c = 0.500036 (0.5) | 0.0072% | 337 |
+| [Klein-Gordon 1D](#bench-klein-gordon-1d) | DeepXDE | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | – | 151 | γ = 1.00912 (1) | 0.91% | 1259 |
+| [Schrödinger 1D](#bench-schr-dinger-1d) | DeepXDE | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | – | 108 | c = 0.500117 (0.5) | 0.023% | 324 |
 | [Wave 1D – space-time multi-scale Fourier features](#bench-wave-1d-space-time-multi-scale-fourier-features) | DeepXDE | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** | – | 645 | C = 10 (10) | 0% | 4354 |
 | [Diffusion 1D – unknown coefficient](#bench-diffusion-1d-unknown-coefficient) | DeepXDE | – | – | – | – | C = 1.00004 (1) | 0.004% | 311 |
 | [Diffusion-reaction 1D – unknown k_f, D](#bench-diffusion-reaction-1d-unknown-k-f-d) | DeepXDE | – | – | – | – | kf = 0.0991842 (0.1); D = 1.9933 (2) | 0.82% | 747 |
 | [Fractional Poisson 2D – disk](#bench-fractional-poisson-2d-disk) | DeepXDE | 9.2 × 10<sup>-4</sup> | **9.2 × 10<sup>-4</sup>** | – | 184 | – | – | – |
-| [Helmholtz 2D – Dirichlet](#bench-helmholtz-2d-dirichlet) | DeepXDE | 1.9 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** | – | 26 | k₀ = 12.5664 (12.5664) | 0.00023% | 58 |
+| [Helmholtz 2D – Dirichlet](#bench-helmholtz-2d-dirichlet) | DeepXDE | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup>** | – | 26 | k₀ = 12.5664 (12.5664) | 0.00023% | 64 |
 | [Helmholtz 2D – hyperparameter search](#bench-helmholtz-2d-hyperparameter-search) | DeepXDE | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – | – | – | – | – |
 | [Helmholtz 2D – sound-hard scattering](#bench-helmholtz-2d-sound-hard-scattering) | DeepXDE | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** | – | 61 | – | – | – |
 | [Helmholtz 2D – square with hole](#bench-helmholtz-2d-square-with-hole) | DeepXDE | 1.1 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | – | 24 | – | – | – |
 | [Laplace 2D – disk](#bench-laplace-2d-disk) | DeepXDE | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | – | 72 | – | – | – |
-| [Linear elasticity 2D – plate](#bench-linear-elasticity-2d-plate) | DeepXDE | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | – | 1147 | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 546 |
+| [Linear elasticity 2D – plate](#bench-linear-elasticity-2d-plate) | DeepXDE | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | – | 1147 | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 561 |
 | [Linear elasticity 2D – plate, soft BCs](#bench-linear-elasticity-2d-plate-soft-bcs) | DeepXDE | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | – | 654 | – | – | – |
-| [Navier-Stokes 2D – Kovasznay flow](#bench-navier-stokes-2d-kovasznay-flow) | DeepXDE | 2.1 × 10<sup>-4</sup> | **2.1 × 10<sup>-4</sup>** | – | 210 | Re = 19.9978 (20) | 0.011% | 252 |
-| [Poisson 2D – disk](#bench-poisson-2d-disk) | PINNStudio | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | – | 156 | f = 1.00002 (1) | 0.002% | 157 |
+| [Mixed convection 2D – Soomro et al.](#bench-mixed-convection-2d-soomro-et-al) | PINNStudio | – | – | – | – | – | – | – |
+| [Navier-Stokes 2D – Kovasznay flow](#bench-navier-stokes-2d-kovasznay-flow) | DeepXDE | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup>** | – | 213 | Re = 19.9978 (20) | 0.011% | 263 |
+| [Poisson 2D – disk](#bench-poisson-2d-disk) | PINNStudio | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | – | 156 | f = 1.00002 (1) | 0.002% | 162 |
 | [Poisson 2D – L-shape](#bench-poisson-2d-l-shape) | DeepXDE | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | – | 500 | – | – | – |
 | [Fractional Poisson 2D – unknown order α](#bench-fractional-poisson-2d-unknown-order) | DeepXDE | – | – | – | – | α = 1.80386 (1.8) | 0.21% | 1395 |
 | [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
-| [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
-| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 822 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
+| [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 283 | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | 4.3% | 1774 |
+| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 872 | ε² = 0.00251029 (0.0025) | 0.41% | 3793 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | – | 1964 | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
-| [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
-| [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | 98 | α = 0.399893 (0.4) | 0.027% | 169 |
+| [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.7 × 10<sup>-1</sup> | **9.7 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3998 | ν = 0.00320754 (0.0031831) | 0.77% | 4231 |
+| [Heat 2D](#bench-heat-2d) | PINNStudio | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | – | 98 | α = 0.399893 (0.4) | 0.027% | 169 |
 | [Fractional Poisson 3D – sphere](#bench-fractional-poisson-3d-sphere) | DeepXDE | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** | – | 1343 | – | – | – |
 | [Poisson 3D – cube with spherical cut-out](#bench-poisson-3d-cube-with-spherical-cut-out) | PINNStudio | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | – | 1096 | – | – | – |
 | [Poisson 3D – sphere](#bench-poisson-3d-sphere) | PINNStudio | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** | – | 76 | f = 1.00005 (1) | 0.005% | 83 |
-| [Allen-Cahn 3D – Wight & Zhao](#bench-allen-cahn-3d-wight-zhao) | Paper | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | – | 2678 | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | 0.31% | 1419 |
+| [Allen-Cahn 3D – Wight & Zhao](#bench-allen-cahn-3d-wight-zhao) | Paper | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | – | 2595 | λ = 9.97804 (10); λε² = 0.0249908 (0.025) | 0.22% | 1547 |
 | [Heat 3D](#bench-heat-3d) | PINNStudio | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | – | 323 | α = 0.400303 (0.4) | 0.076% | 729 |
-| [Navier-Stokes 3D – Beltrami flow](#bench-navier-stokes-3d-beltrami-flow) | DeepXDE | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | 2420 | ν = 0.998842 (1) | 0.12% | 2575 |
+| [Navier-Stokes 3D – Beltrami flow](#bench-navier-stokes-3d-beltrami-flow) | DeepXDE | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | 2325 | ν = 0.998265 (1) | 0.17% | 2451 |
 
 </details>
 
@@ -142,8 +143,8 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **DeepXDE's settings** | **1.5 × 10<sup>-4</sup>** | **23** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.5 × 10<sup>-4</sup>** | **23** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **6.5 × 10<sup>-5</sup>** | **23** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **6.5 × 10<sup>-5</sup>** | **23** |
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -368,7 +369,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 
 | Training | L₂ r | L₂ p | Time (s) |
 |---|---|---|---|
-| 🔴 **DeepXDE's settings** | **2.1 × 10<sup>-3</sup>** | **1.4 × 10<sup>-3</sup>** | **219** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **2.1 × 10<sup>-3</sup>** | **1.4 × 10<sup>-3</sup>** | **219** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **2.1 × 10<sup>-3</sup>** | **1.4 × 10<sup>-3</sup>** | **219** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by r.*
@@ -377,12 +378,12 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **1.5 × 10<sup>-5</sup>** | **a = 2.00001 (2); d = 1.06 (1.06)** | **0.0005%** | **230** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **1.5 × 10<sup>-5</sup>** | **a = 2 (2); d = 1.06 (1.06)** | **0%** | **242** |
 | Larger network (2× width, one more layer) | 1.8 × 10<sup>-5</sup> | a = 2 (2); d = 1.05999 (1.06) | 0.00094% | 243 |
 | 3× L-BFGS iterations | 1.5 × 10<sup>-5</sup> | a = 2.00001 (2); d = 1.06 (1.06) | 0.0005% | 240 |
 | All of the above together | 1.2 × 10<sup>-5</sup> | a = 1.99999 (2); d = 1.06001 (1.06) | 0.00094% | 648 |
 | 10× data weight, 3× L-BFGS and the larger network | 9.2 × 10<sup>-6</sup> | a = 2.00001 (2); d = 1.06001 (1.06) | 0.00094% | 250 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.5 × 10<sup>-5</sup>** | a = 2.00001 (2); d = 1.06 (1.06) | **0.0005%** | **230** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.5 × 10<sup>-5</sup>** | a = 2 (2); d = 1.06 (1.06) | **0%** | **242** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -555,9 +556,9 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **1.0 × 10<sup>-4</sup>** | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** | **0.0013%** | **86** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **1.0 × 10<sup>-4</sup>** | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** | **0.0013%** | **84** |
 | DeepXDE's PINN, as reported (Lu, Meng, Mao & Karniadakis (2021), Sec. 4.3, Fig. 9A) | – | C₁ = 10.002 (10); C₂ = 14.999 (15); C₃ = 2.668 (2.66667) | 0.05% | – |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | **86** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | **84** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -682,9 +683,9 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 
 *Forward problem*
 
-- **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
-- **Points:** 10 domain, 2 boundary
-- **Training:** Adam 10,000 → L-BFGS 15,000
+- **Network:** FNN 4 × 40 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 30 domain, 6 boundary
+- **Training:** Adam 30,000 → L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Euler beam 1D** → **Tuned**, then Solve.
 
@@ -693,8 +694,8 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 40 (1 input, 1 output), tanh, Glorot uniform
-- **Points:** 30 domain, 6 boundary
-- **Training:** Adam 30,000 → L-BFGS 45,000
+- **Points:** 10 domain, 2 boundary
+- **Training:** Adam 10,000 → L-BFGS 15,000
 - **Unknowns:** EI (initial guess 2.0, true 1.0)
 - **Measured data:** u_obs.txt for u (weight 100)
 
@@ -712,20 +713,20 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 | 3× iterations | 5.2 × 10<sup>-3</sup> | 157 |
 | Larger network (2× width, one more layer) | 8.2 × 10<sup>-3</sup> | 74 |
 | 3× training points | 2.8 × 10<sup>-2</sup> | 56 |
-| 🔴 **L-BFGS phase added** | **2.4 × 10<sup>-4</sup>** | **59** |
-| All of the above together (3 seeds, median) | 2.8 × 10<sup>-4</sup> | 217 |
-| **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **2.4 × 10<sup>-4</sup>** | **59** |
+| L-BFGS phase added (3 seeds, median) | 5.4 × 10<sup>-4</sup> | 60 |
+| 🔴 **All of the above together (3 seeds, median)** | **2.8 × 10<sup>-4</sup>** | **217** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **2.8 × 10<sup>-4</sup>** | **217** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
 | DeepXDE's settings | 1.6 × 10<sup>-3</sup> | EI = 1.02349 (1) | 2.3% | 61 |
-| Larger network (2× width, one more layer) | 6.4 × 10<sup>-5</sup> | EI = 1.00153 (1) | 0.15% | 80 |
+| 🔴 **Larger network (2× width, one more layer)** | **6.4 × 10<sup>-5</sup>** | **EI = 1.00153 (1)** | **0.15%** | **80** |
 | 3× L-BFGS iterations | 1.6 × 10<sup>-3</sup> | EI = 1.02349 (1) | 2.3% | 60 |
-| 🔴 **All of the above together** | **3.8 × 10<sup>-5</sup>** | **EI = 1.00075 (1)** | **0.075%** | **231** |
+| All of the above together (3 seeds, median) | 6.8 × 10<sup>-5</sup> | EI = 1.00137 (1) | 0.14% | 228 |
 | 10× data weight, 3× L-BFGS and the larger network | 1.9 × 10<sup>-4</sup> | EI = 0.995268 (1) | 0.47% | 80 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | EI = 1.00075 (1) | **0.075%** | **231** |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **6.4 × 10<sup>-5</sup>** | EI = 1.00153 (1) | **0.15%** | **80** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -738,24 +739,24 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 
 ![Euler beam 1D: DeepXDE's settings — PINN against the reference along a line, at the reference times](figures/tuning/Euler_beam/base_line_comparison.png)
 
-*PINNStudio best — L-BFGS phase added:*
+*PINNStudio best — all of the changes together:*
 
-![Euler beam 1D: PINNStudio best — L-BFGS phase added — PINN against the reference along a line, at the reference times](figures/tuning/Euler_beam/lbfgs_line_comparison.png)
+![Euler beam 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](figures/tuning/Euler_beam/all_line_comparison.png)
 
 </details>
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — all of the changes together:*
+*PINNStudio best — Larger network (2× width, one more layer):*
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Euler beam 1D: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](figures/tuning/Euler_beam_inv/all_line_comparison.png)
+![Euler beam 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](figures/tuning/Euler_beam_inv/net_line_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Euler beam 1D: PINNStudio best — all of the changes together — the learned parameters during training](figures/tuning/Euler_beam_inv/all_param_plot.png)
+![Euler beam 1D: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](figures/tuning/Euler_beam_inv/net_param_plot.png)
 
 </details>
 
@@ -1352,8 +1353,8 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **4.9 × 10<sup>-3</sup>** | **α = 1.79183 (1.8)** | **0.45%** | **255** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **4.9 × 10<sup>-3</sup>** | α = 1.79183 (1.8) | **0.45%** | **255** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **5.3 × 10<sup>-3</sup>** | **α = 1.79135 (1.8)** | **0.48%** | **255** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **5.3 × 10<sup>-3</sup>** | α = 1.79135 (1.8) | **0.48%** | **255** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -1560,7 +1561,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 *Found in:* [tuning study, forward runs](tuning_study.md#tune-allen-cahn-1d-wight-zhao-pinnstudio-template) · [training methods study: 1D Allen-Cahn (Wight & Zhao)](training_methods.md#1d-allen-cahn-wight--zhao)
 
-*Inverse problem — PINNStudio's own inverse setup, tuned*
+*Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** multi-scale Fourier features (MsFFN) 4 × 128 (2 inputs, 1 output), tanh, Glorot uniform, scales 1, 5
 - **Points:** 10,000 domain, 512 initial, 200 boundary
@@ -1568,7 +1569,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Loss weights:** equations 1; boundary 1; measured data 100
 - **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); causal training
 - **Unknowns:** gamma_1 (initial guess 1.0, true 0.0001), gamma_2 (initial guess 1.0, true 5.0)
-- **Measured data:** t_0.25.txt for u (weight 100); t_0.50.txt for u (weight 100); t_0.75.txt for u (weight 100); t_1.0.txt for u (weight 100)
+- **Measured data:** t_1.0.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 1D – Wight & Zhao** → **Tuned**, then Solve.
 
@@ -1587,19 +1588,19 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | 2.4 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | 564 |
 | The template's starting settings | 1.4 × 10<sup>-3</sup> | – | 200 |
 | 3× iterations | 8.8 × 10<sup>-3</sup> | – | 412 |
-| 🔴 **Larger network (2× width, one more layer)** | **6.3 × 10<sup>-4</sup>** | – | **359** |
+| 🔴 **Larger network (2× width, one more layer) (3 seeds, median)** | **7.0 × 10<sup>-4</sup>** | – | **359** |
 | All of the above together | 9.4 × 10<sup>-4</sup> | – | 2938 |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **6.3 × 10<sup>-4</sup>** | – | **359** |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **7.0 × 10<sup>-4</sup>** | – | **359** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| The template's starting settings | 1.4 × 10<sup>-4</sup> | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5) | 0.77% | 253 |
+| 🔴 **The template's starting settings** | **1.4 × 10<sup>-4</sup>** | **γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5)** | **0.77%** | **253** |
 | 10× weight on the measured data | 9.7 × 10<sup>-5</sup> | γ₁ = 9.72777e-05 (0.0001); γ₂ = 4.99859 (5) | 2.7% | 249 |
-| 🔴 **Measured data at every reference time** | **1.7 × 10<sup>-4</sup>** | **γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5)** | **0.47%** | **302** |
+| Measured data at every reference time (3 seeds, median) | 1.4 × 10<sup>-4</sup> | γ₁ = 9.90163e-05 (0.0001); γ₂ = 4.99949 (5) | 0.98% | 323 |
 | 10× data weight, 3× L-BFGS and the larger network | 2.3 × 10<sup>-4</sup> | γ₁ = 3.98815e-06 (0.0001); γ₂ = 4.65939 (5) | 96% | 363 |
-| **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **1.7 × 10<sup>-4</sup>** | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | **0.47%** | **302** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.4 × 10<sup>-4</sup>** | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5) | **0.77%** | **253** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -1641,19 +1642,19 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — Measured data at every reference time:*
+*PINNStudio best — the example's own settings (no change did better):*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — PINN, reference and error over space and time](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_surface_comparison.png)
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_surface_comparison.png)
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_line_comparison.png)
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_line_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Measured data at every reference time — the learned parameters during training](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/times_param_plot.png)
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_param_plot.png)
 
 </details>
 
@@ -1714,11 +1715,11 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 | Base PINN | 3.5 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 1.6 × 10<sup>-5</sup> | 1.4 × 10<sup>-2</sup> | 216 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | – | – | 9.5 × 10<sup>-3</sup> | – |
 | Wight & Zhao's method, run in PINNStudio | 8.6 × 10<sup>-3</sup> | 2.1 × 10<sup>-2</sup> | 3.1 × 10<sup>-5</sup> | 4.3 × 10<sup>-2</sup> | 1048 |
-| 🔴 **The template's starting settings** | **6.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-3</sup>** | **2.3 × 10<sup>-6</sup>** | – | **380** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **5.2 × 10<sup>-4</sup>** | **1.6 × 10<sup>-3</sup>** | **2.3 × 10<sup>-6</sup>** | – | **350** |
 | 3× iterations | 4.5 × 10<sup>-4</sup> | 1.4 × 10<sup>-3</sup> | 2.0 × 10<sup>-6</sup> | – | 626 |
 | Larger network (2× width, one more layer) | 8.9 × 10<sup>-4</sup> | 3.9 × 10<sup>-3</sup> | 5.0 × 10<sup>-6</sup> | – | 719 |
 | All of the above together | 1.9 × 10<sup>-1</sup> | 1.5 × 10<sup>-1</sup> | 1.2 × 10<sup>-4</sup> | – | 4197 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **6.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-3</sup>** | **2.3 × 10<sup>-6</sup>** | – | **380** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.2 × 10<sup>-4</sup>** | **1.6 × 10<sup>-3</sup>** | **2.3 × 10<sup>-6</sup>** | – | **350** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by u and μ together (the worse of the two).*
 
@@ -1919,8 +1920,8 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **DeepXDE's settings** | **4.3 × 10<sup>-4</sup>** | **60** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **4.3 × 10<sup>-4</sup>** | **60** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **4.3 × 10<sup>-4</sup>** | **59** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **4.3 × 10<sup>-4</sup>** | **59** |
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -2005,14 +2006,14 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Base PINN | 3.3 × 10<sup>-4</sup> | 4.0 × 10<sup>-4</sup> | 42 |
+| 🔴 **Base PINN** | **3.3 × 10<sup>-4</sup>** | **4.0 × 10<sup>-4</sup>** | **42** |
 | Raissi et al.'s settings, as reported (Raissi et al. (2019), Sec. 2.1) | – | 6.7 × 10<sup>-4</sup> | – |
-| 🔴 **Raissi et al.'s settings, run in PINNStudio** | **3.3 × 10<sup>-4</sup>** | **4.0 × 10<sup>-4</sup>** | **40** |
+| Raissi et al.'s settings, run in PINNStudio | 5.2 × 10<sup>-4</sup> | 4.0 × 10<sup>-4</sup> | 40 |
 | Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | 1.0 × 10<sup>-3</sup> | 86 |
 | Best setup + 3× iterations | 5.5 × 10<sup>-4</sup> | 6.7 × 10<sup>-4</sup> | 148 |
 | Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 75 |
 | Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | 2.6 × 10<sup>-4</sup> | 172 |
-| **PINNStudio best** (Settings: Tuned): Raissi et al.'s settings, run in PINNStudio | **3.3 × 10<sup>-4</sup>** | **4.0 × 10<sup>-4</sup>** | **40** |
+| **PINNStudio best** (Settings: Tuned): the base PINN | **3.3 × 10<sup>-4</sup>** | **4.0 × 10<sup>-4</sup>** | **42** |
 
 **Inverse problem**
 
@@ -2022,23 +2023,33 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 | 10× weight on the measured data | 1.2 × 10<sup>-4</sup> | λ₁ = 0.99847 (1); λ₂ = 0.00998163 (0.01) | 0.18% | 117 |
 | Measured data at every reference time | 3.0 × 10<sup>-4</sup> | λ₁ = 0.999186 (1); λ₂ = 0.0100091 (0.01) | 0.091% | 103 |
 | Best whole-interval setup | 4.8 × 10<sup>-4</sup> | λ₁ = 0.994327 (1); λ₂ = 0.0100096 (0.01) | 0.57% | 100 |
-| 🔴 **10× data weight, 3× L-BFGS and the larger network** | **5.5 × 10<sup>-5</sup>** | **λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01)** | **0.099%** | **101** |
-| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **5.5 × 10<sup>-5</sup>** | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | **0.099%** | **101** |
+| 🔴 **10× data weight, 3× L-BFGS and the larger network (3 seeds, median)** | **5.5 × 10<sup>-5</sup>** | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** | **0.02%** | **119** |
+| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **5.5 × 10<sup>-5</sup>** | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | **0.02%** | **119** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*Raissi et al.'s settings, run in PINNStudio (also PINNStudio best):*
+*Raissi et al.'s settings, run in PINNStudio:*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time](figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png)
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio — PINN, reference and error over space and time](figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png)
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Burgers/paper_raissi_line_comparison.png)
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Burgers/paper_raissi_line_comparison.png)
+
+*PINNStudio best — the base PINN:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Burgers 1D – Raissi et al.: PINNStudio best — the base PINN — PINN, reference and error over space and time](figures/tuning/Template_1D_Burgers/plain_surface_comparison.png)
+
+<sub>PINN against the reference along a line, at the reference times</sub>
+
+![Burgers 1D – Raissi et al.: PINNStudio best — the base PINN — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Burgers/plain_line_comparison.png)
 
 </details>
 
@@ -2406,9 +2417,9 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 | DeepXDE's settings | 6.2 × 10<sup>-4</sup> | D = 0.998802 (1) | 0.12% | 121 |
 | Larger network (2× width, one more layer) | 5.2 × 10<sup>-4</sup> | D = 0.998959 (1) | 0.1% | 130 |
 | 3× L-BFGS iterations | 6.2 × 10<sup>-4</sup> | D = 0.998802 (1) | 0.12% | 118 |
-| 🔴 **All of the above together** | **1.4 × 10<sup>-4</sup>** | **D = 0.999773 (1)** | **0.023%** | **334** |
+| 🔴 **All of the above together (3 seeds, median)** | **9.5 × 10<sup>-5</sup>** | **D = 0.99988 (1)** | **0.012%** | **334** |
 | 10× data weight, 3× L-BFGS and the larger network | 1.5 × 10<sup>-3</sup> | D = 0.997953 (1) | 0.2% | 118 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **1.4 × 10<sup>-4</sup>** | D = 0.999773 (1) | **0.023%** | **334** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **9.5 × 10<sup>-5</sup>** | D = 0.99988 (1) | **0.012%** | **334** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -2796,9 +2807,9 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 | DeepXDE's settings | 1.4 × 10<sup>-2</sup> | γ = 0.945226 (1) | 5.5% | 81 |
 | Larger network (2× width, one more layer) | 1.5 × 10<sup>-2</sup> | γ = 1.03306 (1) | 3.3% | 151 |
 | 3× L-BFGS iterations | 1.4 × 10<sup>-2</sup> | γ = 0.945226 (1) | 5.5% | 79 |
-| 🔴 **All of the above together** | **6.3 × 10<sup>-4</sup>** | **γ = 1.00912 (1)** | **0.91%** | **1361** |
+| 🔴 **All of the above together (3 seeds, median)** | **2.9 × 10<sup>-3</sup>** | **γ = 1.00912 (1)** | **0.91%** | **1259** |
 | 10× data weight, 3× L-BFGS and the larger network | 7.4 × 10<sup>-3</sup> | γ = 1.06471 (1) | 6.5% | 151 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **6.3 × 10<sup>-4</sup>** | γ = 1.00912 (1) | **0.91%** | **1361** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **2.9 × 10<sup>-3</sup>** | γ = 1.00912 (1) | **0.91%** | **1259** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -2891,8 +2902,8 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
-- **Network:** FNN 5 × 200 (2 inputs, 2 outputs), tanh, Glorot normal
-- **Points:** 10,000 domain, 200 initial, 20 boundary
+- **Network:** FNN 4 × 100 (2 inputs, 2 outputs), tanh, Glorot normal
+- **Points:** 30,000 domain, 600 initial, 60 boundary
 - **Training:** Adam 10,000 → L-BFGS 10,000
 - **Unknowns:** c (initial guess 1.0, true 0.5)
 - **Measured data:** t_0.75.txt for output (weight 100)
@@ -2909,7 +2920,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **DeepXDE's settings** | **1.8 × 10<sup>-3</sup>** | **108** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **1.8 × 10<sup>-3</sup>** | **108** |
 | Their PINN (5 × 100 network, 20,000 points), as reported (Raissi, Perdikaris & Karniadakis (2019)) | 2.0 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.8 × 10<sup>-3</sup>** | **108** |
 
@@ -2921,10 +2932,10 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 |---|---|---|---|---|
 | DeepXDE's settings | 1.8 × 10<sup>-1</sup> | c = 0.514806 (0.5) | 3% | 196 |
 | 3× iterations | 3.6 × 10<sup>-1</sup> | c = 0.511656 (0.5) | 2.3% | 483 |
-| 🔴 **Larger network (2× width, one more layer)** | **9.9 × 10<sup>-4</sup>** | **c = 0.500036 (0.5)** | **0.0072%** | **337** |
-| 3× training points | 6.5 × 10<sup>-2</sup> | c = 0.500117 (0.5) | 0.023% | 324 |
+| Larger network (2× width, one more layer) (3 seeds, median) | 4.7 × 10<sup>-2</sup> | c = 0.509404 (0.5) | 1.9% | 359 |
+| 🔴 **3× training points** | **6.5 × 10<sup>-2</sup>** | **c = 0.500117 (0.5)** | **0.023%** | **324** |
 | All of the above together | 1.7 × 10<sup>-1</sup> | c = 0.504096 (0.5) | 0.82% | 1745 |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **9.9 × 10<sup>-4</sup>** | c = 0.500036 (0.5) | **0.0072%** | **337** |
+| **PINNStudio best** (Settings: Tuned): 3× training points | **6.5 × 10<sup>-2</sup>** | c = 0.500117 (0.5) | **0.023%** | **324** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -2948,19 +2959,19 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — Larger network (2× width, one more layer):*
+*PINNStudio best — 3× training points:*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](figures/tuning/Schr_dinger_equation_inv/net_surface_comparison.png)
+![Schrödinger 1D: PINNStudio best — 3× training points — PINN, reference and error over space and time](figures/tuning/Schr_dinger_equation_inv/points_surface_comparison.png)
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](figures/tuning/Schr_dinger_equation_inv/net_line_comparison.png)
+![Schrödinger 1D: PINNStudio best — 3× training points — PINN against the reference along a line, at the reference times](figures/tuning/Schr_dinger_equation_inv/points_line_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](figures/tuning/Schr_dinger_equation_inv/net_param_plot.png)
+![Schrödinger 1D: PINNStudio best — 3× training points — the learned parameters during training](figures/tuning/Schr_dinger_equation_inv/points_param_plot.png)
 
 </details>
 
@@ -3045,9 +3056,9 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 |---|---|---|---|---|
 | DeepXDE's settings | 5.5 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 303 |
 | Larger network (2× width, one more layer) | 5.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 608 |
-| 🔴 **All of the above together** | **3.8 × 10<sup>-5</sup>** | **C = 10 (10)** | **0%** | **4354** |
+| 🔴 **All of the above together (3 seeds, median)** | **2.0 × 10<sup>-5</sup>** | **C = 10 (10)** | **0%** | **4354** |
 | 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 1513 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | C = 10 (10) | **0%** | **4354** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **2.0 × 10<sup>-5</sup>** | C = 10 (10) | **0%** | **4354** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -3336,9 +3347,9 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **DeepXDE's settings** | **1.9 × 10<sup>-3</sup>** | **26** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **1.1 × 10<sup>-2</sup>** | **26** |
 | Their PINN (25,600 points), as reported (Escapil-Inchauspé & Ruz (2023)) | 1.8 × 10<sup>-4</sup> | – |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.9 × 10<sup>-3</sup>** | **26** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.1 × 10<sup>-2</sup>** | **26** |
 
 *As reported: Table 4, ω = 2, with 160 points per side and their tuned network (DeepXDE's example uses about 20 per side and its own network); 1.19e-4 for their best hyper-parameter configuration.*
 
@@ -3350,8 +3361,8 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 | Larger network (2× width, one more layer) | 2.2 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 64 |
 | 3× L-BFGS iterations | 3.5 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 35 |
 | All of the above together | 8.7 × 10<sup>-5</sup> | k₀ = 12.5669 (12.5664) | 0.0042% | 125 |
-| 🔴 **10× data weight, 3× L-BFGS and the larger network** | **4.0 × 10<sup>-5</sup>** | **k₀ = 12.5664 (12.5664)** | **0.00023%** | **58** |
-| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **4.0 × 10<sup>-5</sup>** | k₀ = 12.5664 (12.5664) | **0.00023%** | **58** |
+| 🔴 **10× data weight, 3× L-BFGS and the larger network (3 seeds, median)** | **4.0 × 10<sup>-5</sup>** | **k₀ = 12.5664 (12.5664)** | **0.00023%** | **64** |
+| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **4.0 × 10<sup>-5</sup>** | k₀ = 12.5664 (12.5664) | **0.00023%** | **64** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -3653,11 +3664,11 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 *Found in:* [tuning study, forward runs](tuning_study.md#tune-linear-elasticity-2d-plate)
 
-*Inverse problem — PINNStudio's own inverse setup*
+*Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
 - **Points:** 500 domain, 500 boundary
-- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Training:** Adam 20,000 → L-BFGS 60,000
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 - **Unknowns:** lmbd (initial guess 2.0, true 1.0), mu (initial guess 1.0, true 0.5)
 - **Measured data:** ux_obs.txt for ux (weight 100); uy_obs.txt for uy (weight 100)
@@ -3685,9 +3696,9 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **1.9 × 10<sup>-3</sup>** | **λ = 0.999744 (1); μ = 0.500088 (0.5)** | **0.026%** | **546** |
-| 3× L-BFGS iterations | 1.9 × 10<sup>-3</sup> | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 561 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.9 × 10<sup>-3</sup>** | λ = 0.999744 (1); μ = 0.500088 (0.5) | **0.026%** | **546** |
+| DeepXDE's settings (3 seeds, median) | 1.1 × 10<sup>-3</sup> | λ = 0.999548 (1); μ = 0.500189 (0.5) | 0.045% | 542 |
+| 🔴 **3× L-BFGS iterations** | **1.9 × 10<sup>-3</sup>** | **λ = 0.999744 (1); μ = 0.500088 (0.5)** | **0.026%** | **561** |
+| **PINNStudio best** (Settings: Tuned): 3× L-BFGS iterations | **1.9 × 10<sup>-3</sup>** | λ = 0.999744 (1); μ = 0.500088 (0.5) | **0.026%** | **561** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -3745,31 +3756,31 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — the example's own settings (no change did better):*
+*PINNStudio best — 3× L-BFGS iterations:*
 
 <sub>σₓₓ — PINN, reference and error over space and time</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σₓₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_sxx.png)
 
 <sub>σₓᵧ — PINN, reference and error over space and time</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σₓᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_sxy.png)
 
 <sub>σᵧᵧ — PINN, reference and error over space and time</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σᵧᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σᵧᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_syy.png)
 
 <sub>uₓ — PINN, reference and error over space and time</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — uₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_ux.png)
 
 <sub>uᵧ — PINN, reference and error over space and time</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_uy.png)
 
 <sub>the learned parameters during training</sub>
 
-![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png)
+![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — the learned parameters during training](figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_param_plot.png)
 
 </details>
 
@@ -3842,6 +3853,24 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 
 </details>
 
+<details id="bench-mixed-convection-2d-soomro-et-al">
+<summary><strong>Mixed convection 2D – Soomro et al.</strong> · PINNStudio template</summary>
+
+<details>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
+
+*Forward problem — also PINNStudio best* (its training runs are queued; the results follow)
+
+- **Network:** multi-scale Fourier features (MsFFN) 5 × 64 (2 inputs, 4 outputs), tanh, Glorot normal, scales 1, 5
+- **Points:** 12,000 domain, 3,000 boundary
+- **Training:** Adam 30,000 → L-BFGS 20,000
+
+*Load it:* toolbar → Examples: **Forward** → **Mixed convection 2D – Soomro et al.** → **Default**, then Solve.
+
+</details>
+
+</details>
+
 <details id="bench-navier-stokes-2d-kovasznay-flow">
 <summary><strong>Navier-Stokes 2D – Kovasznay flow</strong> · DeepXDE example</summary>
 
@@ -3896,8 +3925,8 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 
 | Training | L₂ u | L₂ v | L₂ p | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **2.1 × 10<sup>-4</sup>** | **9.0 × 10<sup>-4</sup>** | **5.4 × 10<sup>-4</sup>** | **210** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **2.1 × 10<sup>-4</sup>** | **9.0 × 10<sup>-4</sup>** | **5.4 × 10<sup>-4</sup>** | **210** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **2.0 × 10<sup>-4</sup>** | **9.0 × 10<sup>-4</sup>** | **4.1 × 10<sup>-4</sup>** | **213** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **2.0 × 10<sup>-4</sup>** | **9.0 × 10<sup>-4</sup>** | **4.1 × 10<sup>-4</sup>** | **213** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by u.*
 
@@ -3906,11 +3935,11 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
 | DeepXDE's settings | 9.1 × 10<sup>-5</sup> | Re = 20.0026 (20) | 0.013% | 220 |
-| 🔴 **Larger network (2× width, one more layer)** | **5.9 × 10<sup>-5</sup>** | **Re = 19.9978 (20)** | **0.011%** | **252** |
+| 🔴 **Larger network (2× width, one more layer) (3 seeds, median)** | **6.5 × 10<sup>-5</sup>** | **Re = 19.9978 (20)** | **0.011%** | **263** |
 | 3× L-BFGS iterations | 9.1 × 10<sup>-5</sup> | Re = 20.0026 (20) | 0.013% | 224 |
 | All of the above together | 3.7 × 10<sup>-5</sup> | Re = 19.9982 (20) | 0.009% | 956 |
 | 10× data weight, 3× L-BFGS and the larger network | 7.1 × 10<sup>-5</sup> | Re = 19.9915 (20) | 0.043% | 253 |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **5.9 × 10<sup>-5</sup>** | Re = 19.9978 (20) | **0.011%** | **252** |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **6.5 × 10<sup>-5</sup>** | Re = 19.9978 (20) | **0.011%** | **263** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4006,17 +4035,17 @@ A companion to the L-shape example, on a smooth (curved, non-singular) boundary 
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **The template's starting settings** | **2.8 × 10<sup>-4</sup>** | **156** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **2.8 × 10<sup>-4</sup>** | **156** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **2.8 × 10<sup>-4</sup>** | **156** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **5.4 × 10<sup>-4</sup>** | **f = 1.00002 (1)** | **0.002%** | **157** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **3.8 × 10<sup>-4</sup>** | **f = 1.00002 (1)** | **0.002%** | **162** |
 | 10× weight on the measured data | 2.9 × 10<sup>-4</sup> | f = 0.999919 (1) | 0.0081% | 151 |
 | 10× data weight, 3× L-BFGS and the larger network | 3.4 × 10<sup>-4</sup> | f = 1.00006 (1) | 0.006% | 173 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.4 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | **157** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **3.8 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | **162** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4358,9 +4387,9 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10,000 domain, 512 initial, 400 boundary
 - **Training:** Adam 20,000 → L-BFGS 20,000
-- **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
+- **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
 - **Unknowns:** c1_sq (initial guess 1.0, true 0.0001), c2 (initial guess 0.1, true 1.0)
-- **Measured data:** t_0.25.txt for h (weight 1000); t_0.5.txt for h (weight 1000); t_0.75.txt for h (weight 1000); t_1.0.txt for h (weight 1000)
+- **Measured data:** t_0.25.txt for h (weight 100); t_0.5.txt for h (weight 100); t_0.75.txt for h (weight 100); t_1.0.txt for h (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Mattey & Ghosh** → **Tuned**, then Solve.
 
@@ -4375,21 +4404,21 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 | Base PINN | 2.8 × 10<sup>-2</sup> | 2.2 × 10<sup>-2</sup> | 1414 |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.1.1) | – | 2.5 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | 2.5 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> | 4254 |
-| 🔴 **Best setup of the training methods study** | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>** | **266** |
+| 🔴 **Best setup of the training methods study (3 seeds, median)** | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>** | **283** |
 | Best setup + 3× iterations | 3.2 × 10<sup>-4</sup> | 3.1 × 10<sup>-4</sup> | 617 |
 | Best setup + larger network (2× width, one more layer) | 5.9 × 10<sup>-4</sup> | 4.4 × 10<sup>-4</sup> | 464 |
 | Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | 3.1 × 10<sup>-4</sup> | 3872 |
-| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>** | **266** |
+| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>** | **283** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
 | The template's starting settings | 8.9 × 10<sup>-4</sup> | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | 5.8% | 1735 |
-| 🔴 **10× weight on the measured data** | **6.7 × 10<sup>-4</sup>** | **c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1)** | **2.5%** | **1789** |
-| Best whole-interval setup | 9.6 × 10<sup>-4</sup> | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | 4.3% | 1774 |
+| 10× weight on the measured data (3 seeds, median) | 6.7 × 10<sup>-4</sup> | c₁² = 0.000103547 (0.0001); c₂ = 1.00065 (1) | 3.5% | 1789 |
+| 🔴 **Best whole-interval setup** | **9.6 × 10<sup>-4</sup>** | **c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1)** | **4.3%** | **1774** |
 | 10× data weight, 3× L-BFGS and the larger network | 4.5 × 10<sup>-4</sup> | c₁² = 0.000107025 (0.0001); c₂ = 1.00387 (1) | 7% | 5216 |
-| **PINNStudio best** (Settings: Tuned): 10× weight on the measured data | **6.7 × 10<sup>-4</sup>** | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | **2.5%** | **1789** |
+| **PINNStudio best** (Settings: Tuned): Best whole-interval setup | **9.6 × 10<sup>-4</sup>** | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | **4.3%** | **1774** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4409,15 +4438,15 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — 10× weight on the measured data:*
+*PINNStudio best — Best whole-interval setup:*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 10× weight on the measured data — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/dataw_surface_comparison.png)
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — Best whole-interval setup — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/setup_surface_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 10× weight on the measured data — the learned parameters during training](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/dataw_param_plot.png)
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — Best whole-interval setup — the learned parameters during training](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/setup_param_plot.png)
 
 </details>
 
@@ -4495,10 +4524,10 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Base PINN | 1.1 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 6.5 × 10<sup>-3</sup> | 4.7 × 10<sup>-1</sup> | 830 |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | 2.4 × 10<sup>-1</sup> | 6.1 × 10<sup>-1</sup> | 2.3 × 10<sup>-2</sup> | 7.5 × 10<sup>-1</sup> | 5551 |
-| 🔴 **The template's starting settings** | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | – | **1.6 × 10<sup>-2</sup>** | **822** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **8.6 × 10<sup>-3</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
 | 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | – | 7.2 × 10<sup>-3</sup> | 1464 |
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | – | 1.1 × 10<sup>-2</sup> | 1995 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | – | **1.6 × 10<sup>-2</sup>** | **822** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.6 × 10<sup>-3</sup>** | **2.2 × 10<sup>-2</sup>** | **8.0 × 10<sup>-4</sup>** | **1.6 × 10<sup>-2</sup>** | **872** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by φ and μ together (the worse of the two).*
 
@@ -4508,10 +4537,10 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **6.9 × 10<sup>-5</sup>** | **ε² = 0.00251042 (0.0025)** | **0.42%** | **3736** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **7.7 × 10<sup>-5</sup>** | **ε² = 0.00251029 (0.0025)** | **0.41%** | **3793** |
 | 10× weight on the measured data | 5.4 × 10<sup>-5</sup> | ε² = 0.00252662 (0.0025) | 1.1% | 3984 |
 | Measured data at every reference time | 1.1 × 10<sup>-4</sup> | ε² = 0.00250963 (0.0025) | 0.39% | 10691 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **6.9 × 10<sup>-5</sup>** | ε² = 0.00251042 (0.0025) | **0.42%** | **3736** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **7.7 × 10<sup>-5</sup>** | ε² = 0.00251029 (0.0025) | **0.41%** | **3793** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4777,12 +4806,12 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
-- **Network:** FNN 5 × 256 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 8,000 domain, 2,000 initial, 2,000 boundary
-- **Training:** Adam 15,000 → L-BFGS 30,000
+- **Training:** Adam 15,000 → L-BFGS 10,000
 - **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
 - **Unknowns:** nu (initial guess 1.0, true 0.00318309886184)
-- **Measured data:** t_1.0_u.txt for u (weight 1000); t_1.0_v.txt for v (weight 1000)
+- **Measured data:** t_0.25_u.txt for u (weight 100); t_0.50_u.txt for u (weight 100); t_0.75_u.txt for u (weight 100); t_1.0_u.txt for u (weight 100); t_0.25_v.txt for v (weight 100); t_0.50_v.txt for v (weight 100); t_0.75_v.txt for v (weight 100); t_1.0_v.txt for v (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
 
@@ -4798,10 +4827,10 @@ Error Analysis — PINN vs Ground Truth, for each output:
 | Mathias et al.'s settings, as reported (Mathias et al. (2022)) | – | – | figures only | – |
 | Mathias et al.'s settings, run in PINNStudio | 1.7 × 10<sup>-1</sup> | 1.5 × 10<sup>-1</sup> | 1.8 × 10<sup>-1</sup> | 2153 |
 | The template's starting settings | 1.1 × 10<sup>-2</sup> | 4.7 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | 1662 |
-| 🔴 **3× iterations** | **8.4 × 10<sup>-3</sup>** | **4.7 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **3684** |
+| 🔴 **3× iterations (3 seeds, median)** | **9.7 × 10<sup>-3</sup>** | **4.8 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **3998** |
 | Larger network (2× width, one more layer) | 8.9 × 10<sup>-3</sup> | 4.7 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4720 |
 | 3× training points | 9.3 × 10<sup>-3</sup> | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4352 |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **8.4 × 10<sup>-3</sup>** | **4.7 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **3684** |
+| **PINNStudio best** (Settings: Tuned): 3× iterations | **9.7 × 10<sup>-3</sup>** | **4.8 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **3998** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by u.*
 
@@ -4811,9 +4840,9 @@ Error Analysis — PINN vs Ground Truth, for each output:
 |---|---|---|---|---|
 | The template's starting settings | 3.5 × 10<sup>-3</sup> | ν = 0.00341319 (0.0031831) | 7.2% | 1242 |
 | 10× weight on the measured data | 2.3 × 10<sup>-3</sup> | ν = 0.00329503 (0.0031831) | 3.5% | 1250 |
-| Measured data at every reference time | 3.2 × 10<sup>-3</sup> | ν = 0.00320754 (0.0031831) | 0.77% | 4231 |
-| 🔴 **10× data weight, 3× L-BFGS and the larger network** | **3.7 × 10<sup>-4</sup>** | **ν = 0.00320066 (0.0031831)** | **0.55%** | **6962** |
-| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **3.7 × 10<sup>-4</sup>** | ν = 0.00320066 (0.0031831) | **0.55%** | **6962** |
+| 🔴 **Measured data at every reference time** | **3.2 × 10<sup>-3</sup>** | **ν = 0.00320754 (0.0031831)** | **0.77%** | **4231** |
+| 10× data weight, 3× L-BFGS and the larger network (3 seeds, median) | 3.7 × 10<sup>-4</sup> | ν = 0.00320718 (0.0031831) | 0.76% | 6939 |
+| **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **3.2 × 10<sup>-3</sup>** | ν = 0.00320754 (0.0031831) | **0.77%** | **4231** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4845,19 +4874,19 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+*PINNStudio best — Measured data at every reference time:*
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/invall_surface_comparison_u.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — Measured data at every reference time — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_u.png)
 
 <sub>v — PINN, reference and error over space and time</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — v — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/invall_surface_comparison_v.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — Measured data at every reference time — v — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_v.png)
 
 <sub>the learned parameters during training</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](figures/tuning/Template_2D_Burgers_Mathias_inv/invall_param_plot.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — Measured data at every reference time — the learned parameters during training](figures/tuning/Template_2D_Burgers_Mathias_inv/times_param_plot.png)
 
 </details>
 
@@ -4909,18 +4938,18 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| 🔴 **The template's starting settings** | **3.9 × 10<sup>-3</sup>** | **98** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **3.9 × 10<sup>-3</sup>** | **98** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **5.7 × 10<sup>-3</sup>** | **98** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **5.7 × 10<sup>-3</sup>** | **98** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **5.8 × 10<sup>-4</sup>** | **α = 0.399893 (0.4)** | **0.027%** | **169** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **5.3 × 10<sup>-4</sup>** | **α = 0.399893 (0.4)** | **0.027%** | **169** |
 | 10× weight on the measured data | 1.6 × 10<sup>-4</sup> | α = 0.401262 (0.4) | 0.32% | 160 |
 | Measured data at every reference time | 4.1 × 10<sup>-4</sup> | α = 0.399697 (0.4) | 0.076% | 464 |
 | 10× data weight, 3× L-BFGS and the larger network | 2.5 × 10<sup>-4</sup> | α = 0.402561 (0.4) | 0.64% | 386 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.8 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | **169** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.3 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | **169** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -5225,15 +5254,15 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 | Wight & Zhao's method, run in PINNStudio | 4.6 × 10<sup>-4</sup> | 8.1 × 10<sup>-4</sup> | 1736 |
 | The template's starting settings | 2.7 × 10<sup>-4</sup> | – | 957 |
 | 3× iterations | 2.8 × 10<sup>-4</sup> | – | 1626 |
-| 🔴 **Larger network (2× width, one more layer)** | **1.9 × 10<sup>-4</sup>** | – | **2678** |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.9 × 10<sup>-4</sup>** | – | **2678** |
+| 🔴 **Larger network (2× width, one more layer) (3 seeds, median)** | **1.9 × 10<sup>-4</sup>** | – | **2595** |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.9 × 10<sup>-4</sup>** | – | **2595** |
 
 **Inverse problem**
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **9.7 × 10<sup>-5</sup>** | **λ = 9.96899 (10); λε² = 0.0249817 (0.025)** | **0.31%** | **1419** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **9.7 × 10<sup>-5</sup>** | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | **0.31%** | **1419** |
+| 🔴 **The template's starting settings (3 seeds, median)** | **7.6 × 10<sup>-5</sup>** | **λ = 9.97804 (10); λε² = 0.0249908 (0.025)** | **0.22%** | **1547** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **7.6 × 10<sup>-5</sup>** | λ = 9.97804 (10); λε² = 0.0249908 (0.025) | **0.22%** | **1547** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -5428,9 +5457,9 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 | Training | L₂ u | L₂ v | L₂ w | Time (s) |
 |---|---|---|---|---|
-| 🔴 **DeepXDE's settings** | **1.4 × 10<sup>-3</sup>** | **7.3 × 10<sup>-4</sup>** | **1.2 × 10<sup>-3</sup>** | **2420** |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **1.4 × 10<sup>-3</sup>** | **9.8 × 10<sup>-4</sup>** | **1.1 × 10<sup>-3</sup>** | **2325** |
 | VP-NSFnet (7 × 50 network, 10,000 residual points), as reported (Jin, Cai, Li & Karniadakis (2021)) | 1.6 × 10<sup>-3</sup> | 2.2 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> | – |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.4 × 10<sup>-3</sup>** | **7.3 × 10<sup>-4</sup>** | **1.2 × 10<sup>-3</sup>** | **2420** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (not in the tuning sweep) | **1.4 × 10<sup>-3</sup>** | **9.8 × 10<sup>-4</sup>** | **1.1 × 10<sup>-3</sup>** | **2325** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by u.*
 
@@ -5442,9 +5471,9 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 |---|---|---|---|---|
 | DeepXDE's settings | 3.5 × 10<sup>-4</sup> | ν = 0.997797 (1) | 0.22% | 2514 |
 | Larger network (2× width, one more layer) | 2.2 × 10<sup>-4</sup> | ν = 0.998003 (1) | 0.2% | 6315 |
-| 🔴 **3× L-BFGS iterations** | **3.5 × 10<sup>-4</sup>** | **ν = 0.998842 (1)** | **0.12%** | **2575** |
+| 🔴 **3× L-BFGS iterations (3 seeds, median)** | **4.0 × 10<sup>-4</sup>** | **ν = 0.998265 (1)** | **0.17%** | **2451** |
 | 10× data weight, 3× L-BFGS and the larger network | 2.6 × 10<sup>-4</sup> | ν = 0.997473 (1) | 0.25% | 6328 |
-| **PINNStudio best** (Settings: Tuned): 3× L-BFGS iterations | **3.5 × 10<sup>-4</sup>** | ν = 0.998842 (1) | **0.12%** | **2575** |
+| **PINNStudio best** (Settings: Tuned): 3× L-BFGS iterations | **4.0 × 10<sup>-4</sup>** | ν = 0.998265 (1) | **0.17%** | **2451** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
