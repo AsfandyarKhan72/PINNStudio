@@ -338,13 +338,16 @@ def plot(keys, path, inverse):
         # image panels as large as Figure 5's (whose two field panels share one colour bar); the parameter-error
         # plot takes the rest of the width, its legend entries on two lines
         P6 = 1.0                                  # a little smaller than Figure 5's 1.14 in
-        PW = [P6, P6, WIDTH - 3 * YLAB - 3 * CBW - 2 * P6]
+        GAP = [YLAB, YLAB - 0.10, YLAB]           # the error column closer to the PINNStudio column
+        PW = [P6, P6, WIDTH - sum(GAP) - 3 * CBW - 2 * P6]
     elif shared:
         PW = [(WIDTH - 3 * YLAB - 2 * CBW) / 3] * 3
     else:
         PW = [PANEL] * 3
     RH = PW[0]                                  # row height
-    xs = ([YLAB + sum(PW[:c]) + sum(CBW for k in range(c) if cbs[k]) + c * YLAB for c in range(3)] if ALT
+    if not (ALT and inverse):
+        GAP = [YLAB] * 3
+    xs = ([sum(GAP[:c + 1]) + sum(PW[:c]) + sum(CBW for k in range(c) if cbs[k]) for c in range(3)] if ALT
           else [YLAB + c * COL for c in range(3)])
     H = TOP + len(keys) * RH + (len(keys) - 1) * ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(WIDTH, H))
