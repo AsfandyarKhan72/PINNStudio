@@ -14,7 +14,9 @@ the linear part and the whole reaction term in the nonlinear part (putting its +
 scheme blow up once the circle disappears). The solution is written at the points of the existing files (101 x 101,
 spacing 0.01) by evaluating its Fourier series there. Three solutions are computed -- N = 256, dt = 1e-3;
 N = 256, dt = 5e-4; N = 384, dt = 1e-3 -- the differences printed (time step and grid), and the N = 256, dt = 5e-4
-one written.
+one written (t = 0: the initial condition itself). Check: the circle's radius along y = 0.5 follows the
+sharp-interface law R^2 = 0.35^2 - 2 * 0.00625 t (0.3019 vs 0.3021 at t = 2.5, 0.2444 vs 0.2449 at t = 5; the
+previous files gave 0.3029 and 0.2469).
 
     python tools/make_allen_cahn_wight_reference_data.py [OUT_DIR]
 """
@@ -77,6 +79,8 @@ def main():
         ua, ub, uc = at(a[T], px, py), at(b[T], px, py), at(c[T], px, py)
         print(f"t = {T:<4g} max |dt 1e-3 - dt 5e-4| = {np.abs(ua - ub).max():.1e}   "
               f"max |N 256 - N 384| = {np.abs(ua - uc).max():.1e}", flush=True)
+        if T == 0:                                         # the initial condition itself, not its Fourier series
+            ub = u0(px, py)
         np.savetxt(os.path.join(OUT, f"t_{name}.txt"), np.column_stack([px, py, np.full(px.size, T), ub]),
                    fmt="%.10g", delimiter="  ")
     print("wrote", OUT)
