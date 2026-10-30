@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
 RUN = os.path.abspath(sys.argv[1])
 QUICK, TRAIN = "--quick" in sys.argv, "--train" in sys.argv
 SIZE = (1440, 820)
+FULL_SIZE = tuple(int(v) for v in os.environ.get("FIG2_FULL_SIZE", "1280x800").split("x"))
 B_HEIGHT = int(os.environ.get("FIG2_B_HEIGHT", "400"))   # panel (b): the results pane
 A_HEIGHT = int(os.environ.get("FIG2_A_HEIGHT", "455"))   # panel (a): the model tree down to Results
 for _name in ("question", "warning", "information"):
@@ -139,7 +140,31 @@ def compose(a, b, out):
     print("wrote", out, im.size, flush=True)
 
 
+def full_window(w):
+    """The whole window, as the earlier Figure 2: Equations page, Results -> Overview and the Training Log."""
+    from PyQt6.QtWidgets import QSplitter
+    W, H = FULL_SIZE
+    w.resize(W, H)
+    pump(1.0)
+    w.workspace.select("equations")
+    sp = w.workspace.tree_panel.parent()
+    if isinstance(sp, QSplitter):
+        sp.setSizes([215, 440, W - 655])
+    vs = w.right_tabs.parent()
+    while vs is not None and not isinstance(vs, QSplitter):
+        vs = vs.parent()
+    if vs is not None:
+        vs.setSizes([int(H * 0.62), int(H * 0.38)])
+    pump(2.0)
+    path = os.path.join(ROOT, "benchmarks", "figures", "paper_figure2_full.png")
+    w.grab().save(path)
+    print("wrote", path, flush=True)
+
+
 if __name__ == "__main__":
+    if "--full" in sys.argv:            # the whole window of a saved run (no training)
+        full_window(shots())
+        os._exit(0)
     if sys.argv[2:3] == ["--compose"]:
         compose(os.path.join(RUN, "fig2_a_full.png"), os.path.join(RUN, "fig2_b_full.png"),
                 os.path.join(ROOT, "benchmarks", "figures", "paper_figure2.png"))
