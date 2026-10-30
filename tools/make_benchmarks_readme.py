@@ -724,10 +724,12 @@ def figure(recs, path, stars=False, paper=False):
         src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
         if src and src.get("main"):
             rep = [src["main"]]
-        rows.append(dict(label=PAPER_SHORT.get(e.name, e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
+        rows.append(dict(label=_paper_label(e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
                          p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None,
                          field=(r["i_field"][:2] + ((r["i_field"][2] if ext_inv else None),)) if r.get("i_field") else None))
+    if paper:
+        return _paper_figure(rows, path)
     # paper: drawn at its printed size (6.5 x 7.5 in, a Word page with 1 in margins and room for a caption)
     F = dict(name=8.5, head=8.8, tick=8.0, axis=9.0, legend=9.0, sym=8.0, ms=1.35) if paper else \
         dict(name=7.2, head=7.6, tick=7.2, axis=8.0, legend=7.2, sym=6.6, ms=1.0)
@@ -861,6 +863,121 @@ def figure(recs, path, stars=False, paper=False):
         fig.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
     fig.savefig(path, dpi=300)
     fig.savefig(path.replace(".png", ".pdf"))
+    plt.close(fig)
+
+
+# the paper figure's row names: no author names (they are not citations here), en dashes in two-name equations
+_AUTHORS = re.compile(r"\s+[–-]\s+(Raissi et al\.|Wight & Zhao|Mattey & Ghosh|Mathias et al\.)$")
+_TWO_NAMES = re.compile(r"\b(Allen|Cahn|Navier|Lotka|Klein|Black)-(Cahn|Hilliard|Stokes|Volterra|Gordon|Scholes)\b")
+PAPER_LABEL = {"Wave 1D – multi-scale Fourier features": "Wave 1D – MsFFN"}
+
+
+def _paper_label(name):
+    name = PAPER_SHORT.get(name, name)
+    name = PAPER_LABEL.get(name, name)
+    return _TWO_NAMES.sub(lambda m: f"{m.group(1)}\u2013{m.group(2)}", _AUTHORS.sub("", name))
+
+
+P_TUNED, P_START, P_LINK = "#0b5394", "#7b8794", "#c5ccd4"     # tuned, starting settings, the line between them
+P_BAND = "#f2f4f7"
+
+
+def _paper_figure(rows, path):
+    """Figure 4 of the paper: the forward error (left) and the inverse error (right) of each example. Filled =
+    tuned settings; open = starting settings (DeepXDE's example or the paper's method run in PINNStudio), joined
+    to the tuned value by a thin line; a ring around the filled marker = the starting settings were kept. Inverse:
+    the error of each recovered parameter (or the unknown field), tuned settings. Cropped to the drawing."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.legend_handler import HandlerTuple
+    F = dict(name=8.0, head=8.2, tick=7.6, axis=8.2, title=8.8, legend=8.0, sym=7.6)
+    plt.rcParams.update({"font.size": F["tick"], "axes.linewidth": 0.7, "pdf.fonttype": 42,
+                         "xtick.major.width": 0.7, "xtick.minor.width": 0.5})
+    ypos, heads, groups, yy = {}, [], [], 0.0
+    for i, r in enumerate(rows):
+        if not groups or groups[-1][0] != r["group"]:
+            if groups:
+                yy += 0.3
+            heads.append((r["group"], yy)); yy += 0.85
+            groups.append([r["group"], i, i])
+        groups[-1][2] = i
+        ypos[i] = yy; yy += 1.0
+    H = yy
+    Y = {i: H - v for i, v in ypos.items()}
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, 0.205 * H + 0.85), sharey=True,
+                                 gridspec_kw={"width_ratios": [3.0, 1.55], "wspace": 0.1})
+    for gi, (g, a, b) in enumerate(groups):
+        if gi % 2 == 0:
+            for axx in (ax, bx):
+                axx.axhspan(Y[b] - 0.5, Y[a] + 1.35, color=P_BAND, zorder=0, lw=0)
+    for g, v in heads:
+        ax.text(-0.02, H - v - 0.02, g, transform=ax.get_yaxis_transform(), ha="right", va="center",
+                fontsize=F["head"], fontweight="bold", color=mtp.C_TEXT)
+    S_T, S_S = 28, 24                       # marker areas: tuned, starting
+    D_T = 22
+
+    def forward(ref, best, y):
+        if best and ref and abs(ref - best) / max(ref, best) <= 0.05:          # starting settings kept
+            ax.scatter(best, y, s=S_T * 2.5, marker="o", facecolor="none", edgecolor=P_TUNED, lw=0.8, zorder=2)
+        elif ref:
+            if best:
+                ax.plot([ref, best], [y, y], color=P_LINK, lw=1.0, zorder=1, solid_capstyle="butt")
+            ax.scatter(ref, y, s=S_S, marker="o", facecolor="white", edgecolor=P_START, lw=1.0, zorder=2)
+        if best:
+            ax.scatter(best, y, s=S_T, marker="o", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+
+    for i, r in enumerate(rows):
+        y = Y[i]
+        forward(r["f_ref"], r["f_best"], y)
+        es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
+        if not es and r["field"]:
+            sym, fb, _ = r["field"]
+            es_draw, txt, right = [100 * fb], f"${sym}$", 100 * fb
+        elif es:
+            es_draw = [e_ for _, e_ in es]
+            right = max(es_draw)
+            txt = ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1]))
+        else:
+            continue
+        for e_ in es_draw:
+            bx.scatter(e_, y, s=D_T, marker="D", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+        bx.text(right * 2.6, y, txt, va="center", ha="left", fontsize=F["sym"], color=mtp.C_TEXT)
+    ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=F["name"], color=mtp.C_TEXT)
+    ax.set_ylim(Y[len(rows) - 1] - 0.65, H + 0.1)
+    ax.set_xscale("log"); ax.set_xlim(*mtp.XLIM_ERROR)
+    ax.set_xticks([10.0 ** k for k in range(-6, 1)])
+    bx.set_xscale("log"); bx.set_xlim(*P_XLIM)
+    bx.set_xticks([1e-3, 1e-1, 1e1])
+    ax.set_xlabel("Relative $L_2$ error\nat the final reference time", fontsize=F["axis"], labelpad=3)
+    bx.set_xlabel("Parameter or field\nerror (%)", fontsize=F["axis"], labelpad=3)
+    ax.set_title("Forward problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+    bx.set_title("Inverse problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+    for axx in (ax, bx):
+        axx.grid(axis="x", which="major", color=mtp.C_GRID, lw=0.6, zorder=0)
+        axx.set_axisbelow(True)
+        for sp in ("top", "right", "left"):
+            axx.spines[sp].set_visible(False)
+        axx.tick_params(axis="y", length=0, pad=4)
+        axx.tick_params(axis="x", labelsize=F["tick"], pad=2)
+
+    class _Over(tuple):                     # legend: markers drawn on top of each other
+        pass
+    mk = lambda m, ms, **k: Line2D([], [], ls="", marker=m, markersize=ms, **k)
+    h = [mk("o", 5.6, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4),
+         mk("o", 5.2, markerfacecolor="white", markeredgecolor=P_START, markeredgewidth=1.0),
+         _Over((mk("o", 9.0, markerfacecolor="none", markeredgecolor=P_TUNED, markeredgewidth=0.8),
+                mk("o", 5.6, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4))),
+         mk("D", 5.0, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4)]
+    lab = ["Tuned settings", "Starting settings", "Starting settings kept", "Inverse, each parameter"]
+    fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="lower center", ncol=4, frameon=False,
+               fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.2,
+               bbox_to_anchor=(0.5, 0.0), borderaxespad=0.0)
+    fig.subplots_adjust(left=0.30, right=0.93, top=0.96, bottom=0.115)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for out in (path, path.replace(".png", ".pdf")):     # cropped to the drawing, with a hairline margin
+        fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
@@ -1595,13 +1712,13 @@ def page(recs):
           "(the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final "
           "training loss alone would pick. They are shipped as "
           "the *Tuned* presets, so each point can be reloaded and run again.\n\n"
-          "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
-          "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
-          "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
+          "**Size.** The figure is cropped to the drawing, about 5.4 × 7.2 in with 7.6–8.8 pt text, so at the "
+          "text width of a typical journal page (5–5.5 in) the text stays at about 7–8.5 pt and there is room for "
+          "the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
           "> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative "
           "L₂ error of the main output of each forward problem at its last reference time, with the starting "
-          "settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) and the "
-          "settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting "
+          "settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) joined to "
+          "the settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting "
           "settings were kept. Right: relative error (%) of each parameter identified in the inverse problems, "
           "labelled with its symbol, and of the recovered field for the unknown-forcing problem. Full results, "
           "settings and the sources of the benchmark problems are in the software repository.*\n\n"

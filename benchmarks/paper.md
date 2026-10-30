@@ -5,7 +5,7 @@
 | Paper item | Status |
 |---|---|
 | [Section 3.3 — geometry and boundary conditions (Figure 3)](#section-33--geometry-and-boundary-conditions-figure-3) | done |
-| [Section 4.2 — accuracy on 25 representative problems (Figure 4)](#section-42--accuracy-on-25-representative-problems-figure-4) | done, with the seed repeats (seeds 2026, 1 and 2) behind the medians and range bars |
+| [Section 4.2 — accuracy on 25 representative problems (Figure 4)](#section-42--accuracy-on-25-representative-problems-figure-4) | done, with the seed repeats (seeds 2026, 1 and 2) behind the plotted medians (the figure shows medians only; the table below gives each range) |
 | [Forward examples in 1D, 2D and 3D (Figure 5)](#forward-examples-in-1d-2d-and-3d-figure-5) | done |
 | [Inverse examples in 1D, 2D and 3D (Figure 6)](#inverse-examples-in-1d-2d-and-3d-figure-6) | done |
 | [Section 4.5 — the published methods run in PINNStudio (table)](#section-45--the-published-methods-run-in-pinnstudio-table) | done (all 11 rows) |
@@ -49,7 +49,7 @@
 | **What it shows** | the relative L₂ error of 25 forward problems and the parameter error of their inverse versions, with the starting settings (DeepXDE's example or the paper's method) and PINNStudio's tuned settings |
 | **How it was run** | every example with its starting settings and with the changes of the tuning study, seed 2026 (3 seeds for the close calls), one RTX 4090; *tuned* = lowest error, the fastest within 25% ([tuning_study.md](tuning_study.md)) |
 | **Data and scripts** | `tools/make_benchmarks_readme.py` (figure and table), [`paper_figure_examples.txt`](paper_figure_examples.txt) (the 25 names), `tools/tuning_study.py` (runs) |
-| **Status** | done, with the seed repeats (seeds 2026, 1 and 2) behind the medians and range bars |
+| **Status** | done, with the seed repeats (seeds 2026, 1 and 2) behind the plotted medians (the figure shows medians only; the table below gives each range) |
 
 <details>
 <summary>📄 <em>Figure for the paper — 25 examples</em></summary>
@@ -64,13 +64,13 @@
 
 **How "tuned" was chosen.** The tuned settings are the run of the recorded tuning study (and, for the paper templates, of the paper-method and training-methods runs) with the lowest error against the reference (the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final training loss alone would pick. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
-**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
+**Size.** The figure is cropped to the drawing, about 5.4 × 7.2 in with 7.6–8.8 pt text, so at the text width of a typical journal page (5–5.5 in) the text stays at about 7–8.5 pt and there is room for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
 
-> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative L₂ error of the main output of each forward problem at its last reference time, with the starting settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) and the settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting settings were kept. Right: relative error (%) of each parameter identified in the inverse problems, labelled with its symbol, and of the recovered field for the unknown-forcing problem. Full results, settings and the sources of the benchmark problems are in the software repository.*
+> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative L₂ error of the main output of each forward problem at its last reference time, with the starting settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) joined to the settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting settings were kept. Right: relative error (%) of each parameter identified in the inverse problems, labelled with its symbol, and of the recovered field for the unknown-forcing problem. Full results, settings and the sources of the benchmark problems are in the software repository.*
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=c2d8b790)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=10b80fe6)
 
 **The values in the figure.** Relative L₂ at the last reference time. *Starting settings* is given only where there is an outside starting point (DeepXDE's example or the paper's method run in PINNStudio). Where a setting was run with more than one seed, the value is the median with the range in brackets, and *Runs* gives the number of seeds.
 
