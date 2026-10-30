@@ -259,7 +259,97 @@ def fig_c(ex, setups=SETUPS, name="paper_methods_c"):
     plt.close(fig)
 
 
+# Figure 7, publication style: the six principal configurations, styled by their role in the comparison.
+# (key in fig7_v2.json, label, colour, line style, line width, marker, z-order)
+FIG7_SETUPS = [
+    ("Loss BC + loss IC", "Plain PINN", "#3a3f47", (0, (4, 2)), 1.3, "o", 3),
+    ("Exact BC + exact IC", "Exact BC + IC", "#0072B2", "-", 2.0, "s", 5),
+    ("Exact BC + exact IC + RBA", "Exact + RBA", "#009E73", "-", 1.3, "^", 4),
+    ("Exact BC + exact IC + SA-PINN", "Exact + SA-PINN", "#D55E00", "-", 2.6, "D", 7),
+    ("causal", "Exact + causal", "#7B3294", "-", 1.3, "P", 4),
+    ("Time windows: exact BC + loss IC", "Time windows (4\u00d7 steps)", "#8C510A", (0, (6, 2, 1.5, 2)), 1.6, "v", 6),
+]
+FIG7_TITLES = {"ac1d": "(a) Allen\u2013Cahn 1D", "ch1d": "(b) Cahn\u2013Hilliard 1D",
+               "ac2d_mg": "(c) Allen\u2013Cahn 2D", "ch2d_mg": "(d) Cahn\u2013Hilliard 2D"}
+
+
+def fig7(ex, name="paper_figure7", label_ends=False):
+    """Figure 7 for the paper, drawn from fig7_v2.json (the common protocol, seed 2026): the relative L2 error of
+    the primary phase-field variable (u, or h for 2D Cahn-Hilliard; not mu) at each reference time, for the six
+    principal configurations. Log y axis with whole decades, the same x axis in every panel; the value at the
+    final time is marked larger. An exactly imposed initial condition is exact at t = 0 (only float32 round-off,
+    about 1e-7, remains), so those curves start at the first reference time after t = 0. One legend for all panels.
+    label_ends: also print the final-time error of Exact BC + IC and Exact + SA-PINN next to their end points."""
+    import math
+    plt.rcParams.update({"font.size": 8.5, "axes.linewidth": 0.7, "pdf.fonttype": 42, "font.family": "DejaVu Sans",
+                         "axes.edgecolor": INK, "xtick.color": INK, "ytick.color": INK, "text.color": INK})
+    fig, axs = plt.subplots(2, 2, figsize=(WIDTH, 5.3))
+    for ax, (eid, _) in zip(axs.ravel(), PANELS):
+        e = ex[eid]
+        curves = []
+        for key, lab, col, ls, lw, mk, z in FIG7_SETUPS:
+            c = next((c for c in e["core"] if c["setup"] == key), None)
+            if c is not None:
+                exact_ic = "exact IC" in key or key == "causal"
+                # an exactly imposed initial condition is exact at t = 0 (what is left is float32 round-off,
+                # about 1e-7): those curves start at the first reference time after t = 0
+                pts = [(t, v) for t, v in c["l2"] if v > 0 and not (exact_ic and t == 0)]
+                curves.append((key, lab, col, ls, lw, mk, z, pts))
+        vals = [v for *_, pts in curves for _, v in pts]
+        lo = 10 ** math.floor(math.log10(min(vals)))
+        hi = 10 ** math.ceil(math.log10(max(vals)))
+        for key, lab, col, ls, lw, mk, z, pts in curves:
+            ts, vs = [p[0] for p in pts], [p[1] for p in pts]
+            ax.plot(ts, vs, ls=ls, color=col, lw=lw, zorder=z, solid_capstyle="round", dash_capstyle="round")
+            ax.plot(ts[:-1], vs[:-1], ls="", marker=mk, ms=3.0, color=col, mec="white", mew=0.4, zorder=z)
+            ax.plot(ts[-1:], vs[-1:], ls="", marker=mk, ms=6.0 if lw >= 2 else 5.0, color=col, mec="white",
+                    mew=0.7, zorder=z + 0.5, clip_on=False)
+        if label_ends:
+            ends = {key: pts[-1][1] for key, *_, pts in curves}
+            sa, ex_ = ends.get("Exact BC + exact IC + SA-PINN"), ends.get("Exact BC + exact IC")
+            for key, v, col, dy in (("Exact BC + exact IC + SA-PINN", sa, "#D55E00", -1),
+                                    ("Exact BC + exact IC", ex_, "#0072B2", 1)):
+                if v is None:
+                    continue
+                other = ex_ if key.endswith("SA-PINN") else sa
+                close = other is not None and abs(math.log10(v / other)) < 0.25
+                off = (0, (5 if dy > 0 else -6) if close else 0)
+                ax.annotate(f"{100 * v:.2g}%", (1.0, v), xytext=(7 + off[0], off[1]), textcoords="offset points",
+                            fontsize=6.8, color=col, va="center", ha="left", annotation_clip=False)
+        ax.set_yscale("log")
+        ax.set_ylim(lo, hi)
+        ax.set_xlim(0, 1.0)
+        ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0], ["0", "0.25", "0.5", "0.75", "1"])
+        ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=12))
+        ax.yaxis.set_minor_locator(matplotlib.ticker.LogLocator(base=10, subs=range(2, 10), numticks=12))
+        ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        ax.set_title(FIG7_TITLES[eid], loc="left", fontsize=8.8, fontweight="bold", pad=4)
+        ax.set_xlabel("$t$", labelpad=1)
+        ax.set_ylabel("Relative $L_2$ error", labelpad=2)
+        ax.grid(which="major", color=GRID, lw=0.6)
+        ax.set_axisbelow(True)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.tick_params(labelsize=7.6)
+    h = [Line2D([], [], color=col, ls=ls, lw=lw, marker=mk, ms=4.2, mec="white", mew=0.5)
+         for _, _, col, ls, lw, mk, _ in FIG7_SETUPS]
+    fig.legend(h, [s[1] for s in FIG7_SETUPS], loc="lower center", ncol=3, frameon=False, fontsize=7.8,
+               handlelength=3.0, handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 0.0))
+    fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.955, bottom=0.165,
+                        wspace=0.5 if label_ends else 0.32, hspace=0.42)
+    for ext in ("png", "pdf"):
+        fig.savefig(os.path.join(OUT, f"{name}.{ext}"), dpi=300)
+    plt.close(fig)
+
+
 def main():
+    import sys
+    if "--figure7" in sys.argv:          # only the publication-style Figure 7 (both variants)
+        main6 = rerun_examples(setups=[(s[0],) for s in FIG7_SETUPS])
+        fig7(main6)
+        fig7(main6, name="paper_figure7_labelled", label_ends=True)
+        print("wrote", os.path.join(OUT, "paper_figure7.png"), "and paper_figure7_labelled")
+        return
     d = json.load(open(DATA, encoding="utf-8"))
     ex = {e["id"]: e for e in d["examples"]}
     fig_a(ex)
