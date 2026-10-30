@@ -358,7 +358,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | Poisson 1D – hard BCs | DeepXDE | u | 2.2 × 10<sup>-6</sup> |
 | Poisson 1D – multi-scale Fourier features | DeepXDE | u | 3.9 × 10<sup>-3</sup> |
 | Allen-Cahn 1D – Wight & Zhao | PINNStudio | u | 7.0 × 10<sup>-4</sup> |
-| Cahn-Hilliard 1D – Wight & Zhao | PINNStudio | μ, u | 1.6 × 10<sup>-3</sup>, 5.2 × 10<sup>-4</sup> |
+| Cahn-Hilliard 1D – Wight & Zhao | PINNStudio | u, μ | 5.2 × 10<sup>-4</sup>, 1.6 × 10<sup>-3</sup> |
 | Cahn-Hilliard 1D – Mattey & Ghosh | PINNStudio | h, μ | 5.7 × 10<sup>-3</sup>, 4.6 × 10<sup>-2</sup> |
 | Black-Scholes 1D – European call | DeepXDE | u | 4.3 × 10<sup>-4</sup> |
 | Burgers 1D – Raissi et al. | PINNStudio | u | 3.3 × 10<sup>-4</sup> |
@@ -386,7 +386,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | Poisson 2D – L-shape | DeepXDE | solution | 1.2 × 10<sup>-2</sup> |
 | Allen-Cahn 2D – Wight & Zhao | PINNStudio | u | 1.6 × 10<sup>-3</sup> |
 | Allen-Cahn 2D – Mattey & Ghosh | PINNStudio | u | 3.6 × 10<sup>-4</sup> |
-| Cahn-Hilliard 2D – Wight & Zhao | PINNStudio | μ, φ | 2.2 × 10<sup>-2</sup>, 1.1 × 10<sup>-2</sup> |
+| Cahn-Hilliard 2D – Wight & Zhao | PINNStudio | φ, μ | 1.1 × 10<sup>-2</sup>, 2.2 × 10<sup>-2</sup> |
 | Cahn-Hilliard 2D – Mattey & Ghosh | PINNStudio | h, μ | 1.1 × 10<sup>-3</sup>, 3.1 × 10<sup>-2</sup> |
 | Burgers 2D – Mathias et al. | PINNStudio | u, v | 9.7 × 10<sup>-3</sup>, 4.8 × 10<sup>-3</sup> |
 | Heat 2D | PINNStudio | u | 5.7 × 10<sup>-3</sup> |
