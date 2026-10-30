@@ -208,6 +208,7 @@ YLAB, CB_PAD, CB_W, CB_TICKS, TOP, ROW_GAP, BOTTOM = 0.37, 0.06, 0.08, 0.27, 0.3
 PANEL = (WIDTH - 3 * (YLAB + CB_PAD + CB_W + CB_TICKS)) / 3     # 1.39 in
 COL = YLAB + PANEL + CB_PAD + CB_W + CB_TICKS
 FONT = 8
+ALT_JET = False    # --alt --jet: the alternative layout with the approved jet colour maps
 ALT = False        # the alternative style (python tools/make_paper_examples.py plot --alt): drawn at the CPC text
                    # width (5.42 in) so it prints at 100 %, perceptually uniform / diverging colour maps
 
@@ -226,7 +227,7 @@ def _field_style(lo, hi):
     map centred on zero for a field of both signs, a sequential one otherwise."""
     import matplotlib
     import matplotlib.pyplot as plt
-    if not ALT:
+    if not ALT or ALT_JET:
         return plt.get_cmap("jet"), matplotlib.colors.Normalize(lo, hi)
     m = max(abs(lo), abs(hi))
     if lo < 0 < hi and min(abs(lo), abs(hi)) >= 0.3 * m:
@@ -236,7 +237,7 @@ def _field_style(lo, hi):
 
 def _error_cmap():
     import matplotlib.pyplot as plt
-    return plt.get_cmap("viridis" if ALT else "jet")
+    return plt.get_cmap("viridis" if (ALT and not ALT_JET) else "jet")
 
 
 def _faces(g, F, cut):
@@ -439,6 +440,9 @@ def main():
         if "--alt" in sys.argv:
             _use_alt()
             sfx = "_alt"
+            if "--jet" in sys.argv:
+                global ALT_JET
+                ALT_JET, sfx = True, "_alt_jet"
         plot(FORWARD, os.path.join(FIGS, f"paper_forward{sfx}.png"), False)
         plot(INVERSE, os.path.join(FIGS, f"paper_inverse{sfx}.png"), True)
     else:
