@@ -356,7 +356,7 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         x = ax.transAxes.inverted().transform(((bb.x0 + bb.x1) / 2, 0))[0]
         ax.text(x, 1.04, ax._panel_letter, transform=ax.transAxes, fontsize=9.5, fontweight="bold",
                 va="bottom", ha="center")
-        ax.text(0.5, 1.04, ax._panel_name, transform=ax.transAxes, fontsize=9.5, va="bottom", ha="center")
+        ax.text(0.5, 1.04, ax._panel_name, transform=ax.transAxes, fontsize=11.3, va="bottom", ha="center")
     for ext in ("png", "pdf"):          # cropped to the drawing, with a hairline margin
         fig.savefig(os.path.join(OUT, f"{name}.{ext}"), dpi=300, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
