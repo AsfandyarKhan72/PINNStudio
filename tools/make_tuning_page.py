@@ -283,14 +283,36 @@ def _group_of(entry):
     return f"{entry.dim}, {'steady' if entry.regime == 'Steady' else 'time-dependent'}"
 
 
+class Found(list):
+    """[(symbol, median found value, true value)] of a variant's runs, with the errors taken seed by seed:
+    .err = median over the seeds of each seed's worst relative parameter error (the inverse benchmark metric);
+    .per_param = {symbol: median over the seeds of that parameter's relative error};
+    .per_seed = [(seed, {symbol: (found, relative error)}, worst relative error)]."""
+    err = None
+    per_param = None
+    per_seed = None
+
+
 def _found(x):
-    """Median of each learned parameter over the chosen variant's runs: [(symbol, found, true)]."""
+    """Median of each learned parameter over the chosen variant's runs: [(symbol, found, true)] (a Found, which
+    also carries the seed-by-seed errors)."""
     rs = x["variants"][x["chosen"]]
-    out = []
-    for k, tv in (rs[0].get("true") or {}).items():
+    out = Found()
+    keys = [(k, tv) for k, tv in (rs[0].get("true") or {}).items() if tv not in (None, 0)]
+    for k, tv in keys:
         vals = [r["params"][k] for r in rs if k in r.get("params", {})]
-        if tv not in (None, 0) and vals:
+        if vals:
             out.append((PARAM_SYMBOLS.get(k, k), statistics.median(vals), tv))
+    seeds = []
+    for r in rs:
+        e = {PARAM_SYMBOLS.get(k, k): (r["params"][k], abs(r["params"][k] - tv) / abs(tv))
+             for k, tv in keys if k in r.get("params", {})}
+        if e:
+            seeds.append((r.get("seed"), e, max(v[1] for v in e.values())))
+    if seeds:
+        out.per_seed = seeds
+        out.err = statistics.median(w for _, _, w in seeds)
+        out.per_param = {sym: statistics.median(e[sym][1] for _, e, _ in seeds if sym in e) for sym, _, _ in out}
     return out
 
 
