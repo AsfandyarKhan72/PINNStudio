@@ -1,0 +1,10 @@
+{
+ "Template_2D_Cahn_Hilliard_Wight_Zhao/base_s2": 0.013001,
+ "Template_2D_Cahn_Hilliard_Wight_Zhao/base_s1": 0.013165,
+ "Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/base_s2": 0.0003381,
+ "Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/base_s1": 0.00033111,
+ "Template_2D_Burgers_Mathias/iters_s2": 0.011276,
+ "Template_2D_Burgers_Mathias/iters_s1": 0.011594,
+ "Template_1D_Burgers/paper_raissi_s1": 0.00061784,
+ "Template_1D_Burgers/paper_raissi_s2": 0.00075508
+}
