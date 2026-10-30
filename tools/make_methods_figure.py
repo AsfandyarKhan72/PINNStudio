@@ -330,8 +330,8 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=12))
         ax.yaxis.set_minor_locator(matplotlib.ticker.LogLocator(base=10, subs=range(2, 10), numticks=12))
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax.text(-0.16, 1.04, FIG7_TITLES[eid].split(" ")[0], transform=ax.transAxes, fontsize=9.5, fontweight="bold",
-                va="bottom")
+        ax.text(0.0, 1.04, FIG7_TITLES[eid].split(" ")[0], transform=ax.transAxes, fontsize=9.5, fontweight="bold",
+                va="bottom", ha="center")         # above the y axis
         ax.set_xlabel("$t$", labelpad=1)
         ax.set_ylabel("Relative $L_2$ error", labelpad=2)
         ax.grid(which="major", color=GRID, lw=0.6)
@@ -339,9 +339,14 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
         ax.tick_params(labelsize=7.6)
-    h = [Line2D([], [], color=col, ls=ls, lw=lw, marker=mk, ms=4.2, mec="white", mew=0.5)
-         for _, _, col, ls, lw, mk, _ in FIG7_SETUPS]
-    fig.legend(h, [s[1] for s in FIG7_SETUPS], loc="lower center", ncol=3, frameon=False, fontsize=7.8,
+    # legend read row by row: Plain PINN, Time windows, Exact BC + IC / Exact + RBA, Exact + SA-PINN, Exact + causal
+    # (matplotlib fills a multi-column legend column by column, hence the order below)
+    order = ["Plain PINN", "Exact + RBA", "Time windows (4\u00d7 steps)", "Exact + SA-PINN", "Exact BC + IC",
+             "Exact + causal"]
+    byl = {s[1]: s for s in FIG7_SETUPS}
+    h = [Line2D([], [], color=byl[l][2], ls=byl[l][3], lw=byl[l][4], marker=byl[l][5], ms=4.2, mec="white", mew=0.5)
+         for l in order]
+    fig.legend(h, order, loc="lower center", ncol=3, frameon=False, fontsize=7.8,
                handlelength=3.0, handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 0.0))
     fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.955, bottom=0.165,
                         wspace=0.5 if label_ends else 0.32, hspace=0.42)
@@ -353,10 +358,8 @@ def fig7(ex, name="paper_figure7", label_ends=False):
 def main():
     import sys
     if "--figure7" in sys.argv:          # only the publication-style Figure 7 (both variants)
-        main6 = rerun_examples(setups=[(s[0],) for s in FIG7_SETUPS])
-        fig7(main6)
-        fig7(main6, name="paper_figure7_labelled", label_ends=True)
-        print("wrote", os.path.join(OUT, "paper_figure7.png"), "and paper_figure7_labelled")
+        fig7(rerun_examples(setups=[(s[0],) for s in FIG7_SETUPS]))
+        print("wrote", os.path.join(OUT, "paper_figure7.png"), "and .pdf")
         return
     d = json.load(open(DATA, encoding="utf-8"))
     ex = {e["id"]: e for e in d["examples"]}
