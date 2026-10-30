@@ -1030,7 +1030,11 @@ def _paper_figure(rows, path):
         ypos[i] = yy; yy += 1.0
     H = yy
     Y = {i: H - v for i, v in ypos.items()}
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, 0.168 * H + 0.85), sharey=True,
+    # row pitch chosen so that the cropped figure fits the CPC page at the full text width (390 pt) within
+    # 0.69 of the text height together with its caption, i.e. it is printed at 100 % and the fonts keep their size
+    PITCH, TOP_IN, BOT_IN = 0.134, 0.44, 0.50
+    fig_h = PITCH * H + TOP_IN + BOT_IN
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, fig_h), sharey=True,
                                  gridspec_kw={"width_ratios": [3.0, 1.55], "wspace": 0.1})
     for gi, (g, a, b) in enumerate(groups):
         if gi % 2 == 0:
@@ -1081,7 +1085,7 @@ def _paper_figure(rows, path):
     ax.set_xticks([10.0 ** k for k in range(-6, 1)])
     bx.set_xscale("log"); bx.set_xlim(*P_XLIM)
     bx.set_xticks([1e-3, 1e-1, 1e1])
-    ax.set_xlabel("Relative $L_2$ error\nat the final reference time", fontsize=F["axis"], labelpad=3)
+    ax.set_xlabel("Relative $L_2$ error", fontsize=F["axis"], labelpad=3)
     bx.set_xlabel("Parameter or field\nerror (%)", fontsize=F["axis"], labelpad=3)
     ax.set_title("Forward problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
     bx.set_title("Inverse problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
@@ -1105,7 +1109,7 @@ def _paper_figure(rows, path):
     fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="upper center", ncol=4, frameon=False,
                fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.5,
                bbox_to_anchor=(0.5, 1.0), borderaxespad=0.0)
-    fig.subplots_adjust(left=0.30, right=0.93, top=0.928, bottom=0.085)
+    fig.subplots_adjust(left=0.30, right=0.93, top=1 - TOP_IN / fig_h, bottom=BOT_IN / fig_h)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for out in (path, path.replace(".png", ".pdf")):     # cropped to the drawing, with a hairline margin
         fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.02)

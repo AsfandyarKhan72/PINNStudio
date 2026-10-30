@@ -284,7 +284,9 @@ def fig7(ex, name="paper_figure7", label_ends=False):
     import math
     plt.rcParams.update({"font.size": 8.5, "axes.linewidth": 0.7, "pdf.fonttype": 42, "font.family": "DejaVu Sans",
                          "axes.edgecolor": INK, "xtick.color": INK, "ytick.color": INK, "text.color": INK})
-    fig, axs = plt.subplots(2, 2, figsize=(WIDTH, 5.3))
+    # drawn at about the CPC text width (390 pt) so that it is printed at 100 % and the fonts keep their size
+    W7 = 5.6
+    fig, axs = plt.subplots(2, 2, figsize=(W7, 5.3 * W7 / WIDTH))
     for ax, (eid, _) in zip(axs.ravel(), PANELS):
         e = ex[eid]
         curves = []
