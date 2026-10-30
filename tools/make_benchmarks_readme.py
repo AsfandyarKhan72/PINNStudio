@@ -2420,6 +2420,33 @@ def split_paper(md):
     return md[:first] + link + md[end:].lstrip("\n"), paper_md
 
 
+def load_primary(path):
+    """The runs' main-output errors (mtp.PRIMARY) and every output's error (OUTS) from primary.json."""
+    for slug, vs in json.load(open(path, encoding="utf-8")).items():
+        for variant, runs in vs.items():
+            for r in runs:
+                mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
+                if r.get("outs"):
+                    o = dict(r["outs"])
+                    # μ of the Cahn-Hilliard templates decays to almost zero, so its relative L2 looks large:
+                    # its mean absolute error goes in its own column
+                    if slug.startswith("Beltrami_flow"):
+                        # p is fixed only up to a constant there and the runs' p error is not taken after
+                        # removing the mean, so its relative L2 says nothing: left out
+                        o.pop("p", None)
+                    if "mu" in o and (r.get("abs") or {}).get("mu") is not None:
+                        o["abs_mu"] = r["abs"]["mu"]
+                    OUTS[(slug, variant, str(r["seed"]))] = o
+    # runs from before a template renamed its output (u -> phi, as its paper writes it) logged it as u:
+    # one output, one name
+    for slug in {k[0] for k in OUTS}:
+        keys = [k for k in OUTS if k[0] == slug]
+        if any("phi" in OUTS[k] for k in keys) and not any("phi" in OUTS[k] and "u" in OUTS[k] for k in keys):
+            for k in keys:
+                if "u" in OUTS[k]:
+                    OUTS[k]["phi"] = OUTS[k].pop("u")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results", nargs="+")
@@ -2428,29 +2455,7 @@ def main():
     ap.add_argument("--spacetime", default="", help="json file(s), comma-separated: run folder (slug/variant_sSEED) -> error over all times")
     args = ap.parse_args()
     if args.primary:
-        for slug, vs in json.load(open(args.primary, encoding="utf-8")).items():
-            for variant, runs in vs.items():
-                for r in runs:
-                    mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
-                    if r.get("outs"):
-                        o = dict(r["outs"])
-                        # μ of the Cahn-Hilliard templates decays to almost zero, so its relative L2 looks large:
-                        # its mean absolute error goes in its own column
-                        if slug.startswith("Beltrami_flow"):
-                            # p is fixed only up to a constant there and the runs' p error is not taken after
-                            # removing the mean, so its relative L2 says nothing: left out
-                            o.pop("p", None)
-                        if "mu" in o and (r.get("abs") or {}).get("mu") is not None:
-                            o["abs_mu"] = r["abs"]["mu"]
-                        OUTS[(slug, variant, str(r["seed"]))] = o
-        # runs from before a template renamed its output (u -> phi, as its paper writes it) logged it as u:
-        # one output, one name
-        for slug in {k[0] for k in OUTS}:
-            keys = [k for k in OUTS if k[0] == slug]
-            if any("phi" in OUTS[k] for k in keys) and not any("phi" in OUTS[k] and "u" in OUTS[k] for k in keys):
-                for k in keys:
-                    if "u" in OUTS[k]:
-                        OUTS[k]["phi"] = OUTS[k].pop("u")
+        load_primary(args.primary)
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([x for x in args.papers.split(",") if x]) if args.papers else []   # later files first
