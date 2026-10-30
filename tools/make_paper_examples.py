@@ -303,7 +303,7 @@ def plot(keys, path, inverse):
     fig = plt.figure(figsize=(WIDTH, H))
     cmap = plt.get_cmap("jet")
     # forward: reference | PINNStudio | error; inverse: the inverse PINN's field | error | the unknowns
-    titles = (["PINN prediction", "Absolute error", "Parameter error (%)"] if inverse
+    titles = (["PINNStudio prediction", "Absolute error", "Parameter error (%)"] if inverse
               else ["Reference", "PINNStudio", "Absolute error"])
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
