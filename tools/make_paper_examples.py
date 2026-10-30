@@ -337,8 +337,8 @@ def plot(keys, path, inverse):
     if ALT and inverse:
         # image panels as large as Figure 5's (whose two field panels share one colour bar); the parameter-error
         # plot takes the rest of the width, its legend entries on two lines
-        P5 = (WIDTH - 3 * YLAB - 2 * CBW) / 3
-        PW = [P5, P5, WIDTH - 3 * YLAB - 3 * CBW - 2 * P5]
+        P6 = 1.0                                  # a little smaller than Figure 5's 1.14 in
+        PW = [P6, P6, WIDTH - 3 * YLAB - 3 * CBW - 2 * P6]
     elif shared:
         PW = [(WIDTH - 3 * YLAB - 2 * CBW) / 3] * 3
     else:
@@ -411,16 +411,14 @@ def plot(keys, path, inverse):
                             label=f"{SYM.get(n_, n_)}: {_value(val[-1], tv)}" + ("\n" if ALT else " ") + f"(true: {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
             ax.set_ylabel("Relative error (%)", labelpad=1, fontsize=FONT - 1)   # 100 |θ − θ*| / |θ*| (in the caption)
-            ax.set_ylim(1e-4, 1e11 if ALT else 2e4)   # the largest early errors are ~10⁴ %; room below the curves for
+            ax.set_ylim(1e-5 if ALT else 1e-4, 2e4)   # the largest early errors are ~10⁴ %; room below the curves for
             # the legend (approved) or, in the alternative layout, above them
-            ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([10.0 ** k for k in range(-4, 5)]) if ALT else
-                                       matplotlib.ticker.LogLocator(base=10, numticks=20))   # (ALT: no ticks in the
-            # headroom above 10⁴ % that holds the legend)
+            ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=20))
             ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
                 lambda v, _: (f"$10^{{{int(round(np.log10(v)))}}}$" if int(round(np.log10(v))) % 2 == 1 else "")))
             ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
             ax.grid(color="#e4e7eb", lw=0.4)
-            leg = ax.legend(fontsize=FONT - (1.5 if ALT else 1), frameon=False, loc="upper right" if ALT else "lower left", handlelength=1.2,
+            leg = ax.legend(fontsize=FONT - (1.5 if ALT else 1), frameon=False, loc="lower left", handlelength=1.2,
                             borderaxespad=0.2, handletextpad=0.4, labelspacing=0.3)
             if ALT:                         # the text stays readable where a curve passes behind it
                 leg.get_frame().set(facecolor="white", alpha=0.85, edgecolor="none", boxstyle="square,pad=0.15")
