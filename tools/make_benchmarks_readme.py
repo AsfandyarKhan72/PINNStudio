@@ -1032,7 +1032,7 @@ def _paper_figure(rows, path):
     Y = {i: H - v for i, v in ypos.items()}
     # row pitch chosen so that the cropped figure fits the CPC page at the full text width (390 pt) within
     # 0.69 of the text height together with its caption, i.e. it is printed at 100 % and the fonts keep their size
-    PITCH, TOP_IN, BOT_IN = 0.134, 0.44, 0.50
+    PITCH, TOP_IN, BOT_IN = 0.141, 0.42, 0.46
     fig_h = PITCH * H + TOP_IN + BOT_IN
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, fig_h), sharey=True,
                                  gridspec_kw={"width_ratios": [3.0, 1.55], "wspace": 0.1})
