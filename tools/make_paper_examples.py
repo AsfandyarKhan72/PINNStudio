@@ -362,7 +362,7 @@ def plot(keys, path, inverse):
                 ax.semilogy(it / 1000, np.maximum(100 * np.abs(val - tv) / abs(tv), 1e-4), lw=1.1, color=PAR_COLORS[i],
                             label=f"{SYM.get(n_, n_)}: {_value(val[-1], tv)} (true: {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
-            ax.set_ylabel(r"$100\,|\theta-\theta^{*}|\,/\,|\theta^{*}|$", labelpad=1, fontsize=FONT - 1)
+            ax.set_ylabel("Relative error (%)", labelpad=1, fontsize=FONT - 1)   # 100 |θ − θ*| / |θ*| (in the caption)
             ax.set_ylim(1e-4, 2e4)          # the largest early errors are ~10⁴ %; room below the curves for the legend
             ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=20))
             ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
