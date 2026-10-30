@@ -971,10 +971,10 @@ def _paper_figure(rows, path):
                 mk("o", 5.6, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4))),
          mk("D", 5.0, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4)]
     lab = ["Tuned settings", "Starting settings", "Starting settings kept", "Inverse, each parameter"]
-    fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="lower center", ncol=4, frameon=False,
+    fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="upper center", ncol=4, frameon=False,
                fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.5,
-               bbox_to_anchor=(0.5, 0.0), borderaxespad=0.0)
-    fig.subplots_adjust(left=0.30, right=0.93, top=0.96, bottom=0.13)
+               bbox_to_anchor=(0.5, 1.0), borderaxespad=0.0)
+    fig.subplots_adjust(left=0.30, right=0.93, top=0.928, bottom=0.085)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for out in (path, path.replace(".png", ".pdf")):     # cropped to the drawing, with a hairline margin
         fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.02)
