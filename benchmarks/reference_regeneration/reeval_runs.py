@@ -37,12 +37,18 @@ PROBLEMS = {                      # run-folder name -> reference folder
     "Template_2D_Poisson_Disk": "2D/poisson_disk",
     "Template_3D_Poisson_Sphere": "3D/poisson_sphere",
     "Poisson_over_an_L_shaped_domain": "2D/poisson_lshape",
+    "Template_2D_Allen_Cahn_Mattey_Ghosh": "2D/allen_cahn_mattey",
+    "Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup": "2D/allen_cahn_mattey",
 }
+# the commit whose reference data a problem's runs were scored against (COMSOL_COMMIT unless listed)
+OLD_COMMIT = {"2D/allen_cahn_mattey": "af321c1"}
+MATTEY_NAMES = {0.0: "0", 0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1.0: "1.0"}
 
 
 def _read(rel, old):
     if old:
-        out = subprocess.run(["git", "-C", ROOT, "show", f"{COMSOL_COMMIT}:reference_data/{rel}"], check=True,
+        commit = next((c for f, c in OLD_COMMIT.items() if rel.startswith(f)), COMSOL_COMMIT)
+        out = subprocess.run(["git", "-C", ROOT, "show", f"{commit}:reference_data/{rel}"], check=True,
                              capture_output=True).stdout.decode()
         return io.StringIO(out)
     return open(os.path.join(ROOT, "reference_data", rel))
@@ -58,6 +64,12 @@ def reference(folder, old):
                 a = np.loadtxt(_read(f"{folder}/t_{NAMES[t]}_{c}.txt", old))
                 pts, vals[c] = a[:, :3], a[:, 3]
             out.append((t, pts, vals))
+        return out
+    if folder.endswith("allen_cahn_mattey"):            # x y t h, one file per time
+        out = []
+        for t in TIMES:
+            a = np.loadtxt(_read(f"{folder}/t_{MATTEY_NAMES[t]}.txt", old))
+            out.append((t, a[:, :2], {"h": a[:, 3]}))
         return out
     a = np.genfromtxt(_read(f"{folder}/solution.txt", old))
     m = np.isfinite(a[:, -1])
@@ -97,14 +109,23 @@ def network(W, i, cfg):
             return np.concatenate(ys, axis=1) @ dw.T + db
     else:
         raise NotImplementedError(f"network type {ntype}")
+    feats = None
     if cfg.get("input_transform_enabled") and cfg.get("input_transform_mode", "scale") != "scale":
-        raise NotImplementedError("input feature formula")
+        feats = [e.strip() for e in str(cfg.get("input_feature_formula", "")).split(";") if e.strip()]
+        if not feats:
+            raise NotImplementedError("input feature formula")
     in_sc = np.array(cfg.get("input_transform_scale") or [], float) if cfg.get("input_transform_enabled") else None
     in_sh = np.array(cfg.get("input_transform_shift") or [], float) if cfg.get("input_transform_enabled") else None
     names = [n.strip() for n in str(cfg.get("output_names", "u")).split(",")]
 
     def g(X):
-        Z = X * in_sc + in_sh if in_sc is not None and in_sc.size else X
+        if feats:                                    # exact periodicity etc.: the network sees these features
+            coords = ["x", "y", "z"][: X.shape[1] - (1 if cfg.get("_time") else 0)] + (["t"] if cfg.get("_time") else [])
+            env = {"pi": np.pi, "sin": np.sin, "cos": np.cos, "exp": np.exp, "tanh": np.tanh, "sqrt": np.sqrt}
+            env.update({c: X[:, k] for k, c in enumerate(coords)})
+            Z = np.column_stack([eval(e.replace("^", "**"), {"__builtins__": {}}, env) * np.ones(len(X)) for e in feats])
+        else:
+            Z = X * in_sc + in_sh if in_sc is not None and in_sc.size else X
         Y = f(Z)
         if not cfg.get("output_transform_enabled"):
             return Y
@@ -126,8 +147,9 @@ def network(W, i, cfg):
 
 # --- one run -----------------------------------------------------------------------------------------------
 def _log_metrics(log):
-    """[(output, t, L2, MeanAbs)] in log order; the output from the preceding 'Loaded ground truth' line."""
-    out, cur = [], None
+    """[(output, t, L2, MeanAbs)] in log order; the output from the preceding 'Loaded ground truth' line (u if
+    the log has none, as in a single-output run whose ground truth was loaded quietly)."""
+    out, cur = [], "u"
     for ln in log.splitlines():
         m = re.search(r"Loaded ground truth.*?from (\S+)", ln)
         if m:
@@ -145,14 +167,14 @@ def evaluate(bundle, refs):
     meta = json.load(open(bundle + ".json"))
     W = np.load(bundle + ".npz")
     run = meta["run"]
-    prob = next((p for p in PROBLEMS if f"/{p}/" in run or f"/{p}_inv/" in run), None)
+    prob = next((p for p in PROBLEMS if f"/{p}/" in run or f"/{p}_inv/" in run or run.endswith(f"/{p}") or f"__{p}__" in run), None)
     folder = PROBLEMS[prob]
     cps = [(i, c) for i, c in enumerate(meta["checkpoints"]) if "error" not in c]
     cfg = {}
     for k, t in meta["texts"].items():
         if k.endswith("model_config.json"):
             cfg = json.loads(t)
-    time_dep = folder.endswith("burgers_mathias")
+    time_dep = folder.endswith(("burgers_mathias", "allen_cahn_mattey"))
     cfg["_time"] = time_dep
     windows = []
     for i, c in cps:
@@ -180,6 +202,8 @@ def evaluate(bundle, refs):
             f, names = nets[i]
             P = f(X)
             for k, n in enumerate(names):
+                if n not in vals and len(names) == 1 and len(vals) == 1:
+                    n = next(iter(vals))              # one output, named u in older runs and h in the reference
                 if n not in vals:
                     continue
                 e = P[:, k] - vals[n]
@@ -199,7 +223,7 @@ def evaluate(bundle, refs):
     logged = _log_metrics(meta["texts"].get("log.txt", ""))
     dev = []
     for n, t, l2, ab in logged:
-        o = res["outputs"].get(n)
+        o = res["outputs"].get(n) or (next(iter(res["outputs"].values())) if len(res["outputs"]) == 1 else None)
         if o and t in o["t"]:
             j = o["t"].index(t)
             dev.append(max(abs(o["old"]["l2"][j] - l2) / l2, abs(o["old"]["abs"][j] - ab) / ab))
