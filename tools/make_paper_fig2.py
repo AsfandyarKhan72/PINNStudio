@@ -8,7 +8,8 @@ No file paths are in either panel. The window is drawn at device pixel ratio 2 (
 
 --train  solve first and save the run in RUN_DIR (otherwise RUN_DIR must hold a saved run)
 --quick  short training, to check this script
-Writes RUN_DIR/fig2_a.png, RUN_DIR/fig2_b.png.
+Writes RUN_DIR/fig2_a_full.png, RUN_DIR/fig2_b_full.png, and the two stacked as
+benchmarks/figures/paper_figure2.png ((a) above (b), labels in a left margin).
 """
 import os
 import sys
@@ -118,7 +119,31 @@ def shots():
     return w
 
 
+def compose(a, b, out):
+    """(a) above (b), at the same width; (b) without the Start/Results tab row and the empty bottom of its panes."""
+    from PIL import Image, ImageDraw, ImageFont
+    A, B = Image.open(a).convert("RGB"), Image.open(b).convert("RGB")
+    B = B.crop((0, 60, B.width, B.height - 36))
+    W = max(A.width, B.width)
+    A = A.resize((W, round(A.height * W / A.width)), Image.LANCZOS)
+    B = B.resize((W, round(B.height * W / B.width)), Image.LANCZOS)
+    G, gap = 86, 36
+    im = Image.new("RGB", (G + W, A.height + B.height + gap), "white")
+    d = ImageDraw.Draw(im)
+    f = ImageFont.truetype("DejaVuSans-Bold.ttf", 44)
+    im.paste(A, (G, 0)); im.paste(B, (G, A.height + gap))
+    d.text((2, 4), "(a)", fill="black", font=f); d.text((2, A.height + gap + 4), "(b)", fill="black", font=f)
+    for y0, h in ((0, A.height), (A.height + gap, B.height)):
+        d.rectangle([G, y0, G + W - 1, y0 + h - 1], outline=(190, 196, 204), width=2)
+    im.save(out, dpi=(300, 300))
+    print("wrote", out, im.size, flush=True)
+
+
 if __name__ == "__main__":
+    if sys.argv[2:3] == ["--compose"]:
+        compose(os.path.join(RUN, "fig2_a_full.png"), os.path.join(RUN, "fig2_b_full.png"),
+                os.path.join(ROOT, "benchmarks", "figures", "paper_figure2.png"))
+        os._exit(0)
     os.makedirs(RUN, exist_ok=True)
     if TRAIN:
         train()
@@ -139,5 +164,6 @@ if __name__ == "__main__":
     pump(2.0)
     grab(w, [ws.tree_panel, ws.settings_panel], os.path.join(RUN, "fig2_a_full.png"), height=A_HEIGHT)
     grab(w, [w.right_tabs], os.path.join(RUN, "fig2_b_full.png"))
-    w.grab().save(os.path.join(RUN, "window.png"))
+    compose(os.path.join(RUN, "fig2_a_full.png"), os.path.join(RUN, "fig2_b_full.png"),
+            os.path.join(ROOT, "benchmarks", "figures", "paper_figure2.png"))
     os._exit(0)
