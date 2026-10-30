@@ -208,6 +208,35 @@ YLAB, CB_PAD, CB_W, CB_TICKS, TOP, ROW_GAP, BOTTOM = 0.37, 0.06, 0.08, 0.27, 0.3
 PANEL = (WIDTH - 3 * (YLAB + CB_PAD + CB_W + CB_TICKS)) / 3     # 1.39 in
 COL = YLAB + PANEL + CB_PAD + CB_W + CB_TICKS
 FONT = 8
+ALT = False        # the alternative style (python tools/make_paper_examples.py plot --alt): drawn at the CPC text
+                   # width (5.42 in) so it prints at 100 %, perceptually uniform / diverging colour maps
+
+
+def _use_alt():
+    """Layout and colour maps of the alternative style. Same data, same plotted quantities, same colour limits
+    (a signed field's limits are made symmetric about zero, which only widens them)."""
+    global WIDTH, PANEL, COL, ALT, CB_TICKS
+    ALT, WIDTH, CB_TICKS = True, 5.42, 0.30
+    PANEL = (WIDTH - 3 * (YLAB + CB_PAD + CB_W + CB_TICKS)) / 3
+    COL = YLAB + PANEL + CB_PAD + CB_W + CB_TICKS
+
+
+def _field_style(lo, hi):
+    """Colour map and normalisation of a solution field: jet as approved; in the alternative style a diverging
+    map centred on zero for a field of both signs, a sequential one otherwise."""
+    import matplotlib
+    import matplotlib.pyplot as plt
+    if not ALT:
+        return plt.get_cmap("jet"), matplotlib.colors.Normalize(lo, hi)
+    m = max(abs(lo), abs(hi))
+    if lo < 0 < hi and min(abs(lo), abs(hi)) >= 0.3 * m:
+        return plt.get_cmap("RdBu_r"), matplotlib.colors.Normalize(-m, m)
+    return plt.get_cmap("cividis"), matplotlib.colors.Normalize(lo, hi)
+
+
+def _error_cmap():
+    import matplotlib.pyplot as plt
+    return plt.get_cmap("viridis" if ALT else "jet")
 
 
 def _faces(g, F, cut):
@@ -298,30 +327,44 @@ def plot(keys, path, inverse):
     import matplotlib.pyplot as plt
     plt.rcParams.update({"font.size": FONT, "axes.linewidth": 0.6, "pdf.fonttype": 42, "mathtext.fontset": "dejavusans",
                          "xtick.major.width": 0.5, "ytick.major.width": 0.5})
-    xs = [YLAB + c * COL for c in range(3)]
-    H = TOP + len(keys) * PANEL + (len(keys) - 1) * ROW_GAP + BOTTOM
+    # panel widths; the alternative style gives the parameter-error column of the inverse figure more room
+    # for its legend, from the two image columns, whose panels stay square
+    CBW = CB_PAD + CB_W + CB_TICKS
+    # the alternative forward figure: Reference and PINNStudio share one colour scale, drawn once (after PINNStudio)
+    shared = ALT and not inverse
+    cbs = [not shared, True, True]
+    if ALT and inverse:
+        PW = [PANEL - 0.17, PANEL - 0.17, PANEL + 0.34]
+    elif shared:
+        PW = [(WIDTH - 3 * YLAB - 2 * CBW) / 3] * 3
+    else:
+        PW = [PANEL] * 3
+    RH = PW[0]                                  # row height
+    xs = ([YLAB + sum(PW[:c]) + sum(CBW for k in range(c) if cbs[k]) + c * YLAB for c in range(3)] if ALT
+          else [YLAB + c * COL for c in range(3)])
+    H = TOP + len(keys) * RH + (len(keys) - 1) * ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(WIDTH, H))
-    cmap = plt.get_cmap("jet")
     # forward: reference | PINNStudio | error; inverse: the inverse PINN's field | error | the unknowns
     titles = (["PINNStudio", "Absolute error", "Parameter error (%)"] if inverse
               else ["Reference", "PINNStudio", "Absolute error"])
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
         meta = json.loads(str(d["meta"]))
-        y0 = (H - TOP - (r + 1) * PANEL - r * ROW_GAP) / H
-        rects = [(xs[c] / WIDTH, y0, PANEL / WIDTH, PANEL / H) for c in range(3)]
+        y0 = (H - TOP - (r + 1) * RH - r * ROW_GAP) / H
+        rects = [(xs[c] / WIDTH, y0, PW[c] / WIDTH, RH / H) for c in range(3)]
         three = key in THREE_D
         if three:
             P, R, g = d["pinn3"], d["ref3"], d["grid3"]
         else:
             P, R = d["pinn"], d["ref"]
         lo, hi = float(np.nanmin(R)), float(np.nanmax(R))
-        norm = matplotlib.colors.Normalize(lo, hi)
+        fcmap, norm = _field_style(lo, hi)
         E = np.abs(P - R)
         enorm = matplotlib.colors.Normalize(0, float(np.nanmax(E)))
         panels = [(P, norm), (E, enorm)] if inverse else [(R, norm), (P, norm), (E, enorm)]
         err_col = 1 if inverse else 2
         for c, (A, nm) in enumerate(panels):
+            cmap = _error_cmap() if c == err_col else fcmap
             if three:
                 # a little wider than the panel, shifted left, so the z axis labels clear the colorbar
                 x0_, y0_, w_, h_ = rects[c]
@@ -347,7 +390,8 @@ def plot(keys, path, inverse):
                 for axis in (ax.xaxis, ax.yaxis):    # 0, 0.5, 1 (or -1, 0, 1): short labels that never touch
                     axis.set_major_locator(matplotlib.ticker.LinearLocator(3))
                     axis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))
-            _colorbar(fig, rects[c], sm, sci=(c == err_col))
+            if cbs[c]:
+                _colorbar(fig, rects[c], sm, sci=(c == err_col))
             if r == 0:
                 fig.text(rects[c][0] + rects[c][2] / 2, (H - TOP / 2.4) / H, titles[c], ha="center", va="center",
                          fontsize=FONT + 1, fontweight="bold")
@@ -369,15 +413,17 @@ def plot(keys, path, inverse):
                 lambda v, _: (f"$10^{{{int(round(np.log10(v)))}}}$" if int(round(np.log10(v))) % 2 == 1 else "")))
             ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
             ax.grid(color="#e4e7eb", lw=0.4)
-            ax.legend(fontsize=FONT - 1, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,
-                      handletextpad=0.4, labelspacing=0.3)
+            leg = ax.legend(fontsize=FONT - (1.5 if ALT else 1), frameon=ALT, loc="lower left", handlelength=1.2,
+                            borderaxespad=0.2, handletextpad=0.4, labelspacing=0.3)
+            if ALT:                         # the text stays readable where a curve passes behind it
+                leg.get_frame().set(facecolor="white", alpha=0.85, edgecolor="none", boxstyle="square,pad=0.15")
             ax.tick_params(labelsize=FONT - 1, length=2)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if r == 0:
                 fig.text(rects[2][0] + (rects[2][2] + (CB_PAD + CB_W + CB_TICKS) / WIDTH) / 2, (H - TOP / 2.4) / H, titles[2], ha="center", va="center",
                          fontsize=FONT + 1, fontweight="bold")
-        fig.text(0.08 / WIDTH, (y0 * H + PANEL + 0.02) / H, f"({'abc'[r]})", ha="left", va="bottom",
+        fig.text(0.08 / WIDTH, (y0 * H + RH + 0.02) / H, f"({'abc'[r]})", ha="left", va="bottom",
                  fontsize=FONT + 1.5, fontweight="bold")
     fig.savefig(path, dpi=300)
     fig.savefig(os.path.splitext(path)[0] + ".pdf")
@@ -389,8 +435,12 @@ def main():
     if len(sys.argv) > 2 and sys.argv[1] == "export":
         export(sys.argv[2], sys.argv[3:] or None)
     elif len(sys.argv) > 1 and sys.argv[1] == "plot":
-        plot(FORWARD, os.path.join(FIGS, "paper_forward.png"), False)
-        plot(INVERSE, os.path.join(FIGS, "paper_inverse.png"), True)
+        sfx = ""
+        if "--alt" in sys.argv:
+            _use_alt()
+            sfx = "_alt"
+        plot(FORWARD, os.path.join(FIGS, f"paper_forward{sfx}.png"), False)
+        plot(INVERSE, os.path.join(FIGS, f"paper_inverse{sfx}.png"), True)
     else:
         print(__doc__)
 
