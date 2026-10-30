@@ -347,10 +347,10 @@ def fig7(ex, name="paper_figure7", label_ends=False):
     byl = {s[1]: s for s in FIG7_SETUPS}
     h = [Line2D([], [], color=byl[l][2], ls=byl[l][3], lw=byl[l][4], marker=byl[l][5], ms=4.2, mec="white", mew=0.5)
          for l in order]
-    fig.legend(h, order, loc="lower center", ncol=3, frameon=False, fontsize=7.8,
-               handlelength=3.0, handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 0.0),
+    fig.legend(h, order, loc="upper center", ncol=3, frameon=False, fontsize=7.8,      # above the panels
+               handlelength=3.0, handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 1.0),
                borderaxespad=0.1)
-    fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.955, bottom=0.15,
+    fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.858, bottom=0.07,
                         wspace=0.5 if label_ends else 0.32, hspace=0.36)
     fig.canvas.draw()
     for ax in axs.ravel():            # (a)-(d) centred over the y-axis title, the problem centred over the plot
