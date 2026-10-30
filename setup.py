@@ -37,6 +37,9 @@ setup(
         "numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
         "matplotlib",
         "pandas",
+        # imported directly (scipy.interpolate, scipy.spatial, scipy.special) by the GUI and the generated
+        # scripts; previously installed only as a DeepXDE dependency
+        "scipy",
     ],
     entry_points={
         "console_scripts": [
