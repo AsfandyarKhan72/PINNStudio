@@ -39,9 +39,16 @@ PROBLEMS = {                      # run-folder name -> reference folder
     "Poisson_over_an_L_shaped_domain": "2D/poisson_lshape",
     "Template_2D_Allen_Cahn_Mattey_Ghosh": "2D/allen_cahn_mattey",
     "Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup": "2D/allen_cahn_mattey",
+    "Template_2D_Heat": "2D/heat",
+    "Template_3D_Heat": "3D/heat",
+    "Template_2D_Allen_Cahn_Wight_Zhao": "2D/allen_cahn_wight",
+    "Template_2D_Allen_Cahn_Wight_Zhao_best_setup": "2D/allen_cahn_wight",
 }
+# reference folders with one file per time, t_<time>.txt, columns: coordinates, t, value (one output)
+PER_TIME = ("2D/heat", "3D/heat", "2D/allen_cahn_wight")
 # the commit whose reference data a problem's runs were scored against (COMSOL_COMMIT unless listed)
-OLD_COMMIT = {"2D/allen_cahn_mattey": "af321c1"}
+OLD_COMMIT = {"2D/allen_cahn_mattey": "af321c1", "2D/heat": "af321c1", "3D/heat": "af321c1",
+              "2D/allen_cahn_wight": "af321c1"}
 MATTEY_NAMES = {0.0: "0", 0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1.0: "1.0"}
 
 
@@ -71,6 +78,18 @@ def reference(folder, old):
             a = np.loadtxt(_read(f"{folder}/t_{MATTEY_NAMES[t]}.txt", old))
             out.append((t, a[:, :2], {"h": a[:, 3]}))
         return out
+    if folder in PER_TIME:
+        if old:
+            names = subprocess.run(["git", "-C", ROOT, "ls-tree", "--name-only", OLD_COMMIT[folder],
+                                    f"reference_data/{folder}/"], check=True, capture_output=True).stdout.decode().split()
+            names = [os.path.basename(n) for n in names]
+        else:
+            names = os.listdir(os.path.join(ROOT, "reference_data", folder))
+        out = []
+        for n in sorted(n for n in names if re.match(r"t_[\d.]+\.txt$", n)):
+            a = np.loadtxt(_read(f"{folder}/{n}", old))
+            out.append((float(a[0, -2]), a[:, :-2], {"u": a[:, -1]}))
+        return sorted(out, key=lambda o: o[0])
     a = np.genfromtxt(_read(f"{folder}/solution.txt", old))
     m = np.isfinite(a[:, -1])
     return [(None, a[m, :-1], {"u": a[m, -1]})]
@@ -174,7 +193,7 @@ def evaluate(bundle, refs):
     for k, t in meta["texts"].items():
         if k.endswith("model_config.json"):
             cfg = json.loads(t)
-    time_dep = folder.endswith(("burgers_mathias", "allen_cahn_mattey"))
+    time_dep = folder.endswith(("burgers_mathias", "allen_cahn_mattey")) or folder in PER_TIME
     cfg["_time"] = time_dep
     windows = []
     for i, c in cps:
@@ -194,7 +213,7 @@ def evaluate(bundle, refs):
                 if not cand:                          # a run stopped before this time (timeout)
                     continue
                 i = cand[0][2]                        # at a window boundary: the window that ends there
-                X = pts[:, [0, 1]]
+                X = pts[:, :3] if folder.startswith("3D") else pts[:, [0, 1]]
                 X = np.column_stack([X, np.full(len(X), t)])
             else:
                 i = windows[0][2]
