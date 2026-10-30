@@ -364,7 +364,7 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 3 | [Linear ODE system](#dx-ode-system) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** |
 | 4 | [Lotka-Volterra ODE](#dx-lotka-volterra-equation) | ODE | Time-dependent | Forward | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** |
 | 5 | [Second-order ODE](#dx-second-order-ode) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** |
-| 6 | [Lorenz ODE – unknown C₁, C₂, C₃](#dx-inverse-lorenz-system) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) | – | **0.0013%** (parameters) |
+| 6 | [Lorenz ODE – unknown C₁, C₂, C₃](#dx-inverse-lorenz-system) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) | – | **0.032%** (parameters) |
 | 7 | [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#dx-inverse-lorenz-system-with-exogenous-input) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py) | – | **0.26%** (parameters) |
 |  | **1D** |  |  |  |  |  |  |  |  |
 | 8 | [Euler beam 1D](#dx-euler-beam) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Euler_beam.py) | 3.5 × 10<sup>-3</sup> | **2.8 × 10<sup>-4</sup>** |
@@ -381,12 +381,12 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 19 | [Fractional Poisson 1D – unknown order α](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) | – | **0.48%** (parameters) |
 | 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) | – | – |
 | 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) | – | – |
-| 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 4.6 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** |
-| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 8.6 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** |
+| 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 3.0 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** |
+| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 8.1 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** |
 | 24 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** |
 | 25 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) | – | – |
 | 26 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** |
-| 27 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) | 5.2 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** |
+| 27 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** |
 | 28 | [Burgers 1D – RAR](#dx-burgers-equation-with-rar) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** |
 | 29 | [Diffusion 1D](#dx-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d.py) | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** |
 | 30 | [Diffusion 1D – hard IC and BCs](#dx-diffusion-equation-with-hard-ic-and-bc) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_exactBC.py) | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** |
@@ -415,9 +415,9 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 52 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) | – | **0.21%** (parameters) |
 | 53 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.8 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** |
 | 54 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** |
-| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
+| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
 | 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** |
-| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) | 1.7 × 10<sup>-1</sup> | **9.7 × 10<sup>-3</sup>** |
+| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** |
 | 58 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** |
 |  | **3D** |  |  |  |  |  |  |  |  |
 | 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** |
@@ -429,12 +429,12 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 
 <!-- examples-summary:start (generated) -->
 
-**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 22, by a median factor of 13.6 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.092%, 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 29 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](benchmarks/README.md).
 
 <details>
 <summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=3773a108)
+![Every example: the reference settings and PINNStudio's best, forward and inverse](benchmarks/figures/benchmarks_summary.png?v=7c343e6d)
 
 *Circles: forward problems (relative L₂ at the last reference time); diamonds: inverse problems (error of each learned parameter). Open: the Default settings (DeepXDE's, or the paper's method run in PINNStudio); filled: PINNStudio's best; a ring: the two are the same. ⭐: the error the paper reports, for the templates taken from a paper.*
 
@@ -798,7 +798,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Inverse: parameters found (true) | – | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** (worst error 0.0013%) | 84 |
+| Inverse: parameters found (true) | – | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** (worst error 0.032%) | 84 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -1684,8 +1684,8 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 4.6 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 359 |
-| Inverse: parameters found (true) | – | **γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5)** (worst error 0.77%) | 253 |
+| Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 359 |
+| Inverse: parameters found (true) | – | **γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99768 (5)** (worst error 0.77%) | 253 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -1776,7 +1776,7 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 8.6 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
+| Forward: relative L₂ at the last reference time | 8.1 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -2010,8 +2010,8 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 5.2 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 42 |
-| Inverse: parameters found (true) | – | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** (worst error 0.02%) | 119 |
+| Forward: relative L₂ at the last reference time | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 40 |
+| Inverse: parameters found (true) | – | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** (worst error 0.099%) | 119 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -2050,15 +2050,15 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Forward problem — the base PINN:*
+*Forward problem — Raissi et al.'s settings, run in PINNStudio:*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Burgers 1D – Raissi et al.: PINNStudio best — the base PINN — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Burgers/plain_surface_comparison.png)
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time](benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png)
 
 <sub>PINN against the reference along a line, at the reference times</sub>
 
-![Burgers 1D – Raissi et al.: PINNStudio best — the base PINN — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Burgers/plain_line_comparison.png)
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN against the reference along a line, at the reference times](benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_line_comparison.png)
 
 *Inverse problem — 10× data weight, 3× L-BFGS and the larger network:*
 
@@ -2736,7 +2736,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | 108 |
-| Inverse: parameters found (true) | – | **c = 0.500117 (0.5)** (worst error 0.023%) | 324 |
+| Inverse: parameters found (true) | – | **c = 0.500121 (0.5)** (worst error 0.024%) | 324 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -3355,7 +3355,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | 1147 |
-| Inverse: parameters found (true) | – | **λ = 0.999744 (1); μ = 0.500088 (0.5)** (worst error 0.026%) | 561 |
+| Inverse: parameters found (true) | – | **λ = 0.999548 (1); μ = 0.500189 (0.5)** (worst error 0.045%) | 542 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -3373,11 +3373,11 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 *Found in:* [tuning study, forward runs](benchmarks/tuning_study.md#tune-linear-elasticity-2d-plate)
 
-*Inverse problem — PINNStudio's own inverse setup, tuned*
+*Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
 - **Points:** 500 domain, 500 boundary
-- **Training:** Adam 20,000 → L-BFGS 60,000
+- **Training:** Adam 20,000 → L-BFGS 20,000
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 - **Unknowns:** lmbd (initial guess 2.0, true 1.0), mu (initial guess 1.0, true 0.5)
 - **Measured data:** ux_obs.txt for ux (weight 100); uy_obs.txt for uy (weight 100)
@@ -3418,32 +3418,6 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 <sub>uᵧ — PINN, reference and error over space and time</sub>
 
 ![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png)
-
-*Inverse problem — 3× L-BFGS iterations:*
-
-<sub>σₓₓ — PINN, reference and error over space and time</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σₓₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_sxx.png)
-
-<sub>σₓᵧ — PINN, reference and error over space and time</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σₓᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_sxy.png)
-
-<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — σᵧᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_syy.png)
-
-<sub>uₓ — PINN, reference and error over space and time</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — uₓ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_ux.png)
-
-<sub>uᵧ — PINN, reference and error over space and time</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — uᵧ — PINN, reference and error over space and time](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_surface_comparison_uy.png)
-
-<sub>the learned parameters during training</sub>
-
-![Linear elasticity 2D – plate: PINNStudio best — 3× L-BFGS iterations — the learned parameters during training](benchmarks/figures/tuning/Linear_elastostatic_plate_inv/lbfgs3_param_plot.png)
 
 </details>
 
@@ -3538,7 +3512,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup>** | 213 |
-| Inverse: parameters found (true) | – | **Re = 19.9978 (20)** (worst error 0.011%) | 263 |
+| Inverse: parameters found (true) | – | **Re = 19.9995 (20)** (worst error 0.0045%) | 924 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -3548,8 +3522,8 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 5 × 100 (2 inputs, 3 outputs), tanh, Glorot normal
-- **Points:** 2,601 domain, 400 boundary
-- **Training:** Adam 30,000 → L-BFGS 15,000
+- **Points:** 7,803 domain, 1,200 boundary
+- **Training:** Adam 90,000 → L-BFGS 45,000
 - **Unknowns:** Re (initial guess 10.0, true 20.0)
 - **Measured data:** u_obs.txt for u (weight 100); v_obs.txt for v (weight 100)
 
@@ -3584,23 +3558,19 @@ The full Default settings, and where they come from: [benchmark](benchmarks/READ
 
 ![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (also PINNStudio best) — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_v.png)
 
-*Inverse problem — Larger network (2× width, one more layer):*
+*Inverse problem — all of the changes together:*
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_u.png)
-
-<sub>p — PINN, reference and error over space and time</sub>
-
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — p — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_p.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
 
 <sub>v — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/net_surface_comparison_v.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — v — PINN, reference and error over space and time](benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
 
 <sub>the learned parameters during training</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer) — the learned parameters during training](benchmarks/figures/tuning/Kovasznay_flow_inv/net_param_plot.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — the learned parameters during training](benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
 
 </details>
 
@@ -3626,7 +3596,7 @@ A companion to the L-shape example, on a smooth (curved, non-singular) boundary 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | 156 |
-| Inverse: parameters found (true) | – | **f = 1.00002 (1)** (worst error 0.002%) | 162 |
+| Inverse: parameters found (true) | – | **f = 1.00003 (1)** (worst error 0.003%) | 167 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -3904,7 +3874,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 283 |
-| Inverse: parameters found (true) | – | **c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1)** (worst error 4.3%) | 1774 |
+| Inverse: parameters found (true) | – | **c₁² = 0.000101499 (0.0001); c₂ = 0.999581 (1)** (worst error 1.5%) | 1709 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -3986,7 +3956,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
+| Forward: relative L₂ at the last reference time | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
 | Inverse: parameters found (true) | – | **ε² = 0.00251029 (0.0025)** (worst error 0.41%) | 3793 |
 
 <details>
@@ -4203,8 +4173,8 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 1.7 × 10<sup>-1</sup> | **9.7 × 10<sup>-3</sup>** | 3998 |
-| Inverse: parameters found (true) | – | **ν = 0.00320754 (0.0031831)** (worst error 0.77%) | 4231 |
+| Forward: relative L₂ at the last reference time | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** | 3998 |
+| Inverse: parameters found (true) | – | **ν = 0.00318823 (0.0031831)** (worst error 0.16%) | 4080 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -4294,7 +4264,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | 98 |
-| Inverse: parameters found (true) | – | **α = 0.399893 (0.4)** (worst error 0.027%) | 169 |
+| Inverse: parameters found (true) | – | **α = 0.399893 (0.4)** (worst error 0.21%) | 169 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>

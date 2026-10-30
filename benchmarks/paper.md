@@ -58,9 +58,9 @@
 
 **No reported errors in this figure.** The errors the original papers report are left out here: they come from other networks, point counts and training, and some are over all times while this axis is the last reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They stay in the tables of each example ("as reported" rows, with the source and its setup) and in the full figure.
 
-**In numbers (these 25).** 22 forward problems: median relative L₂ error 4.7 × 10<sup>-4</sup> with the tuned settings, 20 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 13, by a median factor of 17.1 in those (median over all 20: 5.2). 20 inverse problems with scalar parameters: median worst parameter error 0.026%, 19 below 1%.
+**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 20 below 10⁻² and 13 below 10⁻³. Of the 20 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 12, by a median factor of 20.1 in those (median over all 20: 5.2). 20 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 19 below 1%.
 
-**All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 22, by a median factor of 13.6 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.092%, 29 below 1%.
+**All 64 examples.** 53 forward problems: median relative L₂ error 1.3 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 24 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 21, by a median factor of 14.8 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 29 below 1%.
 
 **How "tuned" was chosen.** The tuned settings are the run of the recorded tuning study (and, for the paper templates, of the paper-method and training-methods runs) with the lowest error against the reference (the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final training loss alone would pick. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
@@ -70,37 +70,37 @@
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=2f606f0b)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=6ff6aaba)
 
 **The values in the figure.** Relative L₂ at the last reference time. *Starting settings* is given only where there is an outside starting point (DeepXDE's example or the paper's method run in PINNStudio). Where a setting was run with more than one seed, the value is the median with the range in brackets, and *Runs* gives the number of seeds.
 
 | Example | Forward: starting settings, L₂ | Forward: PINNStudio tuned, L₂ | Runs | Inverse: parameters found (true) | Inverse: worst parameter error | Runs |
 |---|---|---|---|---|---|---|
-| Lotka-Volterra ODE | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup> (1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>)** | 3 | a = 2 (2); d = 1.06 (1.06) | **0%** | 3 |
-| Lorenz ODE | – | **–** | – | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | 3 |
+| Lotka-Volterra ODE | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup> (1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>)** | 3 | a = 2 (2); d = 1.06 (1.06) | **0% (0% – 0.0005%)** | 3 |
+| Lorenz ODE | – | **–** | – | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.032% (0.0013% – 0.038%)** | 3 |
 | Integro-differential ODE | 6.5 × 10<sup>-5</sup> | **6.5 × 10<sup>-5</sup> (5.7 × 10<sup>-5</sup> – 1.5 × 10<sup>-4</sup>)** | 3 | – | **–** | – |
-| Euler beam 1D | 3.5 × 10<sup>-3</sup> | **2.8 × 10<sup>-4</sup> (1.1 × 10<sup>-4</sup> – 4.0 × 10<sup>-4</sup>)** | 3 | EI = 1.00153 (1) | **0.15%** | 1 |
+| Euler beam 1D | 3.5 × 10<sup>-3</sup> | **2.8 × 10<sup>-4</sup> (1.1 × 10<sup>-4</sup> – 4.0 × 10<sup>-4</sup>)** | 3 | EI = 1.00153 (1) | **0.15% (0.13% – 1%)** | 3 |
 | Poisson 1D – Dirichlet/Periodic | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup> (3.2 × 10<sup>-6</sup> – 8.8 × 10<sup>-6</sup>)** | 3 | – | **–** | – |
 | Poisson 1D – unknown forcing | – | **–** | – | field q(x) (relative L₂) | **1.2%** | 3 |
-| Fractional Poisson 1D | – | **–** | – | α = 1.79135 (1.8) | **0.48%** | 3 |
-| Burgers 1D – Raissi et al. | 5.2 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 1 | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | **0.02%** | 3 |
-| Allen-Cahn 1D – Wight & Zhao | 2.4 × 10<sup>-3</sup> | **7.0 × 10<sup>-4</sup> (6.3 × 10<sup>-4</sup> – 1.5 × 10<sup>-3</sup>)** | 3 | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99833 (5) | **0.77%** | 1 |
-| Cahn-Hilliard 1D – Wight & Zhao | 8.6 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup> (5.1 × 10<sup>-4</sup> – 6.0 × 10<sup>-4</sup>)** | 3 | – | **–** | – |
-| Schrödinger 1D | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup> (1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>)** | 3 | c = 0.500117 (0.5) | **0.023%** | 1 |
-| Klein-Gordon 1D | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup> (1.7 × 10<sup>-3</sup> – 2.5 × 10<sup>-3</sup>)** | 3 | γ = 1.00912 (1) | **0.91%** | 3 |
-| Wave 1D – multi-scale Fourier features | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup> (1.2 × 10<sup>-3</sup> – 4.2 × 10<sup>-3</sup>)** | 3 | C = 10 (10) | **0%** | 3 |
-| Diffusion-reaction 1D | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup> (6.1 × 10<sup>-5</sup> – 9.0 × 10<sup>-5</sup>)** | 3 | D = 0.99988 (1) | **0.012%** | 3 |
+| Fractional Poisson 1D | – | **–** | – | α = 1.79135 (1.8) | **0.48% (0.45% – 0.56%)** | 3 |
+| Burgers 1D – Raissi et al. | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 3 | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | **0.099% (0.02% – 0.1%)** | 3 |
+| Allen-Cahn 1D – Wight & Zhao | 2.4 × 10<sup>-3</sup> | **7.0 × 10<sup>-4</sup> (6.3 × 10<sup>-4</sup> – 1.5 × 10<sup>-3</sup>)** | 3 | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99768 (5) | **0.77% (0.39% – 1.1%)** | 3 |
+| Cahn-Hilliard 1D – Wight & Zhao | 8.1 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup> (5.1 × 10<sup>-4</sup> – 6.0 × 10<sup>-4</sup>)** | 3 | – | **–** | – |
+| Schrödinger 1D | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup> (1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>)** | 3 | c = 0.500121 (0.5) | **0.024% (0.023% – 0.035%)** | 3 |
+| Klein-Gordon 1D | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup> (1.7 × 10<sup>-3</sup> – 2.5 × 10<sup>-3</sup>)** | 3 | γ = 1.00912 (1) | **0.91% (0.72% – 2.2%)** | 3 |
+| Wave 1D – multi-scale Fourier features | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup> (1.2 × 10<sup>-3</sup> – 4.2 × 10<sup>-3</sup>)** | 3 | C = 10 (10) | **0% (0% – 0%)** | 3 |
+| Diffusion-reaction 1D | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup> (6.1 × 10<sup>-5</sup> – 9.0 × 10<sup>-5</sup>)** | 3 | D = 0.99988 (1) | **0.012% (0.0028% – 0.023%)** | 3 |
 | Black-Scholes 1D | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup> (3.4 × 10<sup>-4</sup> – 6.3 × 10<sup>-4</sup>)** | 3 | – | **–** | – |
-| Helmholtz 2D – Dirichlet | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup> (1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>)** | 3 | k₀ = 12.5664 (12.5664) | **0.00023%** | 3 |
-| Linear elasticity 2D | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup> (1.3 × 10<sup>-4</sup> – 1.3 × 10<sup>-4</sup>)** | 3 | λ = 0.999744 (1); μ = 0.500088 (0.5) | **0.026%** | 1 |
-| Navier-Stokes 2D – Kovasznay | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup> (1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>)** | 3 | Re = 19.9978 (20) | **0.011%** | 3 |
-| Poisson 2D – disk | – | **2.8 × 10<sup>-4</sup> (2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>)** | 3 | f = 1.00002 (1) | **0.002%** | 3 |
-| Allen-Cahn 2D – Mattey & Ghosh | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup> (3.6 × 10<sup>-4</sup> – 3.6 × 10<sup>-4</sup>)** | 3 | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | **4.3%** | 1 |
-| Cahn-Hilliard 2D – Wight & Zhao | 2.4 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup> (6.1 × 10<sup>-3</sup> – 1.1 × 10<sup>-2</sup>)** | 3 | ε² = 0.00251029 (0.0025) | **0.41%** | 3 |
-| Burgers 2D – Mathias et al. | 1.7 × 10<sup>-1</sup> | **9.7 × 10<sup>-3</sup> (8.4 × 10<sup>-3</sup> – 1.2 × 10<sup>-2</sup>)** | 3 | ν = 0.00320754 (0.0031831) | **0.77%** | 1 |
-| Heat 2D | – | **5.7 × 10<sup>-3</sup> (3.9 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>)** | 3 | α = 0.399893 (0.4) | **0.027%** | 3 |
-| Allen-Cahn 3D – Wight & Zhao | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup> (1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>)** | 3 | λ = 9.97804 (10); λε² = 0.0249908 (0.025) | **0.22%** | 3 |
-| Navier-Stokes 3D – Beltrami | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup> (1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>)** | 3 | ν = 0.998265 (1) | **0.17%** | 3 |
+| Helmholtz 2D – Dirichlet | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup> (1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>)** | 3 | k₀ = 12.5664 (12.5664) | **0.00023% (0.00023% – 0.0014%)** | 3 |
+| Linear elasticity 2D | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup> (1.3 × 10<sup>-4</sup> – 1.3 × 10<sup>-4</sup>)** | 3 | λ = 0.999548 (1); μ = 0.500189 (0.5) | **0.045% (0.026% – 0.11%)** | 3 |
+| Navier-Stokes 2D – Kovasznay | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup> (1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>)** | 3 | Re = 19.9995 (20) | **0.0045% (0.0025% – 0.009%)** | 3 |
+| Poisson 2D – disk | – | **2.8 × 10<sup>-4</sup> (2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>)** | 3 | f = 1.00003 (1) | **0.003% (0.001% – 0.003%)** | 3 |
+| Allen-Cahn 2D – Mattey & Ghosh | 2.5 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup> (3.6 × 10<sup>-4</sup> – 3.6 × 10<sup>-4</sup>)** | 3 | c₁² = 0.000101499 (0.0001); c₂ = 0.999581 (1) | **1.5% (1.1% – 4.3%)** | 3 |
+| Cahn-Hilliard 2D – Wight & Zhao | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup> (6.1 × 10<sup>-3</sup> – 1.1 × 10<sup>-2</sup>)** | 3 | ε² = 0.00251029 (0.0025) | **0.41% (0.37% – 0.42%)** | 3 |
+| Burgers 2D – Mathias et al. | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup> (6.2 × 10<sup>-3</sup> – 1.0 × 10<sup>-2</sup>)** | 3 | ν = 0.00318823 (0.0031831) | **0.16% (0.026% – 0.23%)** | 3 |
+| Heat 2D | – | **5.7 × 10<sup>-3</sup> (3.9 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>)** | 3 | α = 0.399893 (0.4) | **0.21% (0.027% – 1.7%)** | 3 |
+| Allen-Cahn 3D – Wight & Zhao | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup> (1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>)** | 3 | λ = 9.97804 (10); λε² = 0.0249908 (0.025) | **0.22% (0.037% – 0.31%)** | 3 |
+| Navier-Stokes 3D – Beltrami | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup> (1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>)** | 3 | ν = 0.998265 (1) | **0.17% (0.12% – 0.38%)** | 3 |
 
 </details>
 
@@ -178,7 +178,7 @@ $$\frac{\partial \phi}{\partial t} = \lambda\varepsilon^2\nabla^2\phi - \lambda\
 
 a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\lambda$ (true 10) and $\lambda\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\lambda$ = 9.969, $\lambda\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: $\phi$ at $t = 0.5$, a time with no measured data, in the cube with one corner cut away so the drop inside is visible ($L_2$ over the cube 3.7 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
 
-![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — inverse prediction, absolute error and parameter recovery](figures/paper_inverse.png?v=e5444994)
+![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — inverse prediction, absolute error and parameter recovery](figures/paper_inverse.png?v=68ea83a8)
 
 **Caption for the paper:**
 
@@ -204,16 +204,16 @@ For each template taken from a paper: the plain PINN (the template's equations w
 
 | Problem | Paper's method | Base PINN, L₂ (last time) | Paper's method in PINNStudio, L₂ (last time) | Paper's method in PINNStudio, L₂ (all times) | Reported in the paper (all times) | PINNStudio tuned, L₂ (last time) |
 |---|---|---|---|---|---|---|
-| Allen-Cahn 1D – Wight & Zhao | Wight & Zhao's method | 7.6 × 10<sup>-1</sup> | 4.6 × 10<sup>-2</sup> | 2.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> (Wight & Zhao (2021), Table 3.1) | **7.0 × 10<sup>-4</sup>** |
+| Allen-Cahn 1D – Wight & Zhao | Wight & Zhao's method | 7.6 × 10<sup>-1</sup> | 3.0 × 10<sup>-2</sup> | 2.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> (Wight & Zhao (2021), Table 3.1) | **7.0 × 10<sup>-4</sup>** |
 | Allen-Cahn 1D – Wight & Zhao | Mattey & Ghosh's bc-PINN | 7.6 × 10<sup>-1</sup> | 2.4 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | 1.7 × 10<sup>-2</sup> (Mattey & Ghosh (2022), Table 2) | **7.0 × 10<sup>-4</sup>** |
-| Cahn-Hilliard 1D – Wight & Zhao | Wight & Zhao's method | 3.5 × 10<sup>-3</sup> | 8.6 × 10<sup>-3</sup> | 4.3 × 10<sup>-2</sup> | 9.5 × 10<sup>-3</sup> (Wight & Zhao (2021), Sec. 3.2) | **5.2 × 10<sup>-4</sup>** |
+| Cahn-Hilliard 1D – Wight & Zhao | Wight & Zhao's method | 3.5 × 10<sup>-3</sup> | 8.1 × 10<sup>-3</sup> | 4.3 × 10<sup>-2</sup> | 9.5 × 10<sup>-3</sup> (Wight & Zhao (2021), Sec. 3.2) | **5.2 × 10<sup>-4</sup>** |
 | Cahn-Hilliard 1D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 1.9 × 10<sup>-3</sup> | 5.7 × 10<sup>-3</sup> | 5.5 × 10<sup>-3</sup> | 1.9 × 10<sup>-2</sup> (Mattey & Ghosh (2022), Sec. 5.2) | **5.7 × 10<sup>-3</sup>** |
-| Burgers 1D – Raissi et al. | Raissi et al.'s settings | 3.3 × 10<sup>-4</sup> | 5.2 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 6.7 × 10<sup>-4</sup> (Raissi et al. (2019), Sec. 2.1) | **3.3 × 10<sup>-4</sup>** |
+| Burgers 1D – Raissi et al. | Raissi et al.'s settings | 5.2 × 10<sup>-4</sup> | 5.2 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 6.7 × 10<sup>-4</sup> (Raissi et al. (2019), Sec. 2.1) | **5.2 × 10<sup>-4</sup>** |
 | Allen-Cahn 2D – Wight & Zhao | Wight & Zhao's method | 1.0 × 10<sup>0</sup> | 2.8 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | figures only (Wight & Zhao (2021), Fig. 3.8) | **1.6 × 10<sup>-3</sup>** |
 | Allen-Cahn 2D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 2.8 × 10<sup>-2</sup> | 2.5 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> | 2.5 × 10<sup>-2</sup> (Mattey & Ghosh (2022), Sec. 6.1.1) | **3.6 × 10<sup>-4</sup>** |
-| Cahn-Hilliard 2D – Wight & Zhao | Wight & Zhao's method | 1.1 × 10<sup>-1</sup> | 2.4 × 10<sup>-1</sup> | 7.5 × 10<sup>-1</sup> | figures only (Wight & Zhao (2021), Fig. 3.13) | **1.1 × 10<sup>-2</sup>** |
+| Cahn-Hilliard 2D – Wight & Zhao | Wight & Zhao's method | 1.1 × 10<sup>-1</sup> | 2.2 × 10<sup>-1</sup> | 7.5 × 10<sup>-1</sup> | figures only (Wight & Zhao (2021), Fig. 3.13) | **1.1 × 10<sup>-2</sup>** |
 | Cahn-Hilliard 2D – Mattey & Ghosh | Mattey & Ghosh's bc-PINN | 8.2 × 10<sup>-2</sup> | 2.0 × 10<sup>-2</sup> | 1.9 × 10<sup>-2</sup> | figures only (Mattey & Ghosh (2022), Sec. 6.2.1) | **1.1 × 10<sup>-3</sup>** |
-| Burgers 2D – Mathias et al. | Mathias et al.'s settings | 1.6 × 10<sup>-1</sup> | 1.7 × 10<sup>-1</sup> | 1.8 × 10<sup>-1</sup> | figures only (Mathias et al. (2022)) | **9.7 × 10<sup>-3</sup>** |
+| Burgers 2D – Mathias et al. | Mathias et al.'s settings | 1.6 × 10<sup>-1</sup> | 1.6 × 10<sup>-1</sup> | 1.8 × 10<sup>-1</sup> | figures only (Mathias et al. (2022)) | **8.3 × 10<sup>-3</sup>** |
 | Allen-Cahn 3D – Wight & Zhao | Wight & Zhao's method | 9.9 × 10<sup>-1</sup> | 4.6 × 10<sup>-4</sup> | 8.1 × 10<sup>-4</sup> | figures only (Wight & Zhao (2021), Fig. 3.9) | **1.9 × 10<sup>-4</sup>** |
 
 > *Caption to start from: Relative L₂ errors for the phase-field and Burgers templates: a plain PINN, the training method of the original paper set up in PINNStudio, the error reported in that paper, and the configuration selected in the PINNStudio tuning study.*
@@ -361,7 +361,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | Cahn-Hilliard 1D – Wight & Zhao | PINNStudio | u, μ | 5.2 × 10<sup>-4</sup>, 1.6 × 10<sup>-3</sup> |
 | Cahn-Hilliard 1D – Mattey & Ghosh | PINNStudio | h, μ | 5.7 × 10<sup>-3</sup>, 4.6 × 10<sup>-2</sup> |
 | Black-Scholes 1D – European call | DeepXDE | u | 4.3 × 10<sup>-4</sup> |
-| Burgers 1D – Raissi et al. | PINNStudio | u | 3.3 × 10<sup>-4</sup> |
+| Burgers 1D – Raissi et al. | PINNStudio | u | 5.2 × 10<sup>-4</sup> |
 | Burgers 1D – RAR | DeepXDE | u | 8.4 × 10<sup>-4</sup> |
 | Diffusion 1D | DeepXDE | u | 1.5 × 10<sup>-3</sup> |
 | Diffusion 1D – hard IC and BCs | DeepXDE | u | 2.8 × 10<sup>-3</sup> |
@@ -388,7 +388,7 @@ PINNStudio's tuned result for every forward problem with a reference solution: t
 | Allen-Cahn 2D – Mattey & Ghosh | PINNStudio | u | 3.6 × 10<sup>-4</sup> |
 | Cahn-Hilliard 2D – Wight & Zhao | PINNStudio | φ, μ | 1.1 × 10<sup>-2</sup>, 2.2 × 10<sup>-2</sup> |
 | Cahn-Hilliard 2D – Mattey & Ghosh | PINNStudio | h, μ | 1.1 × 10<sup>-3</sup>, 3.1 × 10<sup>-2</sup> |
-| Burgers 2D – Mathias et al. | PINNStudio | u, v | 9.7 × 10<sup>-3</sup>, 4.8 × 10<sup>-3</sup> |
+| Burgers 2D – Mathias et al. | PINNStudio | u, v | 8.3 × 10<sup>-3</sup>, 3.9 × 10<sup>-3</sup> |
 | Heat 2D | PINNStudio | u | 5.7 × 10<sup>-3</sup> |
 | Fractional Poisson 3D – sphere | DeepXDE | u | 7.2 × 10<sup>-3</sup> |
 | Poisson 3D – cube with spherical cut-out | PINNStudio | u | 1.9 × 10<sup>-4</sup> |

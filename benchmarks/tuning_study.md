@@ -52,7 +52,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Diffusion 1D](#tune-diffusion-1d) | 2.3 × 10<sup>-2</sup> | 1.5 × 10<sup>-3</sup> | 15× | all | – | 26 → 76 |
 | [Burgers 1D – Raissi et al. (PINNStudio template), inverse mode](#tune-burgers-1d-raissi-et-al-pinnstudio-template-inverse-mode) | 7.8 × 10<sup>-4</sup> | 5.5 × 10<sup>-5</sup> | 14× | invall | 0.39% → 0.099% | 97 → 119 |
 | [Euler beam 1D](#tune-euler-beam-1d) | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 12× | all | – | 55 → 217 |
-| [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 3.5 × 10<sup>-3</sup> | 3.7 × 10<sup>-4</sup> | 9× | invall | 7.2% → 0.76% | 1242 → 6939 |
+| [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 4.0 × 10<sup>-3</sup> | 3.6 × 10<sup>-4</sup> | 11× | invall | 8.5% → 0.44% | 1285 → 6623 |
 | [Diffusion 1D – resampling](#tune-diffusion-1d-resampling) | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> | 9× | lbfgs | – | 8 → 12 |
 | [Diffusion-reaction 1D, inverse mode](#tune-diffusion-reaction-1d-inverse-mode) | 6.2 × 10<sup>-4</sup> | 9.5 × 10<sup>-5</sup> | 7× | all | 0.12% → 0.012% | 121 → 334 |
 | [Poisson 1D – unknown forcing field (batches)](#tune-poisson-1d-unknown-forcing-field-batches) | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> | 6× | all | – | 62 → 215 |
@@ -66,25 +66,24 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
 | [Wave 1D – space-time multi-scale Fourier features, inverse mode](#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode) | 5.5 × 10<sup>-5</sup> | 2.0 × 10<sup>-5</sup> | 3× | all | 0.0001% → 0% | 303 → 4354 |
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
-| [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 5.9 × 10<sup>-3</sup> | 2× | times | 5.2% → 0.96% | 1741 → 5306 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template) | 2.0 × 10<sup>-3</sup> | 8.5 × 10<sup>-4</sup> | 2× | net | – | 954 → 2301 |
 | [Poisson 3D – cube with spherical cut-out (PINNStudio template)](#tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template) | 3.7 × 10<sup>-4</sup> | 1.9 × 10<sup>-4</sup> | 2× | all | – | 92 → 1096 |
+| [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 4.6 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.0045% | 220 → 924 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
 | [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> | 2× | net | 0.22% → 0.2% | 2514 → 6315 |
-| [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
+| [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.2 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
 | [Allen-Cahn 1D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template) | 1.4 × 10<sup>-3</sup> | 9.4 × 10<sup>-4</sup> | none | all | – | 200 → 2938 |
 | [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.0 × 10<sup>-3</sup> | none | net | – | 872 → 1995 |
-| [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 9.7 × 10<sup>-3</sup> | none | iters | – | 1662 → 3998 |
-| [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 3.8 × 10<sup>-4</sup> | 3.4 × 10<sup>-4</sup> | none | invall | 0.002% → 0.006% | 162 → 173 |
+| [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 9.9 × 10<sup>-3</sup> | 8.3 × 10<sup>-3</sup> | none | iters | – | 1662 → 3998 |
 | [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
 | [Heat 2D (PINNStudio template), inverse mode](#tune-heat-2d-pinnstudio-template-inverse-mode) | 5.3 × 10<sup>-4</sup> | 5.3 × 10<sup>-4</sup> | none | base | 0.21% → 0.21% | 169 → 169 |
 | [Poisson 3D – sphere (PINNStudio template), inverse mode](#tune-poisson-3d-sphere-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> | none | base | 0.005% → 0.005% | 83 → 83 |
 | [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> | none | base | 0.076% → 0.076% | 729 → 729 |
-| [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
+| [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 8.9 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | none | base | 5.8% → 5.8% | 1735 → 1735 |
 | [Heat 2D (PINNStudio template)](#tune-heat-2d-pinnstudio-template) | 5.7 × 10<sup>-3</sup> | 5.7 × 10<sup>-3</sup> | none | base | – | 98 → 98 |
 | [Heat 3D (PINNStudio template)](#tune-heat-3d-pinnstudio-template) | 2.6 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> | none | base | – | 323 → 323 |
@@ -122,6 +121,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Diffusion-reaction 1D – unknown k_f, D](#tune-diffusion-reaction-1d-unknown-k-f-d) | 2.1 × 10<sup>-2</sup> | 2.1 × 10<sup>-2</sup> | none | base | 0.82% → 0.82% | 747 → 747 |
 | [Fractional Poisson 2D – unknown order α](#tune-fractional-poisson-2d-unknown-order) | 3.4 × 10<sup>-3</sup> | 3.4 × 10<sup>-3</sup> | none | base | 0.21% → 0.21% | 1395 → 1395 |
 | [Poisson 3D – sphere (PINNStudio template)](#tune-poisson-3d-sphere-pinnstudio-template) | 1.5 × 10<sup>-3</sup> | 1.5 × 10<sup>-3</sup> | none | base | – | 76 → 76 |
+| [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 1.9 × 10<sup>-4</sup> | 1.9 × 10<sup>-4</sup> | none | base | 0.003% → 0.003% | 167 → 167 |
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template) | 2.7 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> | none | iters | – | 957 → 1626 |
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 7.7 × 10<sup>-5</sup> | 1.1 × 10<sup>-4</sup> | none | times | 0.41% → 0.39% | 3793 → 10691 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 283 → 464 |
@@ -590,15 +590,15 @@ Tuned settings: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(
 
 | Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
 |---|---|---|---|---|
-| base | 1.54e-03 | 3.5 × 10<sup>-3</sup> | 7.2% | 1242 |
-| dataw | 9.77e-03 | 2.3 × 10<sup>-3</sup> | 3.5% | 1250 |
-| times | 2.73e-03 | 3.2 × 10<sup>-3</sup> | 0.77% | 4231 |
-| **invall** | 1.73e-04 | 3.7 × 10<sup>-4</sup> | 0.55% | 6962 |
+| base | 1.74e-03 | 3.9 × 10<sup>-3</sup> | 8.3% | 1284 |
+| dataw | 9.62e-03 | 2.7 × 10<sup>-3</sup> | 3.5% | 1295 |
+| times | 2.09e-03 | 3.0 × 10<sup>-3</sup> | 0.23% | 4087 |
+| **invall** | 1.80e-04 | 3.8 × 10<sup>-4</sup> | 0.31% | 6686 |
 
 **Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [3, 256, 256, 256, 256, 256, 2], Adam 15,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
 
-Over seeds: own settings 3.5 × 10<sup>-3</sup> (1 seeds), tuned 3.7 × 10<sup>-4</sup> [3.4 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>] (3 seeds).
- Learned parameters (tuned, median): nu = 0.00320718 (true 0.00318309886184).
+Over seeds: own settings 4.0 × 10<sup>-3</sup> [3.9 × 10<sup>-3</sup> – 4.2 × 10<sup>-3</sup>] (3 seeds), tuned 3.6 × 10<sup>-4</sup> [3.6 × 10<sup>-4</sup> – 3.8 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): nu = 0.00319713 (true 0.00318309886184).
 
 *Surface comparison, u, the example's own settings:*
 
@@ -1062,57 +1062,6 @@ Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tunin
 
 </details>
 
-<details id="tune-navier-stokes-2d-kovasznay-flow-inverse-mode">
-<summary><strong>Navier-Stokes 2D – Kovasznay flow, inverse mode</strong></summary>
-
-Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay flow](../README.md#dx-kovasznay-flow).
-
-**Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 220 |
-| net | 3.02e-06 | 5.9 × 10<sup>-5</sup> | 0.011% | 252 |
-| **all** | 1.95e-06 | 3.7 × 10<sup>-5</sup> | 0.009% | 956 |
-| lbfgs3 | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 224 |
-| invall | 1.98e-05 | 7.1 × 10<sup>-5</sup> | 0.043% | 253 |
-
-**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 100, 3], Adam 90,000 → L-BFGS 45,000, 7,803 / 1,200 / 0 points.
-
-Over seeds: own settings 9.1 × 10<sup>-5</sup> (1 seeds), tuned 3.7 × 10<sup>-5</sup> (1 seeds).
- Learned parameters (tuned, median): Re = 19.9982 (true 20.0).
-
-PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, within 0.01% with every setting tried.
-
-*Surface comparison, u, the example's own settings:*
-
-![Surface comparison, u, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_u.png)
-
-*Surface comparison, u, tuned (all):*
-
-![Surface comparison, u, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
-
-*Surface comparison, v, the example's own settings:*
-
-![Surface comparison, v, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_v.png)
-
-*Surface comparison, v, tuned (all):*
-
-![Surface comparison, v, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
-
-*Parameter convergence, the example's own settings:*
-
-![Parameter convergence, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_param_plot.png)
-
-*Parameter convergence, tuned (all):*
-
-![Parameter convergence, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
-
-
-Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
-
-</details>
-
 <details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
 <summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
 
@@ -1171,6 +1120,57 @@ Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tun
 Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 1.9 × 10<sup>-4</sup> (1 seeds).
 
 Tuned settings: [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20cube%20with%20spherical%20cut-out%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-2d-kovasznay-flow-inverse-mode">
+<summary><strong>Navier-Stokes 2D – Kovasznay flow, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay flow](../README.md#dx-kovasznay-flow).
+
+**Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 220 |
+| net | 3.02e-06 | 5.9 × 10<sup>-5</sup> | 0.011% | 252 |
+| **all** | 1.95e-06 | 3.7 × 10<sup>-5</sup> | 0.009% | 956 |
+| lbfgs3 | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 224 |
+| invall | 1.98e-05 | 7.1 × 10<sup>-5</sup> | 0.043% | 253 |
+
+**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 100, 3], Adam 90,000 → L-BFGS 45,000, 7,803 / 1,200 / 0 points.
+
+Over seeds: own settings 9.1 × 10<sup>-5</sup> (1 seeds), tuned 4.6 × 10<sup>-5</sup> [3.7 × 10<sup>-5</sup> – 5.2 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): Re = 19.9995 (true 20.0).
+
+PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, within 0.01% with every setting tried.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (all):*
+
+![Surface comparison, u, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (all):*
+
+![Surface comparison, v, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1371,13 +1371,13 @@ Its own settings and results are in the README: [Poisson 2D – L-shape](../READ
 |---|---|---|---|---|
 | base | 6.74e-06 | 3.5 × 10<sup>-2</sup> | – | 160 |
 | iters | 3.88e-06 | 3.1 × 10<sup>-2</sup> | – | 413 |
-| **net** | 1.96e-06 | 2.3 × 10<sup>-2</sup> | – | 182 |
-| points | 8.78e-06 | 1.9 × 10<sup>-2</sup> | – | 175 |
-| all | 2.97e-06 | 1.1 × 10<sup>-2</sup> | – | 465 |
+| **net** | 1.96e-06 | 2.2 × 10<sup>-2</sup> | – | 182 |
+| points | 8.78e-06 | 1.8 × 10<sup>-2</sup> | – | 175 |
+| all | 2.97e-06 | 1.0 × 10<sup>-2</sup> | – | 465 |
 
 **Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 100, 100, 100, 100, 100, 1], Adam 50,000 → L-BFGS 15,000, 1,200 / 120 / 0 points.
 
-Over seeds: own settings 3.5 × 10<sup>-2</sup> [3.2 × 10<sup>-2</sup> – 3.5 × 10<sup>-2</sup>] (3 seeds), tuned 2.3 × 10<sup>-2</sup> [2.2 × 10<sup>-2</sup> – 2.4 × 10<sup>-2</sup>] (3 seeds).
+Over seeds: own settings 3.5 × 10<sup>-2</sup> [3.1 × 10<sup>-2</sup> – 3.5 × 10<sup>-2</sup>] (3 seeds), tuned 2.2 × 10<sup>-2</sup> [2.2 × 10<sup>-2</sup> – 2.4 × 10<sup>-2</sup>] (3 seeds).
 
 Training loss picks the wider network, but all the changes together give the lower error; the re-entrant corner keeps the error near 1–2% either way.
 
@@ -1492,14 +1492,14 @@ Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned
 
 | Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
 |---|---|---|---|---|
-| base | 1.80e-04 | 1.1 × 10<sup>-2</sup> | – | 1662 |
-| **iters** | 1.16e-04 | 8.4 × 10<sup>-3</sup> | – | 3684 |
-| net | 1.74e-04 | 8.9 × 10<sup>-3</sup> | – | 4720 |
-| points | 1.43e-04 | 9.3 × 10<sup>-3</sup> | – | 4352 |
+| base | 1.80e-04 | 9.9 × 10<sup>-3</sup> | – | 1662 |
+| **iters** | 1.16e-04 | 6.2 × 10<sup>-3</sup> | – | 3684 |
+| net | 1.74e-04 | 7.4 × 10<sup>-3</sup> | – | 4720 |
+| points | 1.43e-04 | 7.3 × 10<sup>-3</sup> | – | 4352 |
 
 **Chosen: iters** (3× the iterations of every training phase): network [3, 128, 128, 128, 128, 2], Adam 45,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
 
-Over seeds: own settings 1.1 × 10<sup>-2</sup> (1 seeds), tuned 9.7 × 10<sup>-3</sup> [8.4 × 10<sup>-3</sup> – 1.2 × 10<sup>-2</sup>] (3 seeds).
+Over seeds: own settings 9.9 × 10<sup>-3</sup> (1 seeds), tuned 8.3 × 10<sup>-3</sup> [6.2 × 10<sup>-3</sup> – 1.0 × 10<sup>-2</sup>] (3 seeds).
 
 None of the changes helps: every variant ends at about 1.8% (worst output and time). With every change together the run did not finish within the 4-hour limit.
 
@@ -1521,35 +1521,6 @@ None of the changes helps: every variant ends at about 1.8% (worst output and ti
 
 
 Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-poisson-2d-disk-pinnstudio-template-inverse-mode">
-<summary><strong>Poisson 2D – disk (PINNStudio template), inverse mode</strong></summary>
-
-**Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 domain / 120 boundary / 0 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 5.92e-06 | 5.4 × 10<sup>-4</sup> | 0.002% | 157 |
-| dataw | 1.25e-05 | 2.9 × 10<sup>-4</sup> | 0.0081% | 151 |
-| **invall** | 4.49e-06 | 3.4 × 10<sup>-4</sup> | 0.006% | 173 |
-
-**Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [2, 100, 100, 100, 100, 100, 1], Adam 50,000 → L-BFGS 150,000, 1,200 / 120 / 0 points.
-
-Over seeds: own settings 3.8 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 5.4 × 10<sup>-4</sup>] (3 seeds), tuned 3.4 × 10<sup>-4</sup> (1 seeds).
- Learned parameters (tuned, median): source_term = 1.00006 (true 1.0).
-
-*Surface comparison, the example's own settings:*
-
-![Surface comparison, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_surface_comparison.png)
-
-*Parameter convergence, the example's own settings:*
-
-![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
-
-
-Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1689,8 +1660,8 @@ Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`
 
 **Chosen: base** (the example's own settings): network [2, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 200 / 512 points.
 
-Over seeds: own settings 1.4 × 10<sup>-4</sup> (1 seeds), tuned 1.4 × 10<sup>-4</sup> (1 seeds).
- Learned parameters (tuned, median): gamma_1 = 9.9233e-05 (true 0.0001), gamma_2 = 4.99833 (true 5.0).
+Over seeds: own settings 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds), tuned 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): gamma_1 = 9.9233e-05 (true 0.0001), gamma_2 = 4.99768 (true 5.0).
 
 Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
@@ -2444,6 +2415,35 @@ Tuned settings: [`Fractional Poisson 2D – unknown order α (tuned).pinn.json`]
 Over seeds: own settings 1.5 × 10<sup>-3</sup> (1 seeds), tuned 1.5 × 10<sup>-3</sup> (1 seeds).
 
 Tuned settings: [`Poisson 3D – sphere (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-2d-disk-pinnstudio-template-inverse-mode">
+<summary><strong>Poisson 2D – disk (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 domain / 120 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.34e-06 | 3.4 × 10<sup>-4</sup> | 0.003% | 167 |
+| dataw | 1.27e-05 | 2.9 × 10<sup>-4</sup> | 0% | 166 |
+| invall | 3.52e-06 | 2.7 × 10<sup>-4</sup> | 0.009% | 200 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 / 120 / 0 points.
+
+Over seeds: own settings 1.9 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 3.4 × 10<sup>-4</sup>] (3 seeds), tuned 1.9 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 3.4 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): source_term = 1.00003 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
+
+
+Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 

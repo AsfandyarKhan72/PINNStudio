@@ -1,0 +1,273 @@
+example,variant,selected,seed,parameter,true,found,relative_error,run_worst_relative_error
+Linear ODE system,base,,2026,w,1.0,0.999776,0.000224,0.000224
+Linear ODE system,lbfgs3,,2026,w,1.0,0.999776,0.000224,0.000224
+Linear ODE system,net,,2026,w,1.0,0.999558,0.000442,0.000442
+Linear ODE system,all,yes,2026,w,1.0,0.999912,8.8e-05,8.8e-05
+Linear ODE system,invall,,2026,w,1.0,0.999089,0.000911,0.000911
+Lotka-Volterra ODE,base,yes,2026,a,2.0,2.00001,5e-06,5e-06
+Lotka-Volterra ODE,base,yes,2026,d,1.06,1.06,0,5e-06
+Lotka-Volterra ODE,base,yes,1,a,2.0,2.0,0,0
+Lotka-Volterra ODE,base,yes,1,d,1.06,1.06,0,0
+Lotka-Volterra ODE,base,yes,2,a,2.0,2.0,0,0
+Lotka-Volterra ODE,base,yes,2,d,1.06,1.06,0,0
+Lotka-Volterra ODE,lbfgs3,,2026,a,2.0,2.00001,5e-06,5e-06
+Lotka-Volterra ODE,lbfgs3,,2026,d,1.06,1.06,0,5e-06
+Lotka-Volterra ODE,net,,2026,a,2.0,2.0,0,9.43396e-06
+Lotka-Volterra ODE,net,,2026,d,1.06,1.05999,9.43396e-06,9.43396e-06
+Lotka-Volterra ODE,all,,2026,a,2.0,1.99999,5e-06,9.43396e-06
+Lotka-Volterra ODE,all,,2026,d,1.06,1.06001,9.43396e-06,9.43396e-06
+Lotka-Volterra ODE,invall,,2026,a,2.0,2.00001,5e-06,9.43396e-06
+Lotka-Volterra ODE,invall,,2026,d,1.06,1.06001,9.43396e-06,9.43396e-06
+Second-order ODE,base,,2026,a,10.0,9.93327,0.006673,0.0725111
+Second-order ODE,base,,2026,b,9.0,9.6526,0.0725111,0.0725111
+Second-order ODE,lbfgs3,,2026,a,10.0,9.93327,0.006673,0.0725111
+Second-order ODE,lbfgs3,,2026,b,9.0,9.6526,0.0725111,0.0725111
+Second-order ODE,net,yes,2026,a,10.0,10.0003,3e-05,0.00082
+Second-order ODE,net,yes,2026,b,9.0,8.99262,0.00082,0.00082
+Second-order ODE,all,,2026,a,10.0,9.99773,0.000227,0.00186667
+Second-order ODE,all,,2026,b,9.0,9.0168,0.00186667,0.00186667
+Second-order ODE,invall,,2026,a,10.0,9.97923,0.002077,0.0421656
+Second-order ODE,invall,,2026,b,9.0,9.37949,0.0421656,0.0421656
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2026,C1,10.0,10.0,0,1.33333e-05
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2026,C2,15.0,14.9998,1.33333e-05,1.33333e-05
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2026,C3,2.66667,2.66664,1.125e-05,1.33333e-05
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,1,C1,10.0,10.0038,0.00038,0.00038
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,1,C2,15.0,15.0002,1.33333e-05,0.00038
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,1,C3,2.66667,2.66656,4.12499e-05,0.00038
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2,C1,10.0,9.99682,0.000318,0.000318
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2,C2,15.0,14.9998,1.33333e-05,0.000318
+"Lorenz ODE – unknown C₁, C₂, C₃",base,yes,2,C3,2.66667,2.66667,0,0.000318
+"Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",base,yes,2026,C1,10.0,9.97389,0.002611,0.002611
+"Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",base,yes,2026,C2,15.0,14.9961,0.00026,0.002611
+"Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",base,yes,2026,C3,2.66667,2.66686,7.12499e-05,0.002611
+Euler beam 1D,base,,2026,EI,1.0,1.02349,0.02349,0.02349
+Euler beam 1D,lbfgs3,,2026,EI,1.0,1.02349,0.02349,0.02349
+Euler beam 1D,net,yes,2026,EI,1.0,1.00153,0.00153,0.00153
+Euler beam 1D,net,yes,1,EI,1.0,1.00131,0.00131,0.00131
+Euler beam 1D,net,yes,2,EI,1.0,1.0103,0.0103,0.0103
+Euler beam 1D,all,,2026,EI,1.0,1.00075,0.00075,0.00075
+Euler beam 1D,all,,1,EI,1.0,1.00218,0.00218,0.00218
+Euler beam 1D,all,,2,EI,1.0,1.00137,0.00137,0.00137
+Euler beam 1D,invall,,2026,EI,1.0,0.995268,0.004732,0.004732
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,2026,v_e,0.001,0.00127637,0.27637,0.27637
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,2026,K,0.001,0.00103746,0.03746,0.27637
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,1,v_e,0.001,0.00122346,0.22346,0.22346
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,1,K,0.001,0.00103624,0.03624,0.22346
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,2,v_e,0.001,0.00134999,0.34999,0.34999
+"Brinkman-Forchheimer 1D – unknown ν_e, K",base,,2,K,0.001,0.000985346,0.014654,0.34999
+"Brinkman-Forchheimer 1D – unknown ν_e, K",iters,yes,2026,v_e,0.001,0.00115135,0.15135,0.15135
+"Brinkman-Forchheimer 1D – unknown ν_e, K",iters,yes,2026,K,0.001,0.00103409,0.03409,0.15135
+"Brinkman-Forchheimer 1D – unknown ν_e, K",net,,2026,v_e,0.001,0.0012027,0.2027,0.2027
+"Brinkman-Forchheimer 1D – unknown ν_e, K",net,,2026,K,0.001,0.000988846,0.011154,0.2027
+"Brinkman-Forchheimer 1D – unknown ν_e, K",points,,2026,v_e,0.001,0.0013006,0.3006,0.3006
+"Brinkman-Forchheimer 1D – unknown ν_e, K",points,,2026,K,0.001,0.00103805,0.03805,0.3006
+"Brinkman-Forchheimer 1D – unknown ν_e, K",lbfgs,,2026,v_e,0.001,0.00130008,0.30008,0.30008
+"Brinkman-Forchheimer 1D – unknown ν_e, K",lbfgs,,2026,K,0.001,0.00100827,0.00827,0.30008
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,2026,v_e,0.001,0.00116862,0.16862,0.16862
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,2026,K,0.001,0.00100487,0.00487,0.16862
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,1,v_e,0.001,0.00117644,0.17644,0.17644
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,1,K,0.001,0.00100449,0.00449,0.17644
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,2,v_e,0.001,0.00118898,0.18898,0.18898
+"Brinkman-Forchheimer 1D – unknown ν_e, K",all,,2,K,0.001,0.00100615,0.00615,0.18898
+Fractional Poisson 1D – unknown order α,base,yes,2026,alpha,1.8,1.79183,0.00453889,0.00453889
+Fractional Poisson 1D – unknown order α,base,yes,1,alpha,1.8,1.79135,0.00480556,0.00480556
+Fractional Poisson 1D – unknown order α,base,yes,2,alpha,1.8,1.79,0.00555556,0.00555556
+Allen-Cahn 1D – Wight & Zhao,base,yes,2026,gamma_1,0.0001,9.9233e-05,0.00767,0.00767
+Allen-Cahn 1D – Wight & Zhao,base,yes,2026,gamma_2,5.0,4.99833,0.000334,0.00767
+Allen-Cahn 1D – Wight & Zhao,base,yes,1,gamma_1,0.0001,9.88845e-05,0.011155,0.011155
+Allen-Cahn 1D – Wight & Zhao,base,yes,1,gamma_2,5.0,4.99742,0.000516,0.011155
+Allen-Cahn 1D – Wight & Zhao,base,yes,2,gamma_1,0.0001,9.96071e-05,0.003929,0.003929
+Allen-Cahn 1D – Wight & Zhao,base,yes,2,gamma_2,5.0,4.99768,0.000464,0.003929
+Allen-Cahn 1D – Wight & Zhao,dataw,,2026,gamma_1,0.0001,9.72777e-05,0.027223,0.027223
+Allen-Cahn 1D – Wight & Zhao,dataw,,2026,gamma_2,5.0,4.99859,0.000282,0.027223
+Allen-Cahn 1D – Wight & Zhao,times,,2026,gamma_1,0.0001,9.95326e-05,0.004674,0.004674
+Allen-Cahn 1D – Wight & Zhao,times,,2026,gamma_2,5.0,4.99994,1.2e-05,0.004674
+Allen-Cahn 1D – Wight & Zhao,times,,1,gamma_1,0.0001,9.90163e-05,0.009837,0.009837
+Allen-Cahn 1D – Wight & Zhao,times,,1,gamma_2,5.0,4.99949,0.000102,0.009837
+Allen-Cahn 1D – Wight & Zhao,times,,2,gamma_1,0.0001,9.88557e-05,0.011443,0.011443
+Allen-Cahn 1D – Wight & Zhao,times,,2,gamma_2,5.0,4.99946,0.000108,0.011443
+Allen-Cahn 1D – Wight & Zhao,invall,,2026,gamma_1,0.0001,3.98815e-06,0.960118,0.960118
+Allen-Cahn 1D – Wight & Zhao,invall,,2026,gamma_2,5.0,4.65939,0.068122,0.960118
+Burgers 1D – Raissi et al.,base,,2026,lambda_1,1.0,0.996107,0.003893,0.003893
+Burgers 1D – Raissi et al.,base,,2026,lambda_2,0.01,0.0100386,0.00386,0.003893
+Burgers 1D – Raissi et al.,dataw,,2026,lambda_1,1.0,0.99847,0.00153,0.001837
+Burgers 1D – Raissi et al.,dataw,,2026,lambda_2,0.01,0.00998163,0.001837,0.001837
+Burgers 1D – Raissi et al.,times,,2026,lambda_1,1.0,0.999186,0.000814,0.00091
+Burgers 1D – Raissi et al.,times,,2026,lambda_2,0.01,0.0100091,0.00091,0.00091
+Burgers 1D – Raissi et al.,times,,1,lambda_1,1.0,0.98745,0.01255,0.01255
+Burgers 1D – Raissi et al.,times,,1,lambda_2,0.01,0.0100702,0.00702,0.01255
+Burgers 1D – Raissi et al.,times,,2,lambda_1,1.0,0.998013,0.001987,0.001987
+Burgers 1D – Raissi et al.,times,,2,lambda_2,0.01,0.010011,0.0011,0.001987
+Burgers 1D – Raissi et al.,setup,,2026,lambda_1,1.0,0.994327,0.005673,0.005673
+Burgers 1D – Raissi et al.,setup,,2026,lambda_2,0.01,0.0100096,0.00096,0.005673
+Burgers 1D – Raissi et al.,invall,yes,2026,lambda_1,1.0,0.999937,6.3e-05,0.00099
+Burgers 1D – Raissi et al.,invall,yes,2026,lambda_2,0.01,0.0100099,0.00099,0.00099
+Burgers 1D – Raissi et al.,invall,yes,1,lambda_1,1.0,0.999888,0.000112,0.000199
+Burgers 1D – Raissi et al.,invall,yes,1,lambda_2,0.01,0.00999801,0.000199,0.000199
+Burgers 1D – Raissi et al.,invall,yes,2,lambda_1,1.0,0.998952,0.001048,0.001048
+Burgers 1D – Raissi et al.,invall,yes,2,lambda_2,0.01,0.00999379,0.000621,0.001048
+Diffusion-reaction 1D,base,,2026,D,1.0,0.998802,0.001198,0.001198
+Diffusion-reaction 1D,lbfgs3,,2026,D,1.0,0.998802,0.001198,0.001198
+Diffusion-reaction 1D,net,,2026,D,1.0,0.998959,0.001041,0.001041
+Diffusion-reaction 1D,all,yes,2026,D,1.0,0.999773,0.000227,0.000227
+Diffusion-reaction 1D,all,yes,1,D,1.0,0.999972,2.8e-05,2.8e-05
+Diffusion-reaction 1D,all,yes,2,D,1.0,0.99988,0.00012,0.00012
+Diffusion-reaction 1D,invall,,2026,D,1.0,0.997953,0.002047,0.002047
+Heat 1D – Dirichlet,base,,2026,a,0.4,0.397247,0.0068825,0.0068825
+Heat 1D – Dirichlet,base,,1,a,0.4,0.393767,0.0155825,0.0155825
+Heat 1D – Dirichlet,base,,2,a,0.4,0.397809,0.0054775,0.0054775
+Heat 1D – Dirichlet,iters,,2026,a,0.4,0.398069,0.0048275,0.0048275
+Heat 1D – Dirichlet,net,,2026,a,0.4,0.398489,0.0037775,0.0037775
+Heat 1D – Dirichlet,points,,2026,a,0.4,0.397791,0.0055225,0.0055225
+Heat 1D – Dirichlet,all,yes,2026,a,0.4,0.399796,0.00051,0.00051
+Heat 1D – Dirichlet,all,yes,1,a,0.4,0.400406,0.001015,0.001015
+Heat 1D – Dirichlet,all,yes,2,a,0.4,0.400503,0.0012575,0.0012575
+Klein-Gordon 1D,base,,2026,gamma,1.0,0.945226,0.054774,0.054774
+Klein-Gordon 1D,lbfgs3,,2026,gamma,1.0,0.945226,0.054774,0.054774
+Klein-Gordon 1D,net,,2026,gamma,1.0,1.03306,0.03306,0.03306
+Klein-Gordon 1D,all,yes,2026,gamma,1.0,1.00912,0.00912,0.00912
+Klein-Gordon 1D,all,yes,1,gamma,1.0,1.02165,0.02165,0.02165
+Klein-Gordon 1D,all,yes,2,gamma,1.0,1.00721,0.00721,0.00721
+Klein-Gordon 1D,invall,,2026,gamma,1.0,1.06471,0.06471,0.06471
+Schrödinger 1D,base,,2026,c,0.5,0.514806,0.029612,0.029612
+Schrödinger 1D,iters,,2026,c,0.5,0.511656,0.023312,0.023312
+Schrödinger 1D,net,,2026,c,0.5,0.500036,7.2e-05,7.2e-05
+Schrödinger 1D,net,,1,c,0.5,0.509404,0.018808,0.018808
+Schrödinger 1D,net,,2,c,0.5,0.512371,0.024742,0.024742
+Schrödinger 1D,points,yes,2026,c,0.5,0.500117,0.000234,0.000234
+Schrödinger 1D,points,yes,1,c,0.5,0.500121,0.000242,0.000242
+Schrödinger 1D,points,yes,2,c,0.5,0.500174,0.000348,0.000348
+Schrödinger 1D,all,,2026,c,0.5,0.504096,0.008192,0.008192
+Wave 1D – space-time multi-scale Fourier features,base,,2026,C,10.0,9.99999,1e-06,1e-06
+Wave 1D – space-time multi-scale Fourier features,net,,2026,C,10.0,9.99999,1e-06,1e-06
+Wave 1D – space-time multi-scale Fourier features,all,yes,2026,C,10.0,10.0,0,0
+Wave 1D – space-time multi-scale Fourier features,all,yes,1,C,10.0,10.0,0,0
+Wave 1D – space-time multi-scale Fourier features,all,yes,2,C,10.0,10.0,0,0
+Wave 1D – space-time multi-scale Fourier features,invall,,2026,C,10.0,9.99999,1e-06,1e-06
+Diffusion 1D – unknown coefficient,base,,2026,C,1.0,0.999553,0.000447,0.000447
+Diffusion 1D – unknown coefficient,base,,1,C,1.0,0.999674,0.000326,0.000326
+Diffusion 1D – unknown coefficient,base,,2,C,1.0,0.999461,0.000539,0.000539
+Diffusion 1D – unknown coefficient,iters,yes,2026,C,1.0,1.00004,4e-05,4e-05
+Diffusion 1D – unknown coefficient,net,,2026,C,1.0,0.998344,0.001656,0.001656
+Diffusion 1D – unknown coefficient,points,,2026,C,1.0,0.99827,0.00173,0.00173
+Diffusion 1D – unknown coefficient,lbfgs,,2026,C,1.0,1.00081,0.00081,0.00081
+Diffusion 1D – unknown coefficient,all,,2026,C,1.0,1.00017,0.00017,0.00017
+Diffusion 1D – unknown coefficient,all,,1,C,1.0,1.0004,0.0004,0.0004
+Diffusion 1D – unknown coefficient,all,,2,C,1.0,0.9999,0.0001,0.0001
+"Diffusion-reaction 1D – unknown k_f, D",base,yes,2026,kf,0.1,0.0991842,0.008158,0.008158
+"Diffusion-reaction 1D – unknown k_f, D",base,yes,2026,D,2.0,1.9933,0.00335,0.008158
+Helmholtz 2D – Dirichlet,base,,2026,k0,12.5663706144,12.565,0.00010907,0.00010907
+Helmholtz 2D – Dirichlet,lbfgs3,,2026,k0,12.5663706144,12.565,0.00010907,0.00010907
+Helmholtz 2D – Dirichlet,net,,2026,k0,12.5663706144,12.565,0.00010907,0.00010907
+Helmholtz 2D – Dirichlet,all,,2026,k0,12.5663706144,12.5669,4.21272e-05,4.21272e-05
+Helmholtz 2D – Dirichlet,invall,yes,2026,k0,12.5663706144,12.5664,2.33843e-06,2.33843e-06
+Helmholtz 2D – Dirichlet,invall,yes,1,k0,12.5663706144,12.5664,2.33843e-06,2.33843e-06
+Helmholtz 2D – Dirichlet,invall,yes,2,k0,12.5663706144,12.5662,1.35771e-05,1.35771e-05
+Linear elasticity 2D – plate,base,yes,2026,lmbd,1.0,0.999744,0.000256,0.000256
+Linear elasticity 2D – plate,base,yes,2026,mu,0.5,0.500088,0.000176,0.000256
+Linear elasticity 2D – plate,base,yes,1,lmbd,1.0,0.999548,0.000452,0.000452
+Linear elasticity 2D – plate,base,yes,1,mu,0.5,0.500189,0.000378,0.000452
+Linear elasticity 2D – plate,base,yes,2,lmbd,1.0,0.99893,0.00107,0.00107
+Linear elasticity 2D – plate,base,yes,2,mu,0.5,0.500452,0.000904,0.00107
+Linear elasticity 2D – plate,lbfgs3,,2026,lmbd,1.0,0.999744,0.000256,0.000256
+Linear elasticity 2D – plate,lbfgs3,,2026,mu,0.5,0.500088,0.000176,0.000256
+Linear elasticity 2D – plate,lbfgs3,,1,lmbd,1.0,0.999548,0.000452,0.000452
+Linear elasticity 2D – plate,lbfgs3,,1,mu,0.5,0.500189,0.000378,0.000452
+Linear elasticity 2D – plate,lbfgs3,,2,lmbd,1.0,0.99893,0.00107,0.00107
+Linear elasticity 2D – plate,lbfgs3,,2,mu,0.5,0.500452,0.000904,0.00107
+Navier-Stokes 2D – Kovasznay flow,base,,2026,Re,20.0,20.0026,0.00013,0.00013
+Navier-Stokes 2D – Kovasznay flow,lbfgs3,,2026,Re,20.0,20.0026,0.00013,0.00013
+Navier-Stokes 2D – Kovasznay flow,net,,2026,Re,20.0,19.9978,0.00011,0.00011
+Navier-Stokes 2D – Kovasznay flow,net,,1,Re,20.0,19.9972,0.00014,0.00014
+Navier-Stokes 2D – Kovasznay flow,net,,2,Re,20.0,19.9995,2.5e-05,2.5e-05
+Navier-Stokes 2D – Kovasznay flow,all,yes,2026,Re,20.0,19.9982,9e-05,9e-05
+Navier-Stokes 2D – Kovasznay flow,all,yes,1,Re,20.0,19.9995,2.5e-05,2.5e-05
+Navier-Stokes 2D – Kovasznay flow,all,yes,2,Re,20.0,20.0009,4.5e-05,4.5e-05
+Navier-Stokes 2D – Kovasznay flow,invall,,2026,Re,20.0,19.9915,0.000425,0.000425
+Poisson 2D – disk,base,yes,2026,source_term,1.0,1.00003,3e-05,3e-05
+Poisson 2D – disk,base,yes,1,source_term,1.0,1.00001,1e-05,1e-05
+Poisson 2D – disk,base,yes,2,source_term,1.0,1.00003,3e-05,3e-05
+Poisson 2D – disk,dataw,,2026,source_term,1.0,1.0,0,0
+Poisson 2D – disk,dataw,,1,source_term,1.0,1.00003,3e-05,3e-05
+Poisson 2D – disk,dataw,,2,source_term,1.0,0.999974,2.6e-05,2.6e-05
+Poisson 2D – disk,invall,,2026,source_term,1.0,1.00009,9e-05,9e-05
+Poisson 2D – disk,invall,,1,source_term,1.0,1.00003,3e-05,3e-05
+Poisson 2D – disk,invall,,2,source_term,1.0,0.999983,1.7e-05,1.7e-05
+Fractional Poisson 2D – unknown order α,base,yes,2026,alpha,1.8,1.80386,0.00214444,0.00214444
+Allen-Cahn 2D – Wight & Zhao,setup,,2026,lambda_,10.0,9.76643,0.023357,0.023357
+Allen-Cahn 2D – Wight & Zhao,setup,,2026,diff_coeff,0.00625,0.00611763,0.0211792,0.023357
+Allen-Cahn 2D – Wight & Zhao,dataw,,2026,lambda_,10.0,3.16939,0.683061,0.683061
+Allen-Cahn 2D – Wight & Zhao,dataw,,2026,diff_coeff,0.00625,0.00211525,0.66156,0.683061
+Allen-Cahn 2D – Wight & Zhao,times,,2026,lambda_,10.0,4.24259,0.575741,0.575741
+Allen-Cahn 2D – Wight & Zhao,times,,2026,diff_coeff,0.00625,0.00273061,0.563102,0.575741
+Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,lambda_,10.0,9.82765,0.017235,0.017235
+Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,diff_coeff,0.00625,0.00615365,0.015416,0.017235
+Allen-Cahn 2D – Wight & Zhao,base,,2026,lambda_,10.0,9.54428,0.045572,0.045572
+Allen-Cahn 2D – Wight & Zhao,base,,2026,diff_coeff,0.00625,0.00598505,0.042392,0.045572
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c1_sq,0.0001,0.000102452,0.02452,0.02452
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c2,1.0,1.00025,0.00025,0.02452
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c1_sq,0.0001,0.000106572,0.06572,0.06572
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c2,1.0,1.00366,0.00366,0.06572
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c1_sq,0.0001,0.000103547,0.03547,0.03547
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c2,1.0,1.00065,0.00065,0.03547
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c1_sq,0.0001,0.000104321,0.04321,0.04321
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c2,1.0,1.00173,0.00173,0.04321
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c1_sq,0.0001,0.0001008,0.008,0.010572
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c2,1.0,0.989428,0.010572,0.010572
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c1_sq,0.0001,0.000101499,0.01499,0.01499
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c2,1.0,0.999581,0.000419,0.01499
+Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c1_sq,0.0001,0.000107025,0.07025,0.07025
+Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c2,1.0,1.00387,0.00387,0.07025
+Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c1_sq,0.0001,0.000105791,0.05791,0.05791
+Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c2,1.0,1.00367,0.00367,0.05791
+Cahn-Hilliard 2D – Wight & Zhao,dataw,,2026,eps_sq,0.0025,0.00252662,0.010648,0.010648
+Cahn-Hilliard 2D – Wight & Zhao,times,,2026,eps_sq,0.0025,0.00250963,0.003852,0.003852
+Cahn-Hilliard 2D – Wight & Zhao,base,yes,2026,eps_sq,0.0025,0.00251042,0.004168,0.004168
+Cahn-Hilliard 2D – Wight & Zhao,base,yes,1,eps_sq,0.0025,0.00251029,0.004116,0.004116
+Cahn-Hilliard 2D – Wight & Zhao,base,yes,2,eps_sq,0.0025,0.00250934,0.003736,0.003736
+Cahn-Hilliard 2D – Mattey & Ghosh,base,,2026,alpha,0.0002,0.000189574,0.05213,0.05213
+Cahn-Hilliard 2D – Mattey & Ghosh,base,,2026,kappa,1.0,1.01558,0.01558,0.05213
+Cahn-Hilliard 2D – Mattey & Ghosh,dataw,,2026,alpha,0.0002,0.000114763,0.426185,0.426185
+Cahn-Hilliard 2D – Mattey & Ghosh,dataw,,2026,kappa,1.0,0.853682,0.146318,0.426185
+Cahn-Hilliard 2D – Mattey & Ghosh,times,yes,2026,alpha,0.0002,0.000201912,0.00956,0.00956
+Cahn-Hilliard 2D – Mattey & Ghosh,times,yes,2026,kappa,1.0,0.995857,0.004143,0.00956
+Cahn-Hilliard 2D – Mattey & Ghosh,invall,,2026,alpha,0.0002,0.000205789,0.028945,0.04151
+Cahn-Hilliard 2D – Mattey & Ghosh,invall,,2026,kappa,1.0,1.04151,0.04151,0.04151
+Burgers 2D – Mathias et al.,base,,2026,nu,0.00318309886184,0.00344758,0.0830892,0.0830892
+Burgers 2D – Mathias et al.,base,,1,nu,0.00318309886184,0.00352165,0.106359,0.106359
+Burgers 2D – Mathias et al.,base,,2,nu,0.00318309886184,0.00345311,0.0848265,0.0848265
+Burgers 2D – Mathias et al.,dataw,,2026,nu,0.00318309886184,0.00329568,0.0353684,0.0353684
+Burgers 2D – Mathias et al.,dataw,,1,nu,0.00318309886184,0.00341745,0.0736236,0.0736236
+Burgers 2D – Mathias et al.,dataw,,2,nu,0.00318309886184,0.00335972,0.0554872,0.0554872
+Burgers 2D – Mathias et al.,invall,,2026,nu,0.00318309886184,0.00319282,0.00305399,0.00305399
+Burgers 2D – Mathias et al.,invall,,1,nu,0.00318309886184,0.00319713,0.00440801,0.00440801
+Burgers 2D – Mathias et al.,invall,,2,nu,0.00318309886184,0.00320025,0.00538819,0.00538819
+Burgers 2D – Mathias et al.,times,yes,2026,nu,0.00318309886184,0.00319053,0.00233456,0.00233456
+Burgers 2D – Mathias et al.,times,yes,1,nu,0.00318309886184,0.00318823,0.00161199,0.00161199
+Burgers 2D – Mathias et al.,times,yes,2,nu,0.00318309886184,0.00318394,0.000264251,0.000264251
+Heat 2D,dataw,,2026,alpha,0.4,0.401262,0.003155,0.003155
+Heat 2D,times,,2026,alpha,0.4,0.399697,0.0007575,0.0007575
+Heat 2D,times,,1,alpha,0.4,0.401998,0.004995,0.004995
+Heat 2D,times,,2,alpha,0.4,0.406973,0.0174325,0.0174325
+Heat 2D,invall,,2026,alpha,0.4,0.402561,0.0064025,0.0064025
+Heat 2D,base,yes,2026,alpha,0.4,0.399893,0.0002675,0.0002675
+Heat 2D,base,yes,1,alpha,0.4,0.39915,0.002125,0.002125
+Heat 2D,base,yes,2,alpha,0.4,0.406798,0.016995,0.016995
+Poisson 3D – sphere,base,yes,2026,source_term,1.0,1.00005,5e-05,5e-05
+Poisson 3D – sphere,dataw,,2026,source_term,1.0,0.999905,9.5e-05,9.5e-05
+Poisson 3D – sphere,invall,,2026,source_term,1.0,1.0004,0.0004,0.0004
+Allen-Cahn 3D – Wight & Zhao,base,yes,2026,lambda_,10.0,9.96899,0.003101,0.003101
+Allen-Cahn 3D – Wight & Zhao,base,yes,2026,diff_coeff,0.025,0.0249817,0.000732,0.003101
+Allen-Cahn 3D – Wight & Zhao,base,yes,1,lambda_,10.0,10.0032,0.00032,0.000368
+Allen-Cahn 3D – Wight & Zhao,base,yes,1,diff_coeff,0.025,0.0249908,0.000368,0.000368
+Allen-Cahn 3D – Wight & Zhao,base,yes,2,lambda_,10.0,9.97804,0.002196,0.002196
+Allen-Cahn 3D – Wight & Zhao,base,yes,2,diff_coeff,0.025,0.0249976,9.6e-05,0.002196
+Heat 3D,dataw,,2026,alpha,0.4,0.398051,0.0048725,0.0048725
+Heat 3D,invall,,2026,alpha,0.4,0.396365,0.0090875,0.0090875
+Heat 3D,base,yes,2026,alpha,0.4,0.400303,0.0007575,0.0007575
+Navier-Stokes 3D – Beltrami flow,base,,2026,nu,1.0,0.997797,0.002203,0.002203
+Navier-Stokes 3D – Beltrami flow,lbfgs3,yes,2026,nu,1.0,0.998842,0.001158,0.001158
+Navier-Stokes 3D – Beltrami flow,lbfgs3,yes,1,nu,1.0,0.998265,0.001735,0.001735
+Navier-Stokes 3D – Beltrami flow,lbfgs3,yes,2,nu,1.0,0.996234,0.003766,0.003766
+Navier-Stokes 3D – Beltrami flow,net,,2026,nu,1.0,0.998003,0.001997,0.001997
+Navier-Stokes 3D – Beltrami flow,invall,,2026,nu,1.0,0.997473,0.002527,0.002527

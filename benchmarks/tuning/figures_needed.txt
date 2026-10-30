@@ -41,7 +41,6 @@ Template_1D_Cahn_Hilliard_Mattey_Ghosh paper_mg
 Black_Scholes_equation_call_option base
 Template_1D_Burgers_best_setup iters
 Template_1D_Burgers paper_raissi
-Template_1D_Burgers plain
 Template_1D_Burgers_inv invall
 Burgers_equation_with_RAR base
 Diffusion_equation all
@@ -78,10 +77,10 @@ Helmholtz_2D_with_a_hole base
 Laplace_equation_on_a_disk base
 Linear_elastostatic_plate all
 Linear_elastostatic_plate base
-Linear_elastostatic_plate_inv lbfgs3
+Linear_elastostatic_plate_inv base
 Linear_elastostatic_plate_soft_BCs base
 Kovasznay_flow base
-Kovasznay_flow_inv net
+Kovasznay_flow_inv all
 Template_2D_Poisson_Disk base
 Template_2D_Poisson_Disk_inv base
 Poisson_over_an_L_shaped_domain all
