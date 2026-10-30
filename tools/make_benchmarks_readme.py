@@ -906,7 +906,7 @@ def _paper_figure(rows, path):
         ypos[i] = yy; yy += 1.0
     H = yy
     Y = {i: H - v for i, v in ypos.items()}
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, 0.205 * H + 0.85), sharey=True,
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, 0.168 * H + 0.85), sharey=True,
                                  gridspec_kw={"width_ratios": [3.0, 1.55], "wspace": 0.1})
     for gi, (g, a, b) in enumerate(groups):
         if gi % 2 == 0:
@@ -972,9 +972,9 @@ def _paper_figure(rows, path):
          mk("D", 5.0, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4)]
     lab = ["Tuned settings", "Starting settings", "Starting settings kept", "Inverse, each parameter"]
     fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="lower center", ncol=4, frameon=False,
-               fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.2,
+               fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.5,
                bbox_to_anchor=(0.5, 0.0), borderaxespad=0.0)
-    fig.subplots_adjust(left=0.30, right=0.93, top=0.96, bottom=0.115)
+    fig.subplots_adjust(left=0.30, right=0.93, top=0.96, bottom=0.13)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for out in (path, path.replace(".png", ".pdf")):     # cropped to the drawing, with a hairline margin
         fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.02)
@@ -1712,7 +1712,7 @@ def page(recs):
           "(the fastest one where several are within 25% of it); the tuning study's own pages also show which run the final "
           "training loss alone would pick. They are shipped as "
           "the *Tuned* presets, so each point can be reloaded and run again.\n\n"
-          "**Size.** The figure is cropped to the drawing, about 5.4 × 7.2 in with 7.6–8.8 pt text, so at the "
+          "**Size.** The figure is cropped to the drawing, about 5.4 × 6.2 in with 7.6–8.8 pt text, so at the "
           "text width of a typical journal page (5–5.5 in) the text stays at about 7–8.5 pt and there is room for "
           "the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
           "> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative "
