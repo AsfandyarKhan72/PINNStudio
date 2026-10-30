@@ -330,7 +330,7 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=12))
         ax.yaxis.set_minor_locator(matplotlib.ticker.LogLocator(base=10, subs=range(2, 10), numticks=12))
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax._panel_letter = FIG7_TITLES[eid].split(" ")[0]     # placed above the y-axis title once laid out
+        ax._panel_letter, ax._panel_name = FIG7_TITLES[eid].split(" ", 1)   # placed once laid out
         ax.set_xlabel("$t$", labelpad=1)
         ax.set_ylabel("Relative $L_2$ error", labelpad=2)
         ax.grid(which="major", color=GRID, lw=0.6)
@@ -351,11 +351,12 @@ def fig7(ex, name="paper_figure7", label_ends=False):
     fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.955, bottom=0.15,
                         wspace=0.5 if label_ends else 0.32, hspace=0.36)
     fig.canvas.draw()
-    for ax in axs.ravel():            # (a)-(d) centred over the y-axis title
+    for ax in axs.ravel():            # (a)-(d) centred over the y-axis title, the problem centred over the plot
         bb = ax.yaxis.label.get_window_extent()
         x = ax.transAxes.inverted().transform(((bb.x0 + bb.x1) / 2, 0))[0]
         ax.text(x, 1.04, ax._panel_letter, transform=ax.transAxes, fontsize=9.5, fontweight="bold",
                 va="bottom", ha="center")
+        ax.text(0.5, 1.04, ax._panel_name, transform=ax.transAxes, fontsize=9.5, va="bottom", ha="center")
     for ext in ("png", "pdf"):          # cropped to the drawing, with a hairline margin
         fig.savefig(os.path.join(OUT, f"{name}.{ext}"), dpi=300, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
