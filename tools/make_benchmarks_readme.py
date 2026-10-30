@@ -460,6 +460,7 @@ def _outs(rs, v):
 
 SPACETIME = {}  # run folder/variant_sSEED -> error over all reference times (--spacetime)
 SAME = 1.25    # runs within 25% of the lowest error count as equally accurate; the fastest of them is the best
+TIE_TIME = 1.10  # and if the example's own settings are among them and within 10% of the fastest time, they stay
 
 
 def _judged(r):
@@ -488,6 +489,10 @@ def _pick(s, inverse):
     low = min(e for e, _, _ in stats.values())
     ok = [v for v, (e, _, _) in stats.items() if e <= SAME * low]
     v = min(ok, key=lambda v: stats[v][1])
+    # a tie: the example's own (base) settings are as accurate (within SAME) and practically as fast (within
+    # TIE_TIME of the fastest), so nothing is gained by changing them; they are kept
+    if v != "base" and "base" in ok and stats["base"][1] <= TIE_TIME * stats[v][1]:
+        v = "base"
     return dict(s, chosen=v, tuned=stats[v][2], _raw_chosen=s.get("chosen"))
 
 

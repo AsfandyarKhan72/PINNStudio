@@ -6892,7 +6892,7 @@ for _pval in _param_values:
             if not _sched_active:
                 _var_cb = dde.callbacks.VariableValue(
                     _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history.txt",
-                    precision=6
+                    precision=8
                 )
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                 # Standardized on "save one checkpoint per
@@ -6991,7 +6991,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             display_every={config.loss_display_every}, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
@@ -7026,7 +7026,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -7070,7 +7070,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -7103,7 +7103,7 @@ for _pval in _param_values:
                 if _problem_type == "Inverse":
                     _var_cb2 = dde.callbacks.VariableValue(
                         _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history_phase2.txt",
-                        precision=6
+                        precision=8
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
                                   external_trainable_variables=_inv_vars)
