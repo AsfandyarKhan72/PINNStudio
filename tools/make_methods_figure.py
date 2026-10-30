@@ -330,8 +330,7 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=12))
         ax.yaxis.set_minor_locator(matplotlib.ticker.LogLocator(base=10, subs=range(2, 10), numticks=12))
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax.text(0.0, 1.04, FIG7_TITLES[eid].split(" ")[0], transform=ax.transAxes, fontsize=9.5, fontweight="bold",
-                va="bottom", ha="center")         # above the y axis
+        ax._panel_letter = FIG7_TITLES[eid].split(" ")[0]     # placed above the y-axis title once laid out
         ax.set_xlabel("$t$", labelpad=1)
         ax.set_ylabel("Relative $L_2$ error", labelpad=2)
         ax.grid(which="major", color=GRID, lw=0.6)
@@ -350,6 +349,12 @@ def fig7(ex, name="paper_figure7", label_ends=False):
                handlelength=3.0, handletextpad=0.5, columnspacing=1.6, bbox_to_anchor=(0.5, 0.0))
     fig.subplots_adjust(left=0.105, right=0.925 if label_ends else 0.975, top=0.955, bottom=0.165,
                         wspace=0.5 if label_ends else 0.32, hspace=0.42)
+    fig.canvas.draw()
+    for ax in axs.ravel():            # (a)-(d) centred over the y-axis title
+        bb = ax.yaxis.label.get_window_extent()
+        x = ax.transAxes.inverted().transform(((bb.x0 + bb.x1) / 2, 0))[0]
+        ax.text(x, 1.04, ax._panel_letter, transform=ax.transAxes, fontsize=9.5, fontweight="bold",
+                va="bottom", ha="center")
     for ext in ("png", "pdf"):
         fig.savefig(os.path.join(OUT, f"{name}.{ext}"), dpi=300)
     plt.close(fig)
