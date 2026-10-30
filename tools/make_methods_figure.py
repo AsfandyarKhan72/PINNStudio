@@ -278,7 +278,8 @@ def fig7(ex, name="paper_figure7", label_ends=False):
     the primary phase-field variable (u, or h for 2D Cahn-Hilliard; not mu) at each reference time, for the six
     principal configurations. Log y axis with whole decades, the same x axis in every panel; the value at the
     final time is marked larger. An exactly imposed initial condition is exact at t = 0 (only float32 round-off,
-    about 1e-7, remains), so those curves start at the first reference time after t = 0. One legend for all panels.
+    about 1e-7, remains): that point is drawn on the lower edge of the panel as an open marker, as in the earlier
+    Figure 7. Panels labelled (a)-(d) only. One legend for all panels.
     label_ends: also print the final-time error of Exact BC + IC and Exact + SA-PINN next to their end points."""
     import math
     plt.rcParams.update({"font.size": 8.5, "axes.linewidth": 0.7, "pdf.fonttype": 42, "font.family": "DejaVu Sans",
@@ -291,17 +292,23 @@ def fig7(ex, name="paper_figure7", label_ends=False):
             c = next((c for c in e["core"] if c["setup"] == key), None)
             if c is not None:
                 exact_ic = "exact IC" in key or key == "causal"
-                # an exactly imposed initial condition is exact at t = 0 (what is left is float32 round-off,
-                # about 1e-7): those curves start at the first reference time after t = 0
-                pts = [(t, v) for t, v in c["l2"] if v > 0 and not (exact_ic and t == 0)]
-                curves.append((key, lab, col, ls, lw, mk, z, pts))
-        vals = [v for *_, pts in curves for _, v in pts]
+                curves.append((key, lab, col, ls, lw, mk, z, exact_ic, [(t, v) for t, v in c["l2"]]))
+        # the axis range from every value except the t = 0 values of an exactly imposed initial condition, which
+        # are zero up to float32 round-off (about 1e-7)
+        vals = [v for *_, ex_ic, pts in curves for t, v in pts if v > 0 and not (ex_ic and t == 0)]
         lo = 10 ** math.floor(math.log10(min(vals)))
         hi = 10 ** math.ceil(math.log10(max(vals)))
-        for key, lab, col, ls, lw, mk, z, pts in curves:
+        for key, lab, col, ls, lw, mk, z, ex_ic, pts in curves:
+            # exact initial condition: its t = 0 point (zero error) is drawn on the lower edge, open marker
+            pts = [(t, max(v, lo)) for t, v in pts]
             ts, vs = [p[0] for p in pts], [p[1] for p in pts]
-            ax.plot(ts, vs, ls=ls, color=col, lw=lw, zorder=z, solid_capstyle="round", dash_capstyle="round")
-            ax.plot(ts[:-1], vs[:-1], ls="", marker=mk, ms=3.0, color=col, mec="white", mew=0.4, zorder=z)
+            ax.plot(ts, vs, ls=ls, color=col, lw=lw, zorder=z, solid_capstyle="round", dash_capstyle="round",
+                    clip_on=False)
+            k0 = 1 if ex_ic and ts and ts[0] == 0 else 0
+            ax.plot(ts[k0:-1], vs[k0:-1], ls="", marker=mk, ms=3.0, color=col, mec="white", mew=0.4, zorder=z)
+            if k0:
+                ax.plot(ts[:1], vs[:1], ls="", marker=mk, ms=4.2, mfc="white", mec=col, mew=1.0, zorder=z + 0.5,
+                        clip_on=False)
             ax.plot(ts[-1:], vs[-1:], ls="", marker=mk, ms=6.0 if lw >= 2 else 5.0, color=col, mec="white",
                     mew=0.7, zorder=z + 0.5, clip_on=False)
         if label_ends:
@@ -323,7 +330,8 @@ def fig7(ex, name="paper_figure7", label_ends=False):
         ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=12))
         ax.yaxis.set_minor_locator(matplotlib.ticker.LogLocator(base=10, subs=range(2, 10), numticks=12))
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax.set_title(FIG7_TITLES[eid], loc="left", fontsize=8.8, fontweight="bold", pad=4)
+        ax.text(-0.16, 1.04, FIG7_TITLES[eid].split(" ")[0], transform=ax.transAxes, fontsize=9.5, fontweight="bold",
+                va="bottom")
         ax.set_xlabel("$t$", labelpad=1)
         ax.set_ylabel("Relative $L_2$ error", labelpad=2)
         ax.grid(which="major", color=GRID, lw=0.6)
