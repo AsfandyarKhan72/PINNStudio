@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
 RUN = os.path.abspath(sys.argv[1])
 QUICK, TRAIN = "--quick" in sys.argv, "--train" in sys.argv
 SIZE = (1440, 820)
+LOSS_EVERY = int(os.environ.get("FIG2_LOSS_EVERY", "100"))
 FULL_SIZE = tuple(int(v) for v in os.environ.get("FIG2_FULL_SIZE", "1280x800").split("x"))
 B_HEIGHT = int(os.environ.get("FIG2_B_HEIGHT", "400"))   # panel (b): the results pane
 A_HEIGHT = int(os.environ.get("FIG2_A_HEIGHT", "455"))   # panel (a): the model tree down to Results
@@ -78,6 +79,7 @@ def train():
     cfg = w._build_config()
     cfg.plot_figsize_mode, cfg.plot_figsize_w, cfg.plot_figsize_h = "Custom", 3.4, 2.8
     cfg.plot_dpi = 300
+    cfg.loss_display_every = LOSS_EVERY      # Plot settings -> Loss: record the loss every LOSS_EVERY iterations
     w._apply_config(cfg)
     pump(0.5)
     if QUICK:
@@ -162,7 +164,10 @@ def full_window(w):
 
 
 if __name__ == "__main__":
-    if "--full" in sys.argv:            # the whole window of a saved run (no training)
+    if "--full" in sys.argv:            # the whole window of a saved run (trained first with --train)
+        os.makedirs(RUN, exist_ok=True)
+        if TRAIN:
+            train()
         full_window(shots())
         os._exit(0)
     if sys.argv[2:3] == ["--compose"]:
