@@ -17,6 +17,7 @@ reported error, the paper's method run in PINNStudio and PINNStudio's best.
 """
 import argparse
 import json
+import math
 import os
 import re
 import statistics
@@ -724,7 +725,17 @@ def figure(recs, path, stars=False, paper=False):
         src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
         if src and src.get("main"):
             rep = [src["main"]]
-        rows.append(dict(label=_paper_label(e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
+        # the starting settings kept: the tuned choice is the starting configuration itself (DeepXDE's settings,
+        # or the paper's method that gives the starting value), not just a value close to it
+        fs = r.get("f_best_s")
+        if r["deepxde"]:
+            kept = bool(ref_f is not None and not r.get("f_best_paper") and fs and fs["chosen"] == "base"
+                        and not r.get("f_best_is_setup"))
+        else:
+            pv = [v for _, _, v in (r["paper"] or []) if v in (r["paper_runs"] or {})]
+            v0 = min(pv, key=lambda v: r["paper_runs"][v]["l2"]) if pv else None
+            kept = bool(ref_f is not None and v0 and r.get("f_best_paper") == v0)
+        rows.append(dict(kept=kept, label=_paper_label(e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
                          p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None,
                          field=(r["i_field"][:2] + ((r["i_field"][2] if ext_inv else None),)) if r.get("i_field") else None))
@@ -918,8 +929,8 @@ def _paper_figure(rows, path):
     S_T, S_S = 28, 24                       # marker areas: tuned, starting
     D_T = 22
 
-    def forward(ref, best, y):
-        if best and ref and abs(ref - best) / max(ref, best) <= 0.05:          # starting settings kept
+    def forward(ref, best, y, kept):
+        if best and ref and kept:                                    # the starting settings are the tuned ones
             ax.scatter(best, y, s=S_T * 2.5, marker="o", facecolor="none", edgecolor=P_TUNED, lw=0.8, zorder=2)
         elif ref:
             if best:
@@ -930,7 +941,7 @@ def _paper_figure(rows, path):
 
     for i, r in enumerate(rows):
         y = Y[i]
-        forward(r["f_ref"], r["f_best"], y)
+        forward(r["f_ref"], r["f_best"], y, r["kept"])
         es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
         if not es and r["field"]:
             sym, fb, _ = r["field"]
@@ -941,8 +952,15 @@ def _paper_figure(rows, path):
             txt = ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1]))
         else:
             continue
-        for e_ in es_draw:
-            bx.scatter(e_, y, s=D_T, marker="D", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+        # parameters with nearly the same error would hide each other: those are drawn a little apart vertically
+        es_draw = sorted(es_draw)
+        close = [any(abs(math.log10(max(e_, P_FLOOR) / max(o, P_FLOOR))) < 0.45 for o in es_draw[:k] + es_draw[k + 1:])
+                 for k, e_ in enumerate(es_draw)]
+        n_close = 0
+        for e_, c in zip(es_draw, close):
+            dy = (0.17 if n_close % 2 == 0 else -0.17) if c else 0.0
+            n_close += bool(c)
+            bx.scatter(e_, y + dy, s=D_T, marker="D", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
         bx.text(right * 2.6, y, txt, va="center", ha="left", fontsize=F["sym"], color=mtp.C_TEXT)
     ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=F["name"], color=mtp.C_TEXT)
     ax.set_ylim(Y[len(rows) - 1] - 0.65, H + 0.1)
