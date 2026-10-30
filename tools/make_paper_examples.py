@@ -282,6 +282,16 @@ def _colorbar(fig, ax_rect, mappable, sci=False):
     return cb
 
 
+def _value(v, true):
+    """A learned value with no trailing zeros and at least five significant figures, more where five would make
+    a value that is not exact look exact (equal to the true value)."""
+    for n in range(5, 10):
+        txt = f"{v:.{n}g}"
+        if float(txt) != float(true) or v == true:
+            return txt
+    return f"{v:.10g}"
+
+
 def plot(keys, path, inverse):
     import matplotlib
     matplotlib.use("Agg")
@@ -293,7 +303,7 @@ def plot(keys, path, inverse):
     fig = plt.figure(figsize=(WIDTH, H))
     cmap = plt.get_cmap("jet")
     # forward: reference | PINNStudio | error; inverse: the inverse PINN's field | error | the unknowns
-    titles = (["Inverse prediction", "Absolute error", "Parameter recovery"] if inverse
+    titles = (["PINN prediction", "Absolute error", "Parameter error (%)"] if inverse
               else ["Reference", "PINNStudio", "Absolute error"])
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
@@ -350,17 +360,17 @@ def plot(keys, path, inverse):
                 it, val = d["it_" + n_], d["val_" + n_]
                 tv = meta["true"][n_]
                 ax.semilogy(it / 1000, np.maximum(100 * np.abs(val - tv) / abs(tv), 1e-4), lw=1.1, color=PAR_COLORS[i],
-                            label=f"{SYM.get(n_, n_)} = {val[-1]:.5g}  (true {tv:g})")
+                            label=f"{SYM.get(n_, n_)}: {_value(val[-1], tv)} (true: {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
-            ax.set_ylabel("Relative parameter error (%)", labelpad=1, fontsize=FONT - 1)   # 100 |θ − θ*| / |θ*|
+            ax.set_ylabel(r"$100\,|\theta-\theta^{*}|\,/\,|\theta^{*}|$", labelpad=1, fontsize=FONT - 1)
             ax.set_ylim(1e-4, 2e4)          # the largest early errors are ~10⁴ %; room below the curves for the legend
             ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, numticks=20))
             ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
                 lambda v, _: (f"$10^{{{int(round(np.log10(v)))}}}$" if int(round(np.log10(v))) % 2 == 1 else "")))
             ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
             ax.grid(color="#e4e7eb", lw=0.4)
-            ax.legend(fontsize=FONT - 1.5, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,
-                      handletextpad=0.4)
+            ax.legend(fontsize=FONT - 1, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,
+                      handletextpad=0.4, labelspacing=0.3)
             ax.tick_params(labelsize=FONT - 1, length=2)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
