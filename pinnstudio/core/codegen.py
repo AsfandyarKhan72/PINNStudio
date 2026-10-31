@@ -11339,6 +11339,8 @@ if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
     _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
     print("{p}IC pre-train model restored -- skipping training.")
 else:
+    if {config.ic_pretrain_restore}:
+        print("{p}Note: IC pre-train model to restore not found (" + {rp} + ") -- pre-training instead.")
     _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
                                  display_every={max(1, int(getattr(config, 'loss_display_every', 1000) or 1000))}, batch_size=None,
                                  model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))

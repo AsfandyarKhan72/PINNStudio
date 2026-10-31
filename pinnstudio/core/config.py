@@ -955,6 +955,15 @@ class PINNConfig:
                 errors.append("IC pre-training fits the network to the initial conditions given as loss terms, "
                               "but no output has one (an exact initial condition needs no pre-training) -- "
                               "untick IC pre-training.")
+        if self.ic_pretrain and self.ic_pretrain_restore:
+            import os as _os_icr
+            _rp = (self.ic_pretrain_restore_path or "").strip()
+            if not _rp:
+                errors.append("IC pre-training: 'Restore' is chosen but no saved pre-training model is given -- "
+                              "browse to the .pt file, or choose to pre-train.")
+            elif not _os_icr.path.isfile(_rp):
+                errors.append(f"IC pre-training: the saved pre-training model {_rp!r} does not exist -- check the "
+                              f"path, or choose to pre-train.")
         if any(_hard):
             _ics = (self.ic_expressions or "").split("|")
             if self.steady_state or self.problem_dim == "ODE":

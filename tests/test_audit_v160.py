@@ -371,3 +371,17 @@ def test_model_checkpoint_with_time_windows_saves_each_window():
     assert 'f"checkpoint_step{step_i + 1:03d}_best"' in export and "_cb.best, _cb.epochs_since_last_save = np.inf, 0" in export
     whole = codegen.generate_clean_script(dataclasses.replace(c, time_adaptive=False))   # whole interval: unchanged
     assert '"checkpoint_best"' in whole and "checkpoint_step" not in whole
+
+
+def test_ic_pretraining_restore_needs_an_existing_model(tmp_path):
+    """P2: 'Restore' with a wrong or empty path silently ran the whole IC pre-training instead."""
+    c = dataclasses.replace(_template("1D Burgers"), ic_pretrain=True, ic_pretrain_restore=True)
+    for path in ("", str(tmp_path / "missing.pt")):
+        errs = dataclasses.replace(c, ic_pretrain_restore_path=path).validate()
+        assert any("IC pre-training" in e and ("no saved" in e or "does not exist" in e) for e in errs), errs
+    ok = tmp_path / "ic_pretrain_model-100.pt"
+    ok.write_bytes(b"x")
+    assert not any("saved pre-training model" in e
+                   for e in dataclasses.replace(c, ic_pretrain_restore_path=str(ok)).validate())
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "IC pre-train model to restore not found" in s
