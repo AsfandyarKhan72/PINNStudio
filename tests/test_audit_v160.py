@@ -118,6 +118,8 @@ def test_initial_loss_weights_follow_ic_pretraining_in_solve():
     s = codegen.generate_script(c)
     i_pre = s.index("=== Starting Main Training ===")
     assert s.find("Loss weights from the initial losses", i_pre) > i_pre
+    # Solve's model already holds the entry from before pre-training: the weights must use the latest one
+    assert "_lh0.loss_train[0]" not in s and "_lh0.loss_train[-1]" in s
 
 
 def test_time_windows_on_a_disk_keep_only_grid_points_in_the_domain():

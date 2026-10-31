@@ -4781,7 +4781,9 @@ def _frac_apply(_im, _v):
 def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
     """'Scale by initial losses' -- evaluate every loss term once
     (no training) and set weight_i = c / L_i(0), as DeepXDE's wave example
-    does (loss_weights = 5 / initial_losses). Empty when the option is off."""
+    does (loss_weights = 5 / initial_losses). Empty when the option is off.
+    The last entry of the history is read: a model that has trained before
+    (Solve's, after IC pre-training) keeps its earlier entries."""
     c = float(getattr(config, "loss_weights_from_initial", 0.0) or 0.0)
     if c <= 0:
         return ""
@@ -4789,7 +4791,7 @@ def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
         f"# Loss weights from the initial losses: w_i = {c:g} / L_i(0)",
         f'{model}.compile("{config.optimizer}", lr={lr}, loss="{config.loss_type}", external_trainable_variables={ext_vars})',
         f"_lh0, _ = {model}.train(iterations=0, display_every=1)",
-        f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[0]]",
+        f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[-1]]",
         f'print("Loss weights from the initial losses:", ["%.4g" % _w for _w in {weights_var}])',
     ]
     return "\n".join(indent + ln for ln in lines)
