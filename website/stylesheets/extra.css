@@ -1,0 +1,26 @@
+/* PINNStudio documentation: restrained scientific-software styling */
+:root {
+  --md-primary-fg-color: #2f3e8f;
+  --md-primary-fg-color--light: #4a5ab8;
+  --md-primary-fg-color--dark: #1f2a66;
+  --md-accent-fg-color: #2f6fdb;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1f2740;
+  --md-accent-fg-color: #6ea8fe;
+}
+.md-banner { background: #eef1fb; color: #1f2a66; font-size: .72rem; }
+[data-md-color-scheme="slate"] .md-banner { background: #1b2030; color: #c9d1e8; }
+.md-typeset img.screenshot {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.md-typeset figure figcaption { font-size: .68rem; color: var(--md-default-fg-color--light); }
+/* home page */
+.home-hero { padding: .6rem 0 1.2rem; }
+.home-hero h1 { margin-bottom: .2rem; font-weight: 600; }
+.home-hero .tagline { font-size: 1.05rem; color: var(--md-default-fg-color--light); margin-top: 0; }
+.md-typeset .grid.cards > ul > li { border-radius: 6px; }
+.md-typeset table:not([class]) { font-size: .7rem; }
+.md-typeset .version-note { font-size: .7rem; }

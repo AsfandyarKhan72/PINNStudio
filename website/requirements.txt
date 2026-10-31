@@ -1,0 +1,3 @@
+# Documentation build only (not needed to run PINNStudio)
+mkdocs==1.6.1
+mkdocs-material==9.7.7

@@ -1,0 +1,243 @@
+# PINNStudio documentation (MkDocs + Material). Build locally:
+#   pip install -r website/requirements.txt
+#   mkdocs serve            # live preview at http://127.0.0.1:8000
+#   mkdocs build --strict   # what CI runs; fails on any warning
+site_name: PINNStudio
+site_description: A graphical platform for forward and inverse physics-informed neural networks.
+site_author: Asfandyar Khan
+site_url: https://asfandyarkhan72.github.io/PINNStudio/
+repo_url: https://github.com/AsfandyarKhan72/PINNStudio
+repo_name: AsfandyarKhan72/PINNStudio
+edit_uri: edit/docs/official-site/website/
+docs_dir: website
+copyright: >
+  Copyright &copy; 2024&ndash;2026 Asfandyar Khan and Boise State University.
+  The software license is stated in the repository's LICENSE file.
+
+strict: true
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+theme:
+  name: material
+  custom_dir: website/overrides
+  logo: assets/pinnstudio.png
+  favicon: assets/pinnstudio.png
+  language: en
+  font: false            # system fonts: no external font requests
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark theme
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light theme
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - content.action.edit
+
+extra:
+  generator: false
+  version_label: "v1.6.0 (in development)"
+  released_version: "v1.5.0"
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/AsfandyarKhan72/PINNStudio
+      name: PINNStudio on GitHub
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.snippets:
+      base_path: [website]
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+# Per-example pages are reached from the gallery (examples/index.md), not listed in the navigation
+not_in_nav: |
+  /examples/*/
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - First run: getting-started/first-run.md
+      - Save, reopen and export: getting-started/save-and-export.md
+      - Reporting a problem: getting-started/reporting-bugs.md
+  - User guide:
+      - guide/index.md
+      - The interface: guide/interface.md
+      - Problem: guide/problem.md
+      - Equations, outputs and constants: guide/equations.md
+      - Geometry and domain: guide/geometry.md
+      - Collocation points: guide/points.md
+      - Initial conditions: guide/initial-conditions.md
+      - Boundary conditions: guide/boundary-conditions.md
+      - Inverse problems and measured data: guide/inverse.md
+      - Neural network: guide/network.md
+      - Training phases: guide/training.md
+      - Loss weights: guide/loss-weights.md
+      - Adaptive training: guide/adaptive.md
+      - Solve and the training log: guide/solve.md
+      - Results and plots: guide/results.md
+      - Error Analysis: guide/error-analysis.md
+      - Restore & visualize: guide/restore.md
+      - Exporting a script: guide/export.md
+      - Parameter sweeps: guide/sweeps.md
+      - Settings menu: guide/settings.md
+  - Tutorials:
+      - tutorials/index.md
+      - 1. First forward ODE: tutorials/01-ode.md
+      - 2. 1D Burgers equation: tutorials/02-burgers.md
+      - 3. 2D heat equation: tutorials/03-heat-2d.md
+      - 4. Coupled PDE system: tutorials/04-coupled.md
+      - 5. Phase-field (Allen-Cahn): tutorials/05-phase-field.md
+      - 6. Inverse parameter estimation: tutorials/06-inverse.md
+      - 7. Importing observational data: tutorials/07-data.md
+      - 8. Custom geometry: tutorials/08-geometry.md
+      - 9. Exact constraints: tutorials/09-exact.md
+      - 10. RAR: tutorials/10-rar.md
+      - 11. RBA and SA-PINN: tutorials/11-point-weights.md
+      - 12. Causal and time-window training: tutorials/12-causal-windows.md
+      - 13. Comparing configurations: tutorials/13-compare.md
+      - 14. Bayesian hyperparameter search: tutorials/14-bayesian.md
+      - 15. Restoring a trained model: tutorials/15-restore.md
+      - 16. Standalone scripts: tutorials/16-scripts.md
+      - 17. Error analysis: tutorials/17-error-analysis.md
+  - Feature reference:
+      - reference/index.md
+      - Problems:
+          - Forward problems: reference/forward.md
+          - Inverse problems: reference/inverse.md
+          - ODEs and PDEs: reference/equations.md
+          - Coupled systems: reference/coupled.md
+      - Domain and conditions:
+          - Geometry: reference/geometry.md
+          - Boundary conditions: reference/boundary-conditions.md
+          - Initial conditions and imported data: reference/initial-conditions.md
+          - Exact constraints: reference/exact-constraints.md
+      - Network and training:
+          - Networks and Fourier features: reference/networks.md
+          - Optimizers and training phases: reference/optimizers.md
+          - Loss weights: reference/loss-weights.md
+          - IC pre-training and guided learning: reference/pretraining.md
+      - Adaptive methods:
+          - RAR: reference/rar.md
+          - RBA and SA-PINN: reference/point-weights.md
+          - Causal training: reference/causal.md
+          - Time windows and bc-PINN: reference/time-windows.md
+      - Data and results:
+          - Observational data: reference/observations.md
+          - Error metrics: reference/metrics.md
+          - Plots and data export: reference/plots.md
+          - Checkpoints and restoring: reference/checkpoints.md
+          - Generated scripts: reference/scripts.md
+          - Sweeps and Bayesian optimization: reference/sweeps.md
+  - Examples:
+      - examples/index.md
+  - Theory:
+      - theory/index.md
+      - Physics-informed neural networks: theory/pinns.md
+      - Losses and automatic differentiation: theory/losses.md
+      - Forward and inverse problems: theory/forward-inverse.md
+      - Error measures: theory/metrics.md
+      - Adaptive sampling: theory/adaptive-sampling.md
+      - Adaptive loss weighting: theory/loss-weighting.md
+      - Exact constraints: theory/exact-constraints.md
+      - Time-dependent training: theory/time-dependent.md
+      - Bayesian optimization: theory/bayesian.md
+      - Scope and limitations: theory/limitations.md
+  - Reproducibility:
+      - reproducibility/index.md
+      - Benchmark collection: reproducibility/benchmarks.md
+      - Reference data: reproducibility/reference-data.md
+      - Seeds, precision and hardware: reproducibility/environment.md
+      - Export equivalence: reproducibility/export-equivalence.md
+      - Reproducing the paper: reproducibility/paper.md
+  - Help:
+      - help/index.md
+      - Troubleshooting: help/troubleshooting.md
+      - FAQ: help/faq.md
+  - Developers:
+      - developer/index.md
+      - Repository structure: developer/structure.md
+      - Architecture and code generation: developer/architecture.md
+      - Configuration schema: developer/config.md
+      - Adding an example: developer/add-example.md
+      - Adding a training method: developer/add-method.md
+      - Geometry and boundary conditions: developer/extend-geometry.md
+      - Tests: developer/tests.md
+      - Building and packaging: developer/packaging.md
+      - Contributing and documentation: developer/contributing.md
+      - Releases: developer/releases.md
+  - About:
+      - about/index.md
+      - Citing PINNStudio: about/cite.md
+      - Scientific references: about/references.md
+      - Dependencies and attribution: about/dependencies.md
+      - License: about/license.md
+      - Release history: about/changelog.md
