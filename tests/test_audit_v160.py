@@ -17,6 +17,7 @@ in test_audit_v160_runs.py).
 8. Time windows on a non-rectangular domain: the grid carrying the solution between windows covered the whole
    bounding box.
 9. IC pre-training with no initial condition as a loss term (all exact) trained on a loss that is identically zero.
+10. Output names that clash with the generated code (y, np, lambda, "my u", a name used twice) were accepted.
 """
 import dataclasses
 import json
@@ -134,3 +135,17 @@ def test_ic_pretraining_without_any_initial_condition_loss_is_refused():
     errs = dataclasses.replace(c, ic_pretrain=True, ic_active="False", ic_hard="True").validate()
     assert any("IC pre-training" in e for e in errs), errs
     assert not any("IC pre-training" in e for e in dataclasses.replace(c, ic_pretrain=True).validate())
+
+
+def test_output_names_that_clash_with_the_generated_code_are_refused():
+    """10. Output names: 'y' (the array the outputs are read from) made Solve's script train a different problem
+    and the exported script crash; np, dde, lambda, "my u", 2u and a name used twice crashed or shadowed."""
+    c = _dx("ODE system")
+    assert c.output_names == "y1,y2" and not c.validate()
+    for names in ("y,v", "v,y", "np,v", "dde,v", "sin,v", "lambda,v", "my u,v", "2u,v", "u,u", "du_t,v"):
+        pde = "|".join(f"d{n}_t" for n in names.split(","))
+        errs = dataclasses.replace(c, output_names=names, pde_expressions=pde).validate()
+        assert any("Output name" in e for e in errs), (names, errs)
+    for names in ("u,v", "h,mu", "y1,y2", "u_re,u_im"):
+        errs = dataclasses.replace(c, output_names=names).validate()
+        assert not any("Output name" in e for e in errs), (names, errs)

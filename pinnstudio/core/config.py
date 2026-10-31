@@ -999,6 +999,31 @@ class PINNConfig:
             if self.network_type == "STMsFFN":
                 errors.append("STMsFFN needs space and time; an ODE has only t -- use MsFFN.")
 
+        # Output names go into both scripts' equations as Python names, next
+        # to the coordinates, the network's own output array (y), the modules
+        # (np, dde, torch) and the math functions: a clash crashed the script
+        # (np, lambda, "my u") or, with y, silently trained a different
+        # problem in Solve (y = y[:, 0:1] replaced the network output).
+        import keyword as _kw_out
+        import re as _re_out
+        from pinnstudio.core.constants import RESERVED as _RES_OUT
+        _onames = [n.strip() for n in (self.output_names or "").split(",")][:int(self.num_outputs or 1)]
+        _seen_out = set()
+        for _on in _onames:
+            if not _on:
+                continue
+            if not _on.isidentifier() or _kw_out.iskeyword(_on):
+                errors.append(f"Output name '{_on}' can't be used in the equations: use letters, digits and _ "
+                              f"(not starting with a digit), and not a Python word such as lambda.")
+            elif (_on in _RES_OUT and _on != "u" and not (self.problem_dim == "ODE" and _on in ("x", "t"))) \
+                    or _re_out.match(r"^d[A-Za-z]\w*_[xyzt]+$", _on):
+                errors.append(f"Output name '{_on}' is already used for something else (a coordinate, the "
+                              f"array y the outputs are read from, a module, a math function or a side name) -- pick another "
+                              f"name (e.g. u1, u2).")
+            if _on in _seen_out:
+                errors.append(f"Output name '{_on}' is used for two outputs -- give each output its own name.")
+            _seen_out.add(_on)
+
         if "integral(" in (self.pde_expressions or ""):
             if not (self.problem_dim == "ODE" or (self.problem_dim == "1D" and self.steady_state)):
                 errors.append("integral(...) terms are available for ODE problems (and steady 1D problems): "
