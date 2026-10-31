@@ -476,3 +476,25 @@ def test_export_says_which_3d_figures_it_draws():
     c = _template("3D Heat")
     assert "3D slice and 3D view" in codegen.generate_clean_script(c)
     assert "3D slice and 3D view" not in codegen.generate_clean_script(_template("2D Heat"))
+
+
+def test_unsupported_derivative_names_are_refused():
+    """P2: derivative names the generators do not build (du_xxy in 2D, du_xyz in 3D, du_ttt in a steady problem)
+    passed validation and stopped both scripts with NameError at the first step. The supported set was taken
+    from both generators; every shipped example (forward/inverse, Default/Tuned: 250 configurations) and the
+    from-scratch GUI workflows pass the check."""
+    from pinnstudio.core.config import PINNConfig
+    base = PINNConfig()
+    bad = [("2D", False, "u", "du_t - 0.1*du_xxy"), ("3D", False, "u", "du_t - du_xyz"), ("1D", True, "u", "du_ttt"),
+           ("1D", False, "u", "du_xxxxx")]
+    good = [("1D", False, "u", "du_t + u*du_x - 0.01*du_xxx"), ("2D", False, "u", "du_t - du_xx - du_yy + du_xy"),
+            ("2D", True, "u", "du_xxxx + 2*du_xxyy + du_yyyy"), ("3D", False, "u", "du_tt - du_xx - du_yy - du_zz"),
+            ("ODE", False, "y1,y2", "dy1_t - y2|dy2_tt + y1"), ("1D", False, "u_re,u_im", "du_re_t + du_im_xx|du_im_t - du_re_xx")]
+    for dim, st, names, pde in bad:
+        c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
+                                num_outputs=len(names.split(",")), pde_expressions=pde)
+        assert any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde
+    for dim, st, names, pde in good:
+        c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
+                                num_outputs=len(names.split(",")), pde_expressions=pde)
+        assert not any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde
