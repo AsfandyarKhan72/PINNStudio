@@ -317,3 +317,13 @@ def test_initial_loss_weights_use_the_first_phase_loss():
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
         i = s.index("Loss weights from the initial losses: w_i")
         assert 'loss="MAE"' in s[i:i + 300], s[i:i + 300]
+
+
+def test_a_condition_with_no_training_point_is_reported():
+    """24. A boundary condition selecting no point (the 2D Heat template's 'left'/'right' rows after switching
+    the domain to a disk) had a NaN loss: training went on without it and L-BFGS stopped with an IndexError in
+    PyTorch's line search. Both scripts now print which condition is empty."""
+    c = dataclasses.replace(_template("2D Heat"), geometry_type="Disk")
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "_warn_empty_conditions(data)" in s and "def _warn_empty_conditions(_d):" in s
+        compile(s, "script", "exec")

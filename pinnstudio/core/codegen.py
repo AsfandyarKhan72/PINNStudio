@@ -6987,6 +6987,17 @@ else:
             anchors={_live_fwd_anchors}
         )
 
+def _warn_empty_conditions(_d):
+    # A condition that selects no training point (a side such as "left" on a
+    # disk, which has no flat sides) has a NaN loss at any weight: training
+    # goes on without it and L-BFGS stops in its line search.
+    _empty = [_i + 1 for _i, _n in enumerate(getattr(_d, "num_bcs", None) or []) if int(_n) == 0]
+    if _empty:
+        print(f"⚠️ Condition(s) {{_empty}} (in loss order: Boundary Conditions rows, then initial conditions, "
+              f"then measured data) select no training point, so their loss is NaN -- check their 'Where' "
+              f"(e.g. a side such as 'left' on a disk or other curved shape). Change or remove them.")
+_warn_empty_conditions(data)
+
 # ── Parametric loop ──────────────────────────────────────────
 _summary = []
 
@@ -11449,6 +11460,18 @@ def _export_gpu_code(config):
     return "\n".join(lines)
 
 
+_EMPTY_COND_CHECK = '''def _warn_empty_conditions(_d):
+    # A condition that selects no training point (a side such as "left" on a
+    # disk, which has no flat sides) has a NaN loss at any weight: training
+    # goes on without it and L-BFGS stops in its line search.
+    _empty = [_i + 1 for _i, _n in enumerate(getattr(_d, "num_bcs", None) or []) if int(_n) == 0]
+    if _empty:
+        print(f"⚠️ Condition(s) {_empty} (in loss order: Boundary Conditions rows, then initial conditions, "
+              f"then measured data) select no training point, so their loss is NaN -- check their 'Where' "
+              f"(e.g. a side such as 'left' on a disk or other curved shape). Change or remove them.")
+'''
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -12147,6 +12170,7 @@ def _load_obs_data(path):
         if "_frac(" in (config.pde_expressions or ""):
             data_lines = [_frac_data_text(t, config, "geomtime", "pde", "constraints") for t in data_lines]
         parts.append("\n".join(data_lines))
+        parts.append(_EMPTY_COND_CHECK + "_warn_empty_conditions(data)")
         parts.append(net_line)
 
         if use_ic_pretrain and not is_steady:
