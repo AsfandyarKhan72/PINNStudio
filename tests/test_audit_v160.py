@@ -446,3 +446,25 @@ def test_point_set_boundary_points_reach_the_requested_count():
     solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
     assert "* 4 ** (_more + 1)" in solve and "* 4 ** (_more + 1)" in export
     assert "no boundary points match its Where expression" in export
+
+
+def test_reference_and_measured_files_with_several_times_or_values_are_reported():
+    """P2: a reference file holding several times was compared at its first row's time, and a measured-data file
+    with several value columns always gave its first one; both silently. Both scripts now say so."""
+    import numpy as np
+    ns = {"np": np}
+    exec(codegen._PLOT_TEXT_HELPERS, ns)
+    import io
+    import contextlib
+    x = np.linspace(-1, 1, 5)
+    two = np.vstack([np.c_[x, np.full_like(x, .5), x], np.c_[x, np.full_like(x, 1.), x]])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        ns["_check_ref_layout"](two, "two.txt", 1, False)
+        ns["_check_ref_layout"](two[:5], "one.txt", 1, False)
+        ns["_check_ref_layout"](np.c_[two[:5], two[:5, 2]], "uv.txt", 1, False)
+    out = buf.getvalue()
+    assert "two.txt holds several times" in out and "one.txt" not in out and "uv.txt has 2 value columns" in out
+    c = _dx("Inverse: diffusion equation")
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "value columns; the first (column" in s

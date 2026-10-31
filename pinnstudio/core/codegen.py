@@ -3989,6 +3989,7 @@ if {config.time_adaptive}:
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = _load_ref(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), False)
                 if _is_3d:
                     # 3D format: x, y, z, t, u -- same as the Standard path's
                     # own non-steady 3D Error Analysis loader.
@@ -5941,6 +5942,9 @@ if _problem_type == "Inverse":
         if _of_data.ndim != 2 or _of_data.shape[1] < _n_obs_coord_cols + 1:
             raise SystemExit(f"Measured data {{_of['path']}}: {{_n_obs_coord_cols + 1}} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.")
+        if _of_data.shape[1] > _n_obs_coord_cols + 1:
+            print(f"  Note: measured data {{_os.path.basename(_of['path'])}} has {{_of_data.shape[1] - _n_obs_coord_cols}} value "
+                  f"columns; the first (column {{_n_obs_coord_cols + 1}}) is used for output {{_of.get('output_idx', 0) + 1}}.")
 {_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
@@ -8130,6 +8134,7 @@ for _pval in _param_values:
                 for _ea_tv, _ea_fp in _ea_files:
                     _ea_d = _load_ref(_ea_fp)
                     if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                    _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), _is_steady)
                     if _is_steady and _is_3d:
                         # Steady 3D format: x, y, z, u — no time column at all.
                         _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
@@ -10016,6 +10021,20 @@ def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
     from scipy.interpolate import griddata as _gd_e
     _e = np.abs(np.ravel(_pinn_at_pts) - np.ravel(_ref))
     return _gd_e(np.asarray(_pts)[:, :2], _e, (_Xg, _Yg), method="linear", fill_value=np.nan)
+
+def _check_ref_layout(_d, _path, _n_space, _steady):
+    # One reference time and one value column per file: a file with several
+    # times is compared at its first row's time, and only the first value
+    # column is used -- say so instead of comparing silently.
+    import os as _os_rl
+    _tcol = _n_space
+    if not _steady and _d.ndim == 2 and _d.shape[1] > _tcol and np.ptp(_d[:, _tcol]) > 1e-9 * max(1.0, float(np.abs(_d[:, _tcol]).max())):
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " holds several times (" + "%g" % _d[:, _tcol].min() + " to "
+              + "%g" % _d[:, _tcol].max() + "); it is compared at t = " + "%g" % _d[0, _tcol] + ". Use one file per time.")
+    _ncols = _n_space + (0 if _steady else 1) + 1
+    if _d.ndim == 2 and _d.shape[1] > _ncols:
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " has " + str(_d.shape[1] - _ncols + 1)
+              + " value columns; the first is used.")
 
 def _load_ref(_path):
     # A reference-data file: comma or space separated, header and comment
@@ -12127,6 +12146,9 @@ def _load_obs_data(path):
                              # inside an f-string expression are a SyntaxError before Python 3.12
                              f"    raise SystemExit(\"Measured data \" + os.path.basename({of['path']!r}) + f\": {_n_obs_cols + 1} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
+            obs_lines.append(f"if _of_data.shape[1] > {_n_obs_cols + 1}:\n"
+                             f"    print(\"  Note: measured data \" + os.path.basename({of['path']!r}) + \" has \" + str(_of_data.shape[1] - {_n_obs_cols}) + "
+                             f"\" value columns; the first (column {_n_obs_cols + 1}) is used.\")")
             if _obs_red:
                 obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
                                  f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")
@@ -13262,7 +13284,8 @@ ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
     d = _load_ref(fp)
     if d.ndim == 1:
-        d = d.reshape(1, -1)''']
+        d = d.reshape(1, -1)
+    _check_ref_layout(d, fp, {3 if is_3d else (2 if is_2d else 1)}, {bool(is_steady)})''']
             # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
             # this file: a steady-state reference file (PINNStudio's own
             # "solution.txt", written by _auto_configure_ea's is_steady branch
