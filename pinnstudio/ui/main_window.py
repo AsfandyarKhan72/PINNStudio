@@ -11546,7 +11546,8 @@ class MainWindow(QMainWindow):
         # on), but still drives training for a config saved before the
         # scheduler existed and then re-solved without ever touching the
         # (now-hidden) phase-2 widgets.
-        phase_opts = [p.get("optimizer") for p in phases] + [config.optimizer2]
+        phase_opts = [p.get("optimizer") for p in phases] + (
+            [] if (config.optimizer_scheduler and phases) else [config.optimizer2])
         uses_lbfgs_or_nncg = (
             "lbfgs" in phase_opts or "nncg" in phase_opts
             or (config.adapt_method == "RAR" and config.rar_lbfgs_iters > 0)

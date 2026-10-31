@@ -1712,7 +1712,7 @@ def _rar_optimizer(config):
     import json as _js
     try:
         phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or [])
-                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs", "nncg")]
     except (ValueError, TypeError):
         phases = []
     if getattr(config, "optimizer_scheduler", False) and phases:
@@ -1737,7 +1737,8 @@ def _rar_phase(config, lbfgs=False):
         phases = []
     if not (getattr(config, "optimizer_scheduler", False) and phases):
         return None
-    fo = [p for p in phases if str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+    # NNCG, like L-BFGS, is not a first-order optimizer a round can compile with a learning rate
+    fo = [p for p in phases if str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs", "nncg")]
     lb = [p for p in phases if str(p.get("optimizer", "")).lower() in ("lbfgs", "l-bfgs")]
     if lbfgs and lb:
         return lb[-1]
@@ -2609,7 +2610,7 @@ def _first_adam_lr(config):
     import json as _js
     try:
         phases = _js.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
-        first = next((p for p in phases if isinstance(p, dict) and str(p.get("optimizer", "")).lower() == "adam"), None)
+        first = next((p for p in phases if isinstance(p, dict) and str(p.get("optimizer", "")).lower() in ("adam", "adamw")), None)
         if first is not None and first.get("lr") is not None:
             return float(first["lr"])
     except (ValueError, TypeError, AttributeError):
@@ -2652,7 +2653,7 @@ def _ta_icgl_iterations(config):
     try:
         import json as _j
         phases = _j.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
-        first = next((p for p in phases if str(p.get("optimizer", "")).lower() == "adam"), None)
+        first = next((p for p in phases if str(p.get("optimizer", "")).lower() in ("adam", "adamw")), None)
         if first:
             n = int(float(first.get("iterations", n)))
     except (ValueError, TypeError):
@@ -4828,6 +4829,20 @@ def _frac_apply(_im, _v):
 '''
 
 
+def _first_phase_loss(config):
+    """The loss function the first Training Phase trains with (the hidden
+    single-optimizer field without phases): 'Scale by initial losses'
+    measures L_i(0) with it, so the weights balance the losses trained."""
+    import json as _js
+    try:
+        phases = _js.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        if phases and isinstance(phases[0], dict) and phases[0].get("loss"):
+            return str(phases[0]["loss"])
+    except (ValueError, TypeError):
+        pass
+    return config.loss_type
+
+
 def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
     """'Scale by initial losses' -- evaluate every loss term once
     (no training) and set weight_i = c / L_i(0), as DeepXDE's wave example
@@ -4839,7 +4854,7 @@ def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
         return ""
     lines = [
         f"# Loss weights from the initial losses: w_i = {c:g} / L_i(0)",
-        f'{model}.compile("{config.optimizer}", lr={lr}, loss="{config.loss_type}", external_trainable_variables={ext_vars})',
+        f'{model}.compile("{config.optimizer}", lr={lr}, loss="{_first_phase_loss(config)}", external_trainable_variables={ext_vars})',
         f"_lh0, _ = {model}.train(iterations=0, display_every=1)",
         f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[-1]]",
         f'print("Loss weights from the initial losses:", ["%.4g" % _w for _w in {weights_var}])',

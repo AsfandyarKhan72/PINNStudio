@@ -289,3 +289,31 @@ def test_named_constants_can_be_swept():
     assert abs(sr.get_param("const_k0", d).get_value(d) - 6 * 3.141592653589793) < 1e-9
     assert "(18.84955592153876)" in codegen.generate_script(d)
     assert not d.validate()
+
+
+def test_rounds_skip_nncg_and_guided_learning_counts_adamw():
+    """22. RAR and time-window resampling rounds compiled "nncg" with a learning rate when the last first-order
+    phase was NNCG (DeepXDE raises NotImplementedError); IC guided learning ignored AdamW phases (hidden lr
+    0.001 and 15000 iterations instead of the phase's)."""
+    c = _dx("Burgers equation with RAR", adapt_method="RAR", rar_cycles=1)
+    ph = [{"optimizer": "adam", "iterations": 100, "lr": 0.002, "loss": "MSE"},
+          {"optimizer": "nncg", "iterations": 50, "lr": 1.0, "loss": "MSE"}]
+    c = dataclasses.replace(c, optimizer_scheduler=True, scheduler_phases=json.dumps(ph))
+    assert codegen._rar_optimizer(c) == ("adam", 0.002)
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert 'compile("nncg"' not in s
+    w = dataclasses.replace(_template("1D Burgers"), time_adaptive=True, ta_num_steps=2, ta_icgl_fraction=0.25,
+                            optimizer_scheduler=True, scheduler_phases=json.dumps(
+                                [{"optimizer": "adamw", "iterations": 400, "lr": 0.0005, "loss": "MSE"}]))
+    assert codegen._ta_icgl_iterations(w) == 100 and codegen._first_adam_lr(w) == 0.0005
+
+
+def test_initial_loss_weights_use_the_first_phase_loss():
+    """23. 'Scale by initial losses' measured L_i(0) with the hidden loss function (MSE), not the first phase's."""
+    c = _template("1D Burgers")
+    ph = json.loads(c.scheduler_phases)
+    ph[0]["loss"] = "MAE"
+    c = dataclasses.replace(c, scheduler_phases=json.dumps(ph), loss_weights_from_initial=2.5, loss_type="MSE")
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        i = s.index("Loss weights from the initial losses: w_i")
+        assert 'loss="MAE"' in s[i:i + 300], s[i:i + 300]
