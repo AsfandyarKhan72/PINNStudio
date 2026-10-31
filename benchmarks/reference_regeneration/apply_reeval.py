@@ -25,6 +25,9 @@ import os
 import re
 
 RETRAINED_INVERSE = {"Template_2D_Burgers_Mathias_inv", "Template_2D_Poisson_Disk_inv"}
+# second round (Allen-Cahn of Mattey & Ghosh and of Wight & Zhao, Heat 2D and 3D): run on the first round's output
+# with --retrained ROUND2, so the first round's retrained runs are kept
+ROUND2 = "Template_2D_Allen_Cahn_Mattey_Ghosh_inv,Template_2D_Heat_inv,Template_3D_Heat_inv,Template_2D_Allen_Cahn_Wight_Zhao_inv"
 DELTA_TOL = 2e-3
 
 
@@ -58,7 +61,12 @@ def main():
     ap.add_argument("--new-jsonl", default="")
     ap.add_argument("--new-primary", default="")
     ap.add_argument("--bundles", required=True, help="the bundle folder of reeval_runs.py (for the run logs)")
+    ap.add_argument("--retrained", default="", help="inverse run folders trained again ('|'- or ','-separated; "
+                    "ROUND2 for the second round); default: the first round's")
     a = ap.parse_args()
+    global RETRAINED_INVERSE
+    if a.retrained:
+        RETRAINED_INVERSE = set((ROUND2 if a.retrained == "ROUND2" else a.retrained).replace("|", ",").split(","))
     os.makedirs(a.out, exist_ok=True)
     changes = ["| file | run | value | old | new |", "|---|---|---|---|---|"]
 
@@ -75,7 +83,9 @@ def main():
 
     def new_value(r, key, logged):
         """The new value of one logged error (key from log_sequence)."""
-        o = r["outputs"][key[1] if key[1] in r["outputs"] else "u"]
+        outs = r["outputs"]
+        # one-output problems (h of Allen-Cahn of Mattey & Ghosh, phi of Wight & Zhao): their logs say u
+        o = outs[key[1]] if key[1] in outs else (outs["u"] if "u" in outs else next(iter(outs.values())) if len(outs) == 1 else outs["u"])
         if key[0] == "all":
             old, new = o["old"]["all_times"], o["new"]["all_times"]
         else:
@@ -130,8 +140,9 @@ def main():
                     continue
                 t_last = rec["t"]
                 for o_name in list(rec["outs"]):
-                    out_key = o_name if o_name in r["outputs"] else "u"
-                    o = r["outputs"][out_key]
+                    outs = r["outputs"]
+                    o = outs[o_name] if o_name in outs else (outs["u"] if "u" in outs or len(outs) != 1
+                                                             else next(iter(outs.values())))
                     j = min(range(len(o["t"])), key=lambda k: abs(o["t"][k] - t_last))
                     old_l2, new_l2 = o["old"]["l2"][j], o["new"]["l2"][j]
                     val = rec["outs"][o_name] + (new_l2 - old_l2) if r["delta"] else new_l2
@@ -160,8 +171,8 @@ def main():
                 del S[k]
                 continue
             r = runs.get((ex, variant, seed))
-            if r and "u" in r["outputs"]:
-                o = r["outputs"]["u"]
+            if r and ("u" in r["outputs"] or len(r["outputs"]) == 1):
+                o = r["outputs"]["u"] if "u" in r["outputs"] else next(iter(r["outputs"].values()))
                 val = S[k] + o["new"]["all_times"] - o["old"]["all_times"] if r["delta"] else o["new"]["all_times"]
                 changes.append(f"| {os.path.basename(path)} | {k} | L2 over all reference times | {S[k]:.4e} | {val:.4e} |")
                 S[k] = val

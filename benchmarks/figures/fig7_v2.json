@@ -812,26 +812,27 @@
    "u": [
     [
      0.0,
-     0.00017371
+     0.00017254
     ],
     [
      0.25,
-     0.00046563
+     0.00042443
     ],
     [
      0.5,
-     0.0007225
+     0.00061278
     ],
     [
      0.75,
-     0.00086642
+     0.00077457
     ],
     [
      1.0,
-     0.00094567
+     0.00090957
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_bcpinnEq": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -870,26 +871,27 @@
    "u": [
     [
      0.0,
-     0.00061234
+     0.00061215
     ],
     [
      0.25,
-     0.0015595
+     0.0015414
     ],
     [
      0.5,
-     0.0025926
+     0.0025558
     ],
     [
      0.75,
-     0.0033994
+     0.003402
     ],
     [
      1.0,
-     0.0039678
+     0.0040001
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_causal": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -936,26 +938,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.0002627
+     0.00021805
     ],
     [
      0.5,
-     0.00045321
+     0.00034465
     ],
     [
      0.75,
-     0.00048619
+     0.0003559
     ],
     [
      1.0,
-     0.00047637
+     0.00039185
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_causalmsffn": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1002,26 +1005,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00028713
+     0.00024481
     ],
     [
      0.5,
-     0.00049583
+     0.00037903
     ],
     [
      0.75,
-     0.00063685
+     0.00054451
     ],
     [
      1.0,
-     0.00093406
+     0.00093464
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_exact": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1060,26 +1064,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00024093
+     0.00018999
     ],
     [
      0.5,
-     0.00042562
+     0.00030026
     ],
     [
      0.75,
-     0.00045979
+     0.00031243
     ],
     [
      1.0,
-     0.00041937
+     0.00031132
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_growing": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1126,26 +1131,27 @@
    "u": [
     [
      0.0,
-     0.00017371
+     0.00017254
     ],
     [
      0.25,
-     0.00046563
+     0.00042443
     ],
     [
      0.5,
-     0.00071725
+     0.00061072
     ],
     [
      0.75,
-     0.00093296
+     0.00083683
     ],
     [
      1.0,
-     0.00086668
+     0.00081682
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_plain": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1192,26 +1198,27 @@
    "u": [
     [
      0.0,
-     0.00068126
+     0.0006812
     ],
     [
      0.25,
-     0.001763
+     0.0017452
     ],
     [
      0.5,
-     0.002914
+     0.0029061
     ],
     [
      0.75,
-     0.0037469
+     0.0037351
     ],
     [
      1.0,
-     0.0045342
+     0.0045407
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_rar": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1258,26 +1265,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00028364
+     0.00023296
     ],
     [
      0.5,
-     0.00048037
+     0.00036384
     ],
     [
      0.75,
-     0.00050307
+     0.00039003
     ],
     [
      1.0,
-     0.00046632
+     0.00038586
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_rarfull": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1324,26 +1332,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00027793
+     0.00023623
     ],
     [
      0.5,
-     0.00046827
+     0.00035989
     ],
     [
      0.75,
-     0.00050696
+     0.00038677
     ],
     [
      1.0,
-     0.00047235
+     0.00038714
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_rba": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1382,26 +1391,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00024137
+     0.0001989
     ],
     [
      0.5,
-     0.00043824
+     0.00031885
     ],
     [
      0.75,
-     0.00049947
+     0.00035344
     ],
     [
      1.0,
-     0.00045465
+     0.000362
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_sa": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1440,26 +1450,27 @@
    "u": [
     [
      0.0,
-     1.9671e-05
+     5.021e-11
     ],
     [
      0.25,
-     0.00016188
+     7.5478e-05
     ],
     [
      0.5,
-     0.0003454
+     0.00011012
     ],
     [
      0.75,
-     0.00039352
+     0.00010719
     ],
     [
      1.0,
-     0.00031261
+     0.00011434
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_windows": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1498,26 +1509,27 @@
    "u": [
     [
      0.0,
-     0.00017371
+     0.00017254
     ],
     [
      0.25,
-     0.00046563
+     0.00042443
     ],
     [
      0.5,
-     0.00069858
+     0.00055532
     ],
     [
      0.75,
-     0.00080109
+     0.00063912
     ],
     [
      1.0,
-     0.00079312
+     0.00069617
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ac2dmg_windowsEq": {
   "example": "Allen-Cahn 2D – Mattey & Ghosh",
@@ -1556,26 +1568,27 @@
    "u": [
     [
      0.0,
-     0.00061234
+     0.00061215
     ],
     [
      0.25,
-     0.0015595
+     0.0015414
     ],
     [
      0.5,
-     0.0019996
+     0.0019439
     ],
     [
      0.75,
-     0.0022591
+     0.0022071
     ],
     [
      1.0,
-     0.0024178
+     0.0023931
     ]
    ]
-  }
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks"
  },
  "f7v2_ch1d_bcpinn": {
   "example": "Cahn-Hilliard 1D – Wight & Zhao",

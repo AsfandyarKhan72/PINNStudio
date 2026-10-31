@@ -194,32 +194,32 @@ Poisson 2D – disk,invall,,2026,source_term,1.0,1.00009,9e-05,9e-05
 Poisson 2D – disk,invall,,1,source_term,1.0,1.00003,3e-05,3e-05
 Poisson 2D – disk,invall,,2,source_term,1.0,0.999983,1.7e-05,1.7e-05
 Fractional Poisson 2D – unknown order α,base,yes,2026,alpha,1.8,1.80386,0.00214444,0.00214444
-Allen-Cahn 2D – Wight & Zhao,setup,,2026,lambda_,10.0,9.76643,0.023357,0.023357
-Allen-Cahn 2D – Wight & Zhao,setup,,2026,diff_coeff,0.00625,0.00611763,0.0211792,0.023357
-Allen-Cahn 2D – Wight & Zhao,dataw,,2026,lambda_,10.0,3.16939,0.683061,0.683061
-Allen-Cahn 2D – Wight & Zhao,dataw,,2026,diff_coeff,0.00625,0.00211525,0.66156,0.683061
-Allen-Cahn 2D – Wight & Zhao,times,,2026,lambda_,10.0,4.24259,0.575741,0.575741
-Allen-Cahn 2D – Wight & Zhao,times,,2026,diff_coeff,0.00625,0.00273061,0.563102,0.575741
-Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,lambda_,10.0,9.82765,0.017235,0.017235
-Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,diff_coeff,0.00625,0.00615365,0.015416,0.017235
-Allen-Cahn 2D – Wight & Zhao,base,,2026,lambda_,10.0,9.54428,0.045572,0.045572
-Allen-Cahn 2D – Wight & Zhao,base,,2026,diff_coeff,0.00625,0.00598505,0.042392,0.045572
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c1_sq,0.0001,0.000102452,0.02452,0.02452
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c2,1.0,1.00025,0.00025,0.02452
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c1_sq,0.0001,0.000106572,0.06572,0.06572
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c2,1.0,1.00366,0.00366,0.06572
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c1_sq,0.0001,0.000103547,0.03547,0.03547
-Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c2,1.0,1.00065,0.00065,0.03547
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c1_sq,0.0001,0.000104321,0.04321,0.04321
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c2,1.0,1.00173,0.00173,0.04321
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c1_sq,0.0001,0.0001008,0.008,0.010572
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c2,1.0,0.989428,0.010572,0.010572
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c1_sq,0.0001,0.000101499,0.01499,0.01499
-Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c2,1.0,0.999581,0.000419,0.01499
-Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c1_sq,0.0001,0.000107025,0.07025,0.07025
-Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c2,1.0,1.00387,0.00387,0.07025
-Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c1_sq,0.0001,0.000105791,0.05791,0.05791
-Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c2,1.0,1.00367,0.00367,0.05791
+Allen-Cahn 2D – Wight & Zhao,base,,2026,lambda_,10.0,9.92069,0.007931,0.007931
+Allen-Cahn 2D – Wight & Zhao,base,,2026,diff_coeff,0.00625,0.00620447,0.0072848,0.007931
+Allen-Cahn 2D – Wight & Zhao,dataw,,2026,lambda_,10.0,3.13784,0.686216,0.686216
+Allen-Cahn 2D – Wight & Zhao,dataw,,2026,diff_coeff,0.00625,0.00210999,0.662402,0.686216
+Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,lambda_,10.0,10.0536,0.00536,0.0054672
+Allen-Cahn 2D – Wight & Zhao,invall,yes,2026,diff_coeff,0.00625,0.00628417,0.0054672,0.0054672
+Allen-Cahn 2D – Wight & Zhao,setup,,2026,lambda_,10.0,4.84419,0.515581,0.515581
+Allen-Cahn 2D – Wight & Zhao,setup,,2026,diff_coeff,0.00625,0.0037128,0.405952,0.515581
+Allen-Cahn 2D – Wight & Zhao,times,,2026,lambda_,10.0,4.39297,0.560703,0.560703
+Allen-Cahn 2D – Wight & Zhao,times,,2026,diff_coeff,0.00625,0.00283064,0.547098,0.560703
+Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c1_sq,0.0001,0.000107239,0.07239,0.07239
+Allen-Cahn 2D – Mattey & Ghosh,base,,2026,c2,1.0,1.00559,0.00559,0.07239
+Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c1_sq,0.0001,0.000109768,0.09768,0.09768
+Allen-Cahn 2D – Mattey & Ghosh,invall,,2026,c2,1.0,1.00764,0.00764,0.09768
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c1_sq,0.0001,0.000106591,0.06591,0.06591
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2026,c2,1.0,1.00498,0.00498,0.06591
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c1_sq,0.0001,0.000103597,0.03597,0.03597
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,1,c2,1.0,1.00203,0.00203,0.03597
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c1_sq,0.0001,0.000107107,0.07107,0.07107
+Allen-Cahn 2D – Mattey & Ghosh,dataw,,2,c2,1.0,1.00498,0.00498,0.07107
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c1_sq,0.0001,0.000106056,0.06056,0.06056
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2026,c2,1.0,1.00355,0.00355,0.06056
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c1_sq,0.0001,0.000103879,0.03879,0.03879
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,1,c2,1.0,1.00192,0.00192,0.03879
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c1_sq,0.0001,0.000101907,0.01907,0.01907
+Allen-Cahn 2D – Mattey & Ghosh,setup,yes,2,c2,1.0,1.00021,0.00021,0.01907
 Cahn-Hilliard 2D – Wight & Zhao,dataw,,2026,eps_sq,0.0025,0.00252662,0.010648,0.010648
 Cahn-Hilliard 2D – Wight & Zhao,times,,2026,eps_sq,0.0025,0.00250963,0.003852,0.003852
 Cahn-Hilliard 2D – Wight & Zhao,base,yes,2026,eps_sq,0.0025,0.00251042,0.004168,0.004168
@@ -245,14 +245,14 @@ Burgers 2D – Mathias et al.,invall,,2,nu,0.00318309886184,0.00320025,0.0053881
 Burgers 2D – Mathias et al.,times,yes,2026,nu,0.00318309886184,0.00319053,0.00233456,0.00233456
 Burgers 2D – Mathias et al.,times,yes,1,nu,0.00318309886184,0.00318823,0.00161199,0.00161199
 Burgers 2D – Mathias et al.,times,yes,2,nu,0.00318309886184,0.00318394,0.000264251,0.000264251
-Heat 2D,dataw,,2026,alpha,0.4,0.401262,0.003155,0.003155
-Heat 2D,times,,2026,alpha,0.4,0.399697,0.0007575,0.0007575
-Heat 2D,times,,1,alpha,0.4,0.401998,0.004995,0.004995
-Heat 2D,times,,2,alpha,0.4,0.406973,0.0174325,0.0174325
-Heat 2D,invall,,2026,alpha,0.4,0.402561,0.0064025,0.0064025
-Heat 2D,base,yes,2026,alpha,0.4,0.399893,0.0002675,0.0002675
-Heat 2D,base,yes,1,alpha,0.4,0.39915,0.002125,0.002125
-Heat 2D,base,yes,2,alpha,0.4,0.406798,0.016995,0.016995
+Heat 2D,base,,2026,alpha,0.4,0.400273,0.0006825,0.0006825
+Heat 2D,base,,1,alpha,0.4,0.398788,0.00303,0.00303
+Heat 2D,base,,2,alpha,0.4,0.406354,0.015885,0.015885
+Heat 2D,times,yes,2026,alpha,0.4,0.399692,0.00077,0.00077
+Heat 2D,times,yes,1,alpha,0.4,0.39956,0.0011,0.0011
+Heat 2D,times,yes,2,alpha,0.4,0.405931,0.0148275,0.0148275
+Heat 2D,dataw,,2026,alpha,0.4,0.401007,0.0025175,0.0025175
+Heat 2D,invall,,2026,alpha,0.4,0.39833,0.004175,0.004175
 Poisson 3D – sphere,base,yes,2026,source_term,1.0,1.00005,5e-05,5e-05
 Poisson 3D – sphere,dataw,,2026,source_term,1.0,0.999905,9.5e-05,9.5e-05
 Poisson 3D – sphere,invall,,2026,source_term,1.0,1.0004,0.0004,0.0004
@@ -262,9 +262,9 @@ Allen-Cahn 3D – Wight & Zhao,base,yes,1,lambda_,10.0,10.0032,0.00032,0.000368
 Allen-Cahn 3D – Wight & Zhao,base,yes,1,diff_coeff,0.025,0.0249908,0.000368,0.000368
 Allen-Cahn 3D – Wight & Zhao,base,yes,2,lambda_,10.0,9.97804,0.002196,0.002196
 Allen-Cahn 3D – Wight & Zhao,base,yes,2,diff_coeff,0.025,0.0249976,9.6e-05,0.002196
-Heat 3D,dataw,,2026,alpha,0.4,0.398051,0.0048725,0.0048725
-Heat 3D,invall,,2026,alpha,0.4,0.396365,0.0090875,0.0090875
-Heat 3D,base,yes,2026,alpha,0.4,0.400303,0.0007575,0.0007575
+Heat 3D,base,,2026,alpha,0.4,0.398656,0.00336,0.00336
+Heat 3D,dataw,yes,2026,alpha,0.4,0.39911,0.002225,0.002225
+Heat 3D,invall,,2026,alpha,0.4,0.358028,0.10493,0.10493
 Navier-Stokes 3D – Beltrami flow,base,,2026,nu,1.0,0.997797,0.002203,0.002203
 Navier-Stokes 3D – Beltrami flow,lbfgs3,yes,2026,nu,1.0,0.998842,0.001158,0.001158
 Navier-Stokes 3D – Beltrami flow,lbfgs3,yes,1,nu,1.0,0.998265,0.001735,0.001735
