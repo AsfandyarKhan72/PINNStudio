@@ -2,9 +2,11 @@
 #  - Every pull request and every push to the documentation branch builds the site with
 #    `mkdocs build --strict` (any warning, broken internal link or missing page fails the build),
 #    checks external links, and uploads the built site as a downloadable preview artifact.
-#  - Deployment to GitHub Pages happens only on a published release, or when started by hand
-#    from the main branch with deploy=true. It also needs the repository's Pages source set to
-#    "GitHub Actions" (Settings > Pages); until that is switched on, the deploy job does nothing.
+#  - Deployment to GitHub Pages is explicitly controlled and OFF until the maintainers approve publication.
+#    It runs only when ALL of these hold: the workflow is started by hand (Actions > Documentation > Run
+#    workflow) on the main branch with deploy=true, AND the repository variable DOCS_PUBLISH_APPROVED is
+#    set to "true" (Settings > Secrets and variables > Actions > Variables; it does not exist yet), AND the
+#    Pages source is "GitHub Actions" (Settings > Pages). Releases, pushes and pull requests never deploy.
 name: Documentation
 
 on:
@@ -13,8 +15,6 @@ on:
   push:
     branches: ["docs/official-site"]
     paths: ["website/**", "mkdocs.yml", ".github/workflows/docs.yml"]
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       deploy:
@@ -58,14 +58,14 @@ jobs:
           path: _site
           retention-days: 14
       - name: Upload Pages artifact
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_APPROVED == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
   deploy:
     needs: build
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_APPROVED == 'true'
     runs-on: ubuntu-latest
     permissions:
       pages: write

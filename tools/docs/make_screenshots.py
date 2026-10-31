@@ -15,8 +15,11 @@ import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
-# a neutral home folder, so the status bar shows ~/PINNStudio_Results-style paths, not the build machine's
-os.environ["HOME"] = os.environ.get("PINNSTUDIO_DOCS_HOME", "/tmp/home/user")
+# Each run gets a new private home folder (results, settings), so concurrent runs never share or clean up
+# each other's files, and screenshots show no path of the machine they were made on. Nothing is deleted.
+import tempfile  # noqa: E402
+os.environ["HOME"] = os.environ.get("PINNSTUDIO_DOCS_HOME") or os.path.join(
+    tempfile.mkdtemp(prefix="pinnstudio_docs_"), "user")
 os.makedirs(os.environ["HOME"], exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
