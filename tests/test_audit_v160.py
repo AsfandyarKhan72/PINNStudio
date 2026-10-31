@@ -369,5 +369,5 @@ def test_model_checkpoint_with_time_windows_saves_each_window():
     solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
     assert 'f"checkpoint_step{step_i + 1:03d}_best"' in solve
     assert 'f"checkpoint_step{step_i + 1:03d}_best"' in export and "_cb.best, _cb.epochs_since_last_save = np.inf, 0" in export
-    whole = codegen.generate_script(dataclasses.replace(c, time_adaptive=False))
+    whole = codegen.generate_clean_script(dataclasses.replace(c, time_adaptive=False))   # whole interval: unchanged
     assert '"checkpoint_best"' in whole and "checkpoint_step" not in whole
