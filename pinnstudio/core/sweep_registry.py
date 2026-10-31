@@ -565,6 +565,57 @@ def _inv_var_params(config) -> List["SweepParam"]:
     return params
 
 
+def _const_rows(config):
+    import json as _json_c
+    try:
+        rows = _json_c.loads(getattr(config, "constants", "") or "[]")
+    except (ValueError, TypeError):
+        rows = []
+    return [r for r in rows if isinstance(r, dict) and str(r.get("name", "")).strip()] if isinstance(rows, list) else []
+
+
+def _const_get(config, name):
+    """A named constant's current value (constants defined from others are evaluated)."""
+    from pinnstudio.core.codegen import _constant_values
+    try:
+        for n, _e, v in _constant_values(config):
+            if n == name:
+                return v
+    except ValueError:
+        pass
+    return None
+
+
+def _const_set(config, name, value):
+    """Set one named constant to a number; constants defined from it follow."""
+    import json as _json_c
+    rows = _const_rows(config)
+    for r in rows:
+        if str(r.get("name", "")).strip() == name:
+            r["value"] = repr(float(value))
+    config.constants = _json_c.dumps(rows)
+
+
+def _const_params(config) -> List["SweepParam"]:
+    """One entry per named constant of the Equations page (a PDE coefficient
+    such as nu or kappa): the sweep changes its value, and every expression
+    that uses it -- equations, conditions, transforms, the exact-solution
+    reference -- follows (the generators substitute constants)."""
+    params = []
+    for r in _const_rows(config):
+        name = str(r["name"]).strip()
+        v0 = _const_get(config, name)
+        lo, hi = (0.5 * v0, 2.0 * v0) if v0 else (0.0, 1.0)
+        params.append(SweepParam(
+            id=f"const_{name}", label=name, category="Constants",
+            value_type="float", default_min=min(lo, hi), default_max=max(lo, hi),
+            get_value=lambda c, n=name: _const_get(c, n),
+            set_value=lambda c, val, n=name: _const_set(c, n, val),
+            is_available=lambda c, n=name: any(str(x.get("name", "")).strip() == n for x in _const_rows(c)),
+        ))
+    return params
+
+
 def _inv_obs_weight_params(config) -> List["SweepParam"]:
     if not _inv_available(config):
         return []
@@ -1340,6 +1391,7 @@ def available_params(config) -> List[SweepParam]:
     params.extend(_it_scale_params(config))
     params.extend(_ot_scale_params(config))
     params.extend(_method_params(config))
+    params.extend(_const_params(config))
     return [p for p in params if p.is_available(config)]
 
 

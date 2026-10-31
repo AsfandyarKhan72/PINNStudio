@@ -274,3 +274,18 @@ def test_time_window_ic_pretraining_fits_only_outputs_with_an_ic_term():
     s = codegen.generate_script(c)
     assert "for _oi_pt in [0]:" in s and "for _oi_pt in range(2):" not in s
     compile(s, "solve", "exec")
+
+
+def test_named_constants_can_be_swept():
+    """21. A sweep could not change a named constant (a PDE coefficient), although the README says almost any
+    setting can be swept. Each constant is now a sweep parameter; constants defined from it follow."""
+    import copy
+    from pinnstudio.core import sweep_registry as sr
+    c = _dx(next(e.name for e in dx.EXAMPLES if "Helmholtz" in e.name and "Dirichlet" in e.name))
+    ids = [p.id for p in sr.available_params(c) if p.category == "Constants"]
+    assert ids == ["const_n", "const_k0"], ids
+    d = copy.deepcopy(c)
+    sr.get_param("const_n", d).set_value(d, 3)
+    assert abs(sr.get_param("const_k0", d).get_value(d) - 6 * 3.141592653589793) < 1e-9
+    assert "(18.84955592153876)" in codegen.generate_script(d)
+    assert not d.validate()
