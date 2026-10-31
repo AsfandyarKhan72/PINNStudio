@@ -264,3 +264,13 @@ def test_time_windows_on_a_disk_keep_the_domain_grid_after_the_first_window():
     s = codegen.generate_script(c)
     assert "_xg_now = np.asarray(x_grid).reshape(-1, 3 if _is_3d else 2)" in s
     assert "x_grid  = _xyt_pred[:, :2]" not in s and "x_grid  = _xyzt_pred[:, :3]" not in s
+
+
+def test_time_window_ic_pretraining_fits_only_outputs_with_an_ic_term():
+    """20. With time windows, Solve's IC pre-training fitted every output to its IC formula (Cahn-Hilliard's mu,
+    whose IC is off, to the placeholder 0); the export and the whole-interval script fit only the active ICs."""
+    c = dataclasses.replace(_template("2D Cahn-Hilliard (Wight & Zhao)"), time_adaptive=True, ta_num_steps=2,
+                            ic_hard="False,False", ic_active="True,False", ic_pretrain=True)
+    s = codegen.generate_script(c)
+    assert "for _oi_pt in [0]:" in s and "for _oi_pt in range(2):" not in s
+    compile(s, "solve", "exec")

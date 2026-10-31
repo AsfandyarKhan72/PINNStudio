@@ -3148,7 +3148,9 @@ if {config.time_adaptive}:
                 _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
                 _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
             else:
-                for _oi_pt in range({config.num_outputs}):
+                # the outputs whose initial condition is a loss term, as in the
+                # whole-interval script and the export (not an output with its IC off)
+                for _oi_pt in {[i for i, a in enumerate((config.ic_active or '').split(',')[:int(config.num_outputs or 1)]) if a.strip() == 'True']!r}:
                     _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                     def _mk_ic_pt(expr, comp):
                         def _ic_fn(x):
