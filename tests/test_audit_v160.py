@@ -327,3 +327,34 @@ def test_a_condition_with_no_training_point_is_reported():
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
         assert "_warn_empty_conditions(data)" in s and "def _warn_empty_conditions(_d):" in s
         compile(s, "script", "exec")
+
+
+def test_data_files_with_semicolons_missing_values_or_odd_rows_load_the_same_everywhere(tmp_path):
+    """P2: the measured-data and IC-file readers of both scripts took only commas and spaces, kept rows with a
+    missing value (NaN in the data loss) and failed on a row with an extra column, while the window's reader
+    accepted those files. All of them now read ';' too, skip rows with a missing value or an odd number of
+    columns (the most common row length wins) and say how many rows they skipped."""
+    import re
+    import textwrap
+    import numpy as np
+    from pinnstudio.core import obs_reduce
+    c = _dx("Inverse: diffusion equation")
+    srcs = {"export": (codegen.generate_clean_script(c), "_load_obs_data"),
+            "solve": (codegen.generate_script(c), "_load_data")}
+    loaders = {}
+    for k, (src, name) in srcs.items():
+        m = re.search(r"^( *)def " + name + r"\(.*?(?=^\1\S|\Z)", src, re.S | re.M)
+        ns = {"np": np}
+        exec(textwrap.dedent(m.group(0)), ns)
+        loaders[k] = ns[name]
+    files = {"semi.txt": "x;t;u\n0.1;0.5;1.0\n0.2;0.5;2.0\n0.3;0.5;3.0\n",
+             "nan.txt": "0.1 0.5 1.0\n0.2 0.5 nan\n0.3 0.5 3.0\n",
+             "odd.txt": "0.1,0.5,1.0\n0.2,0.5,2.0,9\n0.3,0.5,3.0\n0.4,0.5,4.0\n"}
+    for name, text in files.items():
+        p = tmp_path / name
+        p.write_text(text)
+        shapes = {k: f(str(p)).shape for k, f in loaders.items()}
+        shapes["window"] = obs_reduce.read_points(str(p)).shape
+        assert len(set(shapes.values())) == 1, (name, shapes)
+        assert all(np.isfinite(loaders["export"](str(p))).all() for _ in [0])
+    assert loaders["export"](str(tmp_path / "odd.txt")).shape == (3, 3)

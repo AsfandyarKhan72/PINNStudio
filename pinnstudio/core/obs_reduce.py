@@ -43,8 +43,11 @@ def read_points(path):
                     continue
     except OSError:
         return None
-    width = max((len(r) for r in rows), default=0)
+    lens = [len(r) for r in rows]
+    width = max(set(lens), key=lambda w: (lens.count(w), w)) if lens else 0   # the most common row length
     data = np.array([r for r in rows if len(r) == width]) if rows else np.zeros((0, 0))
+    if data.size:   # rows with a missing value (NaN) are skipped, as the generated scripts skip them
+        data = data[np.all(np.isfinite(data), axis=1)]
     if len(_cache) > 32:
         _cache.clear()
     _cache[key] = data

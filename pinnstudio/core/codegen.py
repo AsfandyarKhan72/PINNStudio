@@ -5772,14 +5772,27 @@ _v1d = {v1!r}
 # a file covering the whole time range works fine, only its t=t_min
 # slice is used as the IC.
 def _load_ic_from_file(_path):
-    _rows = []
-    with open(_path) as _fh:                 # commas or spaces; header/comment lines skipped
-        for _line in _fh:
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(_path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                _rows.append([float(_v) for _v in _line.replace(",", " ").split()])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    _raw = np.array([_r for _r in _rows if _r])
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(_path) + " skipped (a missing value, or a different number of columns)")
+    _raw = data_
     _n_coord = 3 if _is_3d else (2 if _is_2d else 1)
     _t_col = _n_coord
     _v_col = _n_coord + 1
@@ -5837,21 +5850,30 @@ if _problem_type == "Inverse":
     _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
-        # Numbers separated by commas or spaces; a header line, comments
-        # (# or %) and blank lines are skipped -- and only those (the first
-        # line used to be dropped always, losing a point of a file without
-        # a header).
-        _rows = []
-        with open(fpath) as _fh:
-            for _line in _fh:
-                _parts = _line.replace(",", " ").split()
-                if not _parts or _parts[0][0] in "#%":
+        # Numbers separated by commas, semicolons or spaces; header, comment
+        # (# or %) and blank lines skipped; rows with a missing value (NaN) or
+        # a different number of columns skipped with a note -- as the window
+        # reads the file, and as Error Analysis reads reference files.
+        rows_ = []
+        with open(fpath, encoding="utf-8", errors="replace") as fh_:
+            for line_ in fh_:
+                parts_ = line_.replace(",", " ").replace(";", " ").split()
+                if not parts_ or parts_[0][0] in "#%":
                     continue
                 try:
-                    _rows.append([float(_v) for _v in _parts])
+                    rows_.append([float(v_) for v_ in parts_])
                 except ValueError:
                     continue
-        return np.array(_rows)
+        lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+        data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+        n_bad_ = len(rows_) - len(data_)
+        if width_:
+            ok_ = np.all(np.isfinite(data_), axis=1)
+            n_bad_ += int((~ok_).sum())
+            data_ = data_[ok_]
+        if n_bad_:
+            print("  Note: " + str(n_bad_) + " row(s) of " + str(fpath) + " skipped (a missing value, or a different number of columns)")
+        return data_
 
     # Number of leading coordinate columns in a measured-data file (before
     # its value column): x/y/z plus a time column, EXCEPT for a steady-state
@@ -9980,7 +10002,8 @@ def _load_ref(_path):
                 _rows.append([float(_v) for _v in _re.split(r"[,\\s;]+", _ln) if _v])
             except ValueError:
                 continue
-    _w = max((len(_r) for _r in _rows), default=0)
+    _lens = [len(_r) for _r in _rows]
+    _w = max(set(_lens), key=lambda _x: (_lens.count(_x), _x)) if _lens else 0   # the most common row length
     if not _w:
         return np.zeros((0, 0))
     _d = np.array([_r for _r in _rows if len(_r) == _w], dtype=float)
@@ -11917,15 +11940,27 @@ if save_dir:
     coordinate column per spatial axis, then time, then value -- e.g.
     "x, t, u" in 1D. Only the rows already at t = {config.t_min} (the
     domain's start time) are used."""
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
-                continue                     # a header or comment line
-    raw = np.array([r for r in rows if r])
+                continue
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    raw = data_
     n_coord = {n_coord}
     t_col, v_col = n_coord, n_coord + 1
     mask = np.abs(raw[:, t_col] - {config.t_min}) < 1e-8
@@ -12011,18 +12046,28 @@ if save_dir:
         inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
-    # numbers separated by commas or spaces; header, comment and blank lines skipped
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
-            if not parts or parts[0][0] in "#%":
+    # numbers separated by commas, semicolons or spaces; header, comment and blank lines skipped;
+    # rows with a missing value (NaN) or a different number of columns skipped with a note
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
                 continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    return np.array(rows)
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    return data_
 ''')
         # Number of leading coordinate columns in a measured-data file --
         # x/y/z plus time, EXCEPT for a steady-state problem, which has no
