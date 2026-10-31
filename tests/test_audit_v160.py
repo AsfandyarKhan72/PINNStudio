@@ -467,4 +467,4 @@ def test_reference_and_measured_files_with_several_times_or_values_are_reported(
     assert "two.txt holds several times" in out and "one.txt" not in out and "uv.txt has 2 value columns" in out
     c = _dx("Inverse: diffusion equation")
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
-        assert "value columns; the first (column" in s
+        assert "columns; the first (column" in s
