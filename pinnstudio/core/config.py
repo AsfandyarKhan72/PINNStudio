@@ -976,6 +976,16 @@ class PINNConfig:
             elif not _periodic_axes(self):
                 errors.append("Exact periodicity: no boundary condition is periodic -- add a periodic BC row "
                               "(or untick 'Exact periodicity' on the Boundary Conditions page).")
+            else:
+                # The periodic input features make every output periodic in that
+                # axis; an output with no periodic condition there would be too.
+                _not_per = _outputs_not_periodic(self)
+                if _not_per:
+                    _nm = [n.strip() for n in (self.output_names or "u").split(",")]
+                    errors.append("Exact periodicity makes every output periodic, but "
+                                  + ", ".join(f"{_nm[o] if o < len(_nm) else o} has no periodic boundary condition in {a}"
+                                              for o, a in _not_per)
+                                  + " -- add a periodic BC row for it, or untick 'Exact periodicity'.")
             if self.input_transform_enabled:
                 errors.append("Exact periodicity can't be combined with the Network page's input transform -- "
                               "turn the input transform off, or write the cos/sin features into its formula yourself.")
@@ -1568,6 +1578,38 @@ def use_training_phases(config):
             config.optimizer_scheduler = True
             config.scheduler_same_weights = True
     return config
+
+
+def _outputs_not_periodic(config):
+    """[(output, axis)]: a periodic axis on which the output has no periodic
+    boundary condition (Boundary Conditions rows, or the legacy per-side types)."""
+    import json as _json_np
+    axes = _periodic_axes(config)
+    if not axes:
+        return []
+    n = int(config.num_outputs or 1)
+    try:
+        rows = _json_np.loads(config.custom_bc_json) if (config.custom_bc_json or "").strip() else []
+    except ValueError:
+        rows = []
+    if not rows:
+        lt = [t.strip() for t in (config.bc_left_types or "").split(",")]
+        bt = [t.strip() for t in (config.bc_bottom_types or "").split(",")]
+        out = []
+        for o in range(n):
+            if "x" in axes and (o >= len(lt) or lt[o] != "Periodic"):
+                out.append((o, "x"))
+            if "y" in axes and (o >= len(bt) or bt[o] != "Periodic"):
+                out.append((o, "y"))
+        return out
+    have = set()
+    for r in rows:
+        if isinstance(r, dict) and str(r.get("type", "")).lower() == "periodic":
+            try:
+                have.add((int(r.get("component", 0) or 0), str(r.get("axis", "x") or "x")))
+            except (TypeError, ValueError):
+                pass
+    return [(o, a) for a in axes for o in range(n) if (o, a) not in have]
 
 
 def _periodic_axes(config):

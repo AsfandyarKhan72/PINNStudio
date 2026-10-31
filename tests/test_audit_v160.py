@@ -215,3 +215,20 @@ def test_error_analysis_names_the_field_a_plain_reference_file_is_compared_with(
     problem with more than one output the log now says which."""
     s = codegen.generate_script(_template("2D Cahn-Hilliard (Wight & Zhao)"))
     assert "Reference files without an output name are compared with the plotted field" in s
+
+
+def test_exact_periodicity_needs_a_periodic_condition_for_every_output():
+    """17. Exact periodicity makes every output periodic; an output without a periodic condition on that axis
+    was silently made periodic too."""
+    import json as _j
+    c = _dx("ODE system")
+    c = dataclasses.replace(c, problem_dim="1D", output_names="u,v", num_outputs=2, periodic_inputs=True,
+                            pde_expressions="du_t - du_xx|dv_t - dv_xx", ic_expressions="sin(pi*x)|0",
+                            ic_active="True,True", t_min=0.0, t_max=1.0, x_min=0.0, x_max=2.0)
+    both = _j.dumps([{"type": "periodic", "component": 0, "axis": "x", "location": "True", "value": "0"},
+                     {"type": "periodic", "component": 1, "axis": "x", "location": "True", "value": "0"}])
+    one = _j.dumps([{"type": "periodic", "component": 0, "axis": "x", "location": "True", "value": "0"},
+                    {"type": "dirichlet", "component": 1, "location": "True", "value": "0"}])
+    assert not any("makes every output periodic" in e for e in dataclasses.replace(c, custom_bc_json=both).validate())
+    errs = dataclasses.replace(c, custom_bc_json=one).validate()
+    assert any("v has no periodic boundary condition in x" in e for e in errs), errs
