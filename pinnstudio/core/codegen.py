@@ -6563,9 +6563,16 @@ def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
         else:
             _loc = _bc_loc_fn(_be.get('location', '') or '')
             _cand = _gt.random_boundary_points(max(20 * _n, 200))
-            _pts = np.array([_p for _p in _cand if _loc(_p, True)][:_n])
+            _sel = [_p for _p in _cand if _loc(_p, True)]
+            for _more in range(5):     # a small Where region: draw more candidates until n match
+                if len(_sel) >= _n:
+                    break
+                _sel += [_p for _p in _gt.random_boundary_points(max(20 * _n, 200) * 4 ** (_more + 1)) if _loc(_p, True)]
+            _pts = np.array(_sel[:_n])
             if len(_pts) == 0:
                 raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}}: no boundary points match its Where expression.")
+            if len(_pts) < _n:
+                print(f"  Note: {{_bc_label}}: only {{len(_pts)}} of {{_n}} boundary points found where its Where expression holds.")
     _formulas = [_f for _f in (_be.get('values_formula', '') or '0').split("|")]
     if len(_formulas) < _n_values:
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs {{_n_values}} value formula(s), "
@@ -9321,7 +9328,16 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                 ploc = _np_math_expr((entry.get('location', '') or '').strip() or 'True')
                 D += loc_fn(f"_bc{i}_ploc", ploc)
                 A.append(f"_cand{i} = geomtime.random_boundary_points({max(20 * npts, 200)})")
-                A.append(f"_pts{i} = np.array([p for p in _cand{i} if _bc{i}_ploc(p, True)][:{npts}])")
+                A.append(f"_sel{i} = [p for p in _cand{i} if _bc{i}_ploc(p, True)]")
+                A.append(f"for _more in range(5):   # a small Where region: draw more candidates until {npts} match")
+                A.append(f"    if len(_sel{i}) >= {npts}:")
+                A.append(f"        break")
+                A.append(f"    _sel{i} += [p for p in geomtime.random_boundary_points({max(20 * npts, 200)} * 4 ** (_more + 1)) if _bc{i}_ploc(p, True)]")
+                A.append(f"_pts{i} = np.array(_sel{i}[:{npts}])")
+                A.append(f"if len(_pts{i}) == 0:")
+                A.append(f"    raise RuntimeError('BC {i + 1}: no boundary points match its Where expression.')")
+                A.append(f"if len(_pts{i}) < {npts}:")
+                A.append(f"    print(f'  Note: BC {i + 1}: only {{len(_pts{i})}} of {npts} boundary points found where its Where expression holds.')")
         if vmode == 'formula':
             forms = [(f.strip() or "0") for f in (entry.get('values_formula', '') or '0').split("|")]
             if len(forms) < n_values:

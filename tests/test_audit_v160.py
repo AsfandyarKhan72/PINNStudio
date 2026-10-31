@@ -431,3 +431,18 @@ def test_tuned_settings_of_field_identification_examples_are_offered():
         out, msg = es.settings_for(c, name, False, es.TUNED)
         assert msg.startswith("Tuned settings: ") and "none for this example" not in msg, msg
     assert es._mode_key("1D Burgers", False) == "forward" and es._mode_key("1D Burgers", True) == "inverse"
+
+
+def test_point_set_boundary_points_reach_the_requested_count():
+    """P2: 'generate on boundary' drew max(20n, 200) candidates once, so a small Where region silently got fewer
+    than n points (only Solve stopped at zero). Both scripts now draw more candidates until n match, say when
+    they still fall short, and stop when none match."""
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    rows.append({"type": "pointset", "component": 0, "location": "x > 0.99 and y < 0.02", "value": "0",
+                 "points_mode": "generate", "points_count": 50, "points_where": "boundary", "values_mode": "formula",
+                 "values_formula": "0", "points_file": ""})
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows))
+    solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
+    assert "* 4 ** (_more + 1)" in solve and "* 4 ** (_more + 1)" in export
+    assert "no boundary points match its Where expression" in export
