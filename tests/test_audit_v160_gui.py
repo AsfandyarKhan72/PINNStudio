@@ -52,3 +52,25 @@ def test_ic_file_anchors_has_a_checkbox_and_survives_save_and_open():
     w2.ic_from_file[0].setChecked(False)              # no IC file: the setting has no meaning
     assert w2._build_config().ic_file_anchors is False
     w.close(); w2.close()
+
+
+def test_one_precision_setting_and_restore_uses_it():
+    """P2: Settings > Float Precision and the Training page's Precision were two controls; float64 in either ran the
+    whole training in float64, but the status bar and the log showed only the first, and model_config.json did not
+    record it, so Restore always rebuilt the model in float32."""
+    w = _window()
+    w.lbfgs_float_combo.setCurrentText("float64")
+    _settle(0.1)
+    c = w._build_config()
+    assert (c.float_type, c.lbfgs_float_type) == ("float64", "float64") and w.status_env.text().startswith("float64")
+    w2 = _window()
+    w2._apply_config(dataclasses.replace(c, float_type="float32", lbfgs_float_type="float64"))
+    _settle(0.2)
+    c2 = w2._build_config()
+    assert (c2.float_type, c2.lbfgs_float_type) == ("float64", "float64")
+    s = codegen.generate_script(c2)
+    assert 'Float type:   {_effective_float}' in s and '"float_type": _effective_float' in s
+    mc = dict(dataclasses.asdict(c2), float_type="float64")       # what model_config.json holds
+    rs = w2._build_restore_script("m.pt", mc, "adam", "Line", 0, 3, "/tmp")
+    assert "dde.config.set_default_float('float64')" in rs
+    w.close(); w2.close()

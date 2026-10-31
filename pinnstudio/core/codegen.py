@@ -3761,6 +3761,7 @@ if {config.time_adaptive}:
                 "z_min": {config.z_min}, "z_max": {config.z_max},
                 "t_min": t0, "t_max": t1,
                 "problem_dim": "{config.problem_dim}",
+                "float_type": _effective_float,
                 "loss_type": "{config.loss_type}",
                 "optimizer": "{config.optimizer}",
                 "optimizer2": "{config.optimizer2}",
@@ -5664,7 +5665,7 @@ if torch.cuda.is_available():
     print(f"   Total memory: {{_total / 1e9:.1f}} GB")
     print(f"   Available:    {{_free / 1e9:.1f}} GB")
     print(f"   TF32:         False")
-    print(f"   Float type:   {config.float_type}")
+    print(f"   Float type:   {{_effective_float}}")
     print(f"   cuDNN bench:  False")
 {_small_gpu_tip}else:
 {_no_gpu_line}
@@ -5737,6 +5738,7 @@ if _use_save:
         "optimizer2": {repr(config.optimizer2)},
         "loss_type": {repr(config.loss_type)},
         "problem_type": {config.problem_type!r},
+        "float_type": _effective_float,
         "inverse_variables": {_mc_inv_vars_literal},
         {_transform_config_literal(config)}
     }}

@@ -3355,6 +3355,8 @@ class MainWindow(QMainWindow):
         _prec_lbl.setToolTip(_prec_tip); self.lbfgs_float_combo.setToolTip(_prec_tip)
         _prec_row.addStretch(); _prec_row.addWidget(self.lbfgs_float_combo)
         train_layout.addLayout(_prec_row)
+        # One precision setting: this combo and Settings > Float Precision show the same value
+        self.lbfgs_float_combo.currentTextChanged.connect(self._on_precision_changed)
         self.opt2_combo.currentTextChanged.connect(self._on_opt2_changed)
 
         # ── Training Callbacks (optional) ───────────────────────
@@ -10749,8 +10751,13 @@ class MainWindow(QMainWindow):
         self.lbfgs_maxfun.setValue(config.lbfgs_maxfun)
         self.lbfgs_maxls.setValue(config.lbfgs_maxls)
         if hasattr(self, "lbfgs_float_combo"):
-            self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
-        self._float_type = config.float_type
+            # A problem saved with the two precision fields different ran in float64
+            # (codegen's _effective_float): it opens showing that one precision.
+            self.lbfgs_float_combo.setCurrentText(
+                "float64" if "float64" in (config.float_type, config.lbfgs_float_type) else "float32")
+        self._float_type = ("float64" if "float64" in (config.float_type, getattr(config, "lbfgs_float_type", "float32"))
+                            else "float32")
+        self._refresh_status_env()
         self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
         self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
         self._train_device = getattr(config, 'train_device', "auto") or "auto"
@@ -11934,6 +11941,13 @@ class MainWindow(QMainWindow):
         self._refresh_status_env()
         self.save_dir_input.textChanged.connect(self._refresh_status_env)
 
+    def _on_precision_changed(self, text):
+        """Training > Precision and Settings > Float Precision are one setting:
+        float64 in either ran the whole training in float64."""
+        if text in ("float32", "float64"):
+            self._float_type = text
+            self._refresh_status_env()
+
     def _refresh_status_env(self, *_a):
         if not hasattr(self, 'status_env'):
             return
@@ -12444,7 +12458,9 @@ class MainWindow(QMainWindow):
         ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
-            self._float_type = self._float_combo.currentText()
+            self._on_precision_changed(self._float_combo.currentText())
+            if hasattr(self, "lbfgs_float_combo"):
+                self.lbfgs_float_combo.setCurrentText(self._float_type)
             self.log_box.append(f"✅ Float precision set to: {self._float_type}")
             dialog.accept()
 
@@ -17309,6 +17325,7 @@ print("RESTORE_DONE")
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+dde.config.set_default_float({str(cfg.get("float_type", "float32"))!r})   # the precision the model was trained in
 
 import torch as _torch_dev
 if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
@@ -17700,6 +17717,7 @@ def _extract_plot_field(x_grid):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+dde.config.set_default_float({str(cfg.get("float_type", "float32"))!r})   # the precision the model was trained in
 
 import torch as _torch_dev
 if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
