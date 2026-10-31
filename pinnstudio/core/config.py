@@ -67,6 +67,10 @@ class PINNConfig:
     ta_backward_weight: float = 100.0
     ta_backward_times: int = 10
     ta_backward_points: int = 2000
+    # Seed for choosing bc-PINN's stored points: -1 (default) follows the run's
+    # seed setting; the benchmark configurations set 1234 explicitly (the value
+    # their recorded runs used).
+    ta_backward_seed: int = -1
     ta_icgl_fraction: float = 0.0
 
     parametric_study: bool = False

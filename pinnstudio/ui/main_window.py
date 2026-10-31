@@ -6801,6 +6801,7 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"   Inverse: {ex.inverse_note}")
 
     def _on_quick_example_selected(self, text):
+        self._ta_backward_seed = -1      # a seed kept from an opened problem file does not carry over
         self._loading_example = True
         try:
             self._on_quick_example_selected_impl(text)
@@ -9771,6 +9772,7 @@ class MainWindow(QMainWindow):
             ta_backward_weight=self.ta_backward_w.value(),
             ta_backward_times=self.ta_backward_nt.value(),
             ta_backward_points=self.ta_backward_np.value(),
+            ta_backward_seed=int(getattr(self, '_ta_backward_seed', -1)),   # no widget: kept from an opened problem
             ta_icgl_fraction=self.ta_icgl.value(),
             ta_resample_rounds=self.ta_rs_rounds.value(),
             ta_resample_points=self.ta_rs_points.value(),
@@ -10730,6 +10732,7 @@ class MainWindow(QMainWindow):
         self._cpu_threads = int(getattr(config, 'cpu_threads', 0) or 0)
         self._use_random_seed = getattr(config, 'use_random_seed', True)
         self._random_seed = getattr(config, 'random_seed', 2026)
+        self._ta_backward_seed = int(getattr(config, 'ta_backward_seed', -1))
 
         # Optimizer settings
         self._optimizer_settings = {

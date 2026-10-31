@@ -232,3 +232,25 @@ def test_exact_periodicity_needs_a_periodic_condition_for_every_output():
     assert not any("makes every output periodic" in e for e in dataclasses.replace(c, custom_bc_json=both).validate())
     errs = dataclasses.replace(c, custom_bc_json=one).validate()
     assert any("v has no periodic boundary condition in x" in e for e in errs), errs
+
+
+def test_bc_pinn_stored_points_follow_the_run_seed():
+    """18. bc-PINN chose its stored points with np.random.default_rng(1234) whatever the seed setting. They now
+    follow the run's seed (unseeded with 'Use random seed' off); the benchmark configurations keep 1234
+    explicitly, the seed their recorded runs used."""
+    from pinnstudio.core import paper_settings as ps
+    sys.path.insert(0, os.path.join(HERE, "..", "benchmarks"))
+    import study_runner as sr
+    c = dataclasses.replace(_template("1D Allen-Cahn (whole interval)"), time_adaptive=True, ta_num_steps=2,
+                            ta_backward=True, use_random_seed=True, random_seed=7)
+    assert c.ta_backward_seed == -1
+    assert "np.random.default_rng(7).choice(len(_sp_all)" in codegen.generate_script(c)
+    assert "np.random.default_rng().choice(len(_sp_all)" in codegen.generate_script(
+        dataclasses.replace(c, use_random_seed=False))
+    assert "1234" not in codegen.generate_script(c)
+    mg = ps.apply(_template("1D Cahn-Hilliard (Mattey & Ghosh)"), "paper_mg", "1D Cahn-Hilliard (Mattey & Ghosh)")
+    assert mg.ta_backward and mg.ta_backward_seed == 1234
+    assert "np.random.default_rng(1234).choice(len(_sp_all)" in codegen.generate_script(mg)
+    st = dataclasses.replace(c, ta_backward=False)
+    sr.apply_setup(st, "Time-adaptive + backward", {})
+    assert st.ta_backward and st.ta_backward_seed == 1234

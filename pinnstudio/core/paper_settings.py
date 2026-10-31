@@ -93,6 +93,8 @@ def _windows(cfg, n, backward=False, growing=False, icgl=0.0, bc_w=100.0, bc_tim
     cfg.ta_backward_weight = float(bc_w)
     cfg.ta_backward_times = int(bc_times)
     cfg.ta_backward_points = int(bc_points)
+    if backward:
+        cfg.ta_backward_seed = 1234      # the seed the recorded bc-PINN runs used
     cfg.ta_resample_rounds = 0
 
 

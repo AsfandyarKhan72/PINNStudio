@@ -104,6 +104,7 @@ def apply_setup(cfg, setup, run):
                 cfg.ta_num_steps = sum(g["steps"] for g in run["windows"])
         elif sw == "backward":       # later windows are held to the stored solution of the earlier ones
             cfg.ta_backward = True
+            cfg.ta_backward_seed = 1234     # the seed the recorded bc-PINN runs used
         elif sw == "growing":        # one network on [t0, t], t growing window by window
             cfg.ta_growing = True
         elif sw == "rar":            # points with the largest residual added in rounds (rar_* from "extra")

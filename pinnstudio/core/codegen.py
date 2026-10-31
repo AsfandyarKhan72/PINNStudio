@@ -2617,6 +2617,18 @@ def _first_adam_lr(config):
     return float(config.learning_rate)
 
 
+def _bc_rng_code(config):
+    """The generator bc-PINN draws its stored points with: an explicit
+    ta_backward_seed (the benchmarks: 1234), else the run's seed when 'Use
+    random seed' is on, else unseeded."""
+    s = int(getattr(config, "ta_backward_seed", -1))
+    if s >= 0:
+        return f"np.random.default_rng({s})"
+    if getattr(config, "use_random_seed", True):
+        return f"np.random.default_rng({int(config.random_seed)})"
+    return "np.random.default_rng()"
+
+
 def _icgl_outputs(config):
     """The outputs initial-condition guided learning fits in the first
     window: those with an initial condition (a loss term or exact), output 0
@@ -3374,7 +3386,7 @@ if {config.time_adaptive}:
         if _ta_bc and step_i < n_steps - 1:
             _sp_all = np.asarray(x_grid).reshape(len(prev_u), -1)
             if len(_sp_all) > _ta_bc_np:
-                _sp_all = _sp_all[np.random.default_rng(1234).choice(len(_sp_all), _ta_bc_np, replace=False)]
+                _sp_all = _sp_all[{_bc_rng_code(config)}.choice(len(_sp_all), _ta_bc_np, replace=False)]
             _ta_bc_times = sorted(set(_ta_bc_times) | set(np.round(np.linspace(t0, t1, _ta_bc_nt + 1)[:-1], 12).tolist()) | {{float(t1)}})
             _ta_bc_pts = np.vstack([np.column_stack([_sp_all, np.full(len(_sp_all), _tv)]) for _tv in _ta_bc_times])
             _ta_bc_vals = model_i.predict(_ta_bc_pts)
