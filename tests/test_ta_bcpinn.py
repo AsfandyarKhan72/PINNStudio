@@ -41,7 +41,7 @@ def test_script_settings_and_compiles():
     s = generate_script(_cfg(ta_transfer_learning=True, ta_backward=True, ta_backward_weight=64.0,
                              ta_backward_times=7, ta_backward_points=128, ta_icgl_fraction=0.1, iterations=1000))
     for want in ("_ta_bc = True", "_ta_bc_w = 64.0", "_ta_bc_nt = 7", "_ta_bc_np = 128", "_ta_icgl_iters = 100",
-                 "_ta_growing = False", "loss_weights=_wx(_multi_weights)"):
+                 "_ta_growing = False", "loss_weights=_wx(_ta_w(_multi_weights))"):
         assert want in s, want
     compile(s, "<script>", "exec")
     off = generate_script(_cfg())
