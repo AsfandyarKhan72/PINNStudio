@@ -254,3 +254,13 @@ def test_bc_pinn_stored_points_follow_the_run_seed():
     st = dataclasses.replace(c, ta_backward=False)
     sr.apply_setup(st, "Time-adaptive + backward", {})
     assert st.ta_backward and st.ta_backward_seed == 1234
+
+
+def test_time_windows_on_a_disk_keep_the_domain_grid_after_the_first_window():
+    """19. Solve's script rebuilt the whole bounding-box grid at the end of every window, so from the second
+    window on points outside a disk/polygon were held to the network's extrapolation again (the export kept the
+    domain grid). Both now predict on the window grid itself."""
+    c = dataclasses.replace(_template("2D Heat"), time_adaptive=True, ta_num_steps=3, geometry_type="Disk")
+    s = codegen.generate_script(c)
+    assert "_xg_now = np.asarray(x_grid).reshape(-1, 3 if _is_3d else 2)" in s
+    assert "x_grid  = _xyt_pred[:, :2]" not in s and "x_grid  = _xyzt_pred[:, :3]" not in s

@@ -3356,23 +3356,14 @@ if {config.time_adaptive}:
             lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
 
-        if _is_3d:
-            # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _z_pred = np.linspace({config.z_min}, {config.z_max}, grid_size)
-            _Xp, _Yp, _Zp = np.meshgrid(_x_pred, _y_pred, _z_pred)
-            _xyzt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), _Zp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyzt_pred)
-            x_grid  = _xyzt_pred[:, :3]  # store (x,y,z) triples for next step's PointSetBC
-        elif _is_2d:
-            # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
-            _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyt_pred)
-            x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
+        if _is_3d or _is_2d:
+            # 2D/3D: predict at t=t1 on the window grid itself -- the box grid,
+            # or only its points in the domain for a disk, polygon or custom
+            # shape (rebuilding the whole box grid here brought the points
+            # outside the domain back from the second window on)
+            _xg_now = np.asarray(x_grid).reshape(-1, 3 if _is_3d else 2)
+            prev_u  = model_i.predict(np.column_stack([_xg_now, np.full(len(_xg_now), t1)]))
+            x_grid  = _xg_now  # the (x,y[,z]) points for the next window's PointSetBC
         else:
             x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
             t_pred  = np.full_like(x_pred, t1)
