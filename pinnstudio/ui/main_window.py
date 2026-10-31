@@ -8273,13 +8273,22 @@ class MainWindow(QMainWindow):
             ic_file_widget.setVisible(False)
             self.bc_main_layout.addWidget(ic_file_widget)
             self.ic_file_paths.append(ic_file_path)
+            # The file's points can also be collocation points of the equation
+            # (PINNConfig.ic_file_anchors; Solve and the export both use it).
+            ic_anch_cb = QCheckBox("Also check the equation at the file's points")
+            ic_anch_cb.setToolTip("Adds the IC file's points as anchors: the equation's residual is also\n"
+                                  "evaluated there, not only the initial-condition loss.\n"
+                                  "Not used with time windows (each window has its own initial points).")
+            ic_anch_cb.setVisible(False)
+            self.bc_main_layout.addWidget(ic_anch_cb)
+            self.ic_file_anchor_cb = ic_anch_cb
 
             # Formula or file, never both: with the file on, the formula's
             # "IC for" box and the exact option are off and can't be ticked
             # (the file always won, so a ticked formula did nothing).
             ic_file_cb.stateChanged.connect(
-                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act, hard=ic_hard:
-                (w.setVisible(state == 2), inp.setVisible(state != 2),
+                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act, hard=ic_hard, an=ic_anch_cb:
+                (w.setVisible(state == 2), an.setVisible(state == 2), inp.setVisible(state != 2),
                  hard.setChecked(False) if state == 2 else None,
                  hard.setEnabled(state != 2),
                  act.setChecked(state != 2), act.setEnabled(state != 2),
@@ -8291,6 +8300,16 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(_bc_container)
 
         self._update_bc_mode_visibility()
+
+    def _ic_file_anchors_checked(self):
+        """The 'Also check the equation at the file's points' box, when the IC
+        comes from a file (the box belongs to output 0's file row)."""
+        try:
+            cb = getattr(self, "ic_file_anchor_cb", None)
+            on_file = bool(self.ic_from_file and self.ic_from_file[0] is not None and self.ic_from_file[0].isChecked())
+            return bool(cb is not None and on_file and cb.isChecked())
+        except RuntimeError:          # deleted with a rebuilt row
+            return False
 
     def _is_custom_problem(self):
         """True when no Quick Example template is selected -- i.e. the user
@@ -9671,6 +9690,7 @@ class MainWindow(QMainWindow):
                 and self.ic_from_file[i].isChecked()
                 for i in range(n_out)
             ),
+            ic_file_anchors=self._ic_file_anchors_checked(),
             forward_ic_file=next(
                 (self.ic_file_paths[i].text().strip()
                  for i in range(n_out)
@@ -10513,6 +10533,11 @@ class MainWindow(QMainWindow):
                     self.ic_from_file[i].setChecked(i == 0)
                     if i == 0 and i < len(self.ic_file_paths) and self.ic_file_paths[i] is not None:
                         self.ic_file_paths[i].setText(config.forward_ic_file)
+        try:
+            if getattr(self, "ic_file_anchor_cb", None) is not None:
+                self.ic_file_anchor_cb.setChecked(bool(getattr(config, "ic_file_anchors", False)))
+        except RuntimeError:          # the row was rebuilt
+            pass
 
         # Domain
         self.x_min.setValue(config.x_min); self.x_max.setValue(config.x_max)
