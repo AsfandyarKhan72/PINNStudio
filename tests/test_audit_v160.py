@@ -358,3 +358,16 @@ def test_data_files_with_semicolons_missing_values_or_odd_rows_load_the_same_eve
         assert len(set(shapes.values())) == 1, (name, shapes)
         assert all(np.isfinite(loaders["export"](str(p))).all() for _ in [0])
     assert loaders["export"](str(tmp_path / "odd.txt")).shape == (3, 3)
+
+
+def test_model_checkpoint_with_time_windows_saves_each_window():
+    """P2: with time windows, Solve's checkpoints of every window had the same name (each window's model counts
+    from step 0 again, so later windows overwrote earlier ones), and the export shared one ModelCheckpoint across
+    windows (its 'best' loss carried over). Both now save checkpoint_stepNNN_best-<step>.pt per window."""
+    c = dataclasses.replace(_template("1D Burgers"), time_adaptive=True, ta_num_steps=2, cb_model_checkpoint=True,
+                            cb_checkpoint_period=10, cb_checkpoint_save_better_only=True)
+    solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
+    assert 'f"checkpoint_step{step_i + 1:03d}_best"' in solve
+    assert 'f"checkpoint_step{step_i + 1:03d}_best"' in export and "_cb.best, _cb.epochs_since_last_save = np.inf, 0" in export
+    whole = codegen.generate_script(dataclasses.replace(c, time_adaptive=False))
+    assert '"checkpoint_best"' in whole and "checkpoint_step" not in whole

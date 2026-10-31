@@ -1038,7 +1038,8 @@ def _training_methods_cbs(config, var_name, pad):
     return lines
 
 
-def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir"):
+def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir",
+                          ckpt_name='"checkpoint_best"'):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
     at the call site this is embedded into -- 4 for the Standard path, 8
@@ -1107,7 +1108,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="
     if config.cb_model_checkpoint:
         lines.append(
             f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
-            f'_os.path.join({sol_dir_var}, "checkpoint_best"), verbose=1, '
+            f'_os.path.join({sol_dir_var}, {ckpt_name}), verbose=1, '
             f"save_better_only={bool(config.cb_checkpoint_save_better_only)}, "
             f"period={int(config.cb_checkpoint_period)}, "
             f"monitor={config.cb_checkpoint_monitor!r}))"
@@ -5509,7 +5510,8 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # one, see _build_training_monitors_code()'s docstring for why).
     _tm_cbs_code = _build_training_monitors_code(config, "_train_cbs", "_sol_dir", indent=4)
     _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4) + ("\n" + _tm_cbs_code if _tm_cbs_code else "")
-    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
+    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8,
+                                               ckpt_name='f"checkpoint_step{step_i + 1:03d}_best"')
     # Rendered at the very end of the script (see the {_tm_plot_code}
     # splice near the final "DONE" print below) -- reads each monitor's
     # own .txt/.meta.json back in and saves a line plot PNG, the same way
@@ -12440,6 +12442,11 @@ _ta_loss_offset = 0''')
                         f'_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})'),
                        "",
                        "for step_i, (t0, t1) in enumerate(intervals):",
+                      *(["    for _cb in train_cbs:   # a fresh checkpoint per window, named by window, as in Solve",
+                         "        if isinstance(_cb, dde.callbacks.ModelCheckpoint):",
+                         "            _cb.filepath = os.path.join((save_dir or '.'), f\"checkpoint_step{step_i + 1:03d}_best\")",
+                         "            _cb.best, _cb.epochs_since_last_save = np.inf, 0"]
+                        if cbs_kw and getattr(config, "cb_model_checkpoint", False) else []),
                       *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
                          "        if isinstance(_cb, dde.callbacks.Timer):",
                          "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),
