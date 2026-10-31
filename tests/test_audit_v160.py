@@ -149,3 +149,17 @@ def test_output_names_that_clash_with_the_generated_code_are_refused():
     for names in ("u,v", "h,mu", "y1,y2", "u_re,u_im"):
         errs = dataclasses.replace(c, output_names=names).validate()
         assert not any("Output name" in e for e in errs), (names, errs)
+
+
+def test_an_initial_condition_with_t_means_t_min():
+    """11. An initial condition written with t (an exact solution typed as the IC) crashed both scripts with
+    NameError: t, with or without time windows. t now means t_min there."""
+    c = _template("1D Burgers")
+    c = dataclasses.replace(c, ic_expressions="exp(-t)*sin(pi*x)", ic_expression="exp(-t)*sin(pi*x)",
+                            ic_hard="False", ic_active="True")
+    t0 = repr(float(c.t_min))
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert f"np.exp(-({t0}))" in s and "np.exp(-t)" not in s
+    ta = dataclasses.replace(c, time_adaptive=True, ta_num_steps=2)
+    for s in (codegen.generate_script(ta), codegen.generate_clean_script(ta)):
+        assert "np.exp(-t)" not in s

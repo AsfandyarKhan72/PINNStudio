@@ -4983,6 +4983,19 @@ def _effective_config(config):
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
+    # An initial condition holds at t = t_min, and its formula is evaluated
+    # on space columns only: a t in it (an exact solution typed as the IC)
+    # crashed both scripts with NameError. It now means t_min.
+    if getattr(config, "problem_dim", "") != "ODE" and not getattr(config, "steady_state", False):
+        import re as _re_ict
+        _t0 = repr(float(config.t_min))
+
+        def _ic_t(_e):
+            return _re_ict.sub(r"(?<![\w.])t(?![\w(])", f"({_t0})", _e) if isinstance(_e, str) else _e
+        if any(_re_ict.search(r"(?<![\w.])t(?![\w(])", getattr(config, f, "") or "")
+               for f in ("ic_expressions", "ic_expression")):
+            config = _dc.replace(config, ic_expressions=_ic_t(config.ic_expressions),
+                                 ic_expression=_ic_t(config.ic_expression))
     config = _exact_constraints(config)
     if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
         # Weights from the initial losses replace every phase's own.
