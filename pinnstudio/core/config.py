@@ -919,10 +919,38 @@ class PINNConfig:
             errors.append("Time-adaptive training: resampling adds collocation points, which per-point weights "
                           f"({self.point_weights}) can't follow -- set Per-point weights to None, or resampling "
                           "rounds to 0.")
+        if self.point_weights not in ("None", "", None):
+            # per-point weights belong to fixed training points; a point resampler moves
+            # the points every few steps and the weights would start over each time
+            _batched = False
+            try:
+                import json as _json_pw
+                for _e in _json_pw.loads(self.custom_bc_json or "[]") or []:
+                    if (isinstance(_e, dict) and _e.get("type") in ("pointset", "pointset_operator")
+                            and int(_e.get("batch_size", 0) or 0) > 0):
+                        _batched = True
+            except (ValueError, TypeError):
+                pass
+            if self.cb_point_resampler and (self.cb_point_resampler_pde_points or self.cb_point_resampler_bc_points):
+                errors.append(f"Per-point weights ({self.point_weights}) belong to fixed training points, but the "
+                              "Point Resampler callback replaces the points every "
+                              f"{int(self.cb_point_resampler_period)} steps and the weights would start over each "
+                              "time -- turn the Point Resampler off, or set Per-point weights to None.")
+            elif _batched:
+                errors.append(f"Per-point weights ({self.point_weights}) belong to fixed training points, but a "
+                              "Point Set condition with a batch size resamples the points every 100 steps (as in "
+                              "DeepXDE) and the weights would start over each time -- set its batch size to 0, or "
+                              "Per-point weights to None.")
         if self.time_adaptive and not 0 <= float(self.ta_icgl_fraction) < 1:
             errors.append("Time-adaptive training: the initial-condition guided learning fraction must be "
                           "from 0 (off) to below 1.")
         _hard = [h.strip() == "True" for h in (self.ic_hard or "").split(",")]
+        if self.ic_pretrain and not self.steady_state and self.problem_dim != "ODE" and not self.forward_ic_from_file:
+            _act = [h.strip() == "True" for h in (self.ic_active or "").split(",")]
+            if not any(_act[:int(self.num_outputs)]):
+                errors.append("IC pre-training fits the network to the initial conditions given as loss terms, "
+                              "but no output has one (an exact initial condition needs no pre-training) -- "
+                              "untick IC pre-training.")
         if any(_hard):
             _ics = (self.ic_expressions or "").split("|")
             if self.steady_state or self.problem_dim == "ODE":

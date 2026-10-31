@@ -842,6 +842,8 @@ def _causal_wrap(_f):
         _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
         if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
             return _r                      # residual on a subset of points (fractional): unchanged
+        if _CAUSAL["n"] and x.shape[0] != _CAUSAL["n"]:
+            return _r                      # not the training points (test points, RAR / resampling candidates): plain residual
         _M = _CAUSAL["M"]
         _t = x[:, -1].detach()
         _t0, _t1 = float(_t.min()), float(_t.max())   # this training window (one Time-Adaptive step, or all of it)
@@ -856,8 +858,7 @@ def _causal_wrap(_f):
                 _c = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, torch.ones_like(_sq))
                 _L = _L / _c.clamp(min=1)
                 _w = torch.exp(-_CAUSAL["eps"] * (torch.cumsum(_L, 0) - _L))
-            if x.shape[0] >= _CAUSAL["n"]:     # the training points (not the smaller test set)
-                _CAUSAL["w"], _CAUSAL["n"] = _w.detach(), x.shape[0]
+            _CAUSAL["w"] = _w.detach()        # the training points' weights (others are returned above)
         _s = _w[_idx].sqrt().unsqueeze(1).to(_rs[0].dtype)
         _out = [_ri * _s for _ri in _rs]
         return _out if isinstance(_r, (list, tuple)) else _out[0]
@@ -885,8 +886,20 @@ class _CausalMonitor(dde.callbacks.Callback):
 
     def on_train_begin(self):
         _CAUSAL["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
-        if _CAUSAL["sched"] and not _CAUSAL["frozen"]:     # a new Adam run (e.g. the next time-adaptive step): start the schedule over
-            _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
+        # the training points of this run (RAR may have added some): only their
+        # residuals are weighted and only their weights are kept
+        try:
+            _X = np.asarray(self.model.data.train_x)
+            _CAUSAL["n"] = int(_X.shape[0])
+            _rng = (float(_X[:, -1].min()), float(_X[:, -1].max()))
+        except Exception:
+            _CAUSAL["n"], _rng = 0, None
+        # a new training time range (the next time window): start the epsilon
+        # schedule over; further phases and RAR rounds on the same range go on with it
+        if _rng != _CAUSAL.get("rng"):
+            _CAUSAL["rng"], _CAUSAL["w"] = _rng, None
+            if _CAUSAL["sched"]:
+                _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
 
     def on_batch_end(self):
         st = self.model.train_state
@@ -1025,7 +1038,7 @@ def _training_methods_cbs(config, var_name, pad):
     return lines
 
 
-def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
+def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir"):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
     at the call site this is embedded into -- 4 for the Standard path, 8
@@ -1094,7 +1107,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
     if config.cb_model_checkpoint:
         lines.append(
             f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
-            f'_os.path.join(_sol_dir, "checkpoint_best"), verbose=1, '
+            f'_os.path.join({sol_dir_var}, "checkpoint_best"), verbose=1, '
             f"save_better_only={bool(config.cb_checkpoint_save_better_only)}, "
             f"period={int(config.cb_checkpoint_period)}, "
             f"monitor={config.cb_checkpoint_monitor!r}))"
@@ -1709,6 +1722,36 @@ def _rar_optimizer(config):
         except (TypeError, ValueError):
             pass
     return config.optimizer, float(config.learning_rate)
+
+
+def _rar_phase(config, lbfgs=False):
+    """The Training Phase whose loss function and loss weights an RAR round's
+    Adam step (the last first-order phase) or L-BFGS step (the last L-BFGS
+    phase, else the last first-order one) uses -- the same phases
+    _rar_optimizer() takes the optimizer and learning rate from. None when
+    the scheduler is off (old configs): the hidden single-optimizer fields."""
+    import json as _js
+    try:
+        phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or []) if isinstance(p, dict)]
+    except (ValueError, TypeError):
+        phases = []
+    if not (getattr(config, "optimizer_scheduler", False) and phases):
+        return None
+    fo = [p for p in phases if str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+    lb = [p for p in phases if str(p.get("optimizer", "")).lower() in ("lbfgs", "l-bfgs")]
+    if lbfgs and lb:
+        return lb[-1]
+    return fo[-1] if fo else (lb[-1] if lb else None)
+
+
+def _rar_loss(config, lbfgs=False):
+    p = _rar_phase(config, lbfgs)
+    return str((p or {}).get("loss") or config.loss_type)
+
+
+def _rar_weights_str(config, lbfgs=False):
+    p = _rar_phase(config, lbfgs)
+    return str((p or {}).get("weights") or "")
 
 
 def _gs_rar_loop_code(config):
@@ -2414,8 +2457,13 @@ def _gs_rar_loop_code(config):
             # unknowns of an inverse problem, and the training callbacks
             # (causal training, point weights, monitors) as in the phases
             _rar_ext = _inv_vars if _problem_type == "Inverse" else None
-            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}",
-                          loss_weights=_multi_weights, external_trainable_variables=_rar_ext)
+            # the loss function and loss weights of the same phases (a
+            # weight list that no longer fits the loss terms: the panel's)
+            _rar_w = [float(_w) for _w in {_rar_weights_str(config)!r}.split(",") if _w.strip()] or list(_multi_weights)
+            if len(_rar_w) != {_n_equations(config)} + len(_constraints):
+                _rar_w = list(_multi_weights)
+            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r},
+                          loss_weights=_rar_w, external_trainable_variables=_rar_ext)
             loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every},
                                                     callbacks=list(_train_cbs))
             if {config.rar_lbfgs_iters} > 0:
@@ -2442,7 +2490,10 @@ def _gs_rar_loop_code(config):
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                     maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls}
                 )
-                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights,
+                _rar_wl = [float(_w) for _w in {_rar_weights_str(config, True)!r}.split(",") if _w.strip()] or list(_multi_weights)
+                if len(_rar_wl) != {_n_equations(config)} + len(_constraints):
+                    _rar_wl = list(_multi_weights)
+                model.compile("L-BFGS", loss={_rar_loss(config, True)!r}, loss_weights=_rar_wl,
                               external_trainable_variables=_rar_ext)
                 loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=list(_train_cbs))
             _rar_save_round_diagnostics(rar_cycle + 1, new_points)
@@ -2546,6 +2597,21 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
 
 
+def _first_adam_lr(config):
+    """The learning rate of the first Adam Training Phase (initial-condition
+    guided learning takes its iterations from that phase too); the hidden
+    single-optimizer field only for configs without phases."""
+    import json as _js
+    try:
+        phases = _js.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        first = next((p for p in phases if isinstance(p, dict) and str(p.get("optimizer", "")).lower() == "adam"), None)
+        if first is not None and first.get("lr") is not None:
+            return float(first["lr"])
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return float(config.learning_rate)
+
+
 def _ta_icgl_iterations(config):
     """Initial-condition guided learning's iterations per time window: the
     given fraction of the first Adam phase (Time-Adaptive settings)."""
@@ -2607,6 +2673,16 @@ if {config.time_adaptive}:
         x = x_grid  # (N*N, 2)
     else:
         x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
+    if _is_2d or _is_3d:
+        # a disk, polygon or custom shape: only the grid points in the domain
+        # (inside or on its boundary) carry the solution from one window to the
+        # next -- the rest of the bounding box is not part of the problem
+        _ta_gm = _build_geom()
+        _ta_in = np.asarray(_ta_gm.inside(x_grid)).reshape(-1) | np.asarray(_ta_gm.on_boundary(x_grid)).reshape(-1)
+        if not _ta_in.all():
+            print(f"  Time windows: {{int(_ta_in.sum())}} of {{_ta_in.size}} grid points lie in the domain")
+            x_grid = x_grid[_ta_in]
+            x = x_grid
 
     all_x = []; all_t = []; all_u = []
     _ta_frames = {{}}   # Surface Animation (GIF): frame index -> (X, Y, U), predicted by the step that covers its time
@@ -2750,6 +2826,10 @@ if {config.time_adaptive}:
     _ta_t_start = _ta_flat_intervals[0][0]
     _ta_bc_times, _ta_bc_pts, _ta_bc_vals = [], None, None
 
+    # the outputs with an initial-condition term in the first window, in order
+    _ta_ic_outs = [_o for _o in range({config.num_outputs})
+                   if ({config.forward_ic_from_file} and _o == 0)
+                   or (_o < len(_ic_active_list) and _ic_active_list[_o].strip() == "True")]
     for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
@@ -2759,6 +2839,9 @@ if {config.time_adaptive}:
         geomtime_i = dde.geometry.GeometryXTime(geom_i, time_i)
 
         _constraints_i = []
+        _xyt_ic_anchor = None   # set below when a window pins outputs to the previous solution
+        _ta_state_fo = None     # the network after this window's last first-order (Adam) phase
+        _n_bc_i = None          # boundary-condition terms of this window (Boundary Conditions panel)
         # The Boundary Conditions panel (custom_bc_json, already parsed into
         # _custom_bc_entries above) is now the source of truth here too --
         # same as the main (non-time-adaptive) path. The legacy per-side
@@ -2816,6 +2899,7 @@ if {config.time_adaptive}:
                     )
 
             # IC (independent of the BC panel -- same per-step IC scheme as always)
+            _n_bc_i = len(_constraints_i)
             for _oi_ta in range({config.num_outputs}):
                 _comp_ta = _oi_ta
                 if step_i == 0 or _ta_growing:   # growing range: the true IC at t_start every window
@@ -2946,6 +3030,25 @@ if {config.time_adaptive}:
             print(f"  Backward compatibility: {{len(_ta_bc_pts)}} stored points on t = {{_ta_t_start:g}} to {{t0:g}}, weight {{_ta_bc_w:g}}")
         _wx = lambda _ws: list(_ws) + [_ta_bc_w] * _n_bc_extra
 
+        # From the second window on (not with a growing range) every output is
+        # held to the previous window's solution, one term per output, where the
+        # first window had one initial-condition term per output with an initial
+        # condition (none for an exact one or an output like a chemical
+        # potential). The weights the user set (for the first window's terms) are
+        # mapped onto these: the PDE and boundary weights as they are, each
+        # output's previous-solution term the weight of its initial condition,
+        # 1 for an output without one -- instead of replacing every weight by 1.
+        _ta_pins = step_i > 0 and not _ta_growing
+        def _ta_w(_ws):
+            _ws = list(_ws)
+            if not _ta_pins or _n_bc_i is None:   # (configs from before the panel: as before)
+                return _ws
+            _k = {_n_equations(config)} + _n_bc_i
+            if len(_ws) != _k + len(_ta_ic_outs):
+                return _ws
+            _icw = dict(zip(_ta_ic_outs, _ws[_k:]))
+            return _ws[:_k] + [_icw.get(_o, 1.0) for _o in range({config.num_outputs})]
+
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
@@ -2976,10 +3079,10 @@ if {config.time_adaptive}:
         if {config.ta_transfer_learning} and step_i > 0 and (_prev_step_model_path or _prev_step_state):
             try:
                 import torch as _torch
-                # the saved checkpoint of the chosen phase; without a save
-                # folder, the previous step's network kept in memory
-                _state = (_torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
-                          if _prev_step_model_path else _prev_step_state)
+                # the previous window's network after the phase chosen under
+                # Transfer optimizer, kept in memory (see the end of the window)
+                _state = _prev_step_state if _prev_step_state is not None else \
+                    _torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
                 # the network's weights and biases, and its buffers too (an
                 # MsFFN's random Fourier matrices B_x/B_t: without them each
                 # step drew new features under the transferred weights)
@@ -3056,7 +3159,7 @@ if {config.time_adaptive}:
             _cons_icgl = [dde.icbc.PointSetBC(_P_icgl, _V_icgl[:, _k:_k+1], component=_k) for _k in range({config.num_outputs})]
             _data_icgl = dde.data.TimePDE(geomtime_i, pde, _cons_icgl, num_domain=16, num_boundary=0, num_initial=0)
             _model_icgl = dde.Model(_data_icgl, model_i.net)
-            _model_icgl.compile("adam", lr={config.learning_rate},
+            _model_icgl.compile("adam", lr={_first_adam_lr(config)!r},
                                 loss_weights=[0.0] * {_n_equations(config)} + [1.0] * {config.num_outputs})
             print(f"  === Initial-condition guided learning: {{_ta_icgl_iters}} iterations ===")
             _model_icgl.train(iterations=_ta_icgl_iters, display_every={config.loss_display_every})
@@ -3077,9 +3180,10 @@ if {config.time_adaptive}:
         # no exception raised anywhere.
         if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
             model_i.compile("{config.optimizer}", lr={config.learning_rate},
-                            loss="{config.loss_type}", loss_weights=_wx(_multi_weights))
+                            loss="{config.loss_type}", loss_weights=_wx(_ta_w(_multi_weights)))
             lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
+            _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
             print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
             if _use_save:
                 _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -3096,7 +3200,7 @@ if {config.time_adaptive}:
                 print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
                 # A phase without its own weights (e.g. written by hand) uses
                 # the Loss Weights panel's.
-                _sp_weights = [float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights)
+                _sp_weights = _ta_w([float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights))
                 if len(_sp_weights) + _n_bc_extra == {_n_equations(config)} + len(_constraints_i):
                     _sp_weights = _wx(_sp_weights)   # the backward-compatibility terms' weights
                 # Same safety net as the main (non-Time-Adaptive) scheduler loop:
@@ -3161,6 +3265,7 @@ if {config.time_adaptive}:
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
                     _ta_accumulate_loss(lh_i)
+                    _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -3174,7 +3279,7 @@ if {config.time_adaptive}:
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
-                            loss_weights=_wx(_multi_weights))
+                            loss_weights=_wx(_ta_w(_multi_weights)))
             lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
@@ -3199,12 +3304,13 @@ if {config.time_adaptive}:
             try:
                 _rs_w = list(_sp_weights)
             except NameError:
-                _rs_w = _wx(_multi_weights)
+                _rs_w = _wx(_ta_w(_multi_weights))
             if len(_rs_w) != {_n_equations(config)} + len(_constraints_i):
                 _rs_w = [1.0] * ({_n_equations(config)} + len(_constraints_i))
             print(f"  === Resampling round {{_rs_i+1}}/{{_ta_rs_rounds}}: {{len(_rs_new)}} points added "
-                  f"(mean residual of the candidates {{float(np.mean(_rs_err)):.3e}}), {{_ta_rs_iters}} Adam iterations ===")
-            model_i.compile("adam", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights=_rs_w)
+                  f"(mean residual of the candidates {{float(np.mean(_rs_err)):.3e}}), {{_ta_rs_iters}} {_rar_optimizer(config)[0]} iterations ===")
+            # the optimizer, learning rate and loss function of the last first-order Training Phase
+            model_i.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights=_rs_w)
             lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
 
@@ -3291,9 +3397,14 @@ if {config.time_adaptive}:
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
         _ta_step_boundaries.append(_ta_loss_offset)
 
-        # for transfer learning without a save folder (no checkpoints to
-        # read): the network as this step ended, kept in memory
-        _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
+        # transfer learning (Transfer optimizer): the network after this window's
+        # last Adam phase, or (L-BFGS) as the window ended -- the network whose
+        # prediction is the next window's initial condition. Kept in memory, so
+        # the result does not depend on whether a save folder is set.
+        if "{config.ta_transfer_optimizer}" == "adam" and _ta_state_fo is not None:
+            _prev_step_state = _ta_state_fo
+        else:
+            _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
 
         # ── Save step plot & models ───────────────────────────
         if _use_save:
@@ -6883,6 +6994,9 @@ for _pval in _param_values:
         print(f"  IC-only weights: {{_ic_only_weights}} -- dummy PDE, IC points only")
 {_ic_pretrain_block_std}
         print("=== Starting Main Training ===\\n")
+        # 'Scale by initial losses': the initial losses of the pre-trained
+        # network, the one main training starts from (as the exported script does)
+{_init_loss_weights_code(config, "        ", "model", "_multi_weights", "_lr", "_inv_vars if _problem_type == 'Inverse' else None")}
 
     if not {config.time_adaptive}:
         _sched_active = {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}
@@ -11457,7 +11571,7 @@ def generate_clean_script(config):
     if any_cbs:
         _tm_clean_cbs_code = _build_training_monitors_code(config, "train_cbs", "(save_dir or '.')", indent=0)
         cbs_code = (
-            _build_train_cbs_code(config, "train_cbs", indent=0)
+            _build_train_cbs_code(config, "train_cbs", indent=0, sol_dir_var="(save_dir or '.')")
             + ("\n" + _tm_clean_cbs_code if _tm_clean_cbs_code else "")
         ).replace("_os.path.join", "os.path.join")
 
@@ -11993,6 +12107,13 @@ for rar_cycle in range({config.rar_cycles}):''']
             # geometry for every non-box shape, so RAR's candidates are
             # now guaranteed to lie inside the actual domain for any
             # geometry, not just a rectangular one.
+            # the RAR rounds use the loss function and weights of the phases
+            # their optimizer comes from (as in Solve's script)
+            _rar_pa, _rar_pl = _rar_phase(config), _rar_phase(config, True)
+            _rar_w_adam = (_clean_phase_weights(_rar_pa, expected_len, multi_weights)
+                           if (_rar_pa is not None and multi_weights != "loss_weights") else multi_weights)
+            _rar_w_lbfgs = (_clean_phase_weights(_rar_pl, expected_len, multi_weights)
+                            if (_rar_pl is not None and multi_weights != "loss_weights") else multi_weights)
             rar_lines.append(f'''    xt_cand = geomtime.random_points({config.rar_candidates})''')
             # "Points from:" (rar_output_selector): restrict selection to one
             # equation's residual, same as the live Solve path; -1 (default)
@@ -12006,13 +12127,13 @@ for rar_cycle in range({config.rar_cycles}):''']
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
-    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights={_rar_w_adam}{ext_vars_kw})
     loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every}{cbs_kw})''')
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                                      maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls})
-    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    model.compile("L-BFGS", loss={_rar_loss(config, True)!r}, loss_weights={_rar_w_lbfgs}{ext_vars_kw})
     loss_history, train_state = model.train(display_every={config.loss_display_every}{cbs_kw})''')
             rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")
             parts.append("\n".join(rar_lines))
@@ -12069,6 +12190,13 @@ x_grid = np.column_stack([_Xg.ravel(), _Yg.ravel()])''')
             ta_lines.append(f'''grid_size = {config.ta_grid_size}
 x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size).reshape(-1, 1)''')
 
+        if is_2d or is_3d:
+            # as in Solve's script: only the grid points in the domain (inside or
+            # on its boundary) carry the solution from one window to the next
+            ta_lines.append('''_ta_gm = _build_geom()
+_ta_in = np.asarray(_ta_gm.inside(x_grid)).reshape(-1) | np.asarray(_ta_gm.on_boundary(x_grid)).reshape(-1)
+if not _ta_in.all():
+    x_grid = x_grid[_ta_in]''')
         if config.forward_ic_from_file:
             ta_lines.append(f'_ic_ta_xt, prev_u = _load_ic_from_file({repr(config.forward_ic_file)})')
         else:
@@ -12100,9 +12228,19 @@ _ta_loss_offset = 0''')
         if cbs_code:
             parts.append(cbs_code)
 
-        loop_lines = [f"def _ta_weights(w, constraints):",
+        _ta_ic_outs = [o for o in range(n_out) if (o == 0 and config.forward_ic_from_file) or o in active_ic_outputs]
+        loop_lines = [f"def _ta_weights(w, constraints, step_i):",
                       f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
-                      "    return list(w) if len(w) == n else [1.0] * n",
+                      "    w = list(w)",
+                      "    # from the second window on every output is held to the previous window's solution (one term",
+                      "    # per output): the PDE and boundary weights as set, each output's term its initial",
+                      "    # condition's weight, 1 for an output without one (as Solve's script does)",
+                      f"    ic_outs = {_ta_ic_outs!r}",
+                      f"    k = len(w) - len(ic_outs)",
+                      f"    if step_i > 0 and k == n - {n_out}:",
+                      f"        icw = dict(zip(ic_outs, w[k:]))",
+                      f"        w = w[:k] + [icw.get(o, 1.0) for o in range({n_out})]",
+                      "    return w if len(w) == n else [1.0] * n",
                       "",
                       ""]
         # Solve's script builds the model for the whole time interval (its data, then its network) before the
@@ -12202,11 +12340,10 @@ _ta_loss_offset = 0''')
         for pi, sp in enumerate(sched_phases):
             loop_lines.append(f"    # ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
                                f"{int(sp.get('iterations', 0) or 0)} iterations ──")
-            # a later step pins every output to the previous step's solution,
-            # which can be more loss terms than step 0 had (an output with no
-            # initial condition): _ta_weights then uses equal weights, as
-            # Solve does, instead of crashing on the length mismatch
-            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i)", ext_vars_kw,
+            # from the second window on every output is held to the previous
+            # window's solution: _ta_weights gives each its initial condition's
+            # weight (1 for an output without one) and keeps the other weights
+            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i, step_i)", ext_vars_kw,
                                                      cbs_kw, "model_i", "data_i", config, indent="    ")
             if sp.get('optimizer', 'adam') != 'lbfgs':
                 loop_lines.append("    _adam_state_i = {k: v.detach().clone() for k, v in net_i.state_dict().items()}")
