@@ -231,12 +231,28 @@ def tuned_table():
         return {}
 
 
+def _mode_key(key, inverse):
+    """The key of the tuned table the example's settings are under: "inverse" or "forward". DeepXDE's
+    inverse examples that identify an unknown field as a network output (Poisson with an unknown forcing
+    field, ...) load as Forward problems, but the tuning study tuned them as the inverse examples they are."""
+    if not inverse:
+        try:
+            from pinnstudio.core import deepxde_examples as dx
+            ex = dx.BY_NAME.get(key)
+            t = tuned_table().get(key, {})
+            if ex is not None and ex.category == dx.INVERSE and not t.get("forward") and t.get("inverse"):
+                return "inverse"
+        except Exception:
+            pass
+    return "inverse" if inverse else "forward"
+
+
 def has_tuned(key, inverse):
     """Whether Tuned differs from Default for the example: the tuning study found better settings, or
     Default is a paper's method and Tuned the template's own (forward). Otherwise the Default settings
     are PINNStudio's best and there is no separate Tuned choice."""
     from pinnstudio.core import paper_settings as ps
-    if tuned_table().get(key, {}).get("inverse" if inverse else "forward"):
+    if tuned_table().get(key, {}).get(_mode_key(key, inverse)):
         return True
     v = ps.TEMPLATE_PAPER.get(key)
     return bool(v and not inverse and (key, v) in ps.PAPER)
@@ -252,7 +268,7 @@ def settings_for(cfg, key, inverse, mode):
             out = ps.apply(cfg, v, key)
             return out, f"Default settings: {key} solved as in its paper ({ps.PAPER_LABEL.get(v, v)})."
         return cfg, ""
-    t = tuned_table().get(key, {}).get("inverse" if inverse else "forward")
+    t = tuned_table().get(key, {}).get(_mode_key(key, inverse))
     if not t:
         if key in ps.TEMPLATE_PAPER:
             return cfg, "Tuned settings: the template's own settings (PINNStudio's best for it)."

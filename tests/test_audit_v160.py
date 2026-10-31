@@ -417,3 +417,17 @@ def test_ic_pretraining_needs_a_time_dependent_pde():
     on nothing while the export left it out) or a steady problem."""
     errs = dataclasses.replace(_dx("ODE system"), ic_pretrain=True).validate()
     assert any("IC pre-training needs a time-dependent PDE" in e for e in errs), errs
+
+
+def test_tuned_settings_of_field_identification_examples_are_offered():
+    """DeepXDE's inverse examples that identify an unknown field as a network output load as Forward problems;
+    their Tuned settings (stored under 'inverse' by the tuning study) were looked up under 'forward', so Tuned
+    was greyed out."""
+    from pinnstudio.core import example_settings as es
+    for name in ("Inverse: Poisson with unknown forcing field", "Inverse: Poisson with unknown forcing field (batches)",
+                 "Inverse: diffusion-reaction with space-dependent rate"):
+        c = _dx(name)
+        assert c.problem_type == "Forward" and es.has_tuned(name, False), name
+        out, msg = es.settings_for(c, name, False, es.TUNED)
+        assert msg.startswith("Tuned settings: ") and "none for this example" not in msg, msg
+    assert es._mode_key("1D Burgers", False) == "forward" and es._mode_key("1D Burgers", True) == "inverse"
