@@ -8909,6 +8909,16 @@ for _pval in _param_values:
                 "solution_data"
             )
             _os.makedirs(_data_dir, exist_ok=True)
+            # A disk, polygon or other non-box shape: grid points outside the
+            # domain are written as NaN (the network's value there is an
+            # extrapolation, not part of the solution)
+            _exp_geom = _build_geom() if (_is_2d or _is_3d) else None
+            def _nan_outside(_pts, _u):
+                _u = np.array(_u, dtype=float)
+                if _exp_geom is not None:
+                    _in = np.asarray(_exp_geom.inside(_pts)).reshape(-1) | np.asarray(_exp_geom.on_boundary(_pts)).reshape(-1)
+                    _u[~_in] = np.nan
+                return _u
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
 
@@ -8918,7 +8928,7 @@ for _pval in _param_values:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                 _XY_exp = np.column_stack([_Xe.ravel(), _Ye.ravel()])
-                _u_exp = model.predict(_XY_exp)
+                _u_exp = _nan_outside(_XY_exp, model.predict(_XY_exp))
                 _header = "x,y," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
@@ -8928,14 +8938,14 @@ for _pval in _param_values:
                 _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
                 _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                 _XYZ_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel()])
-                _u_exp = model.predict(_XYZ_exp)
+                _u_exp = _nan_outside(_XYZ_exp, model.predict(_XYZ_exp))
                 _header = "x,y,z," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
             elif _is_steady:
                 _u_exp_all = model.predict(_x_export.reshape(-1, 1))
-                _header_cols = "x," + ",".join(_out_names_list)
+                _header_cols = "{'t' if getattr(config, '_ode', False) else 'x'}," + ",".join(_out_names_list)   # an ODE's variable is t
                 _out = np.column_stack([_x_export, _u_exp_all])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
@@ -8944,7 +8954,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                     _XYT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYT_exp)
+                    _u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
@@ -8960,7 +8970,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                     _XYZT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYZT_exp)
+                    _u_exp = _nan_outside(_XYZT_exp[:, :3], model.predict(_XYZT_exp))
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")

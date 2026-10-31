@@ -385,3 +385,13 @@ def test_ic_pretraining_restore_needs_an_existing_model(tmp_path):
                    for e in dataclasses.replace(c, ic_pretrain_restore_path=str(ok)).validate())
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
         assert "IC pre-train model to restore not found" in s
+
+
+def test_solution_data_export_marks_points_outside_the_domain():
+    """P2: 'Export solution data' wrote the whole bounding-box grid for a disk or polygon (extrapolated values
+    outside the domain, unmarked); those points are now NaN. An ODE's file header named its variable x."""
+    c = dataclasses.replace(_template("2D Heat"), geometry_type="Disk", export_enabled=True)
+    s = codegen.generate_script(c)
+    assert "_u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))" in s
+    o = codegen.generate_script(dataclasses.replace(_dx("ODE system"), export_enabled=True))
+    assert '_header_cols = "t," + ",".join(_out_names_list)' in o
