@@ -1091,6 +1091,12 @@ class PINNConfig:
             if self.network_type == "STMsFFN" and self.steady_state:
                 errors.append("STMsFFN separates space and time, so it needs a time-dependent problem; "
                               "use MsFFN for a steady one.")
+            if (self.network_type == "STMsFFN" and self.input_transform_enabled
+                    and (self.input_transform_mode or "scale") == "formula"):
+                _feats = [f.strip() for f in (self.input_feature_formula or "").split(";") if f.strip()]
+                if _feats and _feats[-1] != "t":
+                    errors.append("STMsFFN takes the network's last input as time: with an input-feature formula, "
+                                  "end it with t (e.g. 'cos(x); sin(x); t') or use MsFFN.")
             if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
                 errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
                               "(half of them are cosine and half sine Fourier features).")

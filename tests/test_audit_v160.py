@@ -198,3 +198,20 @@ def test_export_keeps_the_gpu_choice_and_notes_export_data():
     assert "torch.cuda.set_device(1)" in s and "set_per_process_memory_fraction(0.5, device=1)" in s
     assert "'Export solution data'" in s
     compile(s, "export", "exec")
+
+
+def test_stmsffn_with_an_input_formula_must_end_with_t():
+    """15. STMsFFN takes the last network input as time; an input-feature formula not ending with t was accepted."""
+    c = dataclasses.replace(_template("1D Burgers"), network_type="STMsFFN", input_transform_enabled=True,
+                            input_transform_mode="formula")
+    bad = dataclasses.replace(c, input_feature_formula="t; cos(pi*x); sin(pi*x)").validate()
+    assert any("STMsFFN takes" in e for e in bad), bad
+    ok = dataclasses.replace(c, input_feature_formula="cos(pi*x); sin(pi*x); t").validate()
+    assert not any("STMsFFN takes" in e for e in ok), ok
+
+
+def test_error_analysis_names_the_field_a_plain_reference_file_is_compared_with():
+    """16. A reference file without an output name (t_<time>.txt) is compared with the plotted field; on a
+    problem with more than one output the log now says which."""
+    s = codegen.generate_script(_template("2D Cahn-Hilliard (Wight & Zhao)"))
+    assert "Reference files without an output name are compared with the plotted field" in s

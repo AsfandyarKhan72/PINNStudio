@@ -2591,7 +2591,12 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
         _ea_ns["torch"] = torch
         return eval(_ea_expr, _ea_ns)
 
-    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]'''
+    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
+
+# A reference file without an output in its name (t_<time>.txt) is compared
+# with the field the Results page plots: say which one.
+if "None" in _ea_groups and len(_plot_output_names_list) > 1:
+    print(f"  Reference files without an output name are compared with the plotted field: {{_ea_field_txt(None)}}")'''
     from pinnstudio.core.ea_view3d import HELPERS as _v3_helpers   # the 3D view's helpers (ea_view3d.py)
     code += "\n" + _v3_helpers.rstrip()
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
