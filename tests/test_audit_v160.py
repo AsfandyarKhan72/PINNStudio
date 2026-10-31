@@ -410,3 +410,10 @@ def test_loss_functions_that_do_not_work_for_a_pinn_are_refused():
         errs = dataclasses.replace(c, scheduler_phases=json.dumps(ph)).validate()
         assert any("Loss function" in e and bad in e for e in errs), errs
         assert any("Loss function" in e for e in dataclasses.replace(c, ic_pretrain_loss=bad).validate())
+
+
+def test_ic_pretraining_needs_a_time_dependent_pde():
+    """IC pre-training could be ticked for an ODE (its initial values are conditions at t0, so Solve pre-trained
+    on nothing while the export left it out) or a steady problem."""
+    errs = dataclasses.replace(_dx("ODE system"), ic_pretrain=True).validate()
+    assert any("IC pre-training needs a time-dependent PDE" in e for e in errs), errs

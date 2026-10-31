@@ -971,6 +971,11 @@ class PINNConfig:
             errors.append(f"Loss function {', '.join(sorted(_bad_loss))}: not usable for a PINN (the equation residuals "
                           f"have target 0, or the loss does not exist with PyTorch) -- choose MSE or MAE in the "
                           f"Training phases.")
+        if self.ic_pretrain and (self.steady_state or self.problem_dim == "ODE"):
+            errors.append("IC pre-training needs a time-dependent PDE: "
+                          + ("an ODE's initial values are conditions at t0, not initial-condition loss terms"
+                             if self.problem_dim == "ODE" else "a steady problem has no initial condition")
+                          + " -- untick IC pre-training.")
         if self.ic_pretrain and self.ic_pretrain_restore:
             import os as _os_icr
             _rp = (self.ic_pretrain_restore_path or "").strip()

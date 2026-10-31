@@ -81,3 +81,21 @@ def test_the_window_offers_only_working_loss_functions():
     for combo in [w.loss_combo, w.ic_pretrain_loss_combo] + [p["loss"] for p in w.sched_phase_list if "loss" in p]:
         assert [combo.itemText(i) for i in range(combo.count())] == ["MSE", "MAE"]
     w.close()
+
+
+def test_small_gui_fixes_found_while_writing_the_documentation():
+    """P2/P3: cosine decay kept Step's gamma 0.9 as Eta min (the rate rose); a new 3D problem kept the 201-point
+    time-window grid (201^3 points); the BC 'Output' box stopped at output 8 while Outputs go to 10."""
+    import json
+    w = _window()
+    dt = w.sched_phase_list[0]["decay_type"]
+    dt.setCurrentIndex(dt.findData("cosine"))
+    _settle(0.1)
+    assert json.loads(w._build_config().scheduler_phases)[0]["decay_p2"] == 0.0
+    w.ta_grid.setCurrentText("201")
+    w.radio_3d.setChecked(True)
+    _settle(0.2)
+    assert w.ta_grid.currentText() == "21"
+    w._add_custom_bc_entry("dirichlet", 9, "True", "0")
+    assert w.custom_bc_list[-1]["component"].value() == 9
+    w.close()

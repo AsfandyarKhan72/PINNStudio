@@ -5911,7 +5911,7 @@ class MainWindow(QMainWindow):
         # cube it (101 or 51) silently inherits a risky default. Step it
         # down automatically; 1D/2D never cube it, so nothing needs to
         # change when switching away from 3D.
-        if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("101", "51"):
+        if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("201", "101", "51"):
             self.ta_grid.setCurrentText("21")
         self._update_ta_grid_warning()
         self._refresh_bc_where_pickers()
@@ -8592,7 +8592,7 @@ class MainWindow(QMainWindow):
         comp_row = QHBoxLayout(comp_widget)
         comp_row.setContentsMargins(0, 0, 0, 0)
         comp_row.addWidget(QLabel("Output:"))
-        comp_spin = OutputSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
+        comp_spin = OutputSpinBox(); comp_spin.setRange(0, 9); comp_spin.setValue(component)   # Outputs go up to 10
         comp_spin.setFixedHeight(26); comp_spin.setFixedWidth(60)
         comp_spin.setToolTip("The output this BC applies to (1 = first output, 2 = second, ...), "
                              "numbered as in the PDE Definition panel")
@@ -15884,6 +15884,12 @@ print("DOMAIN_PREVIEW_DONE")
                 s1.setRange(0.0, 1.0); s1.setValue(0.9999)
             elif kind in ("step", "cosine", "inverse time") and _v1 < 1.0:
                 s1.setRange(1, 1e9); s1.setValue(5000 if kind != "inverse time" else 1000)
+            # the second value likewise: Step's gamma 0.9 is no Eta min (the rate
+            # would rise to 0.9); cosine starts at Eta min 0, and back to 0.9
+            if kind == "cosine" and abs(s2.value() - 0.9) < 1e-12:
+                s2.setValue(0.0)
+            elif kind in ("step", "inverse time") and s2.value() == 0.0:
+                s2.setValue(0.9)
             s1.setToolTip("")
             if kind == "step":
                 l1.setText("Step size:"); s1.setRange(1, 1e9)
