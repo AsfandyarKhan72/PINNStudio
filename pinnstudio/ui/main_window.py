@@ -4142,7 +4142,8 @@ class MainWindow(QMainWindow):
         _bl.addWidget(QLabel("Random first:"))
         self.sweep_bayes_init_spin = QSpinBox(); self.sweep_bayes_init_spin.setRange(1, 100)
         self.sweep_bayes_init_spin.setValue(5); self.sweep_bayes_init_spin.setFixedWidth(50)
-        self.sweep_bayes_init_spin.setToolTip("Runs with random settings (after the baseline, if any) before the model takes over")
+        self.sweep_bayes_init_spin.setToolTip("Runs before the model takes over: the baseline (when it runs) counts as one of them,\n"
+                                              "the rest have random settings")
         _bl.addWidget(self.sweep_bayes_init_spin)
         _bl.addWidget(QLabel("Minimize:"))
         self.sweep_bayes_obj_combo = QComboBox()

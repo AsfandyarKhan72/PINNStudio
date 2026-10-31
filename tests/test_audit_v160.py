@@ -468,3 +468,11 @@ def test_reference_and_measured_files_with_several_times_or_values_are_reported(
     c = _dx("Inverse: diffusion equation")
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
         assert "columns; the first (column" in s
+
+
+def test_export_says_which_3d_figures_it_draws():
+    """P2 (documentation): the README said the export draws every Plot-settings figure; for 3D it does not draw
+    the slice and 3D-view comparisons. The README and the export's header now say so."""
+    c = _template("3D Heat")
+    assert "3D slice and 3D view" in codegen.generate_clean_script(c)
+    assert "3D slice and 3D view" not in codegen.generate_clean_script(_template("2D Heat"))

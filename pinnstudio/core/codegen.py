@@ -11571,6 +11571,12 @@ def generate_clean_script(config):
         _const_header = list(_const_header) + [
             "# Note: 'Export solution data' (Results page) is on for this problem, but only PINNStudio's",
             "# Solve writes those data files; this script saves the plots, the model and the losses."]
+    if config.problem_dim == "3D" and (getattr(config, "ea_files", "[]") not in ("", "[]")
+                                       or (getattr(config, "ea_ref_mode", "files") == "formula")):
+        # Solve also draws 3D slice and 3D-view comparisons (Plot settings: 3D grid resolution, iso level)
+        _const_header = list(_const_header) + [
+            "# Note: this script draws the line, surface and error-analysis figures; the 3D slice and 3D view",
+            "# comparisons (Plot settings: 3D grid resolution, iso level) are drawn by PINNStudio's Solve only."]
     config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
