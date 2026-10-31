@@ -395,3 +395,18 @@ def test_solution_data_export_marks_points_outside_the_domain():
     assert "_u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))" in s
     o = codegen.generate_script(dataclasses.replace(_dx("ODE system"), export_enabled=True))
     assert '_header_cols = "t," + ",".join(_out_names_list)' in o
+
+
+def test_loss_functions_that_do_not_work_for_a_pinn_are_refused():
+    """P1 (found while writing the documentation): three loss functions offered in the window did not work:
+    'mean l2 relative error' and 'mean absolute percentage error' divide by the residual target, which is 0
+    (infinite loss), and the latter and 'softplus' fail inside DeepXDE with PyTorch. The window offers MSE and
+    MAE only; a saved problem naming one of the others is refused."""
+    c = _template("1D Burgers")
+    assert not any("Loss function" in e for e in c.validate())
+    for bad in ("mean l2 relative error", "mean absolute percentage error", "softplus"):
+        ph = json.loads(c.scheduler_phases)
+        ph[0]["loss"] = bad
+        errs = dataclasses.replace(c, scheduler_phases=json.dumps(ph)).validate()
+        assert any("Loss function" in e and bad in e for e in errs), errs
+        assert any("Loss function" in e for e in dataclasses.replace(c, ic_pretrain_loss=bad).validate())

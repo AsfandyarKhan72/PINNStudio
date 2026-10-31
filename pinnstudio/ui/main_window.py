@@ -3155,8 +3155,7 @@ class MainWindow(QMainWindow):
         ic_loss_row.addWidget(QLabel("Loss function:"))
         self.ic_pretrain_loss_combo = QComboBox()
         self.ic_pretrain_loss_combo.addItems(
-            ["MSE", "MAE", "mean l2 relative error",
-             "mean absolute percentage error", "softplus"])
+            ["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         self.ic_pretrain_loss_combo.setFixedHeight(26)
         self.ic_pretrain_loss_combo.setFixedWidth(self.PHASE_FIELD_W)
         self.ic_pretrain_loss_combo.view().setMinimumWidth(self.ic_pretrain_loss_combo.view().sizeHintForColumn(0) + 24)
@@ -3239,8 +3238,7 @@ class MainWindow(QMainWindow):
         self.lr_spin = SciSpinBox(); self.lr_spin.setRange(1e-12, 10.0)
         self.lr_spin.setDecimals(6); self.lr_spin.setValue(0.001); self.lr_spin.setVisible(False)
         self.loss_combo = QComboBox()
-        self.loss_combo.addItems(["MSE", "MAE", "mean l2 relative error",
-                                   "mean absolute percentage error", "softplus"])
+        self.loss_combo.addItems(["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         self.loss_combo.setVisible(False)
         self.opt2_combo = QComboBox(); self.opt2_combo.addItems(["none", "lbfgs"])
         self.opt2_combo.setCurrentText("none"); self.opt2_combo.setVisible(False)
@@ -15985,8 +15983,7 @@ print("DOMAIN_PREVIEW_DONE")
         loss_row = QHBoxLayout()
         loss_row.addWidget(QLabel("Loss function:"))
         loss_combo_ph = QComboBox()
-        loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
-                                 "mean absolute percentage error", "softplus"])
+        loss_combo_ph.addItems(["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(self.PHASE_FIELD_W)
         loss_combo_ph.view().setMinimumWidth(loss_combo_ph.view().sizeHintForColumn(0) + 24)
         loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)

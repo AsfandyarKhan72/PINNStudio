@@ -74,3 +74,10 @@ def test_one_precision_setting_and_restore_uses_it():
     rs = w2._build_restore_script("m.pt", mc, "adam", "Line", 0, 3, "/tmp")
     assert "dde.config.set_default_float('float64')" in rs
     w.close(); w2.close()
+
+
+def test_the_window_offers_only_working_loss_functions():
+    w = _window()
+    for combo in [w.loss_combo, w.ic_pretrain_loss_combo] + [p["loss"] for p in w.sched_phase_list if "loss" in p]:
+        assert [combo.itemText(i) for i in range(combo.count())] == ["MSE", "MAE"]
+    w.close()

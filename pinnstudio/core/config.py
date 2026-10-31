@@ -955,6 +955,22 @@ class PINNConfig:
                 errors.append("IC pre-training fits the network to the initial conditions given as loss terms, "
                               "but no output has one (an exact initial condition needs no pre-training) -- "
                               "untick IC pre-training.")
+        # Loss functions: the residual targets are 0, so a relative or percentage
+        # loss divides by zero (infinite loss); softplus is not a DeepXDE loss
+        # with PyTorch. The window offers MSE and MAE; an older saved problem may
+        # still name one of the others.
+        import json as _json_lf
+        _bad_loss = set()
+        for _lf in [self.loss_type, getattr(self, "ic_pretrain_loss", "MSE")] + [
+                (_p or {}).get("loss", "MSE") for _p in (_json_lf.loads(self.scheduler_phases or "[]")
+                                                         if self.optimizer_scheduler else [])
+                if isinstance(_p, dict)]:
+            if str(_lf) not in ("MSE", "MAE", "mean squared error", "mean absolute error"):
+                _bad_loss.add(str(_lf))
+        if _bad_loss:
+            errors.append(f"Loss function {', '.join(sorted(_bad_loss))}: not usable for a PINN (the equation residuals "
+                          f"have target 0, or the loss does not exist with PyTorch) -- choose MSE or MAE in the "
+                          f"Training phases.")
         if self.ic_pretrain and self.ic_pretrain_restore:
             import os as _os_icr
             _rp = (self.ic_pretrain_restore_path or "").strip()
