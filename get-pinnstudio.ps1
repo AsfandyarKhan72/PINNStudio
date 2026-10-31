@@ -17,7 +17,8 @@ $ErrorActionPreference = "Continue"
 $pkg = if ($env:PINNSTUDIO_SOURCE) { $env:PINNSTUDIO_SOURCE } else { "pinnstudio" }
 $uvMin = [version]"0.9.20"   # first uv release with --torch-backend for `uv tool install`
 
-function Fail($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
+# throw, not exit: run as `irm ... | iex`, exit would close the user's PowerShell window
+function Fail($msg) { Write-Host $msg -ForegroundColor Red; throw $msg }
 
 if (Get-Command uv -ErrorAction SilentlyContinue) {
     $uvVer = [version]((uv --version).Split(" ")[1])

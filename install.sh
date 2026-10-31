@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+cd "$(dirname "$0")"   # the repository folder, wherever the script is started from
 
 echo "Setting up PINNStudio..."
 python3 -m venv venv
@@ -9,7 +10,7 @@ echo "Installing PINNStudio and its dependencies..."
 ./venv/bin/pip install . --quiet
 
 echo "Checking for a compatible GPU..."
-TORCH_TAG=$(./venv/bin/python "$(dirname "$0")/select_torch_index.py")
+TORCH_TAG=$(./venv/bin/python select_torch_index.py)
 
 # Install the matching PyTorch build (a specific CUDA tag, or CPU-only) LAST,
 # with --force-reinstall. The dependency resolution above may already have

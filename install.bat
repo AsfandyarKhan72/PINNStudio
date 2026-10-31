@@ -1,12 +1,23 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+cd /d "%~dp0"
 echo Setting up PINNStudio...
 python -m venv venv
+if errorlevel 1 (
+    echo Could not create the virtual environment. Is Python 3.9 or newer installed and on PATH?
+    pause
+    exit /b 1
+)
 venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 
 echo Installing PINNStudio and its dependencies...
 venv\Scripts\pip.exe install . --quiet
+if errorlevel 1 (
+    echo Installing PINNStudio failed - see the messages above.
+    pause
+    exit /b 1
+)
 
 echo Checking for a compatible GPU...
 for /f "delims=" %%T in ('venv\Scripts\python.exe "%~dp0select_torch_index.py"') do set TORCH_TAG=%%T
