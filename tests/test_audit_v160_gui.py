@@ -99,3 +99,22 @@ def test_small_gui_fixes_found_while_writing_the_documentation():
     w._add_custom_bc_entry("dirichlet", 9, "True", "0")
     assert w.custom_bc_list[-1]["component"].value() == 9
     w.close()
+
+
+def test_time_window_resampling_candidates_can_be_set():
+    """P2: the candidates per resampling round were fixed at 10,000 with no control, so more than 10,000 points
+    per round gave an error the window could not resolve."""
+    from pinnstudio.core import codegen as cg
+    w = _window()
+    w.ta_rs_rounds.setValue(1)
+    w.ta_rs_points.setValue(20000)
+    w.ta_rs_cand.setValue(50000)
+    c = w._build_config()
+    assert c.ta_resample_candidates == 50000
+    assert not any("candidates" in e for e in __import__("dataclasses").replace(c, time_adaptive=True).validate())
+    assert "_ta_rs_cand = 50000" in cg.generate_script(__import__("dataclasses").replace(c, time_adaptive=True))
+    w2 = _window()
+    w2._apply_config(c)
+    _settle(0.2)
+    assert w2.ta_rs_cand.value() == 50000
+    w.close(); w2.close()
