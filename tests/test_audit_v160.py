@@ -163,3 +163,38 @@ def test_an_initial_condition_with_t_means_t_min():
     ta = dataclasses.replace(c, time_adaptive=True, ta_num_steps=2)
     for s in (codegen.generate_script(ta), codegen.generate_clean_script(ta)):
         assert "np.exp(-t)" not in s
+
+
+def test_ic_guided_learning_fits_only_outputs_with_an_initial_condition():
+    """12. Time windows, IC guided learning: the first window fitted every output to its IC formula (an output
+    without an initial condition, Cahn-Hilliard's mu, to the formula box's placeholder) and ignored an IC file."""
+    c = _template("2D Cahn-Hilliard (Wight & Zhao)")
+    c = dataclasses.replace(c, time_adaptive=True, ta_num_steps=2, ta_icgl_fraction=0.2, ic_hard="False,False",
+                            ic_active="True,False")
+    assert codegen._icgl_outputs(c) == [0]
+    s = codegen.generate_script(c)
+    assert "for _k in [0]:" in s and "[1.0] * len(_cons_icgl)" in s
+    compile(s, "solve", "exec")
+    f = dataclasses.replace(c, forward_ic_from_file=True, forward_ic_file="ic.txt", ic_active="False,False")
+    s = codegen.generate_script(f)
+    assert codegen._icgl_outputs(f) == [0] and "_load_ic_from_file('ic.txt')" in s
+
+
+def test_time_window_error_analysis_reads_the_window_bounds():
+    """13. Time-window Error Analysis took each window's bounds from its folder name (4 decimals)."""
+    c = _template("1D Burgers")
+    s = codegen.generate_script(dataclasses.replace(c, time_adaptive=True, ta_num_steps=2))
+    assert s.count('open(_os.path.join(_sd, "step_config.json")) as _scj_f') >= 2
+
+
+def test_export_keeps_the_gpu_choice_and_notes_export_data():
+    """14. The exported script ignored the Hardware settings' GPU index and memory fraction, and said nothing
+    about 'Export solution data' (written by Solve only)."""
+    c = _dx("ODE system")
+    plain = codegen.generate_clean_script(c)
+    assert "set_device" not in plain and "Export solution data" not in plain
+    s = codegen.generate_clean_script(dataclasses.replace(c, gpu_device_index=1, gpu_memory_fraction=0.5,
+                                                          export_enabled=True))
+    assert "torch.cuda.set_device(1)" in s and "set_per_process_memory_fraction(0.5, device=1)" in s
+    assert "'Export solution data'" in s
+    compile(s, "export", "exec")

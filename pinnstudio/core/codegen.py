@@ -2612,6 +2612,19 @@ def _first_adam_lr(config):
     return float(config.learning_rate)
 
 
+def _icgl_outputs(config):
+    """The outputs initial-condition guided learning fits in the first
+    window: those with an initial condition (a loss term or exact), output 0
+    when the IC comes from a file."""
+    n = int(config.num_outputs or 1)
+    act = [a.strip() == "True" for a in (config.ic_active or "").split(",")]
+    hard = [h.strip() == "True" for h in (getattr(config, "ic_hard", "") or "").split(",")]
+    outs = [k for k in range(n) if (k < len(act) and act[k]) or (k < len(hard) and hard[k])]
+    if getattr(config, "forward_ic_from_file", False) and 0 not in outs:
+        outs = [0] + outs
+    return outs or [0]
+
+
 def _ta_icgl_iterations(config):
     """Initial-condition guided learning's iterations per time window: the
     given fraction of the first Adam phase (Time-Adaptive settings)."""
@@ -3145,22 +3158,34 @@ if {config.time_adaptive}:
             else:
                 _sp_icgl = np.linspace({config.x_min}, {config.x_max}, _gs_icgl).reshape(-1, 1)
             if step_i == 0 or _ta_growing:
+                # the initial condition: only the outputs that have one (an
+                # output like Cahn-Hilliard's mu has none), output 0 from the
+                # IC file when the problem reads it from a file
                 _x0_icgl = np.column_stack([_sp_icgl, np.full(len(_sp_icgl), _ta_t_start)])
                 def _icgl_ic(_k):
                     _e = _ic_expressions[_k].strip() if _k < len(_ic_expressions) and _ic_expressions[_k].strip() else "0"
                     _v = np.asarray(eval(_e, {{"np": np, "x": _x0_icgl, "__builtins__": __builtins__}}), dtype=float)
                     return np.full(len(_x0_icgl), float(_v)) if _v.size == 1 else _v.reshape(-1)
-                _v0_icgl = np.column_stack([_icgl_ic(_k) for _k in range({config.num_outputs})])
+                _icgl_sets = []
+                for _k in {_icgl_outputs(config)!r}:
+                    if {bool(config.forward_ic_from_file)} and _k == 0:
+                        _xt_icf, _v_icf = _load_ic_from_file({config.forward_ic_file!r})
+                        _icgl_sets.append((0, np.asarray(_xt_icf)[:, :-1], np.asarray(_v_icf).reshape(-1)))
+                    else:
+                        _icgl_sets.append((_k, _sp_icgl, _icgl_ic(_k)))
             else:
-                _sp_icgl, _v0_icgl = np.asarray(x_grid).reshape(len(prev_u), -1), np.asarray(prev_u)
+                _sp_prev = np.asarray(x_grid).reshape(len(prev_u), -1)
+                _icgl_sets = [(_k, _sp_prev, np.asarray(prev_u)[:, _k]) for _k in range({config.num_outputs})]
             _tg_icgl = np.linspace(_ta_t_start if _ta_growing else t0, t1, 10)
-            _P_icgl = np.vstack([np.column_stack([_sp_icgl, np.full(len(_sp_icgl), _tv)]) for _tv in _tg_icgl])
-            _V_icgl = np.vstack([_v0_icgl for _ in _tg_icgl])
-            _cons_icgl = [dde.icbc.PointSetBC(_P_icgl, _V_icgl[:, _k:_k+1], component=_k) for _k in range({config.num_outputs})]
+            _cons_icgl = []
+            for _k, _sp_k, _v_k in _icgl_sets:
+                _P_k = np.vstack([np.column_stack([_sp_k, np.full(len(_sp_k), _tv)]) for _tv in _tg_icgl])
+                _V_k = np.concatenate([np.asarray(_v_k, dtype=float).reshape(-1) for _ in _tg_icgl]).reshape(-1, 1)
+                _cons_icgl.append(dde.icbc.PointSetBC(_P_k, _V_k, component=_k))
             _data_icgl = dde.data.TimePDE(geomtime_i, pde, _cons_icgl, num_domain=16, num_boundary=0, num_initial=0)
             _model_icgl = dde.Model(_data_icgl, model_i.net)
             _model_icgl.compile("adam", lr={_first_adam_lr(config)!r},
-                                loss_weights=[0.0] * {_n_equations(config)} + [1.0] * {config.num_outputs})
+                                loss_weights=[0.0] * {_n_equations(config)} + [1.0] * len(_cons_icgl))
             print(f"  === Initial-condition guided learning: {{_ta_icgl_iters}} iterations ===")
             _model_icgl.train(iterations=_ta_icgl_iters, display_every={config.loss_display_every})
 
@@ -3995,6 +4020,14 @@ if {config.time_adaptive}:
             _ta_intervals = []
             for _sd in _ta_step_dirs:
                 _sd_name = _os.path.basename(_sd)
+                # the window's own bounds (the folder name rounds them to 4 decimals)
+                try:
+                    with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                        _scj = __import__("json").load(_scj_f)
+                    _ta_intervals.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                    continue
+                except Exception:
+                    pass
                 try:
                     _parts = _sd_name.split("_")
                     _t0_str = _parts[2].replace("t","")
@@ -4247,6 +4280,13 @@ if {config.time_adaptive}:
                     _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
                     _ta_intervals2 = []
                     for _sd in _ta_step_dirs2:
+                        try:
+                            with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                                _scj = _ea_json2.load(_scj_f)
+                            _ta_intervals2.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                            continue
+                        except Exception:
+                            pass
                         try:
                             _parts = _os.path.basename(_sd).split("_")
                             _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
@@ -8150,6 +8190,14 @@ for _pval in _param_values:
                     _ta_intervals = []
                     for _sd in _ta_step_dirs:
                         _sd_name = _os.path.basename(_sd)
+                        # the window's own bounds (the folder name rounds them to 4 decimals)
+                        try:
+                            with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                                _scj = __import__("json").load(_scj_f)
+                            _ta_intervals.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                            continue
+                        except Exception:
+                            pass
                         try:
                             _parts = _sd_name.split("_")
                             _t0_str = _parts[2].replace("t","")
@@ -11360,6 +11408,22 @@ def _ta_clean_unsupported(config):
     return out
 
 
+def _export_gpu_code(config):
+    """The Hardware settings' GPU choice for the exported script (Solve's
+    script sets them too): the device index and the memory fraction, written
+    only when they differ from PyTorch's own defaults (device 0, no cap)."""
+    idx = int(getattr(config, "gpu_device_index", 0) or 0)
+    frac = float(getattr(config, "gpu_memory_fraction", 0.95) or 0.95)
+    if idx == 0 and frac >= 0.95:
+        return ""
+    lines = ["", "# GPU (Hardware settings)", "if torch.cuda.is_available():"]
+    if idx:
+        lines.append(f"    torch.cuda.set_device({idx})")
+    if frac < 0.95:
+        lines.append(f"    torch.cuda.set_per_process_memory_fraction({frac!r}, device={idx})")
+    return "\n".join(lines)
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -11380,6 +11444,11 @@ def generate_clean_script(config):
                 + generate_script(config))
     from pinnstudio.core import constants as _cmod_hdr
     _const_header = _cmod_hdr.header_lines(_constant_values(config))
+    if getattr(config, "export_enabled", False) and config.problem_type != "Inverse":
+        # Results > "Export solution data" is written by PINNStudio's Solve only
+        _const_header = list(_const_header) + [
+            "# Note: 'Export solution data' (Results page) is on for this problem, but only PINNStudio's",
+            "# Solve writes those data files; this script saves the plots, the model and the losses."]
     config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -11768,7 +11837,7 @@ import matplotlib.pyplot as plt
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
-{_cpu_threads_code(config)}''')
+{_cpu_threads_code(config)}{_export_gpu_code(config)}''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]
