@@ -1,0 +1,22 @@
+This plugin does not support propagateSizeHints()
+--- Heat 1D template, short training through the Solve code path
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+Generated script at: /tmp/tmp38c6cp0j.py
+PASS training finished (5 s): DONE
+PASS model saved (2 .pt files)
+PASS figures saved (4 .png files)
+--- Results with Error analysis open: how far each divider can be dragged
+PASS run readable from History (/tmp/pinnstudio smoke dtphqca5)
+SPLITTER handle 1 (total 1596px): left pane 178..1262px, right pane 117..591px
+  left min: pane 178px: 170px QTreeWidget(modelTree) > [row: 0px QWidget(qt_scrollarea_viewport)]
+  right min: pane 117px: 107px QLabel(pageDesc) 'What kind of problem this is: '
+SPLITTER handle 2 (total 1596px): left pane 117..1201px, right pane 217..1301px
+  left min: pane 117px: 107px QLabel(pageDesc) 'What kind of problem this is: '
+  right min: pane 217px: 207px QTabWidget(graphicsTabs) > 203px QStackedWidget(qt_tabwidget_stackedwidget) > 203px QTabWidget(resultsTabs) > 199px QStackedWidget(qt_tabwidget_stackedwidget) > 199px ErrorAnalysisPanel() > [row: 119px QPushButton() 'Export CSV…', 79px QLabel() 'Relative L₂ error: mean 8.356e', 72px QSplitter(), 62px QPushButton() 'Copy']
+--- Restore & Visualize, every plot type
+PASS restore config found
+PASS restore: Surface
+PASS restore: Line (time steps)
+PASS restore: Animation Line (GIF)
+SMOKE PASSED

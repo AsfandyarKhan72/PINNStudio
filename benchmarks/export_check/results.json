@@ -1,0 +1,1623 @@
+{
+ "_meta": {
+  "python": "3.11.5",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "adam": 200,
+  "lbfgs": 50,
+  "device": "cpu",
+  "commit": "af321c172b7ec65c97f4e91524ccce1a3b59d828",
+  "torch": "2.6.0+cu124",
+  "deepxde": "1.15.0",
+  "numpy": "2.4.6"
+ },
+ "Integro-differential equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.6,
+   2.6
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Integro-differential ODE",
+  "source": "DeepXDE"
+ },
+ "Volterra integro-differential equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 2,
+  "seconds": [
+   2.5,
+   2.5
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Integro-differential ODE – Volterra kernel",
+  "source": "DeepXDE"
+ },
+ "ODE system | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   3.0
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Linear ODE system",
+  "source": "DeepXDE"
+ },
+ "ODE system | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   3.4,
+   3.4
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "w": "1.81165"
+  },
+  "params_export": {
+   "w": "1.81165"
+  },
+  "status": "identical",
+  "name": "Linear ODE system",
+  "source": "DeepXDE"
+ },
+ "Lotka-Volterra equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.0,
+   5.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Lotka-Volterra ODE",
+  "source": "DeepXDE"
+ },
+ "Lotka-Volterra equation | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.6,
+   5.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "a": "0.947322",
+   "d": "1.04051"
+  },
+  "params_export": {
+   "a": "0.947322",
+   "d": "1.04051"
+  },
+  "status": "identical",
+  "name": "Lotka-Volterra ODE",
+  "source": "DeepXDE"
+ },
+ "Second-order ODE | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.6,
+   2.6
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Second-order ODE",
+  "source": "DeepXDE"
+ },
+ "Second-order ODE | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   3.1,
+   3.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "a": "10.3772",
+   "b": "5.01425"
+  },
+  "params_export": {
+   "a": "10.3772",
+   "b": "5.01425"
+  },
+  "status": "identical",
+  "name": "Second-order ODE",
+  "source": "DeepXDE"
+ },
+ "Inverse: Lorenz system | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   3.7,
+   4.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "C1": "0.361201",
+   "C2": "1.42581",
+   "C3": "0.200379"
+  },
+  "params_export": {
+   "C1": "0.361201",
+   "C2": "1.42581",
+   "C3": "0.200379"
+  },
+  "status": "identical",
+  "name": "Lorenz ODE – unknown C₁, C₂, C₃",
+  "source": "DeepXDE"
+ },
+ "Inverse: Lorenz system with exogenous input | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.8,
+   3.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "C1": "0.725831",
+   "C2": "1.13823",
+   "C3": "0.766611"
+  },
+  "params_export": {
+   "C1": "0.725831",
+   "C2": "1.13823",
+   "C3": "0.766611"
+  },
+  "status": "identical",
+  "name": "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",
+  "source": "DeepXDE"
+ },
+ "Euler beam | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   3.5,
+   3.6
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Euler beam 1D",
+  "source": "DeepXDE"
+ },
+ "Euler beam | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   4.3,
+   4.2
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "EI": "3.33262"
+  },
+  "params_export": {
+   "EI": "3.33262"
+  },
+  "status": "identical",
+  "name": "Euler beam 1D",
+  "source": "DeepXDE"
+ },
+ "Fractional Poisson equation 1D | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Fractional Poisson 1D",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – Dirichlet | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – Dirichlet",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – Dirichlet/Neumann | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – Dirichlet/Neumann",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – Dirichlet/Periodic | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   3.1,
+   3.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – Dirichlet/Periodic",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – Dirichlet/PointSetOperator | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – Dirichlet/point-set operator",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – Dirichlet/Robin | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.0,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – Dirichlet/Robin",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – hard boundary conditions | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   2.9,
+   2.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – hard BCs",
+  "source": "DeepXDE"
+ },
+ "Poisson 1D – multi-scale Fourier features | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   4.3,
+   4.3
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – multi-scale Fourier features",
+  "source": "DeepXDE"
+ },
+ "Inverse: Brinkman-Forchheimer model | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.1,
+   3.0
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "v_e": "0.0417292",
+   "K": "0.109503"
+  },
+  "params_export": {
+   "v_e": "0.0417292",
+   "K": "0.109503"
+  },
+  "status": "identical",
+  "name": "Brinkman-Forchheimer 1D – unknown ν_e, K",
+  "source": "DeepXDE"
+ },
+ "Inverse: diffusion-reaction with space-dependent rate | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.1,
+   3.2
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Diffusion-reaction 1D – unknown rate field",
+  "source": "DeepXDE"
+ },
+ "Inverse: fractional Poisson equation 1D | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   6.7,
+   6.6
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "alpha": "1.70585"
+  },
+  "params_export": {
+   "alpha": "1.70585"
+  },
+  "status": "identical",
+  "name": "Fractional Poisson 1D – unknown order α",
+  "source": "DeepXDE"
+ },
+ "Inverse: Poisson with unknown forcing field | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.4,
+   3.4
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – unknown forcing field",
+  "source": "DeepXDE"
+ },
+ "Inverse: Poisson with unknown forcing field (batches) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.1,
+   3.3
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 1D – unknown forcing field (batches)",
+  "source": "DeepXDE"
+ },
+ "1D Allen-Cahn (whole interval) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   77.5,
+   84.2
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Allen-Cahn 1D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "1D Allen-Cahn (whole interval) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   81.3,
+   81.2
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "gamma_1": "0.000190491",
+   "gamma_2": "0.721073"
+  },
+  "params_export": {
+   "gamma_1": "0.000190491",
+   "gamma_2": "0.721073"
+  },
+  "status": "identical",
+  "name": "Allen-Cahn 1D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "1D Cahn-Hilliard | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   38.4,
+   39.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Cahn-Hilliard 1D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "1D Cahn-Hilliard | inverse": {
+  "status": "skipped",
+  "note": "no such problem: unknown template '1D Cahn-Hilliard' (Inverse list)",
+  "name": "Cahn-Hilliard 1D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "1D Cahn-Hilliard (Mattey & Ghosh) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 150,
+  "seconds": [
+   1261.9,
+   1257.4
+  ],
+  "train_calls": 30,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Cahn-Hilliard 1D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "1D Cahn-Hilliard (Mattey & Ghosh) | inverse": {
+  "status": "skipped",
+  "note": "no such problem: unknown template '1D Cahn-Hilliard (Mattey & Ghosh)' (Inverse list)",
+  "name": "Cahn-Hilliard 1D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "American put option | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   15.5,
+   16.3
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Black-Scholes 1D – American put",
+  "source": "DeepXDE"
+ },
+ "Black-Scholes equation (call option) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   4.6,
+   4.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Black-Scholes 1D – European call",
+  "source": "DeepXDE"
+ },
+ "1D Burgers | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 2,
+  "seconds": [
+   4.4,
+   4.5
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Burgers 1D – Raissi et al.",
+  "source": "PINNStudio"
+ },
+ "1D Burgers | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   6.3,
+   6.2
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "lambda_1": "0.250354",
+   "lambda_2": "0.0182581"
+  },
+  "params_export": {
+   "lambda_1": "0.250354",
+   "lambda_2": "0.0182581"
+  },
+  "status": "identical",
+  "name": "Burgers 1D – Raissi et al.",
+  "source": "PINNStudio"
+ },
+ "Burgers equation with RAR | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 27,
+  "seconds": [
+   5.7,
+   5.2
+  ],
+  "train_calls": 4,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Burgers 1D – RAR",
+  "source": "DeepXDE"
+ },
+ "Diffusion equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   4.4,
+   4.4
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Diffusion 1D",
+  "source": "DeepXDE"
+ },
+ "Diffusion equation with hard IC and BC | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   4.2,
+   4.0
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Diffusion 1D – hard IC and BCs",
+  "source": "DeepXDE"
+ },
+ "Diffusion equation with resampling | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   4.1,
+   4.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Diffusion 1D – resampling",
+  "source": "DeepXDE"
+ },
+ "Diffusion-reaction equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   6.7,
+   7.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Diffusion-reaction 1D",
+  "source": "DeepXDE"
+ },
+ "Diffusion-reaction equation | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   7.7,
+   7.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "D": "0.655259"
+  },
+  "params_export": {
+   "D": "0.655259"
+  },
+  "status": "identical",
+  "name": "Diffusion-reaction 1D",
+  "source": "DeepXDE"
+ },
+ "Fractional diffusion equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   4.0,
+   3.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Fractional diffusion 1D",
+  "source": "DeepXDE"
+ },
+ "Heat equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.7,
+   5.7
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Heat 1D – Dirichlet",
+  "source": "DeepXDE"
+ },
+ "Heat equation | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   7.2,
+   7.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "a": "0.656084"
+  },
+  "params_export": {
+   "a": "0.656084"
+  },
+  "status": "identical",
+  "name": "Heat 1D – Dirichlet",
+  "source": "DeepXDE"
+ },
+ "Heat equation with resampling | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   4.7,
+   4.7
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Heat 1D – resampling",
+  "source": "DeepXDE"
+ },
+ "Klein-Gordon equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   34.0,
+   35.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Klein-Gordon 1D",
+  "source": "DeepXDE"
+ },
+ "Klein-Gordon equation | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   159.1,
+   137.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "gamma": "0.601138"
+  },
+  "params_export": {
+   "gamma": "0.601138"
+  },
+  "status": "identical",
+  "name": "Klein-Gordon 1D",
+  "source": "DeepXDE"
+ },
+ "Schrödinger equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   22.2,
+   21.9
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Schrödinger 1D",
+  "source": "DeepXDE"
+ },
+ "Schrödinger equation | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   82.6,
+   82.6
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "c": "0.613001"
+  },
+  "params_export": {
+   "c": "0.613001"
+  },
+  "status": "identical",
+  "name": "Schrödinger 1D",
+  "source": "DeepXDE"
+ },
+ "Wave propagation – space-time multi-scale Fourier features | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   59.2,
+   59.6
+  ],
+  "train_calls": 3,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Wave 1D – space-time multi-scale Fourier features",
+  "source": "DeepXDE"
+ },
+ "Wave propagation – space-time multi-scale Fourier features | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   243.6,
+   243.9
+  ],
+  "train_calls": 3,
+  "bitwise": true,
+  "params_solve": {
+   "C": "4.77845"
+  },
+  "params_export": {
+   "C": "4.77845"
+  },
+  "status": "identical",
+  "name": "Wave 1D – space-time multi-scale Fourier features",
+  "source": "DeepXDE"
+ },
+ "Inverse: diffusion equation | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.8,
+   3.7
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "C": "2.10864"
+  },
+  "params_export": {
+   "C": "2.10864"
+  },
+  "status": "identical",
+  "name": "Diffusion 1D – unknown coefficient",
+  "source": "DeepXDE"
+ },
+ "Inverse: diffusion-reaction system | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   31.0,
+   31.4
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "kf": "-0.0250413",
+   "D": "1.24906"
+  },
+  "params_export": {
+   "kf": "-0.0250413",
+   "D": "1.24906"
+  },
+  "status": "identical",
+  "name": "Diffusion-reaction 1D – unknown k_f, D",
+  "source": "DeepXDE"
+ },
+ "Fractional Poisson equation 2D | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   7.7,
+   7.6
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Fractional Poisson 2D – disk",
+  "source": "DeepXDE"
+ },
+ "Helmholtz 2D (Dirichlet) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   4.8,
+   4.8
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Helmholtz 2D – Dirichlet",
+  "source": "DeepXDE"
+ },
+ "Helmholtz 2D (Dirichlet) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   15.4,
+   15.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "k0": "9.97589"
+  },
+  "params_export": {
+   "k0": "9.97589"
+  },
+  "status": "identical",
+  "name": "Helmholtz 2D – Dirichlet",
+  "source": "DeepXDE"
+ },
+ "Helmholtz 2D – hyperparameter optimization | forward": {
+  "status": "skipped",
+  "note": "parameter sweep example",
+  "name": "Helmholtz 2D – hyperparameter search",
+  "source": "DeepXDE"
+ },
+ "Helmholtz sound-hard scattering (absorbing BC) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   19.0,
+   20.0
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Helmholtz 2D – sound-hard scattering",
+  "source": "DeepXDE"
+ },
+ "Helmholtz 2D with a hole | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 14,
+  "seconds": [
+   7.3,
+   7.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Helmholtz 2D – square with hole",
+  "source": "DeepXDE"
+ },
+ "Laplace equation on a disk | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   3.9,
+   3.9
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Laplace 2D – disk",
+  "source": "DeepXDE"
+ },
+ "Linear elastostatic plate | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   18.8,
+   18.9
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Linear elasticity 2D – plate",
+  "source": "DeepXDE"
+ },
+ "Linear elastostatic plate | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   13.1,
+   12.9
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "lmbd": "0.942495",
+   "mu": "0.81956"
+  },
+  "params_export": {
+   "lmbd": "0.942495",
+   "mu": "0.81956"
+  },
+  "status": "identical",
+  "name": "Linear elasticity 2D – plate",
+  "source": "DeepXDE"
+ },
+ "Linear elastostatic plate (soft BCs) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   11.7,
+   11.6
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Linear elasticity 2D – plate, soft BCs",
+  "source": "DeepXDE"
+ },
+ "Kovasznay flow | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   13.4,
+   13.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Navier-Stokes 2D – Kovasznay flow",
+  "source": "DeepXDE"
+ },
+ "Kovasznay flow | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   67.1,
+   68.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "Re": "10.0542"
+  },
+  "params_export": {
+   "Re": "10.0542"
+  },
+  "status": "identical",
+  "name": "Navier-Stokes 2D – Kovasznay flow",
+  "source": "DeepXDE"
+ },
+ "2D Poisson (Disk) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.0,
+   5.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 2D – disk",
+  "source": "PINNStudio"
+ },
+ "2D Poisson (Disk) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.1,
+   5.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "source_term": "0.975851"
+  },
+  "params_export": {
+   "source_term": "0.975851"
+  },
+  "status": "identical",
+  "name": "Poisson 2D – disk",
+  "source": "PINNStudio"
+ },
+ "Poisson over an L-shaped domain | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   9.3,
+   9.1
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 2D – L-shape",
+  "source": "DeepXDE"
+ },
+ "Poisson over an L-shaped domain | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   5.1,
+   5.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "f": "0.482836"
+  },
+  "params_export": {
+   "f": "0.482836"
+  },
+  "status": "identical",
+  "name": "Poisson 2D – L-shape",
+  "source": "DeepXDE"
+ },
+ "Inverse: fractional Poisson equation 2D | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   26.0,
+   25.7
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {
+   "alpha": "1.56294"
+  },
+  "params_export": {
+   "alpha": "1.56294"
+  },
+  "status": "identical",
+  "name": "Fractional Poisson 2D – unknown order α",
+  "source": "DeepXDE"
+ },
+ "2D Allen-Cahn (Wight & Zhao) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 130,
+  "seconds": [
+   260.4,
+   258.7
+  ],
+  "train_calls": 20,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Allen-Cahn 2D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "2D Allen-Cahn (Wight & Zhao) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   192.1,
+   183.8
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "lambda_": "0.832997",
+   "diff_coeff": "-0.000284565"
+  },
+  "params_export": {
+   "lambda_": "0.832997",
+   "diff_coeff": "-0.000284565"
+  },
+  "status": "identical",
+  "name": "Allen-Cahn 2D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "2D Allen-Cahn (Mattey & Ghosh) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   23.8,
+   25.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Allen-Cahn 2D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "2D Allen-Cahn (Mattey & Ghosh) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   314.4,
+   313.6
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "c1_sq": "-0.000558853",
+   "c2": "0.180804"
+  },
+  "params_export": {
+   "c1_sq": "-0.000558853",
+   "c2": "0.180804"
+  },
+  "status": "identical",
+  "name": "Allen-Cahn 2D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "2D Cahn-Hilliard (Wight & Zhao) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   107.5,
+   109.9
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Cahn-Hilliard 2D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "2D Cahn-Hilliard (Wight & Zhao) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   553.3,
+   557.3
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "eps_sq": "0.00365489"
+  },
+  "params_export": {
+   "eps_sq": "0.00365489"
+  },
+  "status": "identical",
+  "name": "Cahn-Hilliard 2D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "2D Cahn-Hilliard (Mattey & Ghosh) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   113.7,
+   115.4
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "2D Cahn-Hilliard (Mattey & Ghosh) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   777.2,
+   773.6
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "alpha": "-0.00028291",
+   "kappa": "0.198432"
+  },
+  "params_export": {
+   "alpha": "-0.00028291",
+   "kappa": "0.198432"
+  },
+  "status": "identical",
+  "name": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "2D Burgers (Mathias) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 52,
+  "seconds": [
+   348.8,
+   342.4
+  ],
+  "train_calls": 8,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Burgers 2D – Mathias et al.",
+  "source": "PINNStudio"
+ },
+ "2D Burgers (Mathias) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   1033.6,
+   1020.8
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "nu": "0.00758942"
+  },
+  "params_export": {
+   "nu": "0.00758942"
+  },
+  "status": "identical",
+  "name": "Burgers 2D – Mathias et al.",
+  "source": "PINNStudio"
+ },
+ "2D Heat | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   13.6,
+   13.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Heat 2D",
+  "source": "PINNStudio"
+ },
+ "2D Heat | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   29.8,
+   29.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "alpha": "0.591129"
+  },
+  "params_export": {
+   "alpha": "0.591129"
+  },
+  "status": "identical",
+  "name": "Heat 2D",
+  "source": "PINNStudio"
+ },
+ "Fractional Poisson equation 3D | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 11,
+  "seconds": [
+   124.2,
+   124.0
+  ],
+  "train_calls": 1,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Fractional Poisson 3D – sphere",
+  "source": "DeepXDE"
+ },
+ "3D Poisson (Cube with spherical cut-out) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   109.2,
+   107.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 3D – cube with spherical cut-out",
+  "source": "PINNStudio"
+ },
+ "3D Poisson (Cube with spherical cut-out) | inverse": {
+  "status": "skipped",
+  "note": "no such problem: unknown template '3D Poisson (Cube with spherical cut-out)' (Inverse list)",
+  "name": "Poisson 3D – cube with spherical cut-out",
+  "source": "PINNStudio"
+ },
+ "3D Poisson (Sphere) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   6.4,
+   6.2
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Poisson 3D – sphere",
+  "source": "PINNStudio"
+ },
+ "3D Poisson (Sphere) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   6.3,
+   6.4
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "source_term": "0.932778"
+  },
+  "params_export": {
+   "source_term": "0.932778"
+  },
+  "status": "identical",
+  "name": "Poisson 3D – sphere",
+  "source": "PINNStudio"
+ },
+ "3D Allen-Cahn (Wight & Zhao) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   502.4,
+   484.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Allen-Cahn 3D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "3D Allen-Cahn (Wight & Zhao) | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   389.7,
+   387.7
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "lambda_": "1.08505",
+   "diff_coeff": "0.00847082"
+  },
+  "params_export": {
+   "lambda_": "1.08505",
+   "diff_coeff": "0.00847082"
+  },
+  "status": "identical",
+  "name": "Allen-Cahn 3D – Wight & Zhao",
+  "source": "PINNStudio"
+ },
+ "3D Heat | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   99.9,
+   92.0
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Heat 3D",
+  "source": "PINNStudio"
+ },
+ "3D Heat | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   153.4,
+   144.3
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "alpha": "0.793434"
+  },
+  "params_export": {
+   "alpha": "0.793434"
+  },
+  "status": "identical",
+  "name": "Heat 3D",
+  "source": "PINNStudio"
+ },
+ "Beltrami flow | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   333.6,
+   313.5
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Navier-Stokes 3D – Beltrami flow",
+  "source": "DeepXDE"
+ },
+ "Beltrami flow | inverse": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 13,
+  "seconds": [
+   352.4,
+   352.4
+  ],
+  "train_calls": 2,
+  "bitwise": true,
+  "params_solve": {
+   "nu": "0.145977"
+  },
+  "params_export": {
+   "nu": "0.145977"
+  },
+  "status": "identical",
+  "name": "Navier-Stokes 3D – Beltrami flow",
+  "source": "DeepXDE"
+ }
+}
