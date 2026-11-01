@@ -51,7 +51,26 @@ the commits leading to the `v1.5.0` tag):
    the new version.
 7. **Documentation.** Publishing a release does not deploy this site. The `docs.yml` workflow deploys to GitHub
    Pages only when a maintainer starts it by hand on `main` with deployment selected, and only once publication
-   has been approved (repository variable `DOCS_PUBLISH_APPROVED`).
+   has been approved (repository variable `DOCS_PUBLISH_APPROVED`). The steps are in `tools/docs/DEPLOY.md`.
+
+## Documentation checklist for a release
+
+Before the version commit:
+
+- [ ] **Version banner.** In `mkdocs.yml`, set `extra.released_version` to the new version and change
+      `extra.version_label` (for example to `"v1.6.0"`). Every page's banner and the "new in" notes read these.
+- [ ] **"New in" notes.** Notes such as `!!! info "New in v1.6.0"` stay; they tell readers of the released
+      version what changed. Remove the "in development" wording from them.
+- [ ] **Installation page.** The version installed by `pip install pinnstudio` and the installers.
+- [ ] **Changelog page.** `website/about/changelog.md` follows `CHANGELOG.md`.
+- [ ] **Generated pages.** `python tools/docs/make_gallery.py` (example gallery) and
+      `python tools/docs/make_config_reference.py --check` (configuration reference) report no changes, or
+      their output is committed.
+- [ ] **Screenshots.** If the interface changed, regenerate them with the three commands in
+      `tools/docs/README.md` and look through the changed images before committing.
+- [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version.
+- [ ] **Strict build and link check pass** on the pull request (the `docs.yml` workflow).
+- [ ] **Deploy** after the release is tagged (`tools/docs/DEPLOY.md`, step 5) and check the live site.
 
 ## After a release
 
