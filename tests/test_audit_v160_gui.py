@@ -160,3 +160,27 @@ def test_restore_finds_the_formula_reference_files_of_the_run(tmp_path):
     w.restore_model_path.setText(str(model))
     ea = w._ea_with_formula_files({"ref_mode": "formula", "ref_formula": c.ea_ref_formula}, cfg)
     assert len(ea["files"]) == len(entries)
+
+
+def test_restore_skips_error_analysis_set_up_for_another_problem():
+    """Restore used the Error Analysis reference files of whatever problem was in the window: a 1D Burgers
+    model restored with the steady 2D L-shape example loaded failed inside matplotlib ("Input z must be at
+    least a (2, 2) shaped array, but has shape (1, 200)")."""
+    w = _window()
+    w.quick_examples_category_combo.setCurrentText("Forward")
+    _settle(0.1)
+    w.quick_examples_combo.setCurrentIndex(w.quick_examples_combo.findText("Poisson 2D – L-shape, Lu et al."))
+    _settle(0.8)
+    burgers_1d = {"problem_dim": "1D", "steady_state": False, "ode": False, "output_names": "u"}
+    assert "the model is 1D" in w._restore_ea_mismatch(burgers_1d)
+    w.quick_examples_combo.setCurrentIndex(w.quick_examples_combo.findText("Burgers 1D – Raissi et al."))
+    _settle(0.8)
+    assert w._restore_ea_mismatch(burgers_1d) == ""
+    assert "time-dependent" in w._restore_ea_mismatch(dict(burgers_1d, steady_state=True))
+    assert "outputs u" in w._restore_ea_mismatch(dict(burgers_1d, output_names="v"))
+    # an ODE model (prepared as 1D with ode=True) against an ODE problem in the window
+    w._new_problem("ODE")
+    _settle(0.3)
+    assert w._restore_ea_mismatch({"problem_dim": "1D", "ode": True, "steady_state": True,
+                                   "output_names": w._build_config().output_names}) == ""
+    w.close()
