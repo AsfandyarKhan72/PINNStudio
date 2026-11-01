@@ -47,10 +47,17 @@ An exact initial condition needs the condition as a formula (not a file) and can
 
 ## Load the initial condition from a file
 
-For output 1 only, tick **Load IC from file (x,t,c format)** and browse for a text file without a
-header. Its columns are the coordinates, the time and the value: `x, t, c` in 1D, `x, y, t, c` in 2D,
-`x, y, z, t, c` in 3D. While the file is used, the formula box is hidden and **Exact** cannot be
-ticked.
+For output 1 only, tick **Load IC from file (x,t,c format)** and browse for a text file. Its columns are
+the coordinates, the time and the value: `x, t, c` in 1D, `x, y, t, c` in 2D, `x, y, z, t, c` in 3D,
+separated by commas, semicolons or spaces. Only the rows at the start time \( t_{\min} \) are used; the
+run stops with an error if the file has none. Header and comment lines are skipped, and so are rows with
+a missing value (NaN) or a different number of columns than most rows, with a note in the Training Log.
+While the file is used, the formula box is hidden and **Exact** cannot be ticked.
+
+A second check box then appears, **Also check the equation at the file's points** (off by default). Ticked,
+the file's points are also used as collocation points (anchors), so the equation's residual is evaluated
+there as well as the initial-condition loss. It is not used with time windows, where each window has its
+own initial points.
 
 ## Initial conditions on derivatives
 
@@ -76,3 +83,4 @@ an **Operator BC (advanced)** row with **Applies on: the initial time (t = t₀)
 | (expression box) | Initial value as a formula | output 1: `sin(pi*x)`, others: `cos(pi*x)` (2D: `sin(4*pi*x)*cos(4*pi*y)`, `cos(4*pi*x)*sin(4*pi*y)`) | `ic_expressions` (separated by a vertical bar) |
 | **Load IC from file (… format)** | Output 1's IC from a file | off | `forward_ic_from_file` |
 | (file box) | The IC file | empty | `forward_ic_file` |
+| **Also check the equation at the file's points** | The IC file's points are also collocation points (anchors) | off | `ic_file_anchors` |

@@ -42,12 +42,14 @@ He normal or zeros.
 | **Network type** | What it is |
 |---|---|
 | **FNN** | One fully connected network for all outputs |
-| **PFNN** | A separate sub-network per output, which can help when outputs differ a lot in size. Weight decay cannot be used with it. |
+| **PFNN** | A separate sub-network per output, which can help when outputs differ a lot in size |
 | **MsFFN** | Multi-scale Fourier feature network: random Fourier features of the inputs at the scales in **Fourier scales (σ)**, for solutions with both slow and fast variations |
 | **STMsFFN** | The same with separate space and time features; **Time scales (σₜ)** sets the time scales. Needs a time-dependent problem with space (not an ODE) |
 
 For MsFFN and STMsFFN the first hidden layer needs an even number of neurons (at least 2). Large σ
-lets the network represent fast oscillations.
+lets the network represent fast oscillations. Weight decay (**Settings › Optimizer Settings...**) can only
+be used with an FNN: DeepXDE's PFNN, MsFFN and STMsFFN have no regularization, and **Solve** refuses the
+combination.
 
 !!! info "New in v1.6.0 (in development)"
     STMsFFN takes the network's last input as time. With an input-feature formula that does not end

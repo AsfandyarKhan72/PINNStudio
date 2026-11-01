@@ -61,6 +61,17 @@ Derivatives are written `d<output>_<variables>`:
 | `du_xx`, `du_yy`, `du_tt` | second derivatives |
 | `du_xy`, `du_xt`, `du_yt`, … | mixed derivatives |
 | `du_xxxx`, `du_xxyy`, `du_xxtt`, … | fourth derivatives |
+| `du_xxx` | third derivative in `x` (1D only) |
+
+These are the only derivatives the scripts build: first and second derivatives (derivatives in `t`
+only for a time-dependent problem), `du_xxx` in 1D, and fourth derivatives of the forms `du_xxxx`,
+`du_xxyy`, `du_xxtt`. Any other name, for example `du_xxy` or `du_xyz`, is refused when you press
+**Solve** (*… is not available (see Derivative syntax on the Equations page)*); write a higher derivative
+with an extra output instead (for example `v` with the equation `v - du_xx`).
+
+!!! info "New in v1.6.0 (in development)"
+    Unsupported derivative names are refused by the settings check. Before, they passed the check and
+    stopped both scripts with `NameError` at the first training step.
 
 The coordinates (`x`, `y`, `z`, `t` as the dimension has them), the output names, the named constants,
 the unknown parameters of an inverse problem and the functions `sin`, `cos`, `exp`, `log`, `sqrt`,
@@ -73,7 +84,7 @@ not defined) is listed in orange under it, as in *Unknown names: …*.
 
 ### ODE problems
 
-In an **ODE  (t)** problem the only variable is `t`: write `du_t`, `du_tt`. One equation per output
+In an **ODE  (t)** problem the only variable is `t`: write `du_t`, `du_tt`, `du_ttt` or `du_tttt`. One equation per output
 gives a first-order system, for example `dy1_t - y2` and `dy2_t + y1`. For integro-differential
 equations, `integral(f)` is the integral of `f` from the start of the time interval to the current `t`,
 with `s` as the integration variable; **∫ points** sets the number of Gauss–Legendre points (2 to 200,

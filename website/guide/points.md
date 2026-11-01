@@ -36,8 +36,9 @@ random sampling. An **Interface 2D BC** row needs **uniform** and switches to it
 
 **Extra training points** adds points that are always part of training, on top of the sampled ones:
 
-- **From a file** — a text file with one column per input (`x[, y[, z]][, t]`), for example points
-  clustered near a front;
+- **From a file** — a plain numeric text file with one column per input (`x[, y[, z]][, t]`),
+  separated by commas, semicolons or spaces (header, comment, missing-value and wrong-width rows are skipped
+  with a note in the log), for example points clustered near a front;
 - **Random in a box** — **Count:** random points within **Ranges:**, given as `lo,hi` per input
   separated by `;` (blank means the whole domain), for example `0.4,0.6; 0,1` for a strip around
   `x = 0.5` in a 1D time-dependent problem.

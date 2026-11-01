@@ -6,7 +6,7 @@ runs, so a run never reuses a folder that already holds files.
 
 * PINNSTUDIO_DOCS_HOME set: that folder is used. It must not exist yet or must be empty, otherwise the run
   stops. For the published screenshots use a neutral path, so the images show no build-machine paths:
-  ``PINNSTUDIO_DOCS_HOME=/home/user`` (see tools/docs/README.md).
+  ``PINNSTUDIO_DOCS_HOME=/home/researcher`` (see tools/docs/README.md).
 * not set: a new private folder is made with tempfile.mkdtemp (safe for tests and local previews; its
   /tmp path then shows in the status bar, so such images are not for publication).
 

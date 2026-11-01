@@ -112,7 +112,7 @@ of an unknown parameter.
 | What | Where |
 |---|---|
 | Several data files (e.g. two measured fields) | **Inverse problem** › **Add data file**, each with its own **Measures:** and **Loss weight:** |
-| An initial condition given as data | **Initial conditions** › **Load IC from file (x,t,c format)** |
+| An initial condition given as data | **Initial conditions** › **Load IC from file (x,t,c format)**; **Also check the equation at the file's points** adds the file's points as anchors |
 | Extra training points | **Collocation points** › **Extra training points:** **From a file** |
 | Data inside a forward problem | a **Point Set BC** row on **Boundary conditions** |
 | Reference solutions for errors | **Error Analysis** › **Reference files** ([Tutorial 17](17-error-analysis.md)) |

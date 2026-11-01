@@ -22,7 +22,8 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
    `!!! info "New in v1.6.0 (in development)"`. Never write install instructions for v1.6.0 as if it were
    released: `pip install pinnstudio` installs v1.5.0; the development version is installed from source.
 4. **License, paper, DOI.** Do not describe the license (see `about/license.md`, written separately), do
-   not invent a DOI, and refer to the CPC paper only as "submitted to Computer Physics Communications".
+   not invent a DOI, and refer to the paper only as "the PINNStudio paper" (in preparation); do not name a journal
+   or say it has been submitted.
 5. **Scope statement.** PINNStudio helps set up, train and evaluate PINNs; it does not guarantee
    convergence, physical validity or accuracy for an arbitrary problem. Say so where it matters.
 6. If you find a software bug or a documentation contradiction, **do not change the software** — list it

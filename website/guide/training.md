@@ -31,16 +31,18 @@ For each phase:
     | **Exponential** | **Gamma:** (factor per iteration, below 1) |
     | **Inverse time** | **Decay steps:**, **Decay rate:** — DeepXDE's `lr / (1 + rate * step / steps)` |
 
-- **Loss function:** how the residuals are turned into a loss: **MSE** (suits almost every problem),
-  **MAE**, **mean l2 relative error**, **mean absolute percentage error**, **softplus**.
+- **Loss function:** how the residuals are turned into a loss: **MSE** (suits almost every problem) or
+  **MAE**. Relative and percentage losses are not offered, because the residual targets are 0; a problem
+  saved by an older version with one of them is refused by **Solve** until you choose MSE or MAE.
 
 **Add Phase** adds an Adam phase (50,000 iterations, learning rate 0.001); the ✕ of a phase removes it.
 Right-clicking **Training** in the tree also offers **Add training phase**.
 
-!!! warning "Eta min of a cosine decay"
-    When you switch a phase's decay to **Cosine**, **Eta min** keeps the value its box had (0.9, the
-    default **Gamma** of a step decay). Set it below the phase's learning rate, or the learning rate
-    will rise instead of fall.
+!!! note "Eta min of a cosine decay"
+    When you switch a phase's decay to **Cosine**, **Eta min** starts at 0.0 (the second number's 0.9 is
+    the **Gamma** of a step decay; switching back to **Step** or **Inverse time** sets 0.9 again). If you
+    change **Eta min**, keep it below the phase's learning rate, or the learning rate will rise instead of
+    fall.
 
 ## How the phases connect to other settings
 
@@ -75,8 +77,8 @@ maxls = 50); each L-BFGS phase runs for its own **Iterations**. To set the optio
 **gtol**, **maxfun** and **maxls**.
 
 **Precision:** applies to the whole run. **float32** is faster, above all on a GPU; **float64** is more
-accurate and lets L-BFGS go further when very small errors are needed. The run uses float64 if either
-this box or **Settings › Float Precision...** says float64.
+accurate and lets L-BFGS go further when very small errors are needed. This box and
+**Settings › Float Precision...** are one setting: changing either one changes the other.
 
 ## Initial-condition pre-training
 
@@ -88,11 +90,14 @@ phases start; this can help a time-dependent problem start well. Choose:
   initial condition comes from a file);
 - **Restore from checkpoint** — load an Adam-trained pre-training model (`.pt`) instead of training.
 
-The box is not available for a stationary problem.
+The box is hidden for a stationary problem. Pre-training needs a time-dependent PDE: for an ODE
+(whose initial values are conditions at the start of the time interval, not initial-condition loss
+terms) **Solve** refuses it with an explanation.
 
 !!! info "New in v1.6.0 (in development)"
     Pre-training fits the initial conditions given as loss terms. When every initial condition is exact
-    (built into the network) there is nothing to fit, and **Solve** now refuses with an explanation.
+    (built into the network) there is nothing to fit, and **Solve** now refuses with an explanation, as it
+    does for pre-training on an ODE or stationary problem.
 
 ## Callbacks
 
@@ -128,8 +133,8 @@ The phases are saved together as a JSON list in `scheduler_phases`, one object p
 | **Learning rate:** | Adam/AdamW step size (1e-12–10) | 0.001 | `lr` |
 | **Learning rate decay:** | None, Step, Cosine, Exponential, Inverse time | None | `decay_type` |
 | **Step size:** / **T_max (iters):** / **Gamma:** / **Decay steps:** | First decay number | 5000 (Step), 0.9999 (Exponential), 1000 (Inverse time) | `decay_p1` |
-| **Gamma:** / **Eta min:** / **Decay rate:** | Second decay number | 0.9 | `decay_p2` |
-| **Loss function:** | MSE, MAE, mean l2 relative error, mean absolute percentage error, softplus | MSE | `loss` |
+| **Gamma:** / **Eta min:** / **Decay rate:** | Second decay number | 0.9 (Step, Inverse time), 0.0 (Cosine) | `decay_p2` |
+| **Loss function:** | MSE or MAE | MSE | `loss` |
 | **Use recommended L-BFGS settings** | DeepXDE's L-BFGS defaults | on | `lbfgs_use_default` |
 | **maxcor:**, **ftol:**, **gtol:**, **maxfun:**, **maxls:** | L-BFGS options | 100, 0, 1e-8, 18750, 50 | `lbfgs_maxcor`, `lbfgs_ftol`, `lbfgs_gtol`, `lbfgs_maxfun`, `lbfgs_maxls` |
 | **Precision:** | float32 or float64 for the run | float32 | `lbfgs_float_type` |
@@ -138,7 +143,7 @@ The phases are saved together as a JSON list in `scheduler_phases`, one object p
 | **Iterations:** (pre-training) | 100–100,000,000 | 20000 | `ic_pretrain_iterations` |
 | **Learning rate:** (pre-training) | | 0.001 | `ic_pretrain_lr` |
 | **Learning rate decay:** (pre-training) | as for a phase | None | `ic_pretrain_decay_type`, `ic_pretrain_decay_p1`, `ic_pretrain_decay_p2` |
-| **Loss function:** (pre-training) | | MSE | `ic_pretrain_loss` |
+| **Loss function:** (pre-training) | MSE or MAE | MSE | `ic_pretrain_loss` |
 | **Test points:** (pre-training) | 100–100,000 | 10000 | `ic_pretrain_num_test` |
 | **Initial points:** (pre-training) | 1–10,000 | 1000 | `ic_pretrain_num_initial` |
 | (checkpoint path) | Adam-trained pre-training model | blank | `ic_pretrain_restore_path` |

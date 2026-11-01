@@ -19,8 +19,10 @@ Background: [Error metrics](../reference/metrics.md), [Error measures](../theory
    **Surface comparison (PINN | Reference | Error)**.
 3. Under **Error Metrics to Compute**, choose **L2 Relative**, **MSE** and/or **Max Error**.
 4. Leave **Reference:** at **Reference files**, and add one file per time snapshot: **Browse** for it, or
-   **Add another file** for more rows. Each file is plain text without a header, one point per line:
-   the coordinates, the time (for a time-dependent problem) and the value — `x t u` in 1D. The time is
+   **Add another file** for more rows. Each file is plain text, one point per line: the coordinates,
+   the time (for a time-dependent problem) and the value — `x t u` in 1D — separated by commas,
+   semicolons or spaces. Header and comment lines are skipped, and so are rows with a missing value
+   (NaN, for example a point outside the shape) or a different number of columns. The time is
    read from the file and shown next to it (*t = 0.2500*, or *steady* for a stationary problem).
 5. With more than one output, choose for each file which output it holds, or
    **Custom expression...** for an expression of the outputs (with an optional label).

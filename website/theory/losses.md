@@ -69,12 +69,10 @@ vector \(e \in \mathbb{R}^N\) on the term's points:
 | `MSE` (default) | \( \ell(e) = \dfrac{1}{N}\sum_{n=1}^{N} e_n^2 \) | DeepXDE's `mean_squared_error` |
 | `MAE` | \( \ell(e) = \dfrac{1}{N}\sum_{n=1}^{N} \lvert e_n \rvert \) | DeepXDE's `mean_absolute_error` |
 
-!!! warning "Other entries in the Loss function list"
-    The list also offers `mean l2 relative error`, `mean absolute percentage error` and `softplus`. In the
-    current code these do not give a usable loss with the PyTorch backend: DeepXDE compares every residual and
-    condition with a target of zero, and its mean relative \(L_2\) error divides by the norm of that target
-    (the loss is infinite); its mean absolute percentage error is implemented only for TensorFlow; and
-    `softplus` is not a DeepXDE loss name (DeepXDE raises `KeyError`). Use `MSE` or `MAE`.
+The list offers only these two. The residuals and conditions are compared with a target of zero, so
+DeepXDE's mean relative \(L_2\) error and mean absolute percentage error would divide by zero (and the
+latter exists only for TensorFlow), and `softplus` is not a DeepXDE loss. A problem saved by an older
+version with one of those losses is refused before training with a message asking for MSE or MAE.
 
 ## The weighted total loss
 
@@ -95,7 +93,7 @@ the order of this formula: one weight per equation (**PDE 1 (u):**, ...), one pe
 weights unless **Use same weights for all phases** is ticked. The weights can also be set automatically
 ([Adaptive loss weighting](loss-weighting.md)). See also [Loss weights](../reference/loss-weights.md).
 
-Weight decay (**Weight decay (L2):** on the **Training** page) is passed to the optimizer as its
+Weight decay (**Weight decay (L2):** in **Settings › Optimizer Settings...**) is passed to the optimizer as its
 `weight_decay` parameter, which adds \(\alpha\,\theta\) to the gradient of the network weights (an \(L_2\)
 penalty \(\tfrac{\alpha}{2}\lVert\theta\rVert^2\) for Adam; decoupled decay for AdamW). It does not act on the unknowns
 of an inverse problem, cannot be combined with L-BFGS or NNCG (DeepXDE refuses it), and is not applied

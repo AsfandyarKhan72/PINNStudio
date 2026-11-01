@@ -68,8 +68,7 @@ With **Time Adaptive Training** ([Time-dependent training](time-dependent.md)), 
 \(> 0\) applies the same idea inside each window, after the window's own training, following the
 "approach I with resampling" of [Wight & Zhao (2021)](../about/references.md#wight2021). In every round:
 
-1. draw 10,000 random candidates in the window's space-time domain (the stored default of
-   `ta_resample_candidates`, which has no control in the window);
+1. draw **Candidates per round:** random candidates (10,000 by default) in the window's space-time domain;
 2. score them by \(s = \sum_j \lvert r_j \rvert\) (all equations; **Points from:** does not apply here);
 3. add the \(k\) = **Points per round:** best-scoring candidates to the window's residual points;
 4. train for **Adam iterations per round:** with the optimizer, learning rate and loss function of the last

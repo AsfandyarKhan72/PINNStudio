@@ -139,8 +139,8 @@ be exported and run on its own.
 
 ## Citing and license
 
-If PINNStudio is useful in your work, please [cite it](about/cite.md). A paper describing PINNStudio has been
-submitted to *Computer Physics Communications*. License terms are on the [License](about/license.md) page.
+If PINNStudio is useful in your work, please [cite it](about/cite.md). A paper describing PINNStudio is in
+preparation. License terms are on the [License](about/license.md) page.
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), PyTorch and PyQt6; it
 is an independent project and is not affiliated with or endorsed by the DeepXDE developers.
 

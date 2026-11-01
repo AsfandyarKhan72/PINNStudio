@@ -1,6 +1,6 @@
 # Reproducing the paper
 
-The paper describing PINNStudio has been submitted to *Computer Physics Communications*. Its tables and figures are
+The paper describing PINNStudio is in preparation. Its tables and figures are
 produced from the benchmark records with the scripts below; each record states the code version it ran on.
 
 | Result | Runs | Tables and figures |
@@ -23,6 +23,6 @@ GPU runs reproduce the published values up to the run-to-run variation described
 [Seeds, precision and hardware](environment.md); CPU runs with the same seed are repeatable on the same machine.
 
 !!! warning "Being finalized for v1.6.0"
-    The numbers in the submitted manuscript are being revalidated after the v1.6.0 audit (some Cahn–Hilliard runs are
+    The numbers in the manuscript are being revalidated after the v1.6.0 audit (some Cahn–Hilliard runs are
     being repeated with corrected code, and some reference data were regenerated). The final values, and the code
     version they belong to, will be listed here with the v1.6.0 release.

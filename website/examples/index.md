@@ -8,7 +8,7 @@ Every example is loaded from the toolbar's **Examples:** list: choose **Forward*
     This gallery describes the development version that will become v1.6.0. The Examples list of the released v1.5.0 may differ.
 
 !!! warning "Scope"
-    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not guarantee convergence or accuracy, and results vary from run to run. Verified errors are collected in [Reproducibility](../reproducibility/benchmarks.md).
+    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in [Reproducibility](../reproducibility/benchmarks.md).
 
 ## Browse by group
 
@@ -112,10 +112,10 @@ One space dimension, steady or in time. 33 examples.
 | [Poisson 1D – hard BCs](1d/poisson-1d-hard-bcs.md) | 1D | Steady | Forward | — |
 | [Poisson 1D – multi-scale Fourier features](1d/poisson-1d-multi-scale-fourier-features.md) | 1D | Steady | Forward | — |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](1d/brinkman-forchheimer-1d-unknown-nu-e-k.md) | 1D | Steady | Inverse | yes |
-| [Diffusion-reaction 1D – unknown rate field](1d/diffusion-reaction-1d-unknown-rate-field.md) | 1D | Steady | Inverse | — |
+| [Diffusion-reaction 1D – unknown rate field](1d/diffusion-reaction-1d-unknown-rate-field.md) | 1D | Steady | Inverse | yes |
 | [Fractional Poisson 1D – unknown order α](1d/fractional-poisson-1d-unknown-order-alpha.md) | 1D | Steady | Inverse | — |
-| [Poisson 1D – unknown forcing field](1d/poisson-1d-unknown-forcing-field.md) | 1D | Steady | Inverse | — |
-| [Poisson 1D – unknown forcing field (batches)](1d/poisson-1d-unknown-forcing-field-batches.md) | 1D | Steady | Inverse | — |
+| [Poisson 1D – unknown forcing field](1d/poisson-1d-unknown-forcing-field.md) | 1D | Steady | Inverse | yes |
+| [Poisson 1D – unknown forcing field (batches)](1d/poisson-1d-unknown-forcing-field-batches.md) | 1D | Steady | Inverse | yes |
 | [Allen-Cahn 1D – Wight & Zhao](1d/allen-cahn-1d-wight-zhao.md) | 1D | Time-dependent | Forward / Inverse | yes |
 | [Cahn-Hilliard 1D – Wight & Zhao](1d/cahn-hilliard-1d-wight-zhao.md) | 1D | Time-dependent | Forward | yes |
 | [Cahn-Hilliard 1D – Mattey & Ghosh](1d/cahn-hilliard-1d-mattey-ghosh.md) | 1D | Time-dependent | Forward | yes |
@@ -272,10 +272,10 @@ Listed under **Inverse**: DeepXDE's inverse examples and every example with an I
 | [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](ode/lorenz-ode-unknown-c1-c2-c3-exogenous-input.md) | ODE | Time-dependent | Inverse | — |
 | [Euler beam 1D](1d/euler-beam-1d.md) | 1D | Steady | Forward / Inverse | yes |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](1d/brinkman-forchheimer-1d-unknown-nu-e-k.md) | 1D | Steady | Inverse | yes |
-| [Diffusion-reaction 1D – unknown rate field](1d/diffusion-reaction-1d-unknown-rate-field.md) | 1D | Steady | Inverse | — |
+| [Diffusion-reaction 1D – unknown rate field](1d/diffusion-reaction-1d-unknown-rate-field.md) | 1D | Steady | Inverse | yes |
 | [Fractional Poisson 1D – unknown order α](1d/fractional-poisson-1d-unknown-order-alpha.md) | 1D | Steady | Inverse | — |
-| [Poisson 1D – unknown forcing field](1d/poisson-1d-unknown-forcing-field.md) | 1D | Steady | Inverse | — |
-| [Poisson 1D – unknown forcing field (batches)](1d/poisson-1d-unknown-forcing-field-batches.md) | 1D | Steady | Inverse | — |
+| [Poisson 1D – unknown forcing field](1d/poisson-1d-unknown-forcing-field.md) | 1D | Steady | Inverse | yes |
+| [Poisson 1D – unknown forcing field (batches)](1d/poisson-1d-unknown-forcing-field-batches.md) | 1D | Steady | Inverse | yes |
 | [Allen-Cahn 1D – Wight & Zhao](1d/allen-cahn-1d-wight-zhao.md) | 1D | Time-dependent | Forward / Inverse | yes |
 | [Burgers 1D – Raissi et al.](1d/burgers-1d-raissi-et-al.md) | 1D | Time-dependent | Forward / Inverse | yes |
 | [Diffusion-reaction 1D](1d/diffusion-reaction-1d.md) | 1D | Time-dependent | Forward / Inverse | yes |

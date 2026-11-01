@@ -868,7 +868,7 @@ def _index(records):
          "released v1.5.0 may differ.", "",
          "!!! warning \"Scope\"",
          "    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not "
-         "guarantee convergence or accuracy, and results vary from run to run. Verified errors are collected in "
+         "guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in "
          "[Reproducibility](../reproducibility/benchmarks.md).", "",
          "## Browse by group", "", '<div class="grid cards" markdown>', ""]
     for t, a, d, rs in groups:

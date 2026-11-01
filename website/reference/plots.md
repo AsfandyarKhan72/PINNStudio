@@ -65,8 +65,9 @@ printed in the Training Log and recorded for the loss plot.
 
 The files go to `solution_results/solution_data/` in the run folder: one file `solution_t<time>.txt` per
 time (four decimals in the name), or one `solution.txt` for a stationary problem. Each is comma-separated
-with a header line naming the columns: the coordinates (`x[,y[,z]][,t]`) followed by **every output** by
-name, on the full grid of the domain's bounding box.
+with a header line naming the columns: the coordinates (`x[,y[,z]][,t]`; `t` for an ODE) followed by
+**every output** by name, on the full grid of the domain's bounding box. For a disk, polygon or other
+non-box shape, grid points outside the domain (or in a hole) have the value `nan` in every output column.
 
 ## Formulation
 
@@ -78,8 +79,12 @@ equations.
 
 - Solution data export is for forward problems and is written by Solve only; the exported script prints a
   note saying so.
-- The export grid covers the bounding box of a non-box shape, including points outside the domain (the
-  network's extrapolation there).
+- The export grid covers the bounding box of a non-box shape; the points outside the domain are written
+  as `nan` (they used to carry the network's extrapolation without a mark).
+
+!!! info "New in v1.6.0 (in development)"
+    Exported solution data of a non-box shape is `nan` outside the domain, and an ODE's file names its
+    variable `t` in the header (it said `x`).
 - The **Export Solution Data** dialog's note shows the column order of 1D and 2D files; 3D files are
   `x, y, z, t, …` and every file has one column per output.
 

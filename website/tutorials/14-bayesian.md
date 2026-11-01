@@ -29,7 +29,8 @@ rate of the oscillator from [Tutorial 1](01-ode.md).
 3. Open **Parameter sweep** and tick **Enable Parameter Sweep**. The **Solve** button becomes **Run Sweep**.
 4. Set **Mode:** to **Bayesian search**. New fields appear:
     - **Runs:** `5` — the total number of trainings, the baseline included;
-    - **Random first:** `2` — runs with random settings before the Gaussian-process model takes over;
+    - **Random first:** `2` — the runs made before the Gaussian-process model takes over; the baseline run (below)
+      counts as one of them, so here one run has random settings;
     - **Minimize:** **L2 error** — the relative L2 error from Error Analysis. **Final loss** and
       **Final loss (unweighted)** need no reference data.
     - **Also run the current settings (baseline)** is ticked by default in this mode: the first run uses the

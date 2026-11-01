@@ -73,8 +73,8 @@ outputs are not named; differentiate each output separately. An ODE is solved in
 stationary 1D problem in \( x = t \): `du_t` becomes `du_x`, `du_tt` becomes `du_xx`, and so on.
 
 !!! note
-    The **Derivative syntax** list on the page does not show `du_xxx` (1D), although the generated
-    script computes it (used, for example, for a KdV term).
+    The **Derivative syntax** list on the page does not show `du_xxx` (1D) or `du_yytt` (2D), although
+    the generated scripts compute them (`du_xxx` is used, for example, for a KdV term).
 
 ### Output names
 
@@ -87,6 +87,8 @@ an output cannot be called `x` or `t`; with `integral(...)` terms it cannot be c
     Output names are checked before Solve. An output named `y`, `np`, `sin`, `lambda`, a name with a
     space, or one name for two outputs used to crash a script or (with `y`) silently train a different
     problem.
+    Derivative names outside the table above (e.g. `du_xxy`) are refused before Solve; they used to stop
+    both scripts with `NameError` at the first training step.
 
 ### Integral terms `integral(...)`
 
@@ -131,6 +133,11 @@ All dimensions; `integral(...)` on ODE and stationary 1D problems; `frac(...)` o
 ## Compatibility with other features
 
 Refused by `validate()`:
+
+> Equations: du_xxy is not available (see Derivative syntax on the Equations page) -- write the equation
+> with the derivatives PINNStudio provides, e.g. a third derivative as a new output.
+
+This is printed for any derivative name outside the table above (here `du_xxy`).
 
 > integral(...) terms are available for ODE problems (and steady 1D problems): the integral runs over the
 > one variable, from its start to the current point.

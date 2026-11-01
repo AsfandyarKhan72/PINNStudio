@@ -18,8 +18,14 @@ Solve and the exported script on the same machine, on the CPU.
 
 ## Precision
 
-Training runs in float32 by default (**Settings › Float Precision...**, and the **Precision** setting of the L-BFGS
-options on the **Training** page). If either is float64, the whole run uses float64.
+Training runs in float32 by default. The precision is one setting, shown in two places: **Settings › Float
+Precision...** and **Precision:** on the **Training** page, below the training phases; changing one changes the
+other. float64 runs the whole training in double precision.
+
+!!! info "New in v1.6.0 (in development)"
+    In v1.5.0 the two were separate controls, and float64 in either ran the whole training in float64. The
+    development version also writes the precision into the training log and `model_config.json`, and
+    **Restore & visualize** rebuilds the model in that precision.
 
 ## Hardware
 

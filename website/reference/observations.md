@@ -37,8 +37,10 @@ points are kept (e.g. "101 × 101 grid, 10,201 points → 51 × 51 = 2,601 point
 
 Plain text, one point per line: the input coordinates as the problem has them, then the measured value —
 `x, t, u` (1D), `x, y, t, u` (2D), `x, y, z, t, u` (3D), without `t` for a stationary problem, and `t, u`
-for an ODE. Numbers are separated by commas or spaces (the window's summary line also reads semicolons, the scripts do not); blank lines, lines starting with `#` or
-`%`, and lines that are not numbers (a header) are skipped.
+for an ODE. Numbers are separated by commas, semicolons or spaces; blank lines, lines starting with `#` or
+`%`, and lines that are not numbers (a header) are skipped. Rows with a missing or non-finite value
+(`nan`, `inf`) or with a different number of columns from the most common one are skipped too, and the
+Training Log says how many. The window, both scripts and Error Analysis read the files the same way.
 
 ## Formulation
 
@@ -90,7 +92,8 @@ picked) and each file's weight (see [Sweeps](sweeps.md)).
 ## Common mistakes and troubleshooting
 
 - **Wrong column count**: a 2D time-dependent file needs four columns (`x, y, t, value`); a stationary one
-  three. A file with fewer columns than coordinates + 1 stops the script.
+  three. A file with fewer columns than coordinates + 1 stops the script; single rows with an extra or a
+  missing column are skipped with a note.
 - **The fit is good but the unknown is wrong**: too few points, or points that do not excite the term the
   unknown multiplies; add data at other times or places.
 

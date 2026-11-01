@@ -8,7 +8,7 @@
 | **Regime** | Steady |
 | **Geometry** | Interval |
 | **Outputs** | `u`, `q` |
-| **Settings** | Default (no separate Tuned preset) |
+| **Settings** | Default, Tuned |
 
 ## Governing equations
 
@@ -49,11 +49,22 @@ This example learns an unknown **field** as an extra network output (it has no s
 |---|---|---|---|---|
 | 1 | Adam | 20,000 | 0.0001 | none |
 
-No **Tuned** choice in the GUI: the **Tuned** item is greyed out for this example. `pinnstudio/resources/tuned_settings.json` does hold a tuned setting for it (under its inverse entry), but the example loads as a Forward problem, so the Examples list does not offer it. The tuning-study configuration file is linked under *Configuration and benchmark records*.
+??? note "Settings: Tuned"
+
+    The Training Log reports: *Tuned settings: 3× iterations, a larger network, 3× points and an L-BFGS phase together.* The change is applied to the example's own settings.
+
+    - **Network:** parallel FNN (PFNN), hidden layers 4 × 40, inputs (x), 2 outputs; activation tanh, initializer Glorot uniform
+    - **Points:** 600 domain, 6 boundary, 1,000 test
+    - **Loss weights:** `1,100,1000` (equations, then boundary-condition rows)
+
+    | Phase | Optimizer | Iterations | Learning rate | Decay |
+    |---|---|---|---|---|
+    | 1 | Adam | 60,000 | 0.0001 | none |
+    | 2 | L-BFGS | 15,000 | — | none |
 
 ## Loading it in PINNStudio
 
-- Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Poisson 1D – unknown forcing field (batches)** › **Default**, then **Solve**.
+- Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Poisson 1D – unknown forcing field (batches)** › **Default** or **Tuned**, then **Solve**.
 
 Loading an example fills in every setting; anything you change before **Solve** is listed in the Training Log. Your save folder, GPU, random-seed and plot-style settings are kept.
 

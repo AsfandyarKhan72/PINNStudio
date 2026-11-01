@@ -144,7 +144,7 @@ The run folder (a timestamped folder under **Save to:**) contains:
 
 | Folder | Contents |
 |---|---|
-| `solution_results/` | `loss_plot.png`, `solution_plot_y1.png`, `solution_plot_y2.png`, `training_log.txt`, a model file per phase (`model_adam-phase1-….pt`, `model_lbfgs-phase2-….pt`) and `model_config.json` |
+| `solution_results/` | `loss_plot.png`, `solution_plot.png`, `solution_plot_y1.png`, `solution_plot_y2.png`, `training_log.txt`, a model file per phase (`model_adam-phase1-….pt`, `model_lbfgs-phase2-….pt`) and `model_config.json` |
 | `error_analysis/` | `line_comparison_y1.png`, `line_comparison_y2.png`, `error_metrics_y1.txt`, `error_metrics_y2.txt` |
 | `reference_from_formula/` | the reference values computed from your formulas |
 
@@ -159,7 +159,7 @@ Save the problem with **Save** (or **Problem › Save Problem**) as `oscillator.
 
 | Symptom | What to check |
 |---|---|
-| **Solve** does nothing and the toolbar shows **1 setting to fix** | Click it; it opens the page with the problem (an invalid output name, an empty equation, an unknown symbol). |
+| **Solve** does nothing and the toolbar shows **1 setting to fix** | Click it; it opens the page with the problem (an invalid output name, an empty equation, an unknown symbol, a derivative name PINNStudio does not support). |
 | The rendered equation does not match what you meant | Check the derivative names (`dy1_t`, not `dy1/dt`) and use `**` for powers. |
 | The error is large and the solution is flat | Check the initial conditions and the time interval; try more Adam iterations. A PINN is not guaranteed to converge for every problem and setting. |
 | `Error Analysis: enter an exact-solution formula for at least one output.` | The formula boxes were empty when you clicked **Run Error Analysis**. |

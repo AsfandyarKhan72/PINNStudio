@@ -20,7 +20,7 @@ Background: [Time windows and bc-PINN](../reference/time-windows.md), [RAR](../r
 Time-adaptive training trains one model per time window, each over its own short window instead of the
 whole time range at once. This often follows fast-changing solutions better.
 
-![Method set to Time Adaptive Training: a time step group from 0 to 1 with 10 steps, Add step group, IC grid resolution 201, the check boxes for transfer learning, growing time range and backward compatibility, IC-guided learning 0.00, Resampling rounds 0, Points per round 200 and Adam iterations per round 2000](../assets/screenshots/guide_adaptive_time.png){ .screenshot loading=lazy }
+![Method set to Time Adaptive Training: a time step group from 0 to 1 with 10 steps, Add step group, IC grid resolution 201, the check boxes for transfer learning, growing time range and backward compatibility, IC-guided learning 0.00, Resampling rounds 0, Points per round 200, Candidates per round 10000 and Adam iterations per round 2000](../assets/screenshots/guide_adaptive_time.png){ .screenshot loading=lazy }
 
 ### Set the windows
 
@@ -56,9 +56,10 @@ Both need transfer learning; **Solve** says so if it is off.
 - **IC-guided learning:** — before each window's training, fit the window's starting profile, held
   constant over the window, for this fraction of the first Adam (or AdamW) phase's iterations
   (0 = off, at most 0.9).
-- **Resampling rounds:** — after the window's training, add the **Points per round:** points with the
-  largest residual (out of 10,000 random candidates in the window) to its collocation points and train
-  **Adam iterations per round:** more Adam iterations; repeat this many times (0 = off).
+- **Resampling rounds:** — after the window's training, draw **Candidates per round:** random points in
+  the window (default 10,000; at least as many as the points per round), add the **Points per round:**
+  of them with the largest residual to its collocation points and train **Adam iterations per round:**
+  more Adam iterations; repeat this many times (0 = off).
 
 !!! info "New in v1.6.0 (in development)"
     Growing time range, backward compatibility, IC-guided learning and resampling rounds are new. The
@@ -112,6 +113,7 @@ RAR works for stationary and inverse problems too. It cannot be used with `frac(
 | **IC-guided learning:** | Fraction of the first Adam phase | 0.00 | 0–0.9 | `ta_icgl_fraction` |
 | **Resampling rounds:** | Rounds per window | 0 | 0–50 | `ta_resample_rounds` |
 | **Points per round:** | Points added per round | 200 | 1–100,000 | `ta_resample_points` |
+| **Candidates per round:** | Random candidate points per round | 10000 | 100–1,000,000 | `ta_resample_candidates` |
 | **Adam iterations per round:** | Training per round | 2000 | 1–1,000,000 | `ta_resample_iters` |
 | **RAR training rounds:** | Number of rounds | 3 | 1–1000 | `rar_cycles` |
 | **Residual sampling points:** | Candidate points per round | 50000 | 1000–10,000,000 | `rar_candidates` |

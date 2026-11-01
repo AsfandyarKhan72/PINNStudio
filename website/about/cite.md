@@ -18,7 +18,7 @@ with `pip show pinnstudio`.
 
 ## The paper
 
-A paper describing PINNStudio has been submitted to *Computer Physics Communications*. It has not been published yet;
+A paper describing PINNStudio is in preparation. It has not been published yet;
 this page will give its full reference and DOI once it is. Until then, please cite the software as above.
 
 ## Methods and examples

@@ -82,8 +82,8 @@ The equation is enforced on finite point sets, set on the **Collocation points**
 | \(\mathcal{T}_{\text{test}}\) | **Test points:** | the test loss reported in the Training Log (not trained on) |
 
 DeepXDE draws these sets once before training with the method chosen under **Point distribution:**
-(Hammersley, the default, and Halton, Sobol and LHS give evenly spread quasi-random points; `uniform` an
-evenly spaced grid; `pseudo` independent random points). A boundary condition with a point list or a points
+(Hammersley, the default, Halton and Sobol give evenly spread quasi-random points, LHS a stratified
+random sample (Latin hypercube); `uniform` an evenly spaced grid; `pseudo` independent random points). A boundary condition with a point list or a points
 file, and measured data, add their own points. Extra points ("anchors") can be added to the residual set from a
 file or a box, and RAR adds points during training ([Adaptive sampling](adaptive-sampling.md)). The
 **Point Resampling** training callback redraws the residual (and optionally the boundary) points every given

@@ -15,7 +15,7 @@ Background: [Forward problems](../reference/forward.md), [Inverse problems](../r
 The quickest way to a working setup is an example that is close to your problem:
 
 1. In the toolbar, choose **Forward** or **Inverse** in the first **Examples:** list. **Inverse** lists
-   DeepXDE's inverse examples and PINNStudio's templates in their inverse form.
+   the inverse examples (DeepXDE's and PINNStudio's) and the inverse forms of many forward examples.
 2. Pick the example in the second list (or click its card on the **Start** tab).
 3. In the third list, choose **Default** or **Tuned**:
     - **Default** — a DeepXDE example with DeepXDE's own settings; a template taken from a paper with that

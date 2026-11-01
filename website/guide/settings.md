@@ -28,9 +28,9 @@ Background: [Seeds, precision and hardware](../reproducibility/environment.md).
 ## Float Precision
 
 **Settings › Float Precision...** sets **Float type:** to **float32** (default; faster) or **float64**
-(L-BFGS converges further and is less likely to stop early). The run uses float64 if either this setting
-or **Precision:** on the [Training](training.md#l-bfgs-options-and-precision) page is float64. The status
-bar shows this setting.
+(L-BFGS converges further and is less likely to stop early). It is the same setting as **Precision:** on
+the [Training](training.md#l-bfgs-options-and-precision) page: **OK** here also sets that box, and changing
+that box changes this one. The status bar shows the current value.
 
 ![The Float Precision dialog: a note that float64 is recommended for L-BFGS convergence and float32 is faster, and the Float type list set to float32](../assets/screenshots/dialog_precision.png){ .screenshot loading=lazy }
 
@@ -49,7 +49,7 @@ random start every run. To repeat a setup with several seeds, sweep **Random see
 
 **Settings › Optimizer Settings...** sets **Weight decay (L2):** (default 0), an L2 regularization of the
 network weights for the whole run. It cannot be used with an L-BFGS or NNCG phase (or RAR's L-BFGS
-step), nor with a PFNN network, and an **AdamW** phase needs it to be above 0; **Solve** refuses these
+step), nor with a PFNN, MsFFN or STMsFFN network, and an **AdamW** phase needs it to be above 0; **Solve** refuses these
 combinations with an explanation.
 
 ## L-BFGS Options
@@ -78,7 +78,7 @@ title, section headers, field labels, hints, buttons and the log). These prefere
 | | **CPU threads:** | Automatic | 0 (Automatic) – number of CPUs | `cpu_threads` |
 | | **GPU device index:** | 0 | 0–31 | `gpu_device_index` |
 | | **Max GPU memory to reserve (%):** | 95 | 1–100 | `gpu_memory_fraction` (0.95) |
-| Float Precision | **Float type:** | float32 | float32, float64 | `float_type` |
+| Float Precision | **Float type:** | float32 | float32, float64 | `float_type` (and `lbfgs_float_type`, the Training page's **Precision:**) |
 | Random Seed | **Fix random seed for reproducible runs** | on | | `use_random_seed` |
 | | **Seed:** | 2026 | 0–2,147,483,647 | `random_seed` |
 | Optimizer Settings | **Weight decay (L2):** | 0 | ≥ 0 | `weight_decay` |

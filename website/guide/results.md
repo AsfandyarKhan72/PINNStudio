@@ -59,7 +59,12 @@ figure to open it at full size, with zoom and pan; right-click it to copy or sav
 above it saves it too. When the run had Training Monitors, a third box shows their plots, one at a time
 (◀ ▶).
 
-![The Overview tab after a 1D Burgers run: the training and test loss falling over about 5,000 iterations on a logarithmic axis, and the PINN solution u(x, t) as a colour map with the shock at x = 0](../assets/screenshots/guide_results_overview_saved.png){ .screenshot loading=lazy }
+!!! note "About the screenshots on this page"
+    They come from a deliberately short Solve of the Burgers 1D example (500 iterations, under a minute on a
+    CPU), made to show the tabs. Its relative L₂ error, about 10⁻¹, is far above what the example's full Default
+    settings reach.
+
+![The Overview tab after a 1D Burgers run: the training and test loss of a short 500-iteration run on a logarithmic axis, and the PINN solution u(x, t) as a colour map with the shock at x = 0](../assets/screenshots/guide_results_overview_saved.png){ .screenshot loading=lazy }
 
 ### Live loss
 

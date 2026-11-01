@@ -68,7 +68,8 @@ the training interval grows, and the network is always fitted to the whole range
 With **Backward compatibility (bc-PINN): keep the solution on earlier windows**
 ([Mattey & Ghosh, 2022](../about/references.md#mattey2022)), after window \(k\) the script stores the network's
 prediction on the time range trained so far: at \(S\) spatial points (the window grid, or a random subset of
-**Points:** of them, drawn with the run's seed) and at the times
+**Points:** of them, drawn with the run's seed, or with the seed `ta_backward_seed` when a problem file sets
+one) and at the times
 
 \[
 \mathcal{T}^{\text{bc}}_k = \bigcup_{l \le k} \Big\{ t_l + m\,\frac{t_{l+1} - t_l}{n_t} : m = 0, \dots, n_t - 1 \Big\} \cup \{ t_{k+1} \},

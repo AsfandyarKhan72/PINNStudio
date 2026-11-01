@@ -45,7 +45,7 @@ where each window should start close to its initial profile.
 | **Iterations:** | Pre-training iterations | 20,000 | 100–100,000,000 | `ic_pretrain_iterations` |
 | **Learning rate:** | Its own learning rate | 0.001 | 10⁻¹²–10 | `ic_pretrain_lr` |
 | **Learning rate decay:** | As in a training phase | None | None, Step, Cosine, Exponential, Inverse time | `ic_pretrain_decay_type`, `_decay_p1`, `_decay_p2` |
-| **Loss function:** | As in a training phase | MSE | MSE, MAE, mean l2 relative error, mean absolute percentage error, softplus | `ic_pretrain_loss` |
+| **Loss function:** | As in a training phase | MSE | MSE, MAE | `ic_pretrain_loss` |
 | **Test points:** | Test points of the pre-training dataset | 10,000 | 100–100,000 | `ic_pretrain_num_test` |
 | **Initial points:** | Initial points (hidden when the IC comes from a file) | 1000 | 1–10,000 | `ic_pretrain_num_initial` |
 
@@ -103,9 +103,9 @@ window's solution. With a growing time range the profile is the initial conditio
 ## Supported problem types
 
 IC pre-training: time-dependent 1D, 2D and 3D problems (the option is hidden for a stationary problem),
-forward and inverse. Leave it off for an ODE: an ODE's initial values are boundary rows of the problem
-PINNStudio solves, so there is no initial-condition term to pre-train. ICGL: time windows (forward
-problems).
+forward and inverse. It is refused for an ODE (an ODE's initial values are boundary rows of the problem
+PINNStudio solves, so there is no initial-condition term to pre-train) and for a stationary problem
+opened from a file. ICGL: time windows (forward problems).
 
 ## Compatibility with other features
 
@@ -113,6 +113,16 @@ Refused by `validate()`:
 
 > IC pre-training fits the network to the initial conditions given as loss terms, but no output has one
 > (an exact initial condition needs no pre-training) -- untick IC pre-training.
+
+> IC pre-training needs a time-dependent PDE: an ODE's initial values are conditions at t0, not
+> initial-condition loss terms -- untick IC pre-training. (For a stationary problem: "… a steady problem
+> has no initial condition …")
+
+> IC pre-training: 'Restore' is chosen but no saved pre-training model is given -- browse to the .pt file,
+> or choose to pre-train.
+
+> IC pre-training: the saved pre-training model '…' does not exist -- check the path, or choose to
+> pre-train.
 
 > frac(...) problems can't use RAR, Time-Adaptive training or IC pre-training …
 
@@ -123,8 +133,8 @@ ICGL needs no transfer learning, but it is meant for one network carried through
 
 ## Common mistakes and troubleshooting
 
-- **"Restore from checkpoint" does nothing**: the path does not exist; the script then trains the
-  pre-training from start.
+- **"Restore from checkpoint" is refused**: the path is empty or the file does not exist; Solve stops
+  before training with one of the messages above.
 - **ICGL fraction too large**: the iterations are taken from the first Adam phase and come *on top of* the
   window's phases; 0.1–0.25 is what the Mattey & Ghosh settings use.
 

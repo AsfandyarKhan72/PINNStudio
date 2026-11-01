@@ -29,7 +29,10 @@ template in inverse form writes its parameter names into the equations for you.
 Each block of **Measured data** is one file and one data loss term:
 
 1. **File:** browse for a text file with one point per line: the inputs (`x`, `y`, `z`, `t` as the
-   problem has them), then the measured value.
+   problem has them), then the measured value. Numbers may be separated by commas, semicolons or
+   spaces; header, comment (`#`, `%`) and blank lines are skipped, and so are rows with a missing value
+   (NaN) or a different number of columns than most rows, with a note in the Training Log saying how
+   many.
 2. **Measures:** the output the values are (**Output 1 (u)**, …), or **Custom...** with an expression of
    the outputs, for example `sqrt(u**2+v**2)` for a measured magnitude.
 3. **Loss weight:** the weight of this file's data term (default 100).

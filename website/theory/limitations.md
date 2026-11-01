@@ -65,8 +65,8 @@ they arise.
 
 **Losses and optimisation**
 
-- Of the **Loss function:** choices, only `MSE` and `MAE` give a usable loss with the PyTorch backend
-  ([Losses](losses.md#loss-functions)).
+- The **Loss function:** is `MSE` or `MAE` ([Losses](losses.md#loss-functions)); losses relative to the
+  target (relative \(L_2\), percentage) are not available because every residual target is zero.
 - Weight decay is ignored for PFNN, MsFFN and STMsFFN networks and cannot be used with L-BFGS or NNCG.
 - **Scale by initial losses** cannot be combined with time windows.
 
@@ -75,8 +75,8 @@ they arise.
 - RAR rounds train with a constant learning rate (the phase's learning-rate decay is not applied), draw fresh
   pseudo-random candidates each round, rank a system of equations by the sum of absolute residuals, and
   implement only the greedy variant ([Adaptive sampling](adaptive-sampling.md)).
-- Resampling inside time windows always draws 10,000 candidates (no control in the window) and ranks by all
-  equations together.
+- Resampling inside time windows draws its candidates (**Candidates per round:**, 10,000 by default) as
+  fresh random points and ranks them by all equations together.
 - Per-point weights (RBA, SA-PINN) act only on the equation residuals, not on boundary, initial or data terms;
   they start again from 1 whenever the training points change, and cannot be combined with point resampling.
 - Causal training bins random training points into time chunks (not a fixed temporal grid), includes the

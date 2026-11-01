@@ -21,7 +21,7 @@ a saved IC pre-training model instead of pre-training again (see
 
 ## How to enable it
 
-- **Training** page → **Callbacks** → **Show Training Callbacks** → **Model Checkpoint** →
+- **Training** page → **Training Callbacks** → **Show Training Callbacks** → **Model Checkpoint** →
   **Periodically save the model during training**.
 - **Results** → **Restore & visualize** page → **Trained model** box: choose **Forward Model** or
   **Inverse Model**, **Browse** for the **Model file:** (`.pt`); the **Config:** is found next to it (or
@@ -61,8 +61,9 @@ Saved files in a run folder (DeepXDE's `model.save` appends `-<iteration>.pt`):
 | `solution_results/model_adam-phase<p>-<it>.pt`, `model_lbfgs-phase<p>-<it>.pt`, `model_nncg-phase<p>-<it>.pt` | each training phase \( p \) |
 | `solution_results/model_config.json` | the configuration the run trained with (used by Restore) |
 | `solution_results/checkpoint_best-<it>.pt` | Model Checkpoint (`ModelCheckpoint(..., save_better_only, period, monitor)`) |
+| `solution_results/checkpoint_step<NNN>_best-<it>.pt` | Model Checkpoint with time windows: one per window \( NNN \) (001, 002, …), each window starting from a fresh best value |
 | `solution_results/rar_rounds/round_NN/model_adam-….pt`, `model_lbfgs-….pt` | RAR rounds |
-| `time_adaptive_steps/step_NNN_t<t0>_to_t<t1>/model_adam-….pt`, `model_lbfgs-phase<p>-….pt`, `step_config.json` | each time window |
+| `time_adaptive_steps/step_NNN_t<t0>_to_t<t1>/model_adam-….pt`, `model_lbfgs-phase<p>-….pt`, `model_resampled-….pt`, `step_config.json` | each time window (`model_resampled` only with resampling rounds: the window's final network, which Error Analysis and Restore use) |
 | `ic_pretrain/ic_pretrain_model-<it>.pt` | IC pre-training |
 | `<name>_convergence.txt` | inverse unknowns (iteration, value) |
 

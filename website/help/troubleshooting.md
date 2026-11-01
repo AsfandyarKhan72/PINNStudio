@@ -128,8 +128,11 @@ On the **Equations** page, each equation is typeset as you type it. A name PINNS
 - a missing `*`: write `5*u`, not `5u`, and `u*du_x`, not `u du_x`;
 - a coefficient that is neither a number nor a named constant (add it under the constants, or in an inverse problem
   as an unknown parameter);
-- a derivative written in another form than `d<output>_<variables>`, such as `du_xx` or `dv_t`
-  (see [Equations, outputs and constants](../guide/equations.md)).
+- a derivative not written in the form `d<output>_<variables>` (for example `du_xx` or `dv_t`), or one that
+  PINNStudio does not build, such as `du_xxy`. The second is refused with
+  `Equations: du_xxy is not available (see Derivative syntax on the Equations page) -- write the equation with the
+  derivatives PINNStudio provides, e.g. a third derivative as a new output.` (new in v1.6.0; see
+  [Equations, outputs and constants](../guide/equations.md#write-the-equations)).
 
 Output names must be usable in the equations. These messages come from the check:
 
@@ -167,6 +170,9 @@ Some methods cannot be used together. The check refuses them with an explanation
 | Exact periodicity without a periodic boundary condition | `Exact periodicity: no boundary condition is periodic -- add a periodic BC row (or untick 'Exact periodicity' on the Boundary Conditions page).` |
 | Exact periodicity with the network's input transform | `Exact periodicity can't be combined with the Network page's input transform -- ...` |
 | IC pre-training when every initial condition is exact | `IC pre-training fits the network to the initial conditions given as loss terms, but no output has one ... -- untick IC pre-training.` |
+| IC pre-training on an ODE or a steady problem | `IC pre-training needs a time-dependent PDE: ... -- untick IC pre-training.` |
+| A boundary condition for an output the problem does not have | `BC 2 applies to output 3, but the problem has 2 output(s): pick one of them in the BC's Output box.` |
+| A loss function other than MSE or MAE (from a problem saved by an older version) | `Loss function ...: not usable for a PINN (the equation residuals have target 0, or the loss does not exist with PyTorch) -- choose MSE or MAE in the Training phases.` |
 | 'Scale by initial losses' with time-adaptive training | `'Scale by initial losses' isn't available with Time-Adaptive training -- turn one of them off.` |
 | Growing time range or backward compatibility without transfer learning | `Time-adaptive training: Growing time range ... train one network through all the time windows, so they need 'transfer learning' ... -- tick it, or untick ...` |
 | STMsFFN network on an ODE or a steady problem | `STMsFFN needs space and time; an ODE has only t -- use MsFFN.` / `STMsFFN separates space and time, so it needs a time-dependent problem; use MsFFN for a steady one.` |
@@ -323,8 +329,9 @@ model file, PINNStudio looks for the configuration next to it: a `.json` file of
 - **PyTorch reports missing or unexpected keys, or sizes that do not match**: the model file and the configuration
   come from different runs (for example another network size or number of outputs). Use the two files from the same
   run folder.
-- **The optimizer**: set **Optimizer used for this model** (**Adam** or **L-BFGS**) to the phase the checkpoint was
-  saved from (`model_adam...` or `model_lbfgs...` files).
+- **The optimizer** is not chosen by hand: PINNStudio takes it from the model file's name (`model_adam...` or
+  `model_lbfgs...`), otherwise from the last training phase in the configuration, and the log says
+  `✅ Auto-detected optimizer from model_config.json: ...`. Keep the file names the run gave the checkpoints.
 
 See [Restore & visualize](../guide/restore.md) and [Checkpoints and restoring](../reference/checkpoints.md).
 

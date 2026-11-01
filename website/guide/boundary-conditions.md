@@ -17,7 +17,8 @@ Background: [Boundary conditions](../reference/boundary-conditions.md),
 
 1. Click **Add Boundary Condition** (or right-click **Boundary conditions** in the tree and choose
    **Add boundary condition**). A Dirichlet row with value 0 on the whole boundary is added.
-2. Choose its **Type** and its **Output** (1 is the first output, as numbered on the Equations page).
+2. Choose its **Type** and its **Output** (1 is the first output, as numbered on the Equations page; the
+   box goes from 1 to 10, so choose a number no larger than **Outputs** on the Equations page).
 3. Choose **Where** it applies.
 4. Type its **Value**.
 
@@ -131,7 +132,7 @@ in the last column.
 |---|---|---|---|
 | **Exact periodicity (periodic inputs)** | Periodic input features for the periodic axes | off | `periodic_inputs` (own field) |
 | **Type:** | Condition type | Dirichlet BC | `type` (`dirichlet`, `neumann`, `robin`, `periodic`, `pointset`, `pointset_operator`, `operator`, `interface2d`) |
-| **Output:** | Output the row applies to (shown from 1) | 1 | `component` (from 0) |
+| **Output:** | Output the row applies to (shown from 1, up to 10) | 1 | `component` (from 0) |
 | **Where:** | Part of the boundary | Whole boundary | `location` (expression; `True` = whole boundary) |
 | **Value:** / **Function (func):** | Value, or operator expression | `0` | `value` |
 | **Periodic in:** | Periodic axis | x | `axis` |

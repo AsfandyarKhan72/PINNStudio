@@ -93,6 +93,8 @@ the weight-decay check.
 
 ## Example
 
-**Burgers 1D – RAR** in **Examples** (DeepXDE's own RAR settings), and
+**Burgers 1D – RAR** in **Examples** (DeepXDE's Burgers-RAR problem, with 3 rounds of the 100 points
+of largest residual out of 100,000 candidates and no tolerance: DeepXDE's own script adds one point per
+round until the mean residual is below 0.005, which here stops after a single point), and
 **Allen-Cahn 1D – Wight & Zhao** with **Settings: Default** (Wight & Zhao's resampling trial: 6 rounds of
 200 points). See [Tutorial 10: RAR](../tutorials/10-rar.md).

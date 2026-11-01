@@ -36,6 +36,7 @@ page (values at \( t_0 \)); a stationary problem has no initial condition and th
 | formula box | \( u_0(\mathbf{x}) \) in `x`, `y`, `z` | 1D `sin(pi*x)`, 2D `sin(4*pi*x)*cos(4*pi*y)` | expression | `ic_expressions` (`|`-separated) |
 | **Exact (built into the network)** | Exact initial condition | off | — | `ic_hard` |
 | **Load IC from file (… format)** | Output 0's initial condition from a file | off | — | `forward_ic_from_file`, `forward_ic_file` |
+| **Also check the equation at the file's points** | The file's points are also anchors of the equation | off | — | `ic_file_anchors` |
 | **Initial points:** (Collocation points page) | Points at \( t = t_{\min} \) for formula ICs | 200 | 0–2,000,000 | `num_initial` |
 | IC weight (Loss weights page) | Weight of each IC term | 100 for a new problem | any number | `loss_weights_multi` |
 
@@ -56,8 +57,10 @@ value \( u'(t_0) = a \) is an Operator BC `du_t - a` applied at the initial time
 
 ### Initial condition from a file
 
-The file is plain text without a required header: numbers separated by commas or spaces, lines that do
-not parse as numbers (a header, a comment) are skipped. Columns: one per space axis, then \( t \), then
+The file is plain text without a required header: numbers separated by commas, semicolons or spaces;
+lines that do not parse as numbers (a header, a comment starting with `#` or `%`) are skipped, and so are
+rows with a missing or non-finite value (`nan`, `inf`) or with a different number of columns from the
+most common one (the log prints how many rows were skipped). Columns: one per space axis, then \( t \), then
 the value — `x, t, c` in 1D, `x, y, t, c` in 2D, `x, y, z, t, c` in 3D. Only the rows with
 \( t = t_{\min} \) (to within \( 10^{-8} \)) are used; the file must have at least one. The points are
 used as given (no interpolation), as a `PointSetBC` on output 0.
@@ -68,8 +71,10 @@ used as given (no interpolation), as a `PointSetBC` on output 0.
   the first output only.
 - With the file on, the formula box, **IC for …** and **Exact** of the first output are disabled (the file
   always wins).
-- The file's points enter only the initial-condition loss. The configuration field `ic_file_anchors`
-  (no control in the window) also makes them collocation points.
+- The file's points enter only the initial-condition loss. **Also check the equation at the file's
+  points** (shown under the file field while **Load IC from file** is ticked; `ic_file_anchors`, off by
+  default) also makes them collocation points (anchors) of the equation. It is not used with time
+  windows, where each window has its own initial points.
 - With [time windows](time-windows.md) the initial condition applies to the first window; later windows
   start from the previous window's solution.
 

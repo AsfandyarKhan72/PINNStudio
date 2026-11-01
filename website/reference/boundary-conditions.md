@@ -29,7 +29,7 @@ Edges picked on the **Sketch** tab with **Edges → BCs** can create or extend r
 | **Where:** | Part of the boundary: a named choice or **Custom expression…** | Whole boundary | see below | `location` |
 | **Value:** / **Function (func):** | Target value or operator expression | `0` | expression | `value` |
 | **Periodic in:**, **Derivative order:** | Periodic axis and whether values (0) or first derivatives (1) are matched | x, 0 | the problem's axes; 0–1 | `axis`, `deriv_order` |
-| **Points:** | Point Set rows: **From file**, **Typed list** or **Generated** (a count, **on the boundary (Where)** or **in the domain**) | From file | count 1–1,000,000 (default 10) | `points_mode`, `points_file`, `points_list`, `points_count`, `points_where` |
+| **Points:** | Point Set rows: **From file** (coordinate columns, then the value column(s); commas, semicolons or spaces; header, missing-value and wrong-width rows skipped with a note), **Typed list** or **Generated** (a count, **on the boundary (Where)** or **in the domain**) | From file | count 1–1,000,000 (default 10) | `points_mode`, `points_file`, `points_list`, `points_count`, `points_where` |
 | **Target values:** | **From the file's value column(s)** or **Formula** (`|` between components) | From the file | — | `values_mode`, `values_formula` |
 | **Components (comma-separated):** | Point Set BC: several outputs against one file (one value column each) | blank (uses **Output:**) | output numbers | `components` |
 | **Batch size (0 = off):**, **Shuffle** | Point Set rows: a random batch of the points, resampled during training | 0, on | 0–1,000,000 | `batch_size`, `shuffle` |
@@ -91,6 +91,10 @@ With \( \mathbf{n} \) the outward unit normal and \( \Gamma \) the part of the b
 
 - A Point Set file has the coordinate columns (x[, y[, z]][, t]) and then the value column(s); `.csv`
   files are comma-separated, others whitespace-separated. A typed list separates points with `;`.
+- A Point Set row with **Generated** points **on the boundary (Where)** draws random boundary points and
+  keeps those where **Where:** holds; when a small region gives fewer than the count, both scripts draw more
+  candidates (up to five more, each four times larger), print a note if the count is still not reached, and
+  stop if no point matches.
 - A Point Set row with a batch size is resampled by DeepXDE's `PDEPointResampler(bc_points=True)`, added
   automatically when the **Point Resampling** callback is off.
 - Interface 2D needs uniform boundary points: choosing it switches **Point distribution:** to `uniform`.
