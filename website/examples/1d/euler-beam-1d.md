@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]\]
 
@@ -133,6 +133,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Euler beam 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Euler%20beam%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Euler beam 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Euler%20beam%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-euler-beam) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/euler-beam-1d.md) (`benchmarks/problems/euler-beam-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

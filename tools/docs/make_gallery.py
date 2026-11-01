@@ -4,7 +4,8 @@ example definitions, so the pages cannot drift from what the software loads.
 
     python tools/docs/make_gallery.py            # write website/examples/**
     python tools/docs/make_gallery.py --refresh  # also rebuild the template cache
-    python tools/docs/make_gallery.py --check    # report only (README/code differences), write nothing
+    python tools/docs/make_gallery.py --check    # report only (record/code differences), write nothing
+    python tools/docs/make_gallery.py --examples PATH   # read the example sections from another examples.md
 
 What is read:
 
@@ -20,8 +21,11 @@ What is read:
   and rebuilt automatically when any of the source files they depend on changes;
 * **Settings: Default / Tuned**: ``example_settings.settings_for`` and ``has_tuned`` on the
   loaded configuration, exactly as ``MainWindow._apply_example_settings_mode`` calls them;
-* the README's per-example sections (display equations, the "where" lines and the source
-  paper), ``benchmarks/problems/index.json`` (benchmark record per example),
+* the per-example sections and the examples table of ``benchmarks/examples.md`` (display
+  equations, the "where" lines and the source paper; the file ``tools/make_benchmarks_readme.py``
+  writes). If that file is missing, the old sections of ``README.md`` are read instead, with a
+  printed note. ``--examples PATH`` (or the environment variable ``PINNSTUDIO_EXAMPLES_MD``)
+  reads another copy. Also ``benchmarks/problems/index.json`` (benchmark record per example),
   ``benchmarks/tuning/*.pinn.json`` (configuration files) and ``reference_data/``.
 
 Images: only existing result images from the repository (``assets/Images``, ``docs/assets``),
@@ -63,35 +67,35 @@ _CACHE_SOURCES = ["pinnstudio/ui/main_window.py", "pinnstudio/core/example_catal
 # (source file, example key, file name on the site, caption, alt text)
 IMAGES = [
     ("assets/Images/Top_GIFs/1D_Schrodinger.gif", "Schrödinger equation", "schrodinger-1d.gif",
-     "Animation from PINNStudio's README (top of the page): the PINN solution |h| of this example over time.",
+     "Animation from the repository's figures (`assets/Images/Top_GIFs/`): the PINN solution |h| of this example over time.",
      "Animated line plot of the PINN solution |h|(x, t) of the 1D Schrödinger equation"),
     ("assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif", "2D Allen-Cahn (Wight & Zhao)", "allen-cahn-2d-wight-zhao.gif",
-     "Animation from PINNStudio's README (top of the page): the PINN solution of this example over time.",
+     "Animation from the repository's figures (`assets/Images/Top_GIFs/`): the PINN solution of this example over time.",
      "Animated contour plot of the 2D Allen-Cahn PINN solution: a circular interface shrinking over time"),
     ("assets/Images/Top_GIFs/3D_Heat.gif", "3D Heat", "heat-3d.gif",
-     "Animation from PINNStudio's README (top of the page): the PINN solution of this example over time.",
+     "Animation from the repository's figures (`assets/Images/Top_GIFs/`): the PINN solution of this example over time.",
      "Animated 3D voxel plot of the heat-equation PINN solution in the unit cube"),
     ("assets/Images/1D-AllenCahn/param_convergence_animation.gif", "1D Allen-Cahn (whole interval)",
      "allen-cahn-1d-wight-zhao-inverse.gif",
-     "Animation from PINNStudio's README (section \"Inverse parameters during training\"): this example in "
+     "Animation from the repository's figures (`assets/Images/1D-AllenCahn/`): this example in "
      "Inverse mode, the two coefficients gamma_1 and gamma_2 during training, with their true values as dashed lines.",
      "Animated plots of the inferred parameters gamma_1 and gamma_2 against the training iteration"),
     ("assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png", "2D Allen-Cahn (Wight & Zhao)",
      "allen-cahn-2d-wight-zhao-rar-points.png",
-     "Figure from PINNStudio's README (section on RAR): a run of this example with RAR switched on, round 1 — "
+     "Figure from the repository's figures (`assets/Images/2D_AllenCahn-Wight/`): a run of this example with RAR switched on, round 1 — "
      "the collocation points added in that round. RAR is not part of the example's Default settings.",
      "Collocation points of a 2D Allen-Cahn run after RAR round 1, the added points near the interface"),
     ("assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png", "2D Allen-Cahn (Wight & Zhao)",
      "allen-cahn-2d-wight-zhao-rar-solution.png",
-     "Figure from PINNStudio's README (section on RAR): the same RAR run, PINN, reference and error after round 1.",
+     "Figure from the repository's figures (`assets/Images/2D_AllenCahn-Wight/`): the same RAR run, PINN, reference and error after round 1.",
      "PINN solution, reference solution and error of a 2D Allen-Cahn run after RAR round 1"),
     ("assets/Images/1D-Burgers/rar_collocation_points.png", "Burgers equation with RAR", "burgers-1d-rar-points.png",
-     "Figure from PINNStudio's README (section on RAR): a Burgers 1D run with RAR, round 2 — original points, "
-     "points added in earlier rounds and points added in this round. The README does not state which example's "
+     "Figure from the repository's figures (`assets/Images/1D-Burgers/`): a Burgers 1D run with RAR, round 2 — original points, "
+     "points added in earlier rounds and points added in this round. No record states which example's "
      "settings the run used.",
      "Collocation points of a Burgers 1D RAR run after round 2, the added points along the shock at x = 0"),
     ("assets/Images/1D-Burgers/rar_solution_plot.png", "Burgers equation with RAR", "burgers-1d-rar-solution.png",
-     "Figure from PINNStudio's README (section on RAR): the same Burgers 1D RAR run, PINN, reference and error after round 2.",
+     "Figure from the repository's figures (`assets/Images/1D-Burgers/`): the same Burgers 1D RAR run, PINN, reference and error after round 2.",
      "PINN solution, reference solution and error over (t, x) of a Burgers 1D RAR run after round 2"),
     ("assets/Images/3D_AllenCahn-Wight/isosurface.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-isosurface.png",
      "Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — "
@@ -103,7 +107,7 @@ IMAGES = [
      "Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit"),
     ("assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png",
      "Helmholtz 2D – hyperparameter optimization", "helmholtz-2d-hpo-surface.png",
-     "Figure from PINNStudio's README (this example's results): a run with DeepXDE's settings (Default) — "
+     "Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — "
      "PINN, reference and error.",
      "Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem"),
 ]
@@ -130,7 +134,7 @@ def _rel_ref(path):
 
 
 def _md_math(text):
-    """README Markdown math ($...$, $$...$$) -> arithmatex delimiters."""
+    """Markdown math of the example records ($...$, $$...$$) -> arithmatex delimiters."""
     text = re.sub(r"\$`(.+?)`\$", r"$\1$", text)
     text = re.sub(r"\$\$(.+?)\$\$", lambda m: "\\[" + m.group(1).replace("\\Large", "").strip() + "\\]", text)
     return re.sub(r"(?<![\\$])\$(?!\$)(.+?)(?<!\\)\$", lambda m: "\\(" + m.group(1) + "\\)", text)
@@ -214,10 +218,30 @@ def _phases(cfg):
     return es._phases(cfg)
 
 
-# ----------------------------------------------------------------- README
+# ----------------------------------------------------------------- example records
+# The per-example sections and the examples table are read from benchmarks/examples.md (written by
+# tools/make_benchmarks_readme.py; it took over the README's Examples section). Its links are relative to
+# benchmarks/. Set by _use_examples_source() in main.
+EXAMPLES_MD = REPO / "benchmarks" / "examples.md"
+SRC = {"path": EXAMPLES_MD, "dir": "benchmarks", "label": "the benchmark records", "anchor_url": True}
+SITE_URL = "https://asfandyarkhan72.github.io/PINNStudio/"
+
+
+def _use_examples_source(path=None):
+    """Read the example sections from `path` (default benchmarks/examples.md), or from README.md's old
+    Examples section if examples.md is missing."""
+    path = Path(path).resolve() if path else EXAMPLES_MD
+    if path.exists():
+        SRC.update(path=path, dir="benchmarks", label="the benchmark records", anchor_url=True)
+    else:
+        print(f"NOTE: {path} not found; reading the example sections from README.md (its old Examples section)")
+        SRC.update(path=REPO / "README.md", dir="", label="the README", anchor_url=False)
+    return SRC["path"]
+
+
 def _readme_sections():
-    """{anchor: lines of the README's per-example section, up to its results}."""
-    text = (REPO / "README.md").read_text(encoding="utf-8").splitlines()
+    """{anchor: lines of an example's section, up to its results}."""
+    text = SRC["path"].read_text(encoding="utf-8").splitlines()
     out, cur, buf = {}, None, []
     for line in text:
         m = re.match(r'<details id="([^"]+)">', line)
@@ -236,9 +260,9 @@ def _readme_sections():
 
 
 def _readme_problem_column():
-    """{shown name: Problem column} from the README's Examples table."""
+    """{shown name: Problem column} from the examples table."""
     out = {}
-    for line in (REPO / "README.md").read_text(encoding="utf-8").splitlines():
+    for line in SRC["path"].read_text(encoding="utf-8").splitlines():
         m = re.match(r"\| \d+ \| \[([^\]]+)\]\([^)]*\) \| [^|]+\| [^|]+\| ([^|]+)\|", line)
         if m:
             out[m.group(1).strip()] = m.group(2).strip()
@@ -267,11 +291,12 @@ def _readme_math(lines):
     return eqs, inv_eqs, where, paper, after, _md_math(inv_par)
 
 
-ANCHOR_PAGES = {}     # README anchor -> page path (filled in main)
+ANCHOR_PAGES = {}     # example anchor -> page path (filled in main)
 
 
 def _fix_links(text, here):
-    """README-relative links in text taken from the README -> site pages or GitHub."""
+    """Links in text taken from the example records (relative to the record's folder) -> site pages or
+    GitHub. Links to this site's own address become relative links to the page."""
     def repl(m):
         label, target = m.group(1), m.group(2)
         if target.startswith("#"):
@@ -279,9 +304,17 @@ def _fix_links(text, here):
             if page:
                 return f"[{label}]({os.path.relpath(page, os.path.dirname(here))})"
             return label
+        if target.startswith(SITE_URL):
+            rest, _, frag = target[len(SITE_URL):].partition("#")
+            rest = rest.strip("/")
+            for cand in ([rest + ".md", rest + "/index.md"] if rest else ["index.md"]):
+                if (WEB / cand).exists():
+                    return f"[{label}]({os.path.relpath(cand, os.path.dirname(here))}{'#' + frag if frag else ''})"
+            return m.group(0)
         if re.match(r"https?://", target):
             return m.group(0)
         path = target.split("?")[0]
+        path = os.path.normpath(os.path.join(SRC["dir"], path)).replace(os.sep, "/") if SRC["dir"] else path
         base = GH_TREE if path.endswith("/") or "." not in os.path.basename(path) else GH_BLOB
         return f"[{label}]({base}{path})"
     return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", repl, text)
@@ -647,7 +680,7 @@ def _page(rec, images, root_rel):
     # equations
     L += ["## Governing equations", ""]
     if eqs:
-        L += ["Mathematical form (from the README):", ""]
+        L += [f"Mathematical form (from {SRC['label']}):", ""]
         for q in eqs:
             L += [q, ""]
         for w in where:
@@ -664,7 +697,7 @@ def _page(rec, images, root_rel):
         if consts:
             L += ["Constants: " + ", ".join(f"`{c['name']} = {c['value']}`" for c in consts), ""]
     if inv_eqs:
-        L += ["Inverse-mode form (from the README):", ""]
+        L += [f"Inverse-mode form (from {SRC['label']}):", ""]
         for q in inv_eqs:
             L += [q, ""]
 
@@ -719,7 +752,7 @@ def _page(rec, images, root_rel):
                          f"weight {_num(o.get('weight', 1))}")
             L.append("")
         if inv_par:
-            L += [inv_par.replace("*Inverse mode* — ", "From the README: "), ""]
+            L += [inv_par.replace("*Inverse mode* — ", f"From {SRC['label']}: "), ""]
 
     # settings
     L += ["## Settings", ""]
@@ -794,13 +827,13 @@ def _page(rec, images, root_rel):
         if "readthedocs" in ex.source:
             L.append(f"- DeepXDE documentation: [{ex.source.rsplit('/', 1)[-1]}]({ex.source})")
         if paper_line:
-            L.append(f"- Source paper (from the README): {paper_line}")
+            L.append(f"- Source paper (from {SRC['label']}): {paper_line}")
     else:
         if e.reference:
             link = cat.PAPERS.get(e.reference, "")
             L.append(f"- Paper: [{e.reference}]({link})" if link else f"- Paper: {e.reference}")
             if after_line:
-                L.append(f"- README: {after_line}")
+                L.append(f"- From {SRC['label']}: {after_line}")
         else:
             L.append("- PINNStudio's own problem (no source paper).")
     L.append("")
@@ -829,6 +862,9 @@ def _page(rec, images, root_rel):
     for f in rec["tuned_files"]:
         links.append(f"- [`benchmarks/tuning/{f}`]({GH_BLOB}benchmarks/tuning/{urllib.parse.quote(f)}) — "
                      "a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)")
+    if rec["bench"] and SRC["anchor_url"]:
+        links.append(f"- [Entry in the examples overview]({GH_BLOB}benchmarks/examples.md#{rec['bench']['anchor']}) "
+                     "(`benchmarks/examples.md`)")
     if rec["bench"]:
         links.append(f"- [Benchmark record]({GH_BLOB}benchmarks/problems/{rec['bench']['file']}) "
                      f"(`benchmarks/problems/{rec['bench']['file']}`)")
@@ -924,13 +960,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--cache", default="/tmp/pinnstudio_gallery_cache.json")
     ap.add_argument("--refresh", action="store_true", help="rebuild the template configurations")
-    ap.add_argument("--check", action="store_true", help="only report README/code differences")
+    ap.add_argument("--check", action="store_true", help="only report record/code differences")
+    ap.add_argument("--examples", default=os.environ.get("PINNSTUDIO_EXAMPLES_MD"),
+                    help="the examples.md to read (default benchmarks/examples.md; also PINNSTUDIO_EXAMPLES_MD)")
     args = ap.parse_args()
 
     from pinnstudio.core import example_catalog as cat
     from pinnstudio.ui.main_window import MainWindow
     entries = [e for e in cat.ENTRIES if not e.hidden]     # what ExampleCombo shows
     tcache = _template_configs(entries, Path(args.cache), args.refresh)
+    print(f"example sections from {_use_examples_source(args.examples)}")
     readme = _readme_sections()
     bench_index = {b["name"]: b for b in json.loads((REPO / "benchmarks/problems/index.json").read_text())}
     tuned_files = _tuned_file_map([e.name for e in entries])
@@ -943,19 +982,19 @@ def main():
         if r["bench"]:
             ANCHOR_PAGES[r["bench"]["anchor"]] = r["path"]
 
-    # README / code differences
+    # record / code differences
     issues = []
     col = _readme_problem_column()
     for r in records:
         e = r["entry"]
         if e.name not in col:
-            issues.append(f"README table has no row for '{e.name}'")
+            issues.append(f"examples table has no row for '{e.name}'")
         elif col[e.name] != e.problem:
-            issues.append(f"README table says '{col[e.name]}' for '{e.name}', the catalog '{e.problem}'")
+            issues.append(f"examples table says '{col[e.name]}' for '{e.name}', the catalog '{e.problem}'")
         if not r["bench"]:
             issues.append(f"no benchmark record for '{e.name}'")
         elif not r["readme"][0]:
-            issues.append(f"README section of '{e.name}' has no display equation")
+            issues.append(f"example section of '{e.name}' has no display equation")
         for inv, m in r["modes"].items():
             if not inv and m["gui_inverse"]:
                 issues.append(f"'{e.name}' Forward mode loads as an Inverse problem")

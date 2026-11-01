@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{-t}\left(\tfrac{3}{2}\sin 2x + \tfrac{8}{3}\sin 3x + \tfrac{15}{4}\sin 4x + \tfrac{63}{8}\sin 8x\right), \qquad x \in [-\pi, \pi],\ t \in [0, 1]\]
 
@@ -133,7 +133,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - DeepXDE script: [diffusion_reaction.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_reaction.py)
 - DeepXDE documentation: [diffusion.reaction.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html)
-- Source paper (from the README): [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
+- Source paper (from the benchmark records): [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes
 
@@ -143,6 +143,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Diffusion-reaction 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-reaction-equation) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-reaction-1d.md) (`benchmarks/problems/diffusion-reaction-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

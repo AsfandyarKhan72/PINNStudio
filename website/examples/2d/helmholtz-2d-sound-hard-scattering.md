@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[-\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2\]
 
@@ -78,6 +78,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20sound-hard%20scattering%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-sound-hard-scattering.md) (`benchmarks/problems/helmholtz-2d-sound-hard-scattering.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

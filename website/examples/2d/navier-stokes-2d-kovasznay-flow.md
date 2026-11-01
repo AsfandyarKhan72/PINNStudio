@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[(\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad Re = 20\]
 
@@ -112,7 +112,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - DeepXDE script: [Kovasznay_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py)
 - DeepXDE documentation: [Kovasznay.flow.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html)
-- Source paper (from the README): [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)](https://doi.org/10.1016/j.jcp.2020.109951) — studies a related problem.
+- Source paper (from the benchmark records): [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)](https://doi.org/10.1016/j.jcp.2020.109951) — studies a related problem.
 
 ## Notes
 
@@ -123,6 +123,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-kovasznay-flow) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/navier-stokes-2d-kovasznay-flow.md) (`benchmarks/problems/navier-stokes-2d-kovasznay-flow.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

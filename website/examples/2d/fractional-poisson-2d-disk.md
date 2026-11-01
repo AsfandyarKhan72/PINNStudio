@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[-(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(1 + \tfrac{\alpha}{2})\left(1 - (1 + \tfrac{\alpha}{2})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8\]
 
@@ -73,6 +73,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Fractional Poisson 2D – disk (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%202D%20%E2%80%93%20disk%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-fractional-poisson-equation-2d) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-poisson-2d-disk.md) (`benchmarks/problems/fractional-poisson-2d-disk.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

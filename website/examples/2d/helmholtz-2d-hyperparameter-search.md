@@ -17,12 +17,12 @@ search:
 
 <figure markdown="span">
   ![Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem](../../assets/images/examples/helmholtz-2d-hpo-surface.png){ loading=lazy }
-  <figcaption>Figure from PINNStudio's README (this example's results): a run with DeepXDE's settings (Default) — PINN, reference and error.</figcaption>
+  <figcaption>Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — PINN, reference and error.</figcaption>
 </figure>
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[-\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2\]
 
@@ -70,7 +70,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
-- Source paper (from the README): [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
+- Source paper (from the benchmark records): [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes
 
@@ -78,6 +78,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-hyperparameter-search.md) (`benchmarks/problems/helmholtz-2d-hyperparameter-search.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

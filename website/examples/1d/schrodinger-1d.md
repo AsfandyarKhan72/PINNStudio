@@ -17,12 +17,12 @@ search:
 
 <figure markdown="span">
   ![Animated line plot of the PINN solution |h|(x, t) of the 1D Schrödinger equation](../../assets/images/examples/schrodinger-1d.gif){ loading=lazy }
-  <figcaption>Animation from PINNStudio's README (top of the page): the PINN solution |h| of this example over time.</figcaption>
+  <figcaption>Animation from the repository's figures (`assets/Images/Top_GIFs/`): the PINN solution |h| of this example over time.</figcaption>
 </figure>
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0, \qquad x \in [-5, 5],\ t \in [0, \pi/2]\]
 
@@ -44,7 +44,7 @@ du_t + c*dv_xx + (u**2 + v**2)*v
 dv_t - c*du_xx - (u**2 + v**2)*u
 ```
 
-Inverse-mode form (from the README):
+Inverse-mode form (from the benchmark records):
 
 \[\frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0\]
 
@@ -79,7 +79,7 @@ Measured data (**Inverse** page, measured-data files):
 
 - [`reference_data/1D/schrodinger/t_0.75.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/1D/schrodinger/t_0.75.txt) → output `2`, weight 100
 
-From the README: pick the example from the **Inverse** list: the coefficient \(c\) of the second-derivative terms (0.5 in Forward mode; initial guess 1) is unknown and is learned from \(|h| = \sqrt{u^2 + v^2}\) measured at \(t = 0.75\), with the same training as the forward problem.
+From the benchmark records: pick the example from the **Inverse** list: the coefficient \(c\) of the second-derivative terms (0.5 in Forward mode; initial guess 1) is unknown and is learned from \(|h| = \sqrt{u^2 + v^2}\) measured at \(t = 0.75\), with the same training as the forward problem.
 
 ## Settings
 
@@ -138,7 +138,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [Schrodinger.ipynb](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
-- Source paper (from the README): [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
+- Source paper (from the benchmark records): [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes
 
@@ -149,6 +149,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Schrödinger 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Schrödinger 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-schr-dinger-equation) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/schr-dinger-1d.md) (`benchmarks/problems/schr-dinger-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

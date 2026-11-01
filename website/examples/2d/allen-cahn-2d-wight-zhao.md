@@ -17,22 +17,22 @@ search:
 
 <figure markdown="span">
   ![Animated contour plot of the 2D Allen-Cahn PINN solution: a circular interface shrinking over time](../../assets/images/examples/allen-cahn-2d-wight-zhao.gif){ loading=lazy }
-  <figcaption>Animation from PINNStudio's README (top of the page): the PINN solution of this example over time.</figcaption>
+  <figcaption>Animation from the repository's figures (`assets/Images/Top_GIFs/`): the PINN solution of this example over time.</figcaption>
 </figure>
 
 <figure markdown="span">
   ![Collocation points of a 2D Allen-Cahn run after RAR round 1, the added points near the interface](../../assets/images/examples/allen-cahn-2d-wight-zhao-rar-points.png){ loading=lazy }
-  <figcaption>Figure from PINNStudio's README (section on RAR): a run of this example with RAR switched on, round 1 — the collocation points added in that round. RAR is not part of the example's Default settings.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/2D_AllenCahn-Wight/`): a run of this example with RAR switched on, round 1 — the collocation points added in that round. RAR is not part of the example's Default settings.</figcaption>
 </figure>
 
 <figure markdown="span">
   ![PINN solution, reference solution and error of a 2D Allen-Cahn run after RAR round 1](../../assets/images/examples/allen-cahn-2d-wight-zhao-rar-solution.png){ loading=lazy }
-  <figcaption>Figure from PINNStudio's README (section on RAR): the same RAR run, PINN, reference and error after round 1.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/2D_AllenCahn-Wight/`): the same RAR run, PINN, reference and error after round 1.</figcaption>
 </figure>
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{\partial \phi}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \phi^3 + \phi\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]\]
 
@@ -50,7 +50,7 @@ As typed in PINNStudio's **Equations** page (Inverse mode) (each expression is a
 dphi_t - diff_coeff*(dphi_xx + dphi_yy) + lambda_*(phi**3 - phi)
 ```
 
-Inverse-mode form (from the README):
+Inverse-mode form (from the benchmark records):
 
 \[\frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)\]
 
@@ -83,7 +83,7 @@ Measured data (**Inverse** page, measured-data files):
 
 - [`reference_data/2D/allen_cahn_wight/t_2.5.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/allen_cahn_wight/t_2.5.txt) → output `phi`, weight 100
 
-From the README: same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient \(\lambda\) and the lumped diffusion-term coefficient \(\lambda\varepsilon^2\) (not \(\varepsilon\) on its own).
+From the benchmark records: same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient \(\lambda\) and the lumped diffusion-term coefficient \(\lambda\varepsilon^2\) (not \(\varepsilon\) on its own).
 
 ## Settings
 
@@ -155,13 +155,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - Paper: [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086)
-- README: Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086).
+- From the benchmark records: Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086).
 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-wight--zhao) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/allen-cahn-2d-wight-zhao.md) (`benchmarks/problems/allen-cahn-2d-wight-zhao.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

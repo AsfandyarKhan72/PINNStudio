@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[-\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1\]
 
@@ -53,7 +53,7 @@ Measured data (**Inverse** page, measured-data files):
 
 - [`reference_data/3D/poisson_sphere/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/3D/poisson_sphere/u_obs.txt) → output `u`, weight 100
 
-From the README: same template, switched to **Inverse**, recovering the source term (fixed at \(1\) in Forward mode) as an unknown parameter from 300 measured points
+From the benchmark records: same template, switched to **Inverse**, recovering the source term (fixed at \(1\) in Forward mode) as an unknown parameter from 300 measured points
 
 ## Settings
 
@@ -106,6 +106,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Poisson 3D – sphere (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%203D%20%E2%80%93%20sphere%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Poisson 3D – sphere (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%203D%20%E2%80%93%20sphere%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-poisson-sphere) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-3d-sphere.md) (`benchmarks/problems/poisson-3d-sphere.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

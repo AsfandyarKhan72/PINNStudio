@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[-\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0]\]
 
@@ -49,7 +49,7 @@ Measured data (**Inverse** page, measured-data files):
 
 - [`reference_data/2D/poisson_lshape/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/poisson_lshape/u_obs.txt) → output `u`, weight 100
 
-From the README: the source term \(f\) learned from \(u\) measured at 300 points (initial guess 0.1, true 1).
+From the benchmark records: the source term \(f\) learned from \(u\) measured at 300 points (initial guess 0.1, true 1).
 
 ## Settings
 
@@ -109,7 +109,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - DeepXDE script: [Poisson_Lshape.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py)
 - DeepXDE documentation: [poisson.Lshape.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html)
-- Source paper (from the README): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
+- Source paper (from the benchmark records): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes
 
@@ -120,6 +120,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Poisson 2D – L-shape (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%202D%20%E2%80%93%20L-shape%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-over-an-l-shaped-domain) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-2d-l-shape.md) (`benchmarks/problems/poisson-2d-l-shape.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

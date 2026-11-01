@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{\partial U}{\partial t} + U\frac{\partial U}{\partial x} + V\frac{\partial U}{\partial y} = \nu\left(\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2}\right)\]
 
@@ -64,7 +64,7 @@ Measured data (**Inverse** page, measured-data files):
 - [`reference_data/2D/burgers_mathias/t_1.0_u.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/burgers_mathias/t_1.0_u.txt) → output `u`, weight 100
 - [`reference_data/2D/burgers_mathias/t_1.0_v.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/burgers_mathias/t_1.0_v.txt) → output `v`, weight 100
 
-From the README: same template, switched to **Inverse**, recovering the shared viscosity \(\nu\) (true value \(0.01/\pi \approx 3.18 \times 10^{-3}\), initial guess 1) from \(U\) and \(V\) measured at \(t = 1\), each against its own output. \(\nu\) converges to 3.44 × 10⁻³, and the \(L_2\) error at \(t = 1\) is 3.7 × 10⁻³ for \(U\) and 3.1 × 10⁻³ for \(V\).
+From the benchmark records: same template, switched to **Inverse**, recovering the shared viscosity \(\nu\) (true value \(0.01/\pi \approx 3.18 \times 10^{-3}\), initial guess 1) from \(U\) and \(V\) measured at \(t = 1\), each against its own output. \(\nu\) converges to 3.44 × 10⁻³, and the \(L_2\) error at \(t = 1\) is 3.7 × 10⁻³ for \(U\) and 3.1 × 10⁻³ for \(V\).
 
 ## Settings
 
@@ -140,6 +140,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-2d-mathias-et-al.md) (`benchmarks/problems/burgers-2d-mathias-et-al.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -17,7 +17,7 @@ search:
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{\partial h}{\partial t} = c_1^2\left(\frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2}\right) - c_2(h^3 - h), \qquad (x, y) \in [0, 1]^2,\ t \in (0, 1]\]
 
@@ -67,7 +67,7 @@ Measured data (**Inverse** page, measured-data files):
 - [`reference_data/2D/allen_cahn_mattey/t_0.75.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/allen_cahn_mattey/t_0.75.txt) → output `h`, weight 100
 - [`reference_data/2D/allen_cahn_mattey/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/2D/allen_cahn_mattey/t_1.0.txt) → output `h`, weight 100
 
-From the README: same template, switched to **Inverse**, jointly recovering both \(c_1^2\) (interfacial-thickness-squared) and \(c_2\) (reaction) as unknown parameters; \(c_2\)'s initial guess starts at \(0.1\) rather than \(1.0\), since \(1.0\) is already its true value. The template measures \(h\) at every reference time after \(t = 0\) (\(t\) = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
+From the benchmark records: same template, switched to **Inverse**, jointly recovering both \(c_1^2\) (interfacial-thickness-squared) and \(c_2\) (reaction) as unknown parameters; \(c_2\)'s initial guess starts at \(0.1\) rather than \(1.0\), since \(1.0\) is already its true value. The template measures \(h\) at every reference time after \(t = 0\) (\(t\) = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
 
 ## Settings
 
@@ -140,12 +140,13 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - Paper: [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474)
-- README: Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474).
+- From the benchmark records: Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474).
 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [`benchmarks/tuning/Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-mattey--ghosh) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/allen-cahn-2d-mattey-ghosh.md) (`benchmarks/problems/allen-cahn-2d-mattey-ghosh.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

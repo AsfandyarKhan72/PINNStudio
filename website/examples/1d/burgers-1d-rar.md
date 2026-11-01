@@ -17,17 +17,17 @@ search:
 
 <figure markdown="span">
   ![Collocation points of a Burgers 1D RAR run after round 2, the added points along the shock at x = 0](../../assets/images/examples/burgers-1d-rar-points.png){ loading=lazy }
-  <figcaption>Figure from PINNStudio's README (section on RAR): a Burgers 1D run with RAR, round 2 — original points, points added in earlier rounds and points added in this round. The README does not state which example's settings the run used.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/1D-Burgers/`): a Burgers 1D run with RAR, round 2 — original points, points added in earlier rounds and points added in this round. No record states which example's settings the run used.</figcaption>
 </figure>
 
 <figure markdown="span">
   ![PINN solution, reference solution and error over (t, x) of a Burgers 1D RAR run after round 2](../../assets/images/examples/burgers-1d-rar-solution.png){ loading=lazy }
-  <figcaption>Figure from PINNStudio's README (section on RAR): the same Burgers 1D RAR run, PINN, reference and error after round 2.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/1D-Burgers/`): the same Burgers 1D RAR run, PINN, reference and error after round 2.</figcaption>
 </figure>
 
 ## Governing equations
 
-Mathematical form (from the README):
+Mathematical form (from the benchmark records):
 
 \[\frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]\]
 
@@ -84,7 +84,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - DeepXDE script: [Burgers_RAR.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py)
 - DeepXDE documentation: [burgers.rar.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html)
-- Source paper (from the README): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
+- Source paper (from the benchmark records): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes
 
@@ -93,6 +93,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Configuration and benchmark records
 
 - [`benchmarks/tuning/Burgers 1D – RAR (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20RAR%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-burgers-equation-with-rar) (`benchmarks/examples.md`)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-1d-rar.md) (`benchmarks/problems/burgers-1d-rar.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 
