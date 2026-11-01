@@ -912,6 +912,9 @@ class PINNConfig:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
                 errors.append("Causal training: the causality parameter epsilon must be positive.")
+        if self.time_adaptive and str(getattr(self, "problem_type", "Forward")) == "Inverse":
+            errors.append("Time-adaptive training is available for forward problems only (the window removes it in "
+                          "Inverse mode): switch time-adaptive training off, or solve the forward problem.")
         if self.time_adaptive and (self.ta_growing or self.ta_backward):
             _which = " and ".join(n for n, on in (("Growing time range", self.ta_growing),
                                                   ("Backward compatibility", self.ta_backward)) if on)

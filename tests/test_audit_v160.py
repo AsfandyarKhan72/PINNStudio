@@ -542,3 +542,14 @@ def test_resampled_time_window_model_is_saved_and_used():
     i_rs, i_save = s.index("Resampling round"), s.index('"model_resampled"')
     assert i_save > i_rs
     assert s.count('"model_resampled-*.pt"') >= 4
+
+
+def test_time_windows_are_refused_for_an_inverse_problem():
+    """The window removes time-adaptive training in Inverse mode, but a hand-edited or older problem file with both
+    passed the checks and wrote a script that mixed them."""
+    c = _template("1D Allen-Cahn", inverse=True)
+    n = int(c.num_outputs)
+    c = dataclasses.replace(c, problem_type="Inverse", time_adaptive=True, adapt_method="Time Adaptive",
+                            ta_transfer_learning=True, ic_hard=",".join(["False"] * n), ic_active=",".join(["True"] * n))
+    assert any("forward problems only" in e for e in c.validate())
+    assert not any("forward problems only" in e for e in dataclasses.replace(c, problem_type="Forward").validate())
