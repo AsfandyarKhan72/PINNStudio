@@ -1099,8 +1099,13 @@ class MainWindow(QMainWindow):
         from pinnstudio.ui.workspace import ModelWorkspace
         groups = {}
         while left_layout.count():
-            it = left_layout.takeAt(0)
-            w = it.widget()
+            w = left_layout.itemAt(0).widget()
+            if w is not None:
+                # removeWidget() deletes the layout item; PySide6 never deletes an item taken with
+                # takeAt(), and a widget whose old item is still alive is not resized by its new layout
+                left_layout.removeWidget(w)
+            else:
+                left_layout.takeAt(0)
             if isinstance(w, QGroupBox):
                 groups[w.title()] = w
         self.workspace = ws = ModelWorkspace(self)
@@ -1130,7 +1135,8 @@ class MainWindow(QMainWindow):
         _sel_lay.addWidget(self.domain_view.edge_bar)
         ws.add_widget("bcs", self.sketch_selection_box)
         bcs_lay = ws.pages["bcs"]["layout"]
-        bcs_lay.insertWidget(0, bcs_lay.takeAt(bcs_lay.indexOf(self.sketch_selection_box)).widget())
+        bcs_lay.removeWidget(self.sketch_selection_box)      # not takeAt(): see _build_workspace
+        bcs_lay.insertWidget(0, self.sketch_selection_box)
         self._sketch_sel_follower = VisibilityFollower(self.sketch_selection_box,
                                                        [self.sketch_panel.edge_bar, self.domain_view.edge_bar])
         self.domain_view.edge_bar.setVisible(False)
@@ -6638,7 +6644,11 @@ class MainWindow(QMainWindow):
         # Re-lay the row widgets out in the new order (no widgets are
         # destroyed here -- just taken out of the layout and re-added).
         while self.custom_geom_shapes_layout.count():
-            self.custom_geom_shapes_layout.takeAt(0)
+            _w = self.custom_geom_shapes_layout.itemAt(0).widget()
+            if _w is not None:
+                self.custom_geom_shapes_layout.removeWidget(_w)   # not takeAt(): see _build_workspace
+            else:
+                self.custom_geom_shapes_layout.takeAt(0)
         for row in rows:
             self.custom_geom_shapes_layout.addWidget(row['widget'])
         self._schedule_sketch_from_rows()
