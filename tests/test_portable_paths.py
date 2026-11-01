@@ -118,6 +118,8 @@ def _check_round_trip(category, key, field):
     saved = json.load(open(p, encoding="utf-8"))["config"]
     assert "reference_data" not in json.dumps(saved[field])
     w.close()
+    w.deleteLater()
+    settle()
     w2 = window()
     w2._open_problem(p)
     settle()
@@ -125,6 +127,8 @@ def _check_round_trip(category, key, field):
     assert getattr(after, field) == getattr(before, field)
     assert MainWindow._config_key(after) == MainWindow._config_key(before)
     w2.close()
+    w2.deleteLater()   # delete now: left to the garbage collector at exit, PyQt6 crashes in teardown
+    settle()
     return after
 
 
