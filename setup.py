@@ -21,12 +21,12 @@ setup(
     install_requires=[
         "deepxde>=1.10.0",
         "torch>=2.0",
-        "PyQt6>=6.4",
-        # Newer PyQt6-Qt6 builds fail to load on some Windows versions with a
-        # "DLL load failed" ImportError. Pin to a known-working build on Windows only;
-        # Linux/macOS keep using the latest compatible version.
-        "PyQt6==6.6.1; sys_platform == 'win32'",
-        "PyQt6-Qt6==6.6.1; sys_platform == 'win32'",
+        # PySide6 experiment: the Essentials wheel has every Qt module PINNStudio
+        # uses (QtCore, QtGui, QtWidgets, QtSvg; QtTest for the tests). Tested
+        # with 6.12 on Linux only. The PyQt6 Windows pin (6.6.1, "DLL load
+        # failed" with newer PyQt6-Qt6 builds) has no PySide6 counterpart yet:
+        # whether one is needed must be tested on Windows.
+        "PySide6-Essentials>=6.5",
         # DeepXDE 1.15's 2D Polygon/Triangle geometry calls np.cross on
         # 2-element vectors, which NumPy deprecated in 2.0 and removed in
         # 2.5 (it now raises ValueError) -- keep NumPy below 2.5 until a
