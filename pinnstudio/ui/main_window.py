@@ -7208,9 +7208,11 @@ class MainWindow(QMainWindow):
             # just-auto-loaded path back to empty).
             self._ea_auto_inv_path = _inv_default_file
             self._ea_auto_inv_template = getattr(self, '_current_template', '')
-            self.log_box.append(
-                f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
-                f"(t={valid_files[-1][0]:.4g})")
+            # the file is filled in for Inverse mode; a Forward run does not use it, so say so only in Inverse mode
+            if getattr(self, 'radio_inverse', None) is not None and self.radio_inverse.isChecked():
+                self.log_box.append(
+                    f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
+                    f"(t={valid_files[-1][0]:.4g})")
 
     # ── Plot type change ──────────────────────────────────────
     @staticmethod
