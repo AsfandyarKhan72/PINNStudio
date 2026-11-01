@@ -1,6 +1,8 @@
-"""Keep the "Source code" links of GUIDE.md's features pointing at the right lines.
+"""Keep the "Source code" links of the documentation's feature map pointing at the right lines.
 
-Each feature in GUIDE.md (formerly in the README) names the code it links to once, in a comment:
+The developer page website/developer/structure.md ("Where each feature is in the code") names, for each
+feature, the code it links to once, in a comment (these are the per-feature source links the README used
+to carry):
 
     <!-- source: pinnstudio/core/codegen.py::_training_methods_defs | causal training, RBA and SA-PINN ;
          pinnstudio/ui/results.py | the whole file -->
@@ -14,8 +16,11 @@ line under the comment:
 so the line numbers follow the code. Run it after changing the code and
 before merging into main (the links point at main):
 
-    python tools/update_source_links.py           # rewrite GUIDE.md
+    python tools/update_source_links.py           # rewrite the page
     python tools/update_source_links.py --check   # exit 1 if a link is out of date or a target is gone
+
+The website's sources live on the documentation branch; in a checkout without them the script says so and
+does nothing.
 """
 import argparse
 import ast
@@ -24,7 +29,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOC = os.path.join(ROOT, "GUIDE.md")
+DOC = os.path.join(ROOT, "website", "developer", "structure.md")
+DOC_NAME = "website/developer/structure.md"
 REPO_URL = "https://github.com/AsfandyarKhan72/PINNStudio"
 BRANCH = "main"
 
@@ -102,8 +108,11 @@ def update(text):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--check", action="store_true", help="only check; exit 1 if GUIDE.md would change")
+    ap.add_argument("--check", action="store_true", help="only check; exit 1 if the page would change")
     args = ap.parse_args(argv)
+    if not os.path.isfile(DOC):
+        print(f"{DOC_NAME} is not in this checkout (the website is on the documentation branch): nothing to do")
+        return 0
     with open(DOC, encoding="utf-8") as f:
         old = f.read()
     try:
@@ -113,7 +122,7 @@ def main(argv=None):
         return 1
     if args.check:
         if new != old:
-            print("GUIDE.md source links are out of date: run python tools/update_source_links.py")
+            print(f"{DOC_NAME} source links are out of date: run python tools/update_source_links.py")
             return 1
         print(f"{n} source links up to date")
         return 0

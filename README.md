@@ -123,13 +123,14 @@ equations, domain, conditions and settings. The results and figures of each exam
 - [Documentation website](https://asfandyarkhan72.github.io/PINNStudio/): getting started, the user guide for
   every page of the window, the feature reference and the theory behind the methods.
 - [Tutorials](https://asfandyarkhan72.github.io/PINNStudio/tutorials/): step-by-step problems, from a first ODE to
-  inverse problems, adaptive methods and exported scripts.
+  inverse problems, adaptive methods and exported scripts, and a
+  [walkthrough for an equation of your own](https://asfandyarkhan72.github.io/PINNStudio/tutorials/18-own-problem/).
 - [Example gallery](https://asfandyarkhan72.github.io/PINNStudio/examples/): all 64 built-in examples.
 - [Troubleshooting](https://asfandyarkhan72.github.io/PINNStudio/help/troubleshooting/) and
   [FAQ](https://asfandyarkhan72.github.io/PINNStudio/help/faq/).
-- [GUIDE.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/GUIDE.md) in this repository: every feature
-  in detail with links to its source code, a walkthrough for an equation of your own, how PINNStudio works and
-  how fast it trains.
+- [How PINNStudio works](https://asfandyarkhan72.github.io/PINNStudio/developer/architecture/), the
+  [repository and the source code of each feature](https://asfandyarkhan72.github.io/PINNStudio/developer/structure/), and
+  [how fast it trains](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/environment/#training-speed).
 - [Demo video](https://youtu.be/5ILxuutvEZw) on YouTube.
 
 ## Reproducibility and benchmarks
@@ -162,7 +163,7 @@ version, add its number (`version = {…}`). A paper describing PINNStudio is in
 
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), [PyTorch](https://pytorch.org) and PyQt6. We are especially grateful to Lu Lu and the DeepXDE developers: DeepXDE is the physics-informed learning library that every script PINNStudio generates runs on, and its documented examples are included among PINNStudio's examples, each linked to its original script. PINNStudio is an independent project and is not affiliated with or endorsed by the DeepXDE developers.
 
-The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); and *Poisson 2D – L-shape* is the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed in [GUIDE.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/GUIDE.md#references).
+The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); and *Poisson 2D – L-shape* is the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed on the website's [Scientific references](https://asfandyarkhan72.github.io/PINNStudio/about/references/) page.
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 

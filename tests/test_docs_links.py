@@ -1,7 +1,10 @@
-"""Links into the documents that took over the README's long sections: GUIDE.md (features, the walkthrough,
-how PINNStudio works) and benchmarks/examples.md (every example, written by tools/make_benchmarks_readme.py).
-The model tree's "?" opens a section of GUIDE.md, and the benchmark pages link to the examples by anchor, so a
-renamed heading or a missing example section would leave a dead link."""
+"""Links into the pages that took over the README's long sections: the documentation website (the user
+guide, which the model tree's "?" opens) and benchmarks/examples.md (every example, written by
+tools/make_benchmarks_readme.py). The benchmark pages link to the examples by anchor, so a renamed heading or a
+missing example section would leave a dead link.
+
+The website's sources (website/, mkdocs.yml) are on the docs branch, not necessarily in this checkout: the "?"
+pages are checked against a fixed list of the user-guide pages, and against website/ itself when it is here."""
 import ast
 import json
 import os
@@ -32,11 +35,22 @@ def _class_attr(name):
     raise LookupError(name)
 
 
-def test_help_buttons_open_guide_sections():
-    assert _class_attr("DOCS_URL").endswith("/blob/main/GUIDE.md")
-    guide = _anchors(_read("GUIDE.md"))
-    for key, anchor in _class_attr("_HELP_ANCHORS").items():
-        assert anchor.lstrip("#") in guide, (key, anchor)
+# The user guide's pages on the website (website/guide/<name>.md, served at guide/<name>/).
+SITE_URL = "https://asfandyarkhan72.github.io/PINNStudio/"
+GUIDE_PAGES = {"problem", "equations", "inverse", "geometry", "points", "initial-conditions",
+               "boundary-conditions", "network", "training", "loss-weights", "adaptive", "sweeps", "results",
+               "restore", "solve", "error-analysis", "export", "settings", "interface", "choosing-a-strategy"}
+
+
+def test_help_buttons_open_guide_pages():
+    assert _class_attr("DOCS_URL") == SITE_URL
+    pages = _class_attr("_HELP_ANCHORS")
+    assert {"problem", "equations", "geometry", "bcs", "training", "results", "restore"} <= set(pages)
+    for key, path in pages.items():
+        m = re.fullmatch(r"guide/([a-z0-9-]+)/", path)
+        assert m and m.group(1) in GUIDE_PAGES, (key, path)
+        if os.path.isdir(os.path.join(ROOT, "website", "guide")):
+            assert os.path.isfile(os.path.join(ROOT, "website", "guide", m.group(1) + ".md")), (key, path)
 
 
 def test_every_example_has_its_section():
@@ -51,7 +65,7 @@ def test_no_links_to_removed_readme_sections():
     readme = _anchors(_read("README.md"))
     pages = {"benchmarks/README.md": "../README.md#", "benchmarks/paper.md": "../README.md#",
              "benchmarks/tuning_study.md": "../README.md#", "benchmarks/examples.md": "../README.md#",
-             "GUIDE.md": "README.md#", "CONTRIBUTING.md": "README.md#", "THIRD_PARTY_LICENSES.md": "README.md#"}
+             "CONTRIBUTING.md": "README.md#", "THIRD_PARTY_LICENSES.md": "README.md#"}
     for page, prefix in pages.items():
         text = _read(*page.split("/"))
         for a in re.findall(r"\]\(" + re.escape(prefix) + r"([^)]+)\)", text):
@@ -59,7 +73,7 @@ def test_no_links_to_removed_readme_sections():
 
 
 if __name__ == "__main__":
-    test_help_buttons_open_guide_sections()
+    test_help_buttons_open_guide_pages()
     test_every_example_has_its_section()
     test_no_links_to_removed_readme_sections()
     print("ok")
