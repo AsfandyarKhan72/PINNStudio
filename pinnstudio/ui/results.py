@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphic
                              QTableWidgetItem, QVBoxLayout, QWidget)
 
 from pinnstudio.ui import theme as _theme
+from pinnstudio.ui.workspace import layout_widgets
 
 
 # ── what a run is going to do ────────────────────────────────────────────
@@ -463,6 +464,7 @@ class ErrorAnalysisPanel(QWidget):
         split.addWidget(self.table)
         self.figs = QWidget()
         self.figs_lay = QVBoxLayout(self.figs)
+        self.figs_lay.addStretch()        # stays last; the figures are inserted before it
         self.figs_lay.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -475,10 +477,9 @@ class ErrorAnalysisPanel(QWidget):
         """A new run started: nothing from the last one stays."""
         self.table.setRowCount(0)
         self.summary.setText(message)
-        while self.figs_lay.count():
-            w = self.figs_lay.takeAt(0).widget()
-            if w is not None:
-                w.deleteLater()
+        for w in layout_widgets(self.figs_lay):   # not takeAt: see workspace._row_slots
+            self.figs_lay.removeWidget(w)
+            w.deleteLater()
 
     def show_run(self, metrics, folder, figures=()):
         self.table.setRowCount(0)
@@ -497,19 +498,17 @@ class ErrorAnalysisPanel(QWidget):
                                  f"over {len(l2s)} reference time{'s' if len(l2s) != 1 else ''}.")
         else:
             self.summary.setText("No error analysis in the last run (set it up on the Results page).")
-        while self.figs_lay.count():
-            w = self.figs_lay.takeAt(0).widget()
-            if w is not None:
-                w.deleteLater()
+        for w in layout_widgets(self.figs_lay):   # not takeAt: see workspace._row_slots
+            self.figs_lay.removeWidget(w)
+            w.deleteLater()
         paths = [f for f in figures if "error_analysis" in f.replace("\\", "/") and os.path.exists(f)]
         if not paths and folder and os.path.isdir(folder):
             paths = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.lower().endswith(".png")]
         for path in paths:
             cap = QLabel(os.path.basename(path))
             cap.setObjectName("pageDesc")
-            self.figs_lay.addWidget(cap)
-            self.figs_lay.addWidget(_Thumb(path, 520))
-        self.figs_lay.addStretch()
+            self.figs_lay.insertWidget(self.figs_lay.count() - 1, cap)
+            self.figs_lay.insertWidget(self.figs_lay.count() - 1, _Thumb(path, 520))
 
 
 # ── Run history ──────────────────────────────────────────────────────────

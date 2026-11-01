@@ -454,6 +454,24 @@ def _row_slots(lay):
     return widgets, nested
 
 
+def layout_widgets(lay):
+    """The widgets placed directly in `lay`, in layout order, found through
+    the QObject tree -- never through QLayout.itemAt (see _row_slots)."""
+    widgets, _nested = _row_slots(lay)
+    return [widgets[i] for i in sorted(widgets)]
+
+
+def layout_sublayouts(lay):
+    """The layouts nested directly in `lay`, in layout order (QObject tree)."""
+    from PySide6.QtWidgets import QLayout
+    found = []
+    for child in lay.findChildren(QLayout, options=Qt.FindChildOption.FindDirectChildrenOnly):
+        i = lay.indexOf(child)
+        if i >= 0:
+            found.append((i, child))
+    return [c for _i, c in sorted(found, key=lambda t: t[0])]
+
+
 def align_forms(root, max_label=190):
     """Rows built as  [label][stretch][control]  -- control pushed to the far
     right -- become  [label][control][stretch], and every row label on the

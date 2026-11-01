@@ -23,6 +23,7 @@ from pinnstudio.ui.sci_spinbox import SciSpinBox
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
 from pinnstudio.ui import theme as _theme
+from pinnstudio.ui.workspace import layout_widgets as _ws_layout_widgets, layout_sublayouts as _ws_layout_sublayouts
 from pinnstudio.ui.theme import EXACT_BC_INDEX
 from pinnstudio.core.codegen import PARAM_STYLE_DEFAULTS
 REFERENCE_DATA_DIR = os.path.join(
@@ -1121,14 +1122,12 @@ class MainWindow(QMainWindow):
         Adds the tree and settings panels to `splitter`."""
         from pinnstudio.ui.workspace import ModelWorkspace
         groups = {}
-        while left_layout.count():
-            w = left_layout.itemAt(0).widget()
-            if w is not None:
-                # removeWidget() deletes the layout item; PySide6 never deletes an item taken with
-                # takeAt(), and a widget whose old item is still alive is not resized by its new layout
-                left_layout.removeWidget(w)
-            else:
-                left_layout.takeAt(0)
+        # Through the QObject tree, not QLayout.itemAt/takeAt: PySide6 keeps
+        # every item wrapper itemAt() returns, and one whose item Qt deletes
+        # later stays registered at the freed address (workspace._row_slots).
+        # removeWidget() lets Qt delete the widget's item itself; spacers stay.
+        for w in _ws_layout_widgets(left_layout):
+            left_layout.removeWidget(w)
             if isinstance(w, QGroupBox):
                 groups[w.title()] = w
         self.workspace = ws = ModelWorkspace(self)
@@ -1369,9 +1368,9 @@ class MainWindow(QMainWindow):
                 setattr(self, attr + "_toggle", self._insert_help(lay, 0, label, text)[0])
         # Boundary conditions: in the row of the "Where" examples button
         lay = self.custom_bc_main_layout
-        for i in range(lay.count()):
-            row = lay.itemAt(i).layout()
-            if row is not None and row.indexOf(self.bc_loc_hint_toggle) >= 0:
+        for row in _ws_layout_sublayouts(lay):
+            i = lay.indexOf(row)
+            if row.indexOf(self.bc_loc_hint_toggle) >= 0:
                 toggle = self._ref_button("About boundary conditions")
                 hint = QLabel(self._BC_HELP)
                 self._register_hint(hint, '#74c0fc', 'padding-bottom: 6px; ')
@@ -1389,8 +1388,7 @@ class MainWindow(QMainWindow):
         page = self.workspace.pages["training"]
         train = page["widgets"][0]
         lay = train.layout()
-        for i in range(lay.count()):
-            w = lay.itemAt(i).widget()
+        for w in _ws_layout_widgets(lay):
             if isinstance(w, QLabel) and w.text().startswith("──"):
                 w.hide()   # the boxes' titles say it now
 
@@ -3353,14 +3351,10 @@ class MainWindow(QMainWindow):
         self.lbfgs_maxls   = _lbfgs_row("maxls:",   _rec["maxls"])
         # maxiter is each L-BFGS phase's own Iterations (what both scripts
         # use), so a second box for it here would only contradict that
-        for _i in range(lbfgs_manual_layout.count()):
-            _it = lbfgs_manual_layout.itemAt(_i)
-            _lay = _it.layout() if _it is not None else None
-            if _lay is not None and _lay.indexOf(self.lbfgs_maxiter) >= 0:
-                for _j in range(_lay.count()):
-                    _wj = _lay.itemAt(_j).widget()
-                    if _wj is not None:
-                        _wj.setVisible(False)
+        for _lay in _ws_layout_sublayouts(lbfgs_manual_layout):
+            if _lay.indexOf(self.lbfgs_maxiter) >= 0:
+                for _wj in _ws_layout_widgets(_lay):
+                    _wj.setVisible(False)
         _maxiter_note = QLabel("The number of L-BFGS iterations is each phase's Iterations.")
         self._register_hint(_maxiter_note, '#868e96')
         lbfgs_manual_layout.addWidget(_maxiter_note)
@@ -5720,11 +5714,9 @@ class MainWindow(QMainWindow):
             return ["x", "t"]
 
     def _rebuild_input_transform_rows(self):
-        while self.input_transform_rows_layout.count():
-            item = self.input_transform_rows_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+        for w in _ws_layout_widgets(self.input_transform_rows_layout):   # not takeAt: see _build_workspace
+            self.input_transform_rows_layout.removeWidget(w)
+            w.deleteLater()
         self.input_transform_rows = []
         for label in self._current_input_dim_labels():
             row_w, scale_spin, shift_spin = self._transform_row_factory(f"{label}:")
@@ -5764,11 +5756,9 @@ class MainWindow(QMainWindow):
         return combo, scale_w, formula_w
 
     def _rebuild_output_formula_rows(self, n_outputs):
-        while self.output_formula_rows_layout.count():
-            item = self.output_formula_rows_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+        for w in _ws_layout_widgets(self.output_formula_rows_layout):   # not takeAt: see _build_workspace
+            self.output_formula_rows_layout.removeWidget(w)
+            w.deleteLater()
         self.output_formula_edits = []
         for i in range(max(1, n_outputs)):
             row_w = QWidget()
@@ -5905,11 +5895,9 @@ class MainWindow(QMainWindow):
     def _rebuild_output_transform_rows(self, n_outputs):
         if hasattr(self, "output_formula_rows_layout"):
             self._rebuild_output_formula_rows(n_outputs)
-        while self.output_transform_rows_layout.count():
-            item = self.output_transform_rows_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+        for w in _ws_layout_widgets(self.output_transform_rows_layout):   # not takeAt: see _build_workspace
+            self.output_transform_rows_layout.removeWidget(w)
+            w.deleteLater()
         self.output_transform_rows = []
         for i in range(max(1, n_outputs)):
             row_w, scale_spin, shift_spin = self._transform_row_factory(f"Output {i + 1}:")
@@ -6694,12 +6682,8 @@ class MainWindow(QMainWindow):
         rows[i], rows[j] = rows[j], rows[i]
         # Re-lay the row widgets out in the new order (no widgets are
         # destroyed here -- just taken out of the layout and re-added).
-        while self.custom_geom_shapes_layout.count():
-            _w = self.custom_geom_shapes_layout.itemAt(0).widget()
-            if _w is not None:
-                self.custom_geom_shapes_layout.removeWidget(_w)   # not takeAt(): see _build_workspace
-            else:
-                self.custom_geom_shapes_layout.takeAt(0)
+        for _w in _ws_layout_widgets(self.custom_geom_shapes_layout):   # not itemAt/takeAt: see _build_workspace
+            self.custom_geom_shapes_layout.removeWidget(_w)
         for row in rows:
             self.custom_geom_shapes_layout.addWidget(row['widget'])
         self._schedule_sketch_from_rows()
@@ -7933,10 +7917,8 @@ class MainWindow(QMainWindow):
         kept_names = [w.text() for w in self.output_name_inputs] if keep_text else []
         kept_pdes = [w.text() for w in self.pde_inputs] if keep_text else []
         n_eq = self._n_equations()
-        for i in reversed(range(self.pde_main_layout.count())):
-            w = self.pde_main_layout.itemAt(i).widget()
-            if w:
-                self._drop_row_widget(self.pde_main_layout, w)
+        for w in reversed(_ws_layout_widgets(self.pde_main_layout)):
+            self._drop_row_widget(self.pde_main_layout, w)
         self.pde_inputs.clear()
         self.output_name_inputs.clear()
 
@@ -8045,10 +8027,8 @@ class MainWindow(QMainWindow):
 
     # ── Build BC inputs ───────────────────────────────────────
     def _build_bc_inputs(self, n):
-        for i in reversed(range(self.bc_main_layout.count())):
-            w = self.bc_main_layout.itemAt(i).widget()
-            if w:
-                self._drop_row_widget(self.bc_main_layout, w)
+        for w in reversed(_ws_layout_widgets(self.bc_main_layout)):
+            self._drop_row_widget(self.bc_main_layout, w)
         self.bc_left_types.clear();   self.bc_left_vals.clear();   self.bc_left_active.clear();   self.bc_left_deriv.clear()
         self.bc_right_types.clear();  self.bc_right_vals.clear();  self.bc_right_active.clear();  self.bc_right_deriv.clear()
         self.bc_bottom_types.clear(); self.bc_bottom_vals.clear(); self.bc_bottom_active.clear(); self.bc_bottom_deriv.clear()
@@ -9398,8 +9378,7 @@ class MainWindow(QMainWindow):
                     _old_w[_k] = _wd.value()
                 except Exception:
                     pass
-        for i in reversed(range(self.weights_main_layout.count())):
-            w = self.weights_main_layout.itemAt(i).widget()
+        for w in reversed(_ws_layout_widgets(self.weights_main_layout)):
             if w:
                 # out of the layout and hidden now (deleteLater only runs once
                 # the event loop gets to it -- a template that switches several
@@ -15988,10 +15967,8 @@ print("DOMAIN_PREVIEW_DONE")
             else:
                 r2widget_visible = False
             s1.setVisible(kind != "none"); l1.setVisible(kind != "none")
-            for i in range(r2.count()):
-                item = r2.itemAt(i).widget()
-                if item is not None:
-                    item.setVisible(r2widget_visible)
+            for item in _ws_layout_widgets(r2):
+                item.setVisible(r2widget_visible)
         decay_type_combo.currentIndexChanged.connect(_update_decay_fields)
         _update_decay_fields()
         return decay_widget, decay_type_combo, decay_p1_spin, decay_p2_spin
