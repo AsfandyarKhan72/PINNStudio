@@ -162,7 +162,7 @@ EXAMPLES = [
         _net([1, 50, 50, 50, 2]), _adam(20000), _NO_LBFGS,
         _formula_ref(["sin(t)", "cos(t)"])),
 
-    _ex("Lotka-Volterra equation", FORWARD, _DOCS + "pinn_forward/Lotka.Volterra.html",
+    _ex("Lotka-Volterra equation", FORWARD, _DOCS + "pinn_forward/lotka.volterra.html",
         _ode(0, 1),
         _consts(("ub", "200"), ("rb", "20")),
         dict(num_outputs=2, output_names="r,p",
@@ -188,7 +188,7 @@ EXAMPLES = [
         _formula_ref(["50/81 + t*5/9 - 2*exp(t) + 31/81*exp(9*t)"]),
         note="u(0) = -1 is the initial condition; u'(0) = 2 is an Operator BC 'du_t - 2' at the initial time."),
 
-    _ex("Integro-differential equation", FORWARD, _DOCS + "pinn_forward/ide.html",
+    _ex("Integro-differential equation", FORWARD, "https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py",
         _ode(0, 1),
         dict(pde_expressions="du_t + integral(u) - (2*pi*cos(2*pi*t) + sin(pi*t)**2/pi)",
              ic_expressions="0", ic_active="True", custom_bc_json="[]", integral_points=16,
@@ -726,7 +726,7 @@ EXAMPLES = [
              "(DeepXDE compares against a binomial-tree price)."),
 
     # ── Inverse problems ──────────────────────────────────────────────────
-    _ex("Inverse: Lorenz system", INVERSE, _DOCS + "pinn_inverse/Lorenz.inverse.html",
+    _ex("Inverse: Lorenz system", INVERSE, _DOCS + "pinn_inverse/lorenz.inverse.html",
         _ode(0, 3),
         dict(problem_type="Inverse", num_outputs=3, output_names="y1,y2,y3",
              pde_expressions="dy1_t - C1*(y2 - y1)|dy2_t - y1*(C2 - y3) + y2|dy3_t - y1*y2 + C3*y3",
@@ -743,7 +743,7 @@ EXAMPLES = [
         _net([1, 40, 40, 40, 3]), _adam(20000), _LBFGS,
         note="Unknown C1, C2, C3 (true 10, 15, 8/3) from measurements of y1, y2, y3 at 50 times in [0, 3], computed with SciPy's solve_ivp by tools/make_deepxde_reference_data.py (DeepXDE uses its Lorenz.npz)."),
 
-    _ex("Inverse: Lorenz system with exogenous input", INVERSE, _DOCS + "pinn_inverse/Lorenz.inverse.forced.html",
+    _ex("Inverse: Lorenz system with exogenous input", INVERSE, _DOCS + "pinn_inverse/lorenz.inverse.forced.html",
         _ode(0, 3),
         dict(problem_type="Inverse", num_outputs=3, output_names="y1,y2,y3",
              pde_expressions="dy1_t - C1*(y2 - y1)|dy2_t - y1*(C2 - y3) + y2|dy3_t - y1*y2 + C3*y3 - 10*sin(2*pi*t)",
