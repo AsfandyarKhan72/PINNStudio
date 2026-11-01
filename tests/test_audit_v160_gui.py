@@ -118,3 +118,22 @@ def test_time_window_resampling_candidates_can_be_set():
     _settle(0.2)
     assert w2.ta_rs_cand.value() == 50000
     w.close(); w2.close()
+
+
+def test_renamed_outputs_show_their_new_names_on_other_pages():
+    """Renaming an output left the Loss weights rows and the Results/Restore output lists with the old name
+    until the problem was reopened."""
+    from PyQt6.QtWidgets import QLabel
+    w = _window()
+    w._new_problem("ODE")
+    _settle()
+    w.num_outputs_spin.setValue(2)
+    _settle(0.3)
+    w.weight_widgets[sorted(w.weight_widgets)[0]].setText("7")
+    w.output_name_inputs[0].setText("y1")
+    w.output_name_inputs[1].setText("y2")
+    _settle(0.6)
+    labels = [lb.text() for lb in w.findChildren(QLabel) if lb.text().startswith(("PDE", "IC"))]
+    assert any("(y1)" in t for t in labels) and not any("(u)" in t for t in labels), labels
+    assert w.plot_output_combo.itemText(0) == "Output 1 (y1)" and w.restore_output_combo.itemText(1) == "Output 2 (y2)"
+    assert "7" in [x.text() for x in w.weight_widgets.values()], "a typed weight is kept"
