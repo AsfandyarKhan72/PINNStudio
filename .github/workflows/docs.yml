@@ -49,6 +49,8 @@ jobs:
           args: >-
             --no-progress --root-dir "${{ github.workspace }}/_site"
             --exclude-path _site/search --accept 200,206,429 --max-retries 2
+            --remap '^file://(.*)/_site/PINNStudio(/.*)?$ file://$1/_site$2'
+            --remap 'https://github.com/AsfandyarKhan72/PINNStudio/(blob|tree)/main/ https://github.com/AsfandyarKhan72/PINNStudio/$1/${{ github.ref_name }}/'
             "_site/**/*.html"
           fail: true
       - name: Upload preview
