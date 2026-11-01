@@ -7,7 +7,8 @@
     of a schedule.
 
 The latest release is **v1.5.0** (git tag `v1.5.0`, on PyPI). The development version described on this site
-will become **v1.6.0**.
+will become **v1.6.0**. The difference between releases and the development source, and the list of releases, is
+on [Release history](../about/changelog.md#versions).
 
 ## Version numbers
 
@@ -70,7 +71,8 @@ Before the version commit:
 - [ ] **Installation page.** The version installed by `pip install pinnstudio` and the installers.
 - [ ] **Changelog page.** `website/about/changelog.md` follows `CHANGELOG.md`.
 - [ ] **Generated pages.** `python tools/docs/make_gallery.py` (example gallery),
-      `python tools/docs/make_config_reference.py --check` (configuration reference) and
+      `python tools/docs/make_config_reference.py --check` (configuration reference),
+      `python tools/docs/make_settings_index.py --check` (the *All settings* page) and
       `python tools/docs/make_source_links.py --check` (source-code links) report no changes, or their output is
       committed.
 - [ ] **Screenshots.** If the interface changed, regenerate them with the three commands in

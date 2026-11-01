@@ -9,6 +9,8 @@ from, how runs are made reproducible, and how to repeat the studies reported in 
 - [Seeds, precision and hardware](environment.md): what makes a run repeatable, and what does not.
 - [Export equivalence](export-equivalence.md): the check that an exported script trains the same model as Solve.
 - [Reproducing the paper](paper.md): the commands behind each table and figure.
+- [Reporting your own experiment](own-experiments.md): what to keep from your own runs so that they can be
+  reported and repeated, as a checklist.
 
 !!! warning "Numerical results are being finalized for v1.6.0"
     The pre-release audit of v1.6.0 corrected code-generation and training behaviour (see the

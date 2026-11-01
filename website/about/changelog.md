@@ -4,6 +4,34 @@ A readable summary of PINNStudio's releases, newest first. Every change, with it
 [CHANGELOG.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md), which follows the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format. Release dates are those given there.
 
+## Versions
+
+PINNStudio exists in two forms:
+
+- **Releases** are numbered versions with a git tag (`v1.5.0`) published on PyPI. `pip install pinnstudio` and
+  the one-command installers install the latest release, currently **v1.5.0**.
+- **The development source** is the code in the GitHub repository between releases. It is installed
+  [from source](../getting-started/installation.md#development-version-from-source) and still reports the number
+  of the last release (`1.5.0`) until the next one is published; identify it by its git commit instead.
+
+This site documents the development source that will become **v1.6.0**. Where it differs from v1.5.0, a page says
+so with a *New in v1.6.0 (in development)* note; with v1.5.0 installed, some labels and defaults differ from these
+pages.
+
+| Version | Date | Status |
+|---|---|---|
+| v1.6.0 | — | in development (*Unreleased* in the CHANGELOG) |
+| v1.5.0 | 2026-10-21 | latest release |
+| v1.4.0 | 2026-10-05 | release |
+| v1.3.0 | 2026-09-30 | release |
+| v1.2.2 | 2026-09-07 | release |
+| v1.2.1 | 2026-09-07 | release |
+| v1.2.0 | 2026-09-07 | release |
+| v0.1.0 | 2026-08-27 | first version |
+
+The dates are those of the release headings in `CHANGELOG.md`. How a release is made is described in
+[Releases](../developer/releases.md).
+
 ## v1.6.0 (in development)
 
 Not released yet; listed under *Unreleased* in the CHANGELOG. It is installed

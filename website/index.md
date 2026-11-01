@@ -124,12 +124,14 @@ be exported and run on its own.
 
 | If you want to… | Read |
 |---|---|
+| find a reading order for your background (new to PINNs, experienced, developer) | [Where should I start?](getting-started/learning-path.md) |
 | install PINNStudio and run an example | [Installation](getting-started/installation.md), then [First run](getting-started/first-run.md) |
 | understand each part of the window | [User guide](guide/interface.md) |
 | solve your own problem step by step | [Tutorials](tutorials/index.md), starting with [a first forward ODE](tutorials/01-ode.md) |
-| look up what a setting does, and its mathematics | [Feature reference](reference/index.md) and [Theory](theory/index.md) |
+| look up what a setting does, and its mathematics | [Feature reference](reference/index.md), [All settings](reference/settings-index.md) and [Theory](theory/index.md) |
+| know what PINNStudio can and cannot establish | [Scope and limitations](theory/limitations.md) |
 | reproduce the benchmark results | [Reproducibility](reproducibility/index.md) |
-| fix a problem | [Troubleshooting](help/troubleshooting.md) and [FAQ](help/faq.md) |
+| fix a problem, or understand a poor result | [Troubleshooting](help/troubleshooting.md), [Diagnosing poor results](help/troubleshooting.md#diagnosing-poor-results) and [FAQ](help/faq.md) |
 
 !!! note "What PINNStudio does not do"
     PINNStudio makes it easier to build, train and evaluate PINNs, and it checks that a problem is set up

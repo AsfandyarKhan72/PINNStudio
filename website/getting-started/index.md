@@ -24,6 +24,9 @@ PINNStudio helps you set up, train and evaluate a PINN. It does not guarantee th
 result is accurate or physically valid, for an arbitrary problem. Check results against reference data or another
 solver whenever you can (see [Error Analysis](../guide/error-analysis.md)).
 
+Not sure where to begin? [Where should I start?](learning-path.md) suggests an order through the whole
+documentation for newcomers, for experienced PINN users and for developers.
+
 ## The path through this section
 
 1. **[Installation](installation.md).** Install the current release with one command or with `pip`, or install
