@@ -1807,6 +1807,11 @@ class MainWindow(QMainWindow):
         radio = {"1D": self.radio_1d, "2D": self.radio_2d, "3D": self.radio_3d, "ODE": self.radio_ode}.get(dim)
         if radio is not None and not radio.isChecked():
             radio.setChecked(True)
+        if dim == "ODE" and self.pde_inputs:
+            # the fresh settings are a 1D heat equation; an ODE has no x, so start from du/dt + 0.4 u = 0
+            self.pde_inputs[0].setText("du_t + 0.4 * u")
+            if self.ic_inputs:
+                self.ic_inputs[0].setText("1")      # u(0) = 1, so the solution is exp(-0.4 t), not u = 0
         self._current_path = None
         self._current_problem_name = ""
         self._mark_clean()
@@ -7900,7 +7905,9 @@ class MainWindow(QMainWindow):
             if i < n_eq:
                 self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} (residual = 0):"))
                 pde_inp = QLineEdit()
-                if is_3d:
+                if hasattr(self, 'radio_ode') and self.radio_ode.isChecked():
+                    pde_inp.setText("du_t + 0.4 * u" if i == 0 else "dv_t + 0.1 * v")
+                elif is_3d:
                     pde_inp.setText("du_t - 0.4 * (du_xx + du_yy + du_zz)" if i == 0 else "dv_t - 0.1 * (dv_xx + dv_yy + dv_zz)")
                 elif is_2d:
                     pde_inp.setText("du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)" if i == 0 else "dv_t - 0.0001 * (dv_xx + dv_yy) + 1 * (v**3 - v)")
