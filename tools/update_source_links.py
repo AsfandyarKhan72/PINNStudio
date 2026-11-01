@@ -1,6 +1,6 @@
-"""Keep the README's "Source code" links pointing at the right lines.
+"""Keep the "Source code" links of GUIDE.md's features pointing at the right lines.
 
-Each feature in the README names the code it links to once, in a comment:
+Each feature in GUIDE.md (formerly in the README) names the code it links to once, in a comment:
 
     <!-- source: pinnstudio/core/codegen.py::_training_methods_defs | causal training, RBA and SA-PINN ;
          pinnstudio/ui/results.py | the whole file -->
@@ -14,7 +14,7 @@ line under the comment:
 so the line numbers follow the code. Run it after changing the code and
 before merging into main (the links point at main):
 
-    python tools/update_source_links.py           # rewrite README.md
+    python tools/update_source_links.py           # rewrite GUIDE.md
     python tools/update_source_links.py --check   # exit 1 if a link is out of date or a target is gone
 """
 import argparse
@@ -24,7 +24,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-README = os.path.join(ROOT, "README.md")
+DOC = os.path.join(ROOT, "GUIDE.md")
 REPO_URL = "https://github.com/AsfandyarKhan72/PINNStudio"
 BRANCH = "main"
 
@@ -102,9 +102,9 @@ def update(text):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--check", action="store_true", help="only check; exit 1 if README.md would change")
+    ap.add_argument("--check", action="store_true", help="only check; exit 1 if GUIDE.md would change")
     args = ap.parse_args(argv)
-    with open(README, encoding="utf-8") as f:
+    with open(DOC, encoding="utf-8") as f:
         old = f.read()
     try:
         new, n = update(old)
@@ -113,12 +113,12 @@ def main(argv=None):
         return 1
     if args.check:
         if new != old:
-            print("README source links are out of date: run python tools/update_source_links.py")
+            print("GUIDE.md source links are out of date: run python tools/update_source_links.py")
             return 1
         print(f"{n} source links up to date")
         return 0
     if new != old:
-        with open(README, "w", encoding="utf-8") as f:
+        with open(DOC, "w", encoding="utf-8") as f:
             f.write(new)
     print(f"{n} source links written")
     return 0

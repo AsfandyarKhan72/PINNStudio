@@ -1832,8 +1832,8 @@ class MainWindow(QMainWindow):
         self._mark_clean()
         self.workspace.select("problem")
 
-    # Each tree node's "?" opens its section of the README.
-    DOCS_URL = "https://github.com/AsfandyarKhan72/pinnstudio"
+    # Each tree node's "?" opens its section of GUIDE.md (the detailed feature descriptions, formerly in the README).
+    DOCS_URL = "https://github.com/AsfandyarKhan72/PINNStudio/blob/main/GUIDE.md"
     _HELP_ANCHORS = {
         "problem": "#problem-setup", "equations": "#problem-setup", "inverse": "#problem-setup",
         "geometry": "#problem-setup", "points": "#problem-setup", "ic": "#problem-setup",
@@ -12504,8 +12504,8 @@ class MainWindow(QMainWindow):
         where_combo.addItem("CPU", "cpu")
         where_combo.setCurrentIndex(max(0, where_combo.findData(getattr(self, '_train_device', "auto"))))
         where_combo.setToolTip("A small network (1D problems, few points) often trains faster on the CPU: "
-                               "each GPU step waits on Python more than it computes. See the README's "
-                               "timing section.")
+                               "each GPU step waits on Python more than it computes. See the timing "
+                               "study in GUIDE.md.")
         where_row.addStretch(); where_row.addWidget(where_combo)
         layout.addLayout(where_row)
 
@@ -12518,7 +12518,7 @@ class MainWindow(QMainWindow):
         thr_spin.setFixedWidth(100)
         thr_spin.setToolTip("Threads PyTorch uses when training on the CPU. Automatic: about one per\n"
                             "performance core, at most 8. More threads than fast cores is usually slower\n"
-                            "(the slow cores hold every step back). See the README's Speed section.")
+                            "(the slow cores hold every step back). See the Speed section of GUIDE.md.")
         thr_row.addStretch(); thr_row.addWidget(thr_spin)
         layout.addLayout(thr_row)
 

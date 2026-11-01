@@ -206,7 +206,7 @@ FISHER_KPP_TIMES = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 def fisher_kpp(times, n=4001, D=0.01, r=1.0):
     """Fisher-KPP u_t = D u_xx + r u (1 - u) on [0, 1], u_x = 0 at both ends, u(x, 0) = exp(-50 (x - 0.5)^2):
-    the README's "Solving Your Own Problem" walkthrough. No closed form, so a fine finite-difference solve
+    GUIDE.md's "Solving Your Own Problem" walkthrough. No closed form, so a fine finite-difference solve
     (n points, second order, ghost points for the no-flux ends) integrated with Radau to rtol 1e-11. Halving
     the grid spacing (2001 -> 4001 points) changes u by at most 3e-7."""
     from scipy.integrate import solve_ivp

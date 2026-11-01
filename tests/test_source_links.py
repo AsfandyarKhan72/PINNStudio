@@ -1,4 +1,4 @@
-"""The README's "Source code" links (tools/update_source_links.py): every
+"""GUIDE.md's "Source code" links (tools/update_source_links.py): every
 feature names code that still exists. Line numbers are rewritten by the
 script before a merge into main, so a moved function is not an error here;
 a renamed or deleted one is."""
@@ -12,7 +12,7 @@ from tools import update_source_links as usl
 
 
 def _specs():
-    with open(usl.README, encoding="utf-8") as f:
+    with open(usl.DOC, encoding="utf-8") as f:
         return [m.group(1) for m in map(usl.MARKER.match, f.read().split("\n")) if m]
 
 
@@ -26,7 +26,7 @@ def test_every_target_exists():
 
 
 def test_every_feature_has_a_source_line():
-    with open(usl.README, encoding="utf-8") as f:
+    with open(usl.DOC, encoding="utf-8") as f:
         text = f.read()
     feats = text[text.index("## Features"):text.index("## Solving Your Own Problem")]
     summaries = re.findall(r"<summary><strong>(.*?)</strong></summary>\n\n<!-- source: ", feats)
