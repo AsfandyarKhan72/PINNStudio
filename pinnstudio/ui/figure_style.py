@@ -8,7 +8,7 @@ the Results page's Plot settings button opens it on the tab of the plot
 type, Settings -> Plot Settings on General. An inverse problem's parameter
 convergence plot is set on the Line tab, its animation on Animation.
 """
-from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 TABS = ("General", "Surface", "Line", "Animation", "Loss")

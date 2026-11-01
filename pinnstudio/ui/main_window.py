@@ -3,7 +3,7 @@ from pinnstudio.core import pyexe as _pyexe
 import math
 import re as _re_log
 _re_log_l2 = _re_log.compile(r"(?<![A-Za-z0-9_])L2(?![A-Za-z0-9_])")
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import (
     QDialog, QApplication, QColorDialog,
     QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
-from PyQt6.QtCore import Qt, QEvent, QObject, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
+from PySide6.QtCore import Qt, QEvent, QObject, QThread, Signal, QTimer
+from PySide6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
@@ -62,7 +62,7 @@ class ExampleCombo(QComboBox):
     currentText()/setCurrentText() and keyChanged work with the example's
     internal key ("Burgers equation with RAR", "1D Burgers", or "None") --
     the name the rest of the GUI, saved projects and tests use."""
-    keyChanged = pyqtSignal(str)
+    keyChanged = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -223,7 +223,7 @@ class DomainSpinBox(QDoubleSpinBox):
         return self.value() if v is None else v
 
     def validate(self, text, pos):
-        from PyQt6.QtGui import QValidator
+        from PySide6.QtGui import QValidator
         if self._parse(text) is not None:
             return (QValidator.State.Acceptable, text, pos)
         import re as _re
@@ -336,8 +336,8 @@ class TrueValueLineEdit(InitGuessLineEdit):
 
 # ── Background worker thread ─────────────────────────────────
 class SolverThread(QThread):
-    output_signal = pyqtSignal(str)
-    done_signal   = pyqtSignal(str)
+    output_signal = Signal(str)
+    done_signal   = Signal(str)
 
     def __init__(self, config):
         super().__init__()
@@ -387,11 +387,11 @@ class SweepThread(QThread):
     completion -- an earlier version of this class only set a flag
     checked between runs, which looked like Stop wasn't doing anything
     (the in-flight run kept printing iterations for a while longer)."""
-    sweep_root_signal = pyqtSignal(str)
-    run_start_signal = pyqtSignal(int, int, str)
-    output_signal = pyqtSignal(int, int, str)
-    run_done_signal = pyqtSignal(int, int, str, dict)
-    finished_signal = pyqtSignal()
+    sweep_root_signal = Signal(str)
+    run_start_signal = Signal(int, int, str)
+    output_signal = Signal(int, int, str)
+    run_done_signal = Signal(int, int, str, dict)
+    finished_signal = Signal()
 
     def __init__(self, config):
         super().__init__()
@@ -449,7 +449,7 @@ class UpdateCheckThread(QObject):
     still waiting on the network when the window closes makes Qt abort the
     whole process ("QThread: Destroyed while thread is still running"), while
     a daemon thread is simply dropped when Python exits."""
-    result_signal = pyqtSignal(str)
+    result_signal = Signal(str)
 
     def start(self):
         import threading
@@ -1982,7 +1982,7 @@ class MainWindow(QMainWindow):
                 pass
 
     def _layout_settings(self):
-        from PyQt6.QtCore import QSettings
+        from PySide6.QtCore import QSettings
         return QSettings("PINNStudio", "PINNStudio")
 
     def _restore_layout(self):
@@ -11449,7 +11449,7 @@ class MainWindow(QMainWindow):
         if self._settings_example_unchanged(is_inv):
             # an example as loaded with Settings: Default / Tuned, which differ between
             # Forward and Inverse: load it again in the mode picked, with that mode's settings
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             key = self._settings_example[0]
             self._settings_example = None
             QTimer.singleShot(0, lambda: self._reload_example_for_mode(key))
@@ -11917,7 +11917,7 @@ class MainWindow(QMainWindow):
 
     # ── run progress: status bar, live loss, error analysis ───
     def _build_status_bar(self):
-        from PyQt6.QtWidgets import QProgressBar, QStatusBar
+        from PySide6.QtWidgets import QProgressBar, QStatusBar
         sb = QStatusBar()
         sb.setObjectName("appStatus")
         sb.setSizeGripEnabled(True)
@@ -12054,7 +12054,7 @@ class MainWindow(QMainWindow):
             self.results_tabs.setCurrentIndex(0)
 
     def _figure_save_button(self, tip):
-        from PyQt6.QtWidgets import QToolButton
+        from PySide6.QtWidgets import QToolButton
         from pinnstudio.ui import icons as _icons_f
         b = QToolButton()
         b.setObjectName("figureSaveButton")
@@ -12999,7 +12999,7 @@ def _style_legend(ax):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
-        from PyQt6.QtCore import pyqtSignal as _sig
+        from PySide6.QtCore import Signal as _sig
 
         class _PointsThread(QThread):
             done_sig = _sig(bool, str)
@@ -13375,7 +13375,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         self.loss_label.setText("⏳ Generating preview...")
 
-        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+        from PySide6.QtCore import QThread, Signal as _sig
 
         class _PreviewThread(QThread):
             done_sig = _sig(bool)
@@ -16538,7 +16538,7 @@ print("DOMAIN_PREVIEW_DONE")
                 tf.write(script)
                 tmp = tf.name
 
-            from PyQt6.QtCore import QThread, pyqtSignal as _sig
+            from PySide6.QtCore import QThread, Signal as _sig
 
             class _ParamRestoreThread(QThread):
                 line_signal = _sig(str)
@@ -16865,7 +16865,7 @@ print("DOMAIN_PREVIEW_DONE")
             tf.write(script)
             tmp = tf.name
 
-        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+        from PySide6.QtCore import QThread, Signal as _sig
 
         class _RestoreThread(QThread):
             line_signal = _sig(str)

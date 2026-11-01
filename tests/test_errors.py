@@ -18,10 +18,10 @@ SCRIPT = textwrap.dedent("""
     if INSTALL:
         from pinnstudio import errors
         errors.install()
-        from PyQt6.QtWidgets import QMessageBox
+        from PySide6.QtWidgets import QMessageBox
         QMessageBox.exec = lambda self: 0     # do not wait for a click
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
     app = QApplication(["pinnstudio"])
     def boom():
         print("a library printing with no console")

@@ -79,14 +79,14 @@ def shot(app, key, bc_row, view3d):
     h = w.domain_view.hint                                  # the general help line under the graphics
     if h.isVisible():
         bottom = min(bottom, h.mapTo(w, h.rect().topLeft()).y())
-    from PyQt6.QtCore import QRect
+    from PySide6.QtCore import QRect
     img = w.grab(QRect(0, top, w.width(), bottom - top)).toImage()
     w.close()
     return img
 
 
 def main():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     from PIL import Image, ImageDraw, ImageFont
     app = QApplication.instance() or QApplication(["pinnstudio"])
     tmp = []

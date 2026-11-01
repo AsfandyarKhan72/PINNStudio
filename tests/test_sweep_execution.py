@@ -6,7 +6,7 @@ subprocess training, not mocked -- on 1D Heat with iterations shrunk
 down purely for test speed (not training quality). This is the one
 sweep test that needs torch/deepxde actually installed, which is why
 it's kept out of test_sweep_tab.py and NOT wired into the CI
-smoke-test workflow (that workflow only installs PyQt6/numpy/
+smoke-test workflow (that workflow only installs PySide6/numpy/
 matplotlib/pandas). Run this locally instead, wherever PINNStudio's own
 install.sh/install.bat environment (or an equivalent one with torch +
 deepxde) is available.
@@ -73,7 +73,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

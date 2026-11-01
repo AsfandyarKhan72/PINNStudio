@@ -97,7 +97,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -194,7 +194,7 @@ def run():
     # train, save, and restore a real checkpoint -- unlike the rest of this
     # repo's smoke-test suite, which only ever exercises GUI/config-
     # building logic and deliberately keeps CI's install step to
-    # PyQt6/numpy/matplotlib/pandas. Skipped (not failed) when they aren't
+    # PySide6/numpy/matplotlib/pandas. Skipped (not failed) when they aren't
     # available, e.g. this lightweight CI job -- every developer's and
     # user's real environment has them (the app can't run PINNs without
     # torch/deepxde either way), so this still gets fully exercised there.

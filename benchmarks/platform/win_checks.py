@@ -63,7 +63,7 @@ def window():
     import timing_study as ts
     if INSTALLED:          # timing_study puts this checkout first on sys.path; take it out again
         sys.path[:] = [p for p in sys.path if os.path.abspath(p) != os.path.abspath(ROOT)]
-    from PyQt6.QtWidgets import QMessageBox
+    from PySide6.QtWidgets import QMessageBox
     app, w = ts._window()
     # closing while a run trains asks "Stop it and quit?": answer Yes; "save changes?": No
     QMessageBox.question = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes)
@@ -158,7 +158,7 @@ def cmd_child(mode):
     import tempfile
     import threading
     import _thread
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
     from pinnstudio import errors
     errors.install()                 # as pinnstudio.main does
     ts, app, w = window()

@@ -1,5 +1,5 @@
 """A number box for values that can be very small or large."""
-from PyQt6.QtWidgets import QDoubleSpinBox
+from PySide6.QtWidgets import QDoubleSpinBox
 
 
 class SciSpinBox(QDoubleSpinBox):
@@ -26,7 +26,7 @@ class SciSpinBox(QDoubleSpinBox):
             return self.value()
 
     def validate(self, text, pos):
-        from PyQt6.QtGui import QValidator
+        from PySide6.QtGui import QValidator
         t = (text or "").strip()
         try:
             float(t)

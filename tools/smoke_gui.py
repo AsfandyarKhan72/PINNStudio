@@ -24,16 +24,16 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.path.isdir(os.path.join(HERE, "pinnstudio")) and "--installed" not in sys.argv:
     sys.path.insert(0, HERE)
 
-import pinnstudio.main  # noqa: F401,E402  (loads PyTorch before PyQt6 on Windows)
+import pinnstudio.main  # noqa: F401,E402  (loads PyTorch before PySide6 on Windows)
 from pinnstudio import errors  # noqa: E402
 
 errors.install()
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E402
 
 SHOWN = []
 QMessageBox.exec = lambda self: SHOWN.append(self.text() + "\n" + (self.detailedText() or "")) or 0
 # settings dialogs (Restore's plot settings, ...) are confirmed with OK as they are
-from PyQt6.QtWidgets import QDialog  # noqa: E402
+from PySide6.QtWidgets import QDialog  # noqa: E402
 QDialog.exec = lambda self: QDialog.DialogCode.Accepted.value
 # questions (save unsaved changes?, ...) are answered "No" so nothing waits for a click
 for _name in ("question", "warning", "information"):
@@ -87,7 +87,7 @@ def _blocking_widget(pane):
     """What stops a divider: from the pane down, the visible child with the
     largest minimum width at each level (the pane's minimum comes from it),
     and at the end the widgets in that child's layout."""
-    from PyQt6.QtWidgets import QWidget
+    from PySide6.QtWidgets import QWidget
 
     def mw(w):
         return max(w.minimumSizeHint().width(), w.minimumWidth())
@@ -134,8 +134,8 @@ def _watchdog(seconds):
 
 def splitter_report(w):
     """Drag every horizontal divider to both ends; print the reachable range."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QSplitter
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QSplitter
     for sp in w.findChildren(QSplitter):
         if sp.orientation() != Qt.Orientation.Horizontal or not sp.isVisible() or sp.count() < 2:
             continue

@@ -56,8 +56,8 @@ def _rect(w, x):
 def shot(app, key, bc_row, view3d):
     """The window as an image (2x) and the three crop boxes, in image pixels."""
     from PIL import Image
-    from PyQt6.QtCore import QBuffer, QIODevice
-    from PyQt6.QtWidgets import QComboBox, QLabel
+    from PySide6.QtCore import QBuffer, QIODevice
+    from PySide6.QtWidgets import QComboBox, QLabel
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
     w._maybe_save_changes = lambda: True
@@ -138,7 +138,7 @@ def _framed(im):
 
 
 def main():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     from PIL import Image, ImageDraw, ImageFont
     app = QApplication.instance() or QApplication(["pinnstudio"])
     panels = []

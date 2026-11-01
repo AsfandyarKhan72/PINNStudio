@@ -65,7 +65,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -280,7 +280,7 @@ def run():
     # use elsewhere in this suite for dialog-content checks without a
     # modal event loop).
     import pinnstudio.ui.main_window as mw_mod
-    from PyQt6.QtWidgets import QDialog
+    from PySide6.QtWidgets import QDialog
     _orig_exec = QDialog.exec
     captured = {}
 
@@ -311,7 +311,7 @@ def run():
     # produced file, not just the generated script's text. Needs
     # deepxde+torch (same as the rest of this project's real-training
     # checks) -- skipped, not failed, when unavailable (e.g. this repo's
-    # lightweight CI job, which only installs PyQt6/numpy/matplotlib/
+    # lightweight CI job, which only installs PySide6/numpy/matplotlib/
     # pandas).
     try:
         import deepxde as _dde_probe  # noqa: F401

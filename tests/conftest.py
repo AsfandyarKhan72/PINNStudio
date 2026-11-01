@@ -1,7 +1,7 @@
 """Test setup for Windows.
 
-* PyTorch must be loaded before PyQt6 or it fails with "[WinError 1114] ...
-  c10.dll" (see pinnstudio/main.py); test modules import PyQt6 first, so load
+* PyTorch must be loaded before PySide6 or it fails with "[WinError 1114] ...
+  c10.dll" (see pinnstudio/main.py); test modules import PySide6 first, so load
   PyTorch here, before any test module is collected.
 * Scripts the tests start themselves run in Python's UTF-8 mode, as the app
   runs its own (pinnstudio/core/pyexe.py), and print in this process's

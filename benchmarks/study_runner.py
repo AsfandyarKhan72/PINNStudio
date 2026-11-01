@@ -170,7 +170,7 @@ def _smoke(cfg):
 
 def build(plan, out, smoke):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.main_window import MainWindow
     from pinnstudio.core.codegen import generate_script

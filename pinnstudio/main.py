@@ -2,7 +2,7 @@ import sys
 
 
 def _preload_torch_on_windows():
-    """On Windows, PyTorch fails to load once PyQt6 is loaded ("[WinError
+    """On Windows, PyTorch fails to load once Qt (seen with PyQt6) is loaded ("[WinError
     1114] A dynamic link library (DLL) initialization routine failed ...
     c10.dll"): both bring a Microsoft C++ runtime, and the first one loaded
     wins. Loading PyTorch first avoids it. Other systems are unaffected."""
@@ -14,7 +14,7 @@ def _preload_torch_on_windows():
 
 
 _preload_torch_on_windows()
-from PyQt6.QtWidgets import QApplication  # noqa: E402  (after the preload above)
+from PySide6.QtWidgets import QApplication  # noqa: E402  (after the preload above)
 
 
 def _check_gpu_torch_mismatch():

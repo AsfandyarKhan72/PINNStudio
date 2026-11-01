@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import pytest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.core import obs_reduce, sweep_registry, sweep_runner
 from pinnstudio.core.codegen import OBS_REDUCE_HELPER, generate_clean_script, generate_script
@@ -73,7 +73,7 @@ def test_the_window_note_counts_what_is_kept(tmp_path):
 
 def test_the_scripts_read_every_line_of_a_file_without_a_header(tmp_path):
     """The measured-data loader used to drop the first line always."""
-    from PyQt6.QtWidgets import QApplication  # noqa: F401
+    from PySide6.QtWidgets import QApplication  # noqa: F401
     f = tmp_path / "u.txt"
     np.savetxt(f, _grid2d(11))
     c = PINNConfig()

@@ -36,7 +36,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication, QGroupBox
+from PySide6.QtWidgets import QApplication, QGroupBox
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -54,7 +54,7 @@ def run():
     _app.processEvents()
 
     # ── Divider text / default state ──────────────────────────────────
-    from PyQt6.QtWidgets import QLabel
+    from PySide6.QtWidgets import QLabel
     divider_labels = [w.text() for w in win.findChildren(QLabel) if "Training Callbacks" in w.text()]
     check(len(divider_labels) == 1, f"expected exactly one 'Training Callbacks' divider label, found {divider_labels}")
     if divider_labels:

@@ -31,7 +31,7 @@ def font(kind, size):
 
 def main():
     from PIL import Image, ImageDraw, ImageFilter
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(["pinnstudio"])  # noqa: F841
     from make_app_icon import render
     from pinnstudio.ui.icons import _APP

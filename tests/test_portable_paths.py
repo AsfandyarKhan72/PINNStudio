@@ -74,8 +74,8 @@ def test_path_saved_on_another_computer_is_remapped():
 # --- through the GUI: save, then open in a fresh window ------------------
 
 def _gui():
-    from PyQt6.QtCore import QCoreApplication, QEvent
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.main_window import MainWindow
 

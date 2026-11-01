@@ -233,7 +233,7 @@ def template_config(key, inverse):
     GUI (offscreen) the way the Examples list loads it."""
     global _app
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     _app = QApplication.instance() or QApplication(["pinnstudio"])
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
@@ -275,7 +275,7 @@ def _window():
     global _WIN, _app
     if _WIN is None:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         _app = QApplication.instance() or QApplication(["pinnstudio"])
         from pinnstudio.ui.main_window import MainWindow
         _WIN = MainWindow()

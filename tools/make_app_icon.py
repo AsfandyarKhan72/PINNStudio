@@ -23,9 +23,9 @@ def render(svg, size):
     """The SVG drawn at size x size pixels, as a PIL image."""
     import io
     from PIL import Image
-    from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
-    from PyQt6.QtGui import QImage, QPainter
-    from PyQt6.QtSvg import QSvgRenderer
+    from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
+    from PySide6.QtGui import QImage, QPainter
+    from PySide6.QtSvg import QSvgRenderer
     im = QImage(size, size, QImage.Format.Format_ARGB32)
     im.fill(Qt.GlobalColor.transparent)
     p = QPainter(im)
@@ -39,7 +39,7 @@ def render(svg, size):
 
 
 def main():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication(["pinnstudio"])  # noqa: F841
     from pinnstudio.ui.icons import _APP
     render(_APP, 256).save(os.path.join(RES, "pinnstudio.png"), optimize=True)

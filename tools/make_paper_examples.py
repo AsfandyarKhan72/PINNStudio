@@ -39,7 +39,7 @@ def _restored_model(run):
     """PINNStudio's own Restore script for this run, up to and including the restore of the weights;
     returns its namespace (with `model`)."""
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])  # noqa: F841
     from pinnstudio.ui.main_window import MainWindow
     cfg = json.load(open(os.path.join(run, "model_config.json")))

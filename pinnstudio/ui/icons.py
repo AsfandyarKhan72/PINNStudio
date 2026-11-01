@@ -9,9 +9,9 @@ toolbar; these are crisp at any size and follow the theme. `icon(name)`
 gives a QIcon; `apply(widget, name)` sets it on a button/tab and keeps it
 coloured right when the theme changes (`retint_all()`).
 """
-from PyQt6.QtCore import QByteArray, QRectF, QSize, Qt
-from PyQt6.QtGui import QIcon, QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QByteArray, QRectF, QSize, Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 
 from pinnstudio.ui import theme as _theme
 
@@ -117,13 +117,13 @@ def apply(target, name, role="text", size=18):
 def _prune():
     """Forget buttons that have been deleted (removed BC rows, closed dialogs)."""
     try:
-        from PyQt6 import sip
+        import shiboken6
     except ImportError:
         return
     def alive(t):
         w = t[0] if isinstance(t, tuple) else t
         try:
-            return not sip.isdeleted(w)
+            return shiboken6.isValid(w)
         except TypeError:
             return True
     _registry[:] = [e for e in _registry if alive(e[0])]
@@ -161,7 +161,7 @@ _PREFIXES = (("➕", "add", "accent"), ("+ ", "add", "accent"), ("📊", "analys
 
 
 def iconize(btn):
-    from PyQt6.QtWidgets import QPushButton
+    from PySide6.QtWidgets import QPushButton
     if not isinstance(btn, QPushButton) or btn.property("_pinn_icon"):
         return
     txt = btn.text()

@@ -62,8 +62,8 @@ def _report(exc_type, exc, tb, where=""):
     if _showing:              # an error while the message is open: log only
         return
     try:
-        from PyQt6.QtCore import QThread
-        from PyQt6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtCore import QThread
+        from PySide6.QtWidgets import QApplication, QMessageBox
         app = QApplication.instance()
         if app is None or QThread.currentThread() is not app.thread():
             return            # message boxes only from the GUI thread

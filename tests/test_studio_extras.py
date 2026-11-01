@@ -15,9 +15,9 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtCore import QCoreApplication, QEvent, Qt
-from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.ui.equation import to_latex, unknown_names, render
@@ -277,7 +277,7 @@ def test_help_links_and_start_first():
 
 
 def test_buttons_fit_and_restore_visible():
-    from PyQt6.QtWidgets import QPushButton
+    from PySide6.QtWidgets import QPushButton
     from pinnstudio.ui import theme
     w = _window()
     for key in ("restore", "ic", "results"):
@@ -318,7 +318,7 @@ def test_live_loss_per_time_step_and_ea_cleared():
 
 
 def test_copy_and_save():
-    from PyQt6.QtGui import QGuiApplication, QImage
+    from PySide6.QtGui import QGuiApplication, QImage
     from pinnstudio.ui import export_tools as ex
     d = tempfile.mkdtemp()
     png = os.path.join(d, "fig.png")
@@ -367,7 +367,7 @@ def test_error_analysis_shows_only_this_runs_folder():
     w = _window()
     old = tempfile.mkdtemp()
     os.makedirs(os.path.join(old, "error_analysis"))
-    from PyQt6.QtGui import QImage
+    from PySide6.QtGui import QImage
     img = QImage(10, 10, QImage.Format.Format_RGB32)
     img.save(os.path.join(old, "error_analysis", "line_comparison.png"))
     w._last_config = PINNConfig(save_dir=old)          # a previous run's

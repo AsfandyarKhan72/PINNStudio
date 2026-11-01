@@ -9,7 +9,7 @@ import os
 import sys
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PyQt6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from pinnstudio.core import example_catalog as cat  # noqa: E402
 from pinnstudio.core import example_settings as es  # noqa: E402

@@ -45,7 +45,7 @@ def _short(cfg):
 
 def build(out, only):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
+    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
     app = QApplication.instance() or QApplication(["pinnstudio"])
     QMessageBox.exec = lambda self: 0
     QDialog.exec = lambda self: QDialog.DialogCode.Accepted.value

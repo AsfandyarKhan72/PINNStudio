@@ -17,9 +17,9 @@ import os
 import re
 import time
 
-from PyQt6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter, QPixmap
-from PyQt6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
+from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
                              QTableWidgetItem, QVBoxLayout, QWidget)
 
@@ -750,11 +750,11 @@ class RunCompare(QWidget):
 class RunHistory(QWidget):
     """The runs saved in the Save-to folder: when, which, final loss and
     error. Double-click (or Show) brings a run's figures back up."""
-    run_activated = pyqtSignal(dict)
+    run_activated = Signal(dict)
 
     def __init__(self, base_fn, parent=None):
         super().__init__(parent)
-        from PyQt6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton
         self.base_fn = base_fn
         self.runs = []
         lay = QVBoxLayout(self)
@@ -870,8 +870,8 @@ class RunHistory(QWidget):
         self._activate(self._row())
 
     def _open_folder(self):
-        from PyQt6.QtCore import QUrl
-        from PyQt6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         r = self._row()
         if 0 <= r < len(self.runs):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.runs[r]["folder"]))

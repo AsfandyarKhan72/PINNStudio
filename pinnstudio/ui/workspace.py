@@ -15,9 +15,9 @@ its signals, so building and loading a configuration works unchanged.
 A node is hidden when every panel on its page is hidden (e.g. "Inverse
 problem" outside Inverse mode), and shown again when one is shown.
 """
-from PyQt6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
-from PyQt6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
                              QVBoxLayout, QWidget)
 
 
@@ -46,7 +46,7 @@ def node_icon(glyph, color, size=18):
 class ModelWorkspace(QObject):
     """Model tree + settings stack. `tree_panel` and `settings_panel` are
     the two widgets to put in the window's splitter."""
-    node_selected = pyqtSignal(str)
+    node_selected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -86,7 +86,7 @@ class ModelWorkspace(QObject):
         self.title = QLabel("")
         self.title.setObjectName("pageTitle")
         self.title.setWordWrap(True)      # a long title in a narrow panel at a large text size
-        from PyQt6.QtWidgets import QHBoxLayout, QToolButton
+        from PySide6.QtWidgets import QHBoxLayout, QToolButton
         trow = QHBoxLayout()
         trow.setContentsMargins(0, 0, 4, 0)
         trow.addWidget(self.title, 1)
@@ -155,7 +155,7 @@ class ModelWorkspace(QObject):
         return item
 
     def add_widget(self, key, widget):
-        from PyQt6.QtWidgets import QGroupBox
+        from PySide6.QtWidgets import QGroupBox
         if isinstance(widget, QGroupBox):
             make_collapsible(widget)
         info = self.pages[key]
@@ -215,7 +215,7 @@ class ModelWorkspace(QObject):
             return
         key = item.data(0, Qt.ItemDataRole.UserRole)
         info = self.pages[key]
-        from PyQt6.QtWidgets import QGroupBox
+        from PySide6.QtWidgets import QGroupBox
         for w in info["widgets"]:
             if isinstance(w, QGroupBox):
                 make_collapsible(w)
@@ -247,14 +247,14 @@ class ModelWorkspace(QObject):
         if self.open_url is not None:
             self.open_url(url)
             return
-        from PyQt6.QtCore import QUrl
-        from PyQt6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         QDesktopServices.openUrl(QUrl(url))
 
     def build_menu(self, key):
         """The right-click menu of node `key`: the window's actions for it,
         then folding the page's sections."""
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         menu = QMenu(self.tree)
         entries = []
         if self.menu_provider is not None:
@@ -421,7 +421,7 @@ MAX_LABEL_CHARS = 26
 
 def _grows(widget):
     """Whether a row's last widget takes the rest of the row by itself."""
-    from PyQt6.QtWidgets import QLineEdit, QSizePolicy
+    from PySide6.QtWidgets import QLineEdit, QSizePolicy
     pol = widget.sizePolicy().horizontalPolicy()
     return (isinstance(widget, QLineEdit) and widget.maximumWidth() >= 16777215
             and pol not in (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum))
@@ -432,7 +432,7 @@ def align_forms(root, max_label=190):
     right -- become  [label][control][stretch], and every row label on the
     page gets the same width, so a page reads as one aligned form.
     Idempotent: safe to call again after rows are added."""
-    from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QSpinBox, QDoubleSpinBox
+    from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QSpinBox, QDoubleSpinBox
     labels = []
 
     def walk(lay):
@@ -495,7 +495,7 @@ class _Collapser(QObject):
 
     def __init__(self, box):
         super().__init__(box)
-        from PyQt6.QtWidgets import QToolButton
+        from PySide6.QtWidgets import QToolButton
         self.box = box
         self.btn = QToolButton(box)
         self.btn.setObjectName("collapseButton")

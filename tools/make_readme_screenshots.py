@@ -17,8 +17,8 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-import pinnstudio.main  # noqa: F401,E402  (loads PyTorch before PyQt6 on Windows)
-from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
+import pinnstudio.main  # noqa: F401,E402  (loads PyTorch before PySide6 on Windows)
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
 
 QUICK = "--quick" in sys.argv
 SIZE = (1680, 1000)          # as the earlier screenshots
@@ -90,7 +90,7 @@ def main():
     w.grab().save(os.path.join(OUT, "interface.png"))
     w.results_tabs.setCurrentWidget(w.ea_panel)
     pump(2.0)
-    from PyQt6.QtCore import QRect                     # the results pane, taken from the whole window (its
+    from PySide6.QtCore import QRect                     # the results pane, taken from the whole window (its
     r = w.results_tabs                                 # own grab leaves the tab bar's background black)
     p0 = r.mapTo(w, r.rect().topLeft())
     w.grab(QRect(p0.x(), p0.y(), r.width(), r.height())).save(os.path.join(OUT, "error_analysis.png"))

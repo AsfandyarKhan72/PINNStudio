@@ -19,9 +19,9 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QPointF, Qt
-from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.ui.sketch_edges import split_where
