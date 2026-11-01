@@ -327,3 +327,174 @@ def test_a_condition_with_no_training_point_is_reported():
     for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
         assert "_warn_empty_conditions(data)" in s and "def _warn_empty_conditions(_d):" in s
         compile(s, "script", "exec")
+
+
+def test_data_files_with_semicolons_missing_values_or_odd_rows_load_the_same_everywhere(tmp_path):
+    """P2: the measured-data and IC-file readers of both scripts took only commas and spaces, kept rows with a
+    missing value (NaN in the data loss) and failed on a row with an extra column, while the window's reader
+    accepted those files. All of them now read ';' too, skip rows with a missing value or an odd number of
+    columns (the most common row length wins) and say how many rows they skipped."""
+    import re
+    import textwrap
+    import numpy as np
+    from pinnstudio.core import obs_reduce
+    c = _dx("Inverse: diffusion equation")
+    srcs = {"export": (codegen.generate_clean_script(c), "_load_obs_data"),
+            "solve": (codegen.generate_script(c), "_load_data")}
+    loaders = {}
+    for k, (src, name) in srcs.items():
+        m = re.search(r"^( *)def " + name + r"\(.*?(?=^\1\S|\Z)", src, re.S | re.M)
+        ns = {"np": np}
+        exec(textwrap.dedent(m.group(0)), ns)
+        loaders[k] = ns[name]
+    files = {"semi.txt": "x;t;u\n0.1;0.5;1.0\n0.2;0.5;2.0\n0.3;0.5;3.0\n",
+             "nan.txt": "0.1 0.5 1.0\n0.2 0.5 nan\n0.3 0.5 3.0\n",
+             "odd.txt": "0.1,0.5,1.0\n0.2,0.5,2.0,9\n0.3,0.5,3.0\n0.4,0.5,4.0\n"}
+    for name, text in files.items():
+        p = tmp_path / name
+        p.write_text(text)
+        shapes = {k: f(str(p)).shape for k, f in loaders.items()}
+        shapes["window"] = obs_reduce.read_points(str(p)).shape
+        assert len(set(shapes.values())) == 1, (name, shapes)
+        assert all(np.isfinite(loaders["export"](str(p))).all() for _ in [0])
+    assert loaders["export"](str(tmp_path / "odd.txt")).shape == (3, 3)
+
+
+def test_model_checkpoint_with_time_windows_saves_each_window():
+    """P2: with time windows, Solve's checkpoints of every window had the same name (each window's model counts
+    from step 0 again, so later windows overwrote earlier ones), and the export shared one ModelCheckpoint across
+    windows (its 'best' loss carried over). Both now save checkpoint_stepNNN_best-<step>.pt per window."""
+    c = dataclasses.replace(_template("1D Burgers"), time_adaptive=True, ta_num_steps=2, cb_model_checkpoint=True,
+                            cb_checkpoint_period=10, cb_checkpoint_save_better_only=True)
+    solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
+    assert 'f"checkpoint_step{step_i + 1:03d}_best"' in solve
+    assert 'f"checkpoint_step{step_i + 1:03d}_best"' in export and "_cb.best, _cb.epochs_since_last_save = np.inf, 0" in export
+    whole = codegen.generate_clean_script(dataclasses.replace(c, time_adaptive=False))   # whole interval: unchanged
+    assert '"checkpoint_best"' in whole and "checkpoint_step" not in whole
+
+
+def test_ic_pretraining_restore_needs_an_existing_model(tmp_path):
+    """P2: 'Restore' with a wrong or empty path silently ran the whole IC pre-training instead."""
+    c = dataclasses.replace(_template("1D Burgers"), ic_pretrain=True, ic_pretrain_restore=True)
+    for path in ("", str(tmp_path / "missing.pt")):
+        errs = dataclasses.replace(c, ic_pretrain_restore_path=path).validate()
+        assert any("IC pre-training" in e and ("no saved" in e or "does not exist" in e) for e in errs), errs
+    ok = tmp_path / "ic_pretrain_model-100.pt"
+    ok.write_bytes(b"x")
+    assert not any("saved pre-training model" in e
+                   for e in dataclasses.replace(c, ic_pretrain_restore_path=str(ok)).validate())
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "IC pre-train model to restore not found" in s
+
+
+def test_solution_data_export_marks_points_outside_the_domain():
+    """P2: 'Export solution data' wrote the whole bounding-box grid for a disk or polygon (extrapolated values
+    outside the domain, unmarked); those points are now NaN. An ODE's file header named its variable x."""
+    c = dataclasses.replace(_template("2D Heat"), geometry_type="Disk", export_enabled=True)
+    s = codegen.generate_script(c)
+    assert "_u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))" in s
+    o = codegen.generate_script(dataclasses.replace(_dx("ODE system"), export_enabled=True))
+    assert '_header_cols = "t," + ",".join(_out_names_list)' in o
+
+
+def test_loss_functions_that_do_not_work_for_a_pinn_are_refused():
+    """P1 (found while writing the documentation): three loss functions offered in the window did not work:
+    'mean l2 relative error' and 'mean absolute percentage error' divide by the residual target, which is 0
+    (infinite loss), and the latter and 'softplus' fail inside DeepXDE with PyTorch. The window offers MSE and
+    MAE only; a saved problem naming one of the others is refused."""
+    c = _template("1D Burgers")
+    assert not any("Loss function" in e for e in c.validate())
+    for bad in ("mean l2 relative error", "mean absolute percentage error", "softplus"):
+        ph = json.loads(c.scheduler_phases)
+        ph[0]["loss"] = bad
+        errs = dataclasses.replace(c, scheduler_phases=json.dumps(ph)).validate()
+        assert any("Loss function" in e and bad in e for e in errs), errs
+        assert any("Loss function" in e for e in dataclasses.replace(c, ic_pretrain_loss=bad).validate())
+
+
+def test_ic_pretraining_needs_a_time_dependent_pde():
+    """IC pre-training could be ticked for an ODE (its initial values are conditions at t0, so Solve pre-trained
+    on nothing while the export left it out) or a steady problem."""
+    errs = dataclasses.replace(_dx("ODE system"), ic_pretrain=True).validate()
+    assert any("IC pre-training needs a time-dependent PDE" in e for e in errs), errs
+
+
+def test_tuned_settings_of_field_identification_examples_are_offered():
+    """DeepXDE's inverse examples that identify an unknown field as a network output load as Forward problems;
+    their Tuned settings (stored under 'inverse' by the tuning study) were looked up under 'forward', so Tuned
+    was greyed out."""
+    from pinnstudio.core import example_settings as es
+    for name in ("Inverse: Poisson with unknown forcing field", "Inverse: Poisson with unknown forcing field (batches)",
+                 "Inverse: diffusion-reaction with space-dependent rate"):
+        c = _dx(name)
+        assert c.problem_type == "Forward" and es.has_tuned(name, False), name
+        out, msg = es.settings_for(c, name, False, es.TUNED)
+        assert msg.startswith("Tuned settings: ") and "none for this example" not in msg, msg
+    assert es._mode_key("1D Burgers", False) == "forward" and es._mode_key("1D Burgers", True) == "inverse"
+
+
+def test_point_set_boundary_points_reach_the_requested_count():
+    """P2: 'generate on boundary' drew max(20n, 200) candidates once, so a small Where region silently got fewer
+    than n points (only Solve stopped at zero). Both scripts now draw more candidates until n match, say when
+    they still fall short, and stop when none match."""
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    rows.append({"type": "pointset", "component": 0, "location": "x > 0.99 and y < 0.02", "value": "0",
+                 "points_mode": "generate", "points_count": 50, "points_where": "boundary", "values_mode": "formula",
+                 "values_formula": "0", "points_file": ""})
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows))
+    solve, export = codegen.generate_script(c), codegen.generate_clean_script(c)
+    assert "* 4 ** (_more + 1)" in solve and "* 4 ** (_more + 1)" in export
+    assert "no boundary points match its Where expression" in export
+
+
+def test_reference_and_measured_files_with_several_times_or_values_are_reported():
+    """P2: a reference file holding several times was compared at its first row's time, and a measured-data file
+    with several value columns always gave its first one; both silently. Both scripts now say so."""
+    import numpy as np
+    ns = {"np": np}
+    exec(codegen._PLOT_TEXT_HELPERS, ns)
+    import io
+    import contextlib
+    x = np.linspace(-1, 1, 5)
+    two = np.vstack([np.c_[x, np.full_like(x, .5), x], np.c_[x, np.full_like(x, 1.), x]])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        ns["_check_ref_layout"](two, "two.txt", 1, False)
+        ns["_check_ref_layout"](two[:5], "one.txt", 1, False)
+        ns["_check_ref_layout"](np.c_[two[:5], two[:5, 2]], "uv.txt", 1, False)
+    out = buf.getvalue()
+    assert "two.txt holds several times" in out and "one.txt" not in out and "uv.txt has 2 value columns" in out
+    c = _dx("Inverse: diffusion equation")
+    for s in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "columns; the first (column" in s
+
+
+def test_export_says_which_3d_figures_it_draws():
+    """P2 (documentation): the README said the export draws every Plot-settings figure; for 3D it does not draw
+    the slice and 3D-view comparisons. The README and the export's header now say so."""
+    c = _template("3D Heat")
+    assert "3D slice and 3D view" in codegen.generate_clean_script(c)
+    assert "3D slice and 3D view" not in codegen.generate_clean_script(_template("2D Heat"))
+
+
+def test_unsupported_derivative_names_are_refused():
+    """P2: derivative names the generators do not build (du_xxy in 2D, du_xyz in 3D, du_ttt in a steady problem)
+    passed validation and stopped both scripts with NameError at the first step. The supported set was taken
+    from both generators; every shipped example (forward/inverse, Default/Tuned: 250 configurations) and the
+    from-scratch GUI workflows pass the check."""
+    from pinnstudio.core.config import PINNConfig
+    base = PINNConfig()
+    bad = [("2D", False, "u", "du_t - 0.1*du_xxy"), ("3D", False, "u", "du_t - du_xyz"), ("1D", True, "u", "du_ttt"),
+           ("1D", False, "u", "du_xxxxx")]
+    good = [("1D", False, "u", "du_t + u*du_x - 0.01*du_xxx"), ("2D", False, "u", "du_t - du_xx - du_yy + du_xy"),
+            ("2D", True, "u", "du_xxxx + 2*du_xxyy + du_yyyy"), ("3D", False, "u", "du_tt - du_xx - du_yy - du_zz"),
+            ("ODE", False, "y1,y2", "dy1_t - y2|dy2_tt + y1"), ("1D", False, "u_re,u_im", "du_re_t + du_im_xx|du_im_t - du_re_xx")]
+    for dim, st, names, pde in bad:
+        c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
+                                num_outputs=len(names.split(",")), pde_expressions=pde)
+        assert any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde
+    for dim, st, names, pde in good:
+        c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
+                                num_outputs=len(names.split(",")), pde_expressions=pde)
+        assert not any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde

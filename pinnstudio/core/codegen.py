@@ -1038,7 +1038,8 @@ def _training_methods_cbs(config, var_name, pad):
     return lines
 
 
-def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir"):
+def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir",
+                          ckpt_name='"checkpoint_best"'):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
     at the call site this is embedded into -- 4 for the Standard path, 8
@@ -1107,7 +1108,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="
     if config.cb_model_checkpoint:
         lines.append(
             f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
-            f'_os.path.join({sol_dir_var}, "checkpoint_best"), verbose=1, '
+            f'_os.path.join({sol_dir_var}, {ckpt_name}), verbose=1, '
             f"save_better_only={bool(config.cb_checkpoint_save_better_only)}, "
             f"period={int(config.cb_checkpoint_period)}, "
             f"monitor={config.cb_checkpoint_monitor!r}))"
@@ -3760,6 +3761,7 @@ if {config.time_adaptive}:
                 "z_min": {config.z_min}, "z_max": {config.z_max},
                 "t_min": t0, "t_max": t1,
                 "problem_dim": "{config.problem_dim}",
+                "float_type": _effective_float,
                 "loss_type": "{config.loss_type}",
                 "optimizer": "{config.optimizer}",
                 "optimizer2": "{config.optimizer2}",
@@ -3987,6 +3989,7 @@ if {config.time_adaptive}:
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = _load_ref(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), False)
                 if _is_3d:
                     # 3D format: x, y, z, t, u -- same as the Standard path's
                     # own non-steady 3D Error Analysis loader.
@@ -5509,7 +5512,8 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # one, see _build_training_monitors_code()'s docstring for why).
     _tm_cbs_code = _build_training_monitors_code(config, "_train_cbs", "_sol_dir", indent=4)
     _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4) + ("\n" + _tm_cbs_code if _tm_cbs_code else "")
-    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
+    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8,
+                                               ckpt_name='f"checkpoint_step{step_i + 1:03d}_best"')
     # Rendered at the very end of the script (see the {_tm_plot_code}
     # splice near the final "DONE" print below) -- reads each monitor's
     # own .txt/.meta.json back in and saves a line plot PNG, the same way
@@ -5662,7 +5666,7 @@ if torch.cuda.is_available():
     print(f"   Total memory: {{_total / 1e9:.1f}} GB")
     print(f"   Available:    {{_free / 1e9:.1f}} GB")
     print(f"   TF32:         False")
-    print(f"   Float type:   {config.float_type}")
+    print(f"   Float type:   {{_effective_float}}")
     print(f"   cuDNN bench:  False")
 {_small_gpu_tip}else:
 {_no_gpu_line}
@@ -5735,6 +5739,7 @@ if _use_save:
         "optimizer2": {repr(config.optimizer2)},
         "loss_type": {repr(config.loss_type)},
         "problem_type": {config.problem_type!r},
+        "float_type": _effective_float,
         "inverse_variables": {_mc_inv_vars_literal},
         {_transform_config_literal(config)}
     }}
@@ -5772,14 +5777,27 @@ _v1d = {v1!r}
 # a file covering the whole time range works fine, only its t=t_min
 # slice is used as the IC.
 def _load_ic_from_file(_path):
-    _rows = []
-    with open(_path) as _fh:                 # commas or spaces; header/comment lines skipped
-        for _line in _fh:
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(_path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                _rows.append([float(_v) for _v in _line.replace(",", " ").split()])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    _raw = np.array([_r for _r in _rows if _r])
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(_path) + " skipped (a missing value, or a different number of columns)")
+    _raw = data_
     _n_coord = 3 if _is_3d else (2 if _is_2d else 1)
     _t_col = _n_coord
     _v_col = _n_coord + 1
@@ -5837,21 +5855,30 @@ if _problem_type == "Inverse":
     _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
-        # Numbers separated by commas or spaces; a header line, comments
-        # (# or %) and blank lines are skipped -- and only those (the first
-        # line used to be dropped always, losing a point of a file without
-        # a header).
-        _rows = []
-        with open(fpath) as _fh:
-            for _line in _fh:
-                _parts = _line.replace(",", " ").split()
-                if not _parts or _parts[0][0] in "#%":
+        # Numbers separated by commas, semicolons or spaces; header, comment
+        # (# or %) and blank lines skipped; rows with a missing value (NaN) or
+        # a different number of columns skipped with a note -- as the window
+        # reads the file, and as Error Analysis reads reference files.
+        rows_ = []
+        with open(fpath, encoding="utf-8", errors="replace") as fh_:
+            for line_ in fh_:
+                parts_ = line_.replace(",", " ").replace(";", " ").split()
+                if not parts_ or parts_[0][0] in "#%":
                     continue
                 try:
-                    _rows.append([float(_v) for _v in _parts])
+                    rows_.append([float(v_) for v_ in parts_])
                 except ValueError:
                     continue
-        return np.array(_rows)
+        lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+        data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+        n_bad_ = len(rows_) - len(data_)
+        if width_:
+            ok_ = np.all(np.isfinite(data_), axis=1)
+            n_bad_ += int((~ok_).sum())
+            data_ = data_[ok_]
+        if n_bad_:
+            print("  Note: " + str(n_bad_) + " row(s) of " + str(fpath) + " skipped (a missing value, or a different number of columns)")
+        return data_
 
     # Number of leading coordinate columns in a measured-data file (before
     # its value column): x/y/z plus a time column, EXCEPT for a steady-state
@@ -5915,6 +5942,9 @@ if _problem_type == "Inverse":
         if _of_data.ndim != 2 or _of_data.shape[1] < _n_obs_coord_cols + 1:
             raise SystemExit(f"Measured data {{_of['path']}}: {{_n_obs_coord_cols + 1}} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.")
+        if _of_data.shape[1] > _n_obs_coord_cols + 1:
+            print(f"  Note: measured data {{_os.path.basename(_of['path'])}} has {{_of_data.shape[1] - _n_obs_coord_cols}} value "
+                  f"columns; the first (column {{_n_obs_coord_cols + 1}}) is used for output {{_of.get('output_idx', 0) + 1}}.")
 {_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
@@ -6537,9 +6567,16 @@ def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
         else:
             _loc = _bc_loc_fn(_be.get('location', '') or '')
             _cand = _gt.random_boundary_points(max(20 * _n, 200))
-            _pts = np.array([_p for _p in _cand if _loc(_p, True)][:_n])
+            _sel = [_p for _p in _cand if _loc(_p, True)]
+            for _more in range(5):     # a small Where region: draw more candidates until n match
+                if len(_sel) >= _n:
+                    break
+                _sel += [_p for _p in _gt.random_boundary_points(max(20 * _n, 200) * 4 ** (_more + 1)) if _loc(_p, True)]
+            _pts = np.array(_sel[:_n])
             if len(_pts) == 0:
                 raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}}: no boundary points match its Where expression.")
+            if len(_pts) < _n:
+                print(f"  Note: {{_bc_label}}: only {{len(_pts)}} of {{_n}} boundary points found where its Where expression holds.")
     _formulas = [_f for _f in (_be.get('values_formula', '') or '0').split("|")]
     if len(_formulas) < _n_values:
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs {{_n_values}} value formula(s), "
@@ -8097,6 +8134,7 @@ for _pval in _param_values:
                 for _ea_tv, _ea_fp in _ea_files:
                     _ea_d = _load_ref(_ea_fp)
                     if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                    _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), _is_steady)
                     if _is_steady and _is_3d:
                         # Steady 3D format: x, y, z, u — no time column at all.
                         _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
@@ -8883,6 +8921,16 @@ for _pval in _param_values:
                 "solution_data"
             )
             _os.makedirs(_data_dir, exist_ok=True)
+            # A disk, polygon or other non-box shape: grid points outside the
+            # domain are written as NaN (the network's value there is an
+            # extrapolation, not part of the solution)
+            _exp_geom = _build_geom() if (_is_2d or _is_3d) else None
+            def _nan_outside(_pts, _u):
+                _u = np.array(_u, dtype=float)
+                if _exp_geom is not None:
+                    _in = np.asarray(_exp_geom.inside(_pts)).reshape(-1) | np.asarray(_exp_geom.on_boundary(_pts)).reshape(-1)
+                    _u[~_in] = np.nan
+                return _u
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
 
@@ -8892,7 +8940,7 @@ for _pval in _param_values:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                 _XY_exp = np.column_stack([_Xe.ravel(), _Ye.ravel()])
-                _u_exp = model.predict(_XY_exp)
+                _u_exp = _nan_outside(_XY_exp, model.predict(_XY_exp))
                 _header = "x,y," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
@@ -8902,14 +8950,14 @@ for _pval in _param_values:
                 _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
                 _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                 _XYZ_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel()])
-                _u_exp = model.predict(_XYZ_exp)
+                _u_exp = _nan_outside(_XYZ_exp, model.predict(_XYZ_exp))
                 _header = "x,y,z," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
             elif _is_steady:
                 _u_exp_all = model.predict(_x_export.reshape(-1, 1))
-                _header_cols = "x," + ",".join(_out_names_list)
+                _header_cols = "{'t' if getattr(config, '_ode', False) else 'x'}," + ",".join(_out_names_list)   # an ODE's variable is t
                 _out = np.column_stack([_x_export, _u_exp_all])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
@@ -8918,7 +8966,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                     _XYT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYT_exp)
+                    _u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
@@ -8934,7 +8982,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                     _XYZT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYZT_exp)
+                    _u_exp = _nan_outside(_XYZT_exp[:, :3], model.predict(_XYZT_exp))
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
@@ -9285,7 +9333,16 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                 ploc = _np_math_expr((entry.get('location', '') or '').strip() or 'True')
                 D += loc_fn(f"_bc{i}_ploc", ploc)
                 A.append(f"_cand{i} = geomtime.random_boundary_points({max(20 * npts, 200)})")
-                A.append(f"_pts{i} = np.array([p for p in _cand{i} if _bc{i}_ploc(p, True)][:{npts}])")
+                A.append(f"_sel{i} = [p for p in _cand{i} if _bc{i}_ploc(p, True)]")
+                A.append(f"for _more in range(5):   # a small Where region: draw more candidates until {npts} match")
+                A.append(f"    if len(_sel{i}) >= {npts}:")
+                A.append(f"        break")
+                A.append(f"    _sel{i} += [p for p in geomtime.random_boundary_points({max(20 * npts, 200)} * 4 ** (_more + 1)) if _bc{i}_ploc(p, True)]")
+                A.append(f"_pts{i} = np.array(_sel{i}[:{npts}])")
+                A.append(f"if len(_pts{i}) == 0:")
+                A.append(f"    raise RuntimeError('BC {i + 1}: no boundary points match its Where expression.')")
+                A.append(f"if len(_pts{i}) < {npts}:")
+                A.append(f"    print(f'  Note: BC {i + 1}: only {{len(_pts{i})}} of {npts} boundary points found where its Where expression holds.')")
         if vmode == 'formula':
             forms = [(f.strip() or "0") for f in (entry.get('values_formula', '') or '0').split("|")]
             if len(forms) < n_values:
@@ -9965,6 +10022,20 @@ def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
     _e = np.abs(np.ravel(_pinn_at_pts) - np.ravel(_ref))
     return _gd_e(np.asarray(_pts)[:, :2], _e, (_Xg, _Yg), method="linear", fill_value=np.nan)
 
+def _check_ref_layout(_d, _path, _n_space, _steady):
+    # One reference time and one value column per file: a file with several
+    # times is compared at its first row's time, and only the first value
+    # column is used -- say so instead of comparing silently.
+    import os as _os_rl
+    _tcol = _n_space
+    if not _steady and _d.ndim == 2 and _d.shape[1] > _tcol and np.ptp(_d[:, _tcol]) > 1e-9 * max(1.0, float(np.abs(_d[:, _tcol]).max())):
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " holds several times (" + "%g" % _d[:, _tcol].min() + " to "
+              + "%g" % _d[:, _tcol].max() + "); it is compared at t = " + "%g" % _d[0, _tcol] + ". Use one file per time.")
+    _ncols = _n_space + (0 if _steady else 1) + 1
+    if _d.ndim == 2 and _d.shape[1] > _ncols:
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " has " + str(_d.shape[1] - _ncols + 1)
+              + " value columns; the first is used.")
+
 def _load_ref(_path):
     # A reference-data file: comma or space separated, header and comment
     # lines skipped, and rows with a missing value (NaN, e.g. a point outside
@@ -9980,7 +10051,8 @@ def _load_ref(_path):
                 _rows.append([float(_v) for _v in _re.split(r"[,\\s;]+", _ln) if _v])
             except ValueError:
                 continue
-    _w = max((len(_r) for _r in _rows), default=0)
+    _lens = [len(_r) for _r in _rows]
+    _w = max(set(_lens), key=lambda _x: (_lens.count(_x), _x)) if _lens else 0   # the most common row length
     if not _w:
         return np.zeros((0, 0))
     _d = np.array([_r for _r in _rows if len(_r) == _w], dtype=float)
@@ -11314,6 +11386,8 @@ if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
     _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
     print("{p}IC pre-train model restored -- skipping training.")
 else:
+    if {config.ic_pretrain_restore}:
+        print("{p}Note: IC pre-train model to restore not found (" + {rp} + ") -- pre-training instead.")
     _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
                                  display_every={max(1, int(getattr(config, 'loss_display_every', 1000) or 1000))}, batch_size=None,
                                  model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
@@ -11497,6 +11571,12 @@ def generate_clean_script(config):
         _const_header = list(_const_header) + [
             "# Note: 'Export solution data' (Results page) is on for this problem, but only PINNStudio's",
             "# Solve writes those data files; this script saves the plots, the model and the losses."]
+    if config.problem_dim == "3D" and (getattr(config, "ea_files", "[]") not in ("", "[]")
+                                       or (getattr(config, "ea_ref_mode", "files") == "formula")):
+        # Solve also draws 3D slice and 3D-view comparisons (Plot settings: 3D grid resolution, iso level)
+        _const_header = list(_const_header) + [
+            "# Note: this script draws the line, surface and error-analysis figures; the 3D slice and 3D view",
+            "# comparisons (Plot settings: 3D grid resolution, iso level) are drawn by PINNStudio's Solve only."]
     config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -11917,15 +11997,27 @@ if save_dir:
     coordinate column per spatial axis, then time, then value -- e.g.
     "x, t, u" in 1D. Only the rows already at t = {config.t_min} (the
     domain's start time) are used."""
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
-                continue                     # a header or comment line
-    raw = np.array([r for r in rows if r])
+                continue
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    raw = data_
     n_coord = {n_coord}
     t_col, v_col = n_coord, n_coord + 1
     mask = np.abs(raw[:, t_col] - {config.t_min}) < 1e-8
@@ -12011,18 +12103,28 @@ if save_dir:
         inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
-    # numbers separated by commas or spaces; header, comment and blank lines skipped
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
-            if not parts or parts[0][0] in "#%":
+    # numbers separated by commas, semicolons or spaces; header, comment and blank lines skipped;
+    # rows with a missing value (NaN) or a different number of columns skipped with a note
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
                 continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    return np.array(rows)
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    return data_
 ''')
         # Number of leading coordinate columns in a measured-data file --
         # x/y/z plus time, EXCEPT for a steady-state problem, which has no
@@ -12050,6 +12152,9 @@ def _load_obs_data(path):
                              # inside an f-string expression are a SyntaxError before Python 3.12
                              f"    raise SystemExit(\"Measured data \" + os.path.basename({of['path']!r}) + f\": {_n_obs_cols + 1} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
+            obs_lines.append(f"if _of_data.shape[1] > {_n_obs_cols + 1}:\n"
+                             f"    print(\"  Note: measured data \" + os.path.basename({of['path']!r}) + \" has \" + str(_of_data.shape[1] - {_n_obs_cols}) + "
+                             f"\" value columns; the first (column {_n_obs_cols + 1}) is used.\")")
             if _obs_red:
                 obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
                                  f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")
@@ -12395,6 +12500,11 @@ _ta_loss_offset = 0''')
                         f'_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})'),
                        "",
                        "for step_i, (t0, t1) in enumerate(intervals):",
+                      *(["    for _cb in train_cbs:   # a fresh checkpoint per window, named by window, as in Solve",
+                         "        if isinstance(_cb, dde.callbacks.ModelCheckpoint):",
+                         "            _cb.filepath = os.path.join((save_dir or '.'), f\"checkpoint_step{step_i + 1:03d}_best\")",
+                         "            _cb.best, _cb.epochs_since_last_save = np.inf, 0"]
+                        if cbs_kw and getattr(config, "cb_model_checkpoint", False) else []),
                       *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
                          "        if isinstance(_cb, dde.callbacks.Timer):",
                          "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),
@@ -13180,7 +13290,8 @@ ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
     d = _load_ref(fp)
     if d.ndim == 1:
-        d = d.reshape(1, -1)''']
+        d = d.reshape(1, -1)
+    _check_ref_layout(d, fp, {3 if is_3d else (2 if is_2d else 1)}, {bool(is_steady)})''']
             # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
             # this file: a steady-state reference file (PINNStudio's own
             # "solution.txt", written by _auto_configure_ea's is_steady branch

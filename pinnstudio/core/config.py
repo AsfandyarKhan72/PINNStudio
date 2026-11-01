@@ -955,6 +955,36 @@ class PINNConfig:
                 errors.append("IC pre-training fits the network to the initial conditions given as loss terms, "
                               "but no output has one (an exact initial condition needs no pre-training) -- "
                               "untick IC pre-training.")
+        # Loss functions: the residual targets are 0, so a relative or percentage
+        # loss divides by zero (infinite loss); softplus is not a DeepXDE loss
+        # with PyTorch. The window offers MSE and MAE; an older saved problem may
+        # still name one of the others.
+        import json as _json_lf
+        _bad_loss = set()
+        for _lf in [self.loss_type, getattr(self, "ic_pretrain_loss", "MSE")] + [
+                (_p or {}).get("loss", "MSE") for _p in (_json_lf.loads(self.scheduler_phases or "[]")
+                                                         if self.optimizer_scheduler else [])
+                if isinstance(_p, dict)]:
+            if str(_lf) not in ("MSE", "MAE", "mean squared error", "mean absolute error"):
+                _bad_loss.add(str(_lf))
+        if _bad_loss:
+            errors.append(f"Loss function {', '.join(sorted(_bad_loss))}: not usable for a PINN (the equation residuals "
+                          f"have target 0, or the loss does not exist with PyTorch) -- choose MSE or MAE in the "
+                          f"Training phases.")
+        if self.ic_pretrain and (self.steady_state or self.problem_dim == "ODE"):
+            errors.append("IC pre-training needs a time-dependent PDE: "
+                          + ("an ODE's initial values are conditions at t0, not initial-condition loss terms"
+                             if self.problem_dim == "ODE" else "a steady problem has no initial condition")
+                          + " -- untick IC pre-training.")
+        if self.ic_pretrain and self.ic_pretrain_restore:
+            import os as _os_icr
+            _rp = (self.ic_pretrain_restore_path or "").strip()
+            if not _rp:
+                errors.append("IC pre-training: 'Restore' is chosen but no saved pre-training model is given -- "
+                              "browse to the .pt file, or choose to pre-train.")
+            elif not _os_icr.path.isfile(_rp):
+                errors.append(f"IC pre-training: the saved pre-training model {_rp!r} does not exist -- check the "
+                              f"path, or choose to pre-train.")
         if any(_hard):
             _ics = (self.ic_expressions or "").split("|")
             if self.steady_state or self.problem_dim == "ODE":
@@ -1038,6 +1068,15 @@ class PINNConfig:
                 errors.append(f"Output name '{_on}' is used for two outputs -- give each output its own name.")
             _seen_out.add(_on)
 
+        # Derivative names in the equations: both generators build a fixed set (first
+        # and second derivatives, the third x-derivative in 1D, and fourth-order
+        # ones of the forms xxxx/xxyy/xxtt/...). A name outside it passed here and
+        # stopped both scripts with NameError at the first training step.
+        _bad_d = _unsupported_derivatives(self)
+        if _bad_d:
+            errors.append("Equations: " + ", ".join(_bad_d) + (" is" if len(_bad_d) == 1 else " are")
+                          + " not available (see Derivative syntax on the Equations page) -- write the equation with "
+                          "the derivatives PINNStudio provides, e.g. a third derivative as a new output.")
         if "integral(" in (self.pde_expressions or ""):
             if not (self.problem_dim == "ODE" or (self.problem_dim == "1D" and self.steady_state)):
                 errors.append("integral(...) terms are available for ODE problems (and steady 1D problems): "
@@ -1582,6 +1621,37 @@ def use_training_phases(config):
             config.optimizer_scheduler = True
             config.scheduler_same_weights = True
     return config
+
+
+_DERIV_SUPPORTED = {
+    # (dimension, steady): derivative suffixes both generators define
+    ("1D", False): {"x", "t", "xx", "tt", "xt", "xxx", "xxxx", "xxtt", "tttt"},
+    ("1D", True): {"x", "xx", "xxx", "xxxx"},
+    ("2D", False): {"x", "y", "t", "xx", "yy", "xy", "tt", "xt", "yt", "xxxx", "yyyy", "xxyy", "xxtt", "yytt"},
+    ("2D", True): {"x", "y", "xx", "yy", "xy", "xxxx", "yyyy", "xxyy"},
+    ("3D", False): {"x", "y", "z", "t", "xx", "yy", "zz", "xy", "xz", "yz", "tt", "xt", "yt", "zt",
+                    "xxxx", "yyyy", "zzzz", "xxyy", "xxzz", "yyzz", "xxtt", "yytt", "zztt"},
+    ("3D", True): {"x", "y", "z", "xx", "yy", "zz", "xy", "xz", "yz", "xxxx", "yyyy", "zzzz", "xxyy", "xxzz", "yyzz"},
+    ("ODE", False): {"t", "tt", "ttt", "tttt"},
+}
+
+
+def _unsupported_derivatives(config):
+    """Derivative names d<output>_<axes> in the equations that the generators do not build."""
+    import re as _re_d
+    dim = config.problem_dim
+    key = ("ODE", False) if dim == "ODE" else (dim, bool(config.steady_state))
+    ok = _DERIV_SUPPORTED.get(key)
+    if ok is None:
+        return []
+    names = [n.strip() for n in (config.output_names or "u").split(",") if n.strip()]
+    text = config.pde_expressions or ""
+    bad = []
+    for n in names:
+        for m in _re_d.finditer(r"(?<![\w.])d" + _re_d.escape(n) + r"_([xyzt]+)(?![\w])", text):
+            if m.group(1) not in ok and m.group(0) not in bad:
+                bad.append(m.group(0))
+    return bad
 
 
 def _outputs_not_periodic(config):

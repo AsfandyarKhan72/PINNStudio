@@ -3155,8 +3155,7 @@ class MainWindow(QMainWindow):
         ic_loss_row.addWidget(QLabel("Loss function:"))
         self.ic_pretrain_loss_combo = QComboBox()
         self.ic_pretrain_loss_combo.addItems(
-            ["MSE", "MAE", "mean l2 relative error",
-             "mean absolute percentage error", "softplus"])
+            ["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         self.ic_pretrain_loss_combo.setFixedHeight(26)
         self.ic_pretrain_loss_combo.setFixedWidth(self.PHASE_FIELD_W)
         self.ic_pretrain_loss_combo.view().setMinimumWidth(self.ic_pretrain_loss_combo.view().sizeHintForColumn(0) + 24)
@@ -3239,8 +3238,7 @@ class MainWindow(QMainWindow):
         self.lr_spin = SciSpinBox(); self.lr_spin.setRange(1e-12, 10.0)
         self.lr_spin.setDecimals(6); self.lr_spin.setValue(0.001); self.lr_spin.setVisible(False)
         self.loss_combo = QComboBox()
-        self.loss_combo.addItems(["MSE", "MAE", "mean l2 relative error",
-                                   "mean absolute percentage error", "softplus"])
+        self.loss_combo.addItems(["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         self.loss_combo.setVisible(False)
         self.opt2_combo = QComboBox(); self.opt2_combo.addItems(["none", "lbfgs"])
         self.opt2_combo.setCurrentText("none"); self.opt2_combo.setVisible(False)
@@ -3355,6 +3353,8 @@ class MainWindow(QMainWindow):
         _prec_lbl.setToolTip(_prec_tip); self.lbfgs_float_combo.setToolTip(_prec_tip)
         _prec_row.addStretch(); _prec_row.addWidget(self.lbfgs_float_combo)
         train_layout.addLayout(_prec_row)
+        # One precision setting: this combo and Settings > Float Precision show the same value
+        self.lbfgs_float_combo.currentTextChanged.connect(self._on_precision_changed)
         self.opt2_combo.currentTextChanged.connect(self._on_opt2_changed)
 
         # ── Training Callbacks (optional) ───────────────────────
@@ -3765,13 +3765,17 @@ class MainWindow(QMainWindow):
         self.ta_rs_points = QSpinBox(); self.ta_rs_points.setRange(1, 100000); self.ta_rs_points.setValue(200)
         self.ta_rs_iters = QSpinBox(); self.ta_rs_iters.setRange(1, 1000000); self.ta_rs_iters.setSingleStep(500)
         self.ta_rs_iters.setValue(2000)
+        self.ta_rs_cand = QSpinBox(); self.ta_rs_cand.setRange(100, 1000000); self.ta_rs_cand.setSingleStep(1000)
+        self.ta_rs_cand.setValue(10000)
+        self.ta_rs_cand.setToolTip("Random candidate points drawn in the window each round; the ones with the\n"
+                                   "largest residual are added. At least as many as the points per round.")
         self.ta_rs_rounds.setToolTip(
             "Adaptive resampling in each window: after the window's training, the candidate points with the\n"
-            "largest PDE residual (of 10,000 random candidates in the window) are added to its collocation\n"
+            "largest PDE residual (of the random candidates in the window) are added to its collocation\n"
             "points and training continues with Adam;\n"
             "this many rounds per window (Wight & Zhao 2021, approach I + resampling). 0 = off.")
         for _lbl, _w in (("Resampling rounds:", self.ta_rs_rounds), ("Points per round:", self.ta_rs_points),
-                         ("Adam iterations per round:", self.ta_rs_iters)):
+                         ("Candidates per round:", self.ta_rs_cand), ("Adam iterations per round:", self.ta_rs_iters)):
             _w.setFixedWidth(90)
             _rr = QHBoxLayout(); _rr.addWidget(QLabel(_lbl)); _rr.addStretch(); _rr.addWidget(_w)
             ta_layout.addLayout(_rr)
@@ -4138,7 +4142,8 @@ class MainWindow(QMainWindow):
         _bl.addWidget(QLabel("Random first:"))
         self.sweep_bayes_init_spin = QSpinBox(); self.sweep_bayes_init_spin.setRange(1, 100)
         self.sweep_bayes_init_spin.setValue(5); self.sweep_bayes_init_spin.setFixedWidth(50)
-        self.sweep_bayes_init_spin.setToolTip("Runs with random settings (after the baseline, if any) before the model takes over")
+        self.sweep_bayes_init_spin.setToolTip("Runs before the model takes over: the baseline (when it runs) counts as one of them,\n"
+                                              "the rest have random settings")
         _bl.addWidget(self.sweep_bayes_init_spin)
         _bl.addWidget(QLabel("Minimize:"))
         self.sweep_bayes_obj_combo = QComboBox()
@@ -5911,7 +5916,7 @@ class MainWindow(QMainWindow):
         # cube it (101 or 51) silently inherits a risky default. Step it
         # down automatically; 1D/2D never cube it, so nothing needs to
         # change when switching away from 3D.
-        if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("101", "51"):
+        if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("201", "101", "51"):
             self.ta_grid.setCurrentText("21")
         self._update_ta_grid_warning()
         self._refresh_bc_where_pickers()
@@ -8273,13 +8278,22 @@ class MainWindow(QMainWindow):
             ic_file_widget.setVisible(False)
             self.bc_main_layout.addWidget(ic_file_widget)
             self.ic_file_paths.append(ic_file_path)
+            # The file's points can also be collocation points of the equation
+            # (PINNConfig.ic_file_anchors; Solve and the export both use it).
+            ic_anch_cb = QCheckBox("Also check the equation at the file's points")
+            ic_anch_cb.setToolTip("Adds the IC file's points as anchors: the equation's residual is also\n"
+                                  "evaluated there, not only the initial-condition loss.\n"
+                                  "Not used with time windows (each window has its own initial points).")
+            ic_anch_cb.setVisible(False)
+            self.bc_main_layout.addWidget(ic_anch_cb)
+            self.ic_file_anchor_cb = ic_anch_cb
 
             # Formula or file, never both: with the file on, the formula's
             # "IC for" box and the exact option are off and can't be ticked
             # (the file always won, so a ticked formula did nothing).
             ic_file_cb.stateChanged.connect(
-                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act, hard=ic_hard:
-                (w.setVisible(state == 2), inp.setVisible(state != 2),
+                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act, hard=ic_hard, an=ic_anch_cb:
+                (w.setVisible(state == 2), an.setVisible(state == 2), inp.setVisible(state != 2),
                  hard.setChecked(False) if state == 2 else None,
                  hard.setEnabled(state != 2),
                  act.setChecked(state != 2), act.setEnabled(state != 2),
@@ -8291,6 +8305,16 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(_bc_container)
 
         self._update_bc_mode_visibility()
+
+    def _ic_file_anchors_checked(self):
+        """The 'Also check the equation at the file's points' box, when the IC
+        comes from a file (the box belongs to output 0's file row)."""
+        try:
+            cb = getattr(self, "ic_file_anchor_cb", None)
+            on_file = bool(self.ic_from_file and self.ic_from_file[0] is not None and self.ic_from_file[0].isChecked())
+            return bool(cb is not None and on_file and cb.isChecked())
+        except RuntimeError:          # deleted with a rebuilt row
+            return False
 
     def _is_custom_problem(self):
         """True when no Quick Example template is selected -- i.e. the user
@@ -8573,7 +8597,7 @@ class MainWindow(QMainWindow):
         comp_row = QHBoxLayout(comp_widget)
         comp_row.setContentsMargins(0, 0, 0, 0)
         comp_row.addWidget(QLabel("Output:"))
-        comp_spin = OutputSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
+        comp_spin = OutputSpinBox(); comp_spin.setRange(0, 9); comp_spin.setValue(component)   # Outputs go up to 10
         comp_spin.setFixedHeight(26); comp_spin.setFixedWidth(60)
         comp_spin.setToolTip("The output this BC applies to (1 = first output, 2 = second, ...), "
                              "numbered as in the PDE Definition panel")
@@ -9671,6 +9695,7 @@ class MainWindow(QMainWindow):
                 and self.ic_from_file[i].isChecked()
                 for i in range(n_out)
             ),
+            ic_file_anchors=self._ic_file_anchors_checked(),
             forward_ic_file=next(
                 (self.ic_file_paths[i].text().strip()
                  for i in range(n_out)
@@ -9777,7 +9802,7 @@ class MainWindow(QMainWindow):
             ta_resample_rounds=self.ta_rs_rounds.value(),
             ta_resample_points=self.ta_rs_points.value(),
             ta_resample_iters=self.ta_rs_iters.value(),
-            ta_resample_candidates=int(getattr(self, "_ta_rs_cand", 10000)),
+            ta_resample_candidates=self.ta_rs_cand.value(),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
             parametric_study=False,
@@ -10513,6 +10538,11 @@ class MainWindow(QMainWindow):
                     self.ic_from_file[i].setChecked(i == 0)
                     if i == 0 and i < len(self.ic_file_paths) and self.ic_file_paths[i] is not None:
                         self.ic_file_paths[i].setText(config.forward_ic_file)
+        try:
+            if getattr(self, "ic_file_anchor_cb", None) is not None:
+                self.ic_file_anchor_cb.setChecked(bool(getattr(config, "ic_file_anchors", False)))
+        except RuntimeError:          # the row was rebuilt
+            pass
 
         # Domain
         self.x_min.setValue(config.x_min); self.x_max.setValue(config.x_max)
@@ -10701,7 +10731,7 @@ class MainWindow(QMainWindow):
         self.ta_rs_rounds.setValue(int(getattr(config, "ta_resample_rounds", 0) or 0))
         self.ta_rs_points.setValue(int(getattr(config, "ta_resample_points", 200)))
         self.ta_rs_iters.setValue(int(getattr(config, "ta_resample_iters", 2000)))
-        self._ta_rs_cand = int(getattr(config, "ta_resample_candidates", 10000))   # no field: kept as loaded
+        self.ta_rs_cand.setValue(int(getattr(config, "ta_resample_candidates", 10000)))
 
         # Export / plot-output settings
         self.export_enabled_cb.setChecked(getattr(config, "export_enabled", False))
@@ -10724,8 +10754,13 @@ class MainWindow(QMainWindow):
         self.lbfgs_maxfun.setValue(config.lbfgs_maxfun)
         self.lbfgs_maxls.setValue(config.lbfgs_maxls)
         if hasattr(self, "lbfgs_float_combo"):
-            self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
-        self._float_type = config.float_type
+            # A problem saved with the two precision fields different ran in float64
+            # (codegen's _effective_float): it opens showing that one precision.
+            self.lbfgs_float_combo.setCurrentText(
+                "float64" if "float64" in (config.float_type, config.lbfgs_float_type) else "float32")
+        self._float_type = ("float64" if "float64" in (config.float_type, getattr(config, "lbfgs_float_type", "float32"))
+                            else "float32")
+        self._refresh_status_env()
         self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
         self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
         self._train_device = getattr(config, 'train_device', "auto") or "auto"
@@ -11909,6 +11944,13 @@ class MainWindow(QMainWindow):
         self._refresh_status_env()
         self.save_dir_input.textChanged.connect(self._refresh_status_env)
 
+    def _on_precision_changed(self, text):
+        """Training > Precision and Settings > Float Precision are one setting:
+        float64 in either ran the whole training in float64."""
+        if text in ("float32", "float64"):
+            self._float_type = text
+            self._refresh_status_env()
+
     def _refresh_status_env(self, *_a):
         if not hasattr(self, 'status_env'):
             return
@@ -12419,7 +12461,9 @@ class MainWindow(QMainWindow):
         ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
-            self._float_type = self._float_combo.currentText()
+            self._on_precision_changed(self._float_combo.currentText())
+            if hasattr(self, "lbfgs_float_combo"):
+                self.lbfgs_float_combo.setCurrentText(self._float_type)
             self.log_box.append(f"✅ Float precision set to: {self._float_type}")
             dialog.accept()
 
@@ -15845,6 +15889,12 @@ print("DOMAIN_PREVIEW_DONE")
                 s1.setRange(0.0, 1.0); s1.setValue(0.9999)
             elif kind in ("step", "cosine", "inverse time") and _v1 < 1.0:
                 s1.setRange(1, 1e9); s1.setValue(5000 if kind != "inverse time" else 1000)
+            # the second value likewise: Step's gamma 0.9 is no Eta min (the rate
+            # would rise to 0.9); cosine starts at Eta min 0, and back to 0.9
+            if kind == "cosine" and abs(s2.value() - 0.9) < 1e-12:
+                s2.setValue(0.0)
+            elif kind in ("step", "inverse time") and s2.value() == 0.0:
+                s2.setValue(0.9)
             s1.setToolTip("")
             if kind == "step":
                 l1.setText("Step size:"); s1.setRange(1, 1e9)
@@ -15944,8 +15994,7 @@ print("DOMAIN_PREVIEW_DONE")
         loss_row = QHBoxLayout()
         loss_row.addWidget(QLabel("Loss function:"))
         loss_combo_ph = QComboBox()
-        loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
-                                 "mean absolute percentage error", "softplus"])
+        loss_combo_ph.addItems(["MSE", "MAE"])   # the residual targets are 0: relative/percentage losses divide by 0; softplus is not in DeepXDE (PyTorch)
         loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(self.PHASE_FIELD_W)
         loss_combo_ph.view().setMinimumWidth(loss_combo_ph.view().sizeHintForColumn(0) + 24)
         loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)
@@ -17284,6 +17333,7 @@ print("RESTORE_DONE")
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+dde.config.set_default_float({str(cfg.get("float_type", "float32"))!r})   # the precision the model was trained in
 
 import torch as _torch_dev
 if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
@@ -17675,6 +17725,7 @@ def _extract_plot_field(x_grid):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+dde.config.set_default_float({str(cfg.get("float_type", "float32"))!r})   # the precision the model was trained in
 
 import torch as _torch_dev
 if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):

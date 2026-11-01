@@ -82,7 +82,7 @@ def test_the_scripts_read_every_line_of_a_file_without_a_header(tmp_path):
     clean = generate_clean_script(c)
     start = clean.index("def _load_obs_data")
     ns = {"np": np}
-    exec(clean[start:clean.index("\n\n", clean.index("return np.array(rows)", start))], ns)
+    exec(clean[start:clean.index("\n\n", clean.index("return data_", start))], ns)
     assert len(ns["_load_obs_data"](str(f))) == 121
     with open(tmp_path / "h.txt", "w") as fh:
         fh.write("x,y,t,u\n" + "\n".join(",".join(map(str, r)) for r in _grid2d(3)))
