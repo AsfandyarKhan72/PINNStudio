@@ -128,7 +128,7 @@ equations like constants, for example `du_t - D*du_xx`. See
 | **∫ points:** | Quadrature points for `integral(...)` (ODE only, 2–200) | 20 | `integral_points` |
 | **Constants:** / **Add constant** | Named values `name = value` | none | `constants` (JSON list) |
 | **Output N name:** | Name of output N | `u`, `v`, `w`, `p`, then `u5`, … | `output_names` (comma-separated) |
-| **PDE N (residual = 0):** | Residual expression N | 1D: `du_t - 0.4 * du_xx` | `pde_expressions` (separated by a vertical bar) |
+| **PDE N (residual = 0):** | Residual expression N | 1D: `du_t - 0.4 * du_xx`; new ODE system: `du_t + 0.4 * u` | `pde_expressions` (separated by a vertical bar) |
 | **Fractional  α:** | Order of `frac(...)` | 1.5 | `fractional_alpha` |
 | **Resolution:** | Fractional discretisation | 100 | `fractional_resolution` |
 | **Mesh:** | `dynamic` or `static` (static: 1D interval only) | dynamic | `fractional_meshtype` |

@@ -35,7 +35,7 @@ For every problem: the equations are the physics the network is trained on.
 | **Outputs:** | Number of network outputs | 1 | 1–10 | `num_outputs` |
 | **Equations:** | Number of residuals; reset to the number of outputs whenever **Outputs:** changes | 1 | 1–10 | `num_equations` (0 = one per output) |
 | **Output *n* name:** | Name used in the expressions | `u`, `v`, `w`, `p`, then `u5`, … | a Python name, see below | `output_names` (comma-separated) |
-| **PDE *n* (residual = 0):** | The residual expression | `du_t - 0.4 * du_xx` (1D) | expression | `pde_expressions` (`|`-separated) |
+| **PDE *n* (residual = 0):** | The residual expression | `du_t - 0.4 * du_xx` (1D; a new ODE system: `du_t + 0.4 * u`) | expression | `pde_expressions` (`|`-separated) |
 | **Constants:** | Named values, e.g. `Re = 20`, `nu = 1/Re` | none | number or expression of math functions and earlier constants | `constants` (JSON list of `{name, value}`) |
 | **∫ points:** (ODE only) | Gauss–Legendre points for `integral(...)` | 20 | 2–200 | `integral_points` |
 | **Fractional  α:** | Order of `frac(...)` (shown while an equation uses it) | 1.5 | number in (0, 2), a constant, or an inverse unknown's name | `fractional_alpha` |

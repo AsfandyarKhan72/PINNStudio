@@ -56,7 +56,8 @@ generated script builds `dde.data.TimePDE` on a `GeometryXTime` for a time-depen
 
 ## Defaults and limitations
 
-- A new problem (**Problem › New**) starts with one output `u`, the equation `du_t - 0.4 * du_xx`, the
+- A new problem (**Problem › New**) starts with one output `u`, the equation `du_t - 0.4 * du_xx` (a new ODE
+  system: `du_t + 0.4 * u` with `u(0) = 1`), the
   default network (3 hidden layers of 64, tanh) and two training phases (Adam 10,000 iterations at
   learning rate 0.001, then L-BFGS 10,000 iterations).
 - Training the network does not guarantee an accurate solution. Check the result against a reference
