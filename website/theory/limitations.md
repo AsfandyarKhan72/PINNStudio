@@ -5,6 +5,23 @@ into a DeepXDE script, runs it, and compares the result with reference data. It 
 training converges, that the trained network is physically valid, or that it is accurate for an arbitrary
 problem. A finished run with a small loss is a candidate solution that has to be checked.
 
+## What a successful run does not establish
+
+A run that ends without an error, with a falling loss and a small final loss, shows that the optimiser reduced the
+loss the settings define. On its own it does not establish
+
+- **that the equation is the right model.** PINNStudio solves the equations, conditions and data you entered; it
+  cannot tell whether they describe the physical system you have in mind;
+- **physical validity.** The network can violate conservation, positivity or bounds that the equation does not
+  enforce, especially between the collocation points and outside the training domain;
+- **uniqueness of an inverse solution.** Inferred parameters or fields are values that fit the given data; other
+  values may fit them equally well (see [identifiability](forward-inverse.md#identifiability));
+- **numerical convergence.** A single run at one number of points, one network size and one training length says
+  nothing about how the result changes when these are increased, as a mesh-refinement study would for a
+  conventional solver.
+
+Each of these has to be checked separately, by the comparisons listed under [What you should check](#what-you-should-check).
+
 ## Known failure modes of PINNs
 
 These are properties of the method, not of PINNStudio; the literature cited on the other theory pages
@@ -67,7 +84,8 @@ they arise.
 
 - The **Loss function:** is `MSE` or `MAE` ([Losses](losses.md#loss-functions)); losses relative to the
   target (relative \(L_2\), percentage) are not available because every residual target is zero.
-- Weight decay is ignored for PFNN, MsFFN and STMsFFN networks and cannot be used with L-BFGS or NNCG.
+- Weight decay is refused for PFNN, MsFFN and STMsFFN networks (DeepXDE's versions have no regularization) and
+  cannot be used with L-BFGS or NNCG.
 - **Scale by initial losses** cannot be combined with time windows.
 
 **Adaptive methods**
@@ -104,3 +122,5 @@ they arise.
 - The random seed makes CPU runs repeatable; GPU runs are not made bit-for-bit deterministic.
 - `PINNConfig.validate()` refuses many impossible combinations before a run, but it is not exhaustive. A
   combination it does not catch may fail inside the training script or train something other than intended.
+  [Compatibility of methods](../reference/compatibility.md) lists which combinations are refused, which are used
+  by an example or a test, and which are untested.

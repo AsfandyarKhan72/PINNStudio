@@ -156,7 +156,8 @@ If a run fails with a Python error from the equations (`SyntaxError`, `NameError
 
 ### Incompatible training-method combinations
 
-Some methods cannot be used together. The check refuses them with an explanation, for example:
+Some methods cannot be used together. The check refuses them with an explanation, for example (all combinations,
+including the ones that are allowed, are on [Compatibility of methods](../reference/compatibility.md)):
 
 | Combination | Message (shortened) |
 |---|---|
@@ -265,6 +266,173 @@ These methods help on hard problems but can make results worse on problems a pla
 with a plain run, use a [parameter sweep](../guide/sweeps.md) to compare settings systematically, and judge the result
 by its error against reference data, not by the loss. The examples' **Tuned** settings show what worked for each
 example. See also [Scope and limitations](../theory/limitations.md).
+
+## Diagnosing poor results
+
+The sections below start from what you see and list likely causes, the settings to look at and how to narrow the
+cause down. They do not promise that a change fixes the problem: PINN training depends on the equation, the domain
+and the budget, and a change that helps one problem can hurt another. Which method to try for which difficulty is
+discussed in [Choosing a training strategy](../guide/choosing-a-strategy.md); which methods can be combined is on
+[Compatibility of methods](../reference/compatibility.md).
+
+Four tools in the Results area come up repeatedly:
+
+- the **Error analysis** tab: the relative L₂ error (and MSE, maximum error) against reference data at each
+  comparison time ([Error Analysis](../guide/error-analysis.md); without reference data, use **Exact solution
+  formula** if you know the solution);
+- **Each loss term** in the **Live loss** tab, or **Show:** **Each loss term** in the **Loss** tab of
+  **Plot settings**: one line per equation, condition and data file ([Results and plots](../guide/results.md));
+- **History** › **Compare**: the loss and error of several saved runs on one plot;
+- a [Parameter sweep](../guide/sweeps.md) (**One at a time**) over the one setting you suspect, with the error as
+  the measure.
+
+Change one setting at a time and keep the random seed fixed (**Settings › Random Seed...**), so that a difference
+between two runs comes from the setting and not from the initialisation.
+
+### The loss falls but the error stays high
+
+**Likely causes.** The equations, conditions or reference data describe different problems (a sign, a coefficient,
+a units or time-scale mismatch, reference files for other times or outputs); a loss term that is small only because
+its weight or scale is small; too few collocation points, so the network fits the residual at the points and not
+between them; a trivial or wrong solution that also satisfies the training points.
+
+**Settings to look at.** The typeset equations on the **Equations** page; **Initial conditions** and
+**Boundary conditions**; the reference files, their times and outputs in the **Error Analysis** dialog;
+**Domain points:** and **Test points:** on the **Collocation points** page; the term weights on **Loss weights**.
+
+**Diagnostic steps.**
+
+1. Compare the error per time and per output in the **Error analysis** tab. An error that is large at \( t = 0 \)
+   points to the initial condition or to the reference data; one that is large everywhere, to the equation.
+2. Look at **Each loss term**. Note the term that is largest after weighting, and whether one term is many orders
+   of magnitude smaller than the others.
+3. Compare the training and test loss: a test loss well above the training loss means the points do not cover the
+   domain densely enough.
+4. Sweep **Domain points:** or the training length and see whether the error follows the loss.
+
+### Initial or boundary conditions are poorly satisfied
+
+**Likely causes.** The condition's loss term is outweighed by the PDE term; the condition selects fewer points than
+intended (a **Where:** expression that matches part of the boundary, or none); too few **Boundary points:** or
+**Initial points:**; conditions that contradict each other or the initial condition at a corner.
+
+**Settings to look at.** The row's **Where:**, **Output:** and **Value:** on **Boundary conditions**;
+**Boundary points:** and **Initial points:**; the BC and IC weights on **Loss weights**; **Exact (built into the
+network)** on **Initial conditions** and **Exact periodicity (periodic inputs)** on **Boundary conditions**
+([Exact constraints](../reference/exact-constraints.md)).
+
+**Diagnostic steps.**
+
+1. Select the condition in the model tree: the domain view marks the edges (faces in 3D) it covers. A condition
+   with no point is reported before training ([A boundary condition matches no
+   points](#a-boundary-condition-matches-no-points)).
+2. Find the condition's line in **Each loss term** and compare it with the PDE term.
+3. Look at the line comparison at the first comparison time and near the boundaries in the **Error analysis**
+   tab.
+4. Sweep the condition's weight, or compare a run with an exact constraint against the soft one in **History** ›
+   **Compare**.
+
+### Inverse parameters do not converge
+
+**Likely causes.** The measured data do not determine the parameter (too few points, points where the solution does
+not depend on it, or a parameter that only appears in a product with another); the data term is outweighed; a
+poor **Initial guess** far from the value; noisy data; a forward model (equation, conditions) that does not match
+how the data were produced.
+
+**Settings to look at.** On the **Inverse problem** page: **Initial guess**, each file's **Measures:** and
+**Loss weight:**, **Use:** (all points, a grid, random points), **Check the equation at the measured points too
+(anchors)**; the training length on **Training**; **Save parameters:** on **Results**
+([Inverse problems](../reference/inverse.md), [Observational data](../reference/observations.md)).
+
+**Diagnostic steps.**
+
+1. Plot **Parameter Convergence**: a parameter that is still drifting at the end needs more training; one that
+   settles on a different value at different initial guesses is not determined by the data.
+2. Fill in **True value** when it is known (for a test problem): it is drawn on the convergence plot and used for
+   the parameter error, never in training.
+3. Look at the data term in **Each loss term**. If it stays large, check the file's columns and **Measures:**.
+4. Run the forward problem with the parameter fixed at its expected value and compare it with the data: if the
+   forward solution does not match the data, the inverse problem cannot either.
+5. Sweep the **Initial guess** or the data weight (both can be swept) and compare the estimates.
+
+A converged parameter is not necessarily the unique one that explains the data; see
+[Scope and limitations](../theory/limitations.md).
+
+### Training is unstable
+
+**Likely causes.** A learning rate too large for the problem; loss weights that differ by orders of magnitude;
+residuals of very different sizes because the equation is not scaled; float32 round-off in L-BFGS; per-point
+weights that grow without bound.
+
+**Settings to look at.** **Learning rate:** and **Learning rate decay:** of each phase on **Training**; the weights
+on **Loss weights**; **Precision:** (float64); **Per-point weights:** and its settings
+([Optimizers and training phases](../reference/optimizers.md), [Loss weights](../reference/loss-weights.md)).
+
+**Diagnostic steps.**
+
+1. Find where the loss starts to oscillate or jump in the loss plot, and in which term (**Each loss term**).
+2. Lower the Adam learning rate by a factor of ten, or add a decay, and compare in **History**.
+3. If the jumps start in an L-BFGS phase, repeat it with **Precision:** float64.
+4. Switch off one adaptive method at a time.
+
+### The loss is NaN or Inf
+
+See [The loss becomes NaN or Inf](#the-loss-becomes-nan-or-inf): find the first column and the first step that
+show `nan`, which tells an expression that cannot be evaluated (from the first step) from a diverging run (after
+some steps).
+
+### The collocation points do not resolve the solution
+
+**Likely causes.** The solution has a front, a shock, a boundary layer or a small feature that the points sample
+too coarsely; the test points are too few to show it; points cluster or leave gaps (with **pseudo** sampling).
+
+**Settings to look at.** **Domain points:**, **Point distribution:** and **Extra training points:** on
+**Collocation points**; the **Point Resampling** callback on **Training**; RAR on **Adaptive training**
+([RAR](../reference/rar.md)).
+
+**Diagnostic steps.**
+
+1. In 2D and 3D, tick **View domain & point distribution** to see where the points are.
+2. Look at the surface comparison (PINN, reference, error) in the **Error analysis** tab: an error concentrated
+   along a curve points to resolution rather than to the equation.
+3. Sweep **Domain points:** (for example two or three values a factor of two apart). An error that falls with
+   more points is limited by resolution.
+4. With RAR, the figures under `solution_results/rar_rounds/` show where each round added points.
+
+### Good at early times, poor at late times
+
+**Likely causes.** Errors made early are propagated forward; the network fits late times before the early solution
+is right (the causality problem causal training addresses); a long time interval for one network; a time scale of
+the equation that is short compared with the interval.
+
+**Settings to look at.** The time interval on **Geometry**; **Causal training** on **Loss weights**
+([Causal training](../reference/causal.md)); **Time Adaptive Training** and its options on **Adaptive training**
+([Time windows and bc-PINN](../reference/time-windows.md)).
+
+**Diagnostic steps.**
+
+1. Read the error per comparison time in the **Error analysis** tab; add comparison times (**Compare at times:**
+   for a formula, more reference files otherwise) to see where the error starts to grow.
+2. Train a shorter interval with the same settings. If the shorter run is accurate, the length of the interval is
+   the difficulty.
+3. With time windows, each window's model and results are saved separately; compare the windows to find the first
+   one that goes wrong.
+
+### Training is unexpectedly slow
+
+See [Training is slow](#training-is-slow) for the device, threads and precision. In addition: every adaptive
+method adds work (RAR and resampling rounds train again after each round; time windows train every window; bc-PINN
+stores points for every earlier window), Fourier-feature networks and higher derivatives cost more per iteration,
+and L-BFGS iterations each evaluate the loss more than once. Compare the time of the run with and without the
+method (**History** lists each run), and use **Early Stopping** or **Training Timer** to bound a run.
+
+### An exact constraint or adaptive method is refused
+
+The check before Solve names the combination and what to change; the messages are in
+[Incompatible training-method combinations](#incompatible-training-method-combinations), and every combination,
+refused or not, is on [Compatibility of methods](../reference/compatibility.md). A combination that is not refused
+but that no example or test uses is marked *untested* there: it may work, but check its result against reference
+data.
 
 ## Error Analysis cannot find the reference data
 

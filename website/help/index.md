@@ -6,6 +6,14 @@ Where to look when something does not work, or when you have a question the othe
   **Solve** refuses the settings, the loss is NaN, training does not converge, reference data or a checkpoint cannot
   be found, an exported script fails, training is slow. Each entry quotes the message PINNStudio shows and what to
   do about it.
+- **[Diagnosing poor results](troubleshooting.md#diagnosing-poor-results)**: a run that finishes but whose result
+  is not good enough, by symptom (error stays high while the loss falls, conditions not satisfied, inverse
+  parameters that do not converge, late-time errors, ...), with the settings to look at and how to narrow the
+  cause down.
+- **[Compatibility of methods](../reference/compatibility.md)**: which training methods and problem types can be
+  combined, which are refused and which are untested.
+- **[Scope and limitations](../theory/limitations.md)**: what PINNStudio and PINNs in general can and cannot
+  establish, and the known limitations of the implementation.
 - **[FAQ](faq.md)**: short answers about what PINNStudio can do, hardware, results, reproducibility, citing and
   licensing.
 - **[Installation](../getting-started/installation.md#common-installation-problems)**: problems while installing.
