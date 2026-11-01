@@ -108,7 +108,7 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 1 output; activation tanh, initializer Glorot uniform
     - **Points:** 10,000 domain, 400 boundary, 512 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [RBA point weights](../../reference/point-weights.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+    - **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [RBA point weights](../../reference/point-weights.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|

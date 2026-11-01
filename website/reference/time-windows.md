@@ -30,9 +30,9 @@ whole interval follows poorly.
 ## How to enable it
 
 **Training** → **Adaptive training** page → **Method:** **Time Adaptive Training** (greyed out for a
-stationary problem and removed for an inverse problem). For an ODE the choice is offered, but the code generator
-solves an ODE as a 1D problem in \( t \) and switches time windows off, so the run trains the whole interval at
-once. **About time-adaptive training** opens a description.
+stationary problem and removed for an inverse problem). For an ODE the choice is offered but refused when you
+solve (an ODE is solved as a problem in \( t \) without a separate time axis); before v1.6.0 it was switched off
+silently. **About time-adaptive training** opens a description.
 
 ## Settings
 

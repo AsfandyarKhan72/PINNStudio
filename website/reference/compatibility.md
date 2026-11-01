@@ -18,7 +18,6 @@ The status of a combination is one of
 | **R**, refused | `PINNConfig.validate()`, the code generator or the window blocks it. Solve, Export and every run of a sweep stop with a message that says what to change; the summaries are below. |
 | **U**, untested | Not refused, but no example or test uses it. It may work; check the result yourself. |
 | **—** | Not a combination: the two are alternatives of one setting. |
-| **Ignored** | The window offers it, but the code generator switches it off for this problem. |
 
 "Supported" means only that the combination runs as designed in the example or test named. It says nothing
 about whether the combination improves a result on your problem; see
@@ -31,7 +30,7 @@ not refused; this page adds which of those cases have been exercised.
 
 | Method | ODE | Time-dependent PDE | Stationary PDE | Inverse problem | Non-box geometry |
 |---|---|---|---|---|---|
-| [Time windows](time-windows.md) | Ignored | S (1D, 2D, 3D) | R | R | S (disk, test) |
+| [Time windows](time-windows.md) | R | S (1D, 2D, 3D) | R | R | S (disk, test) |
 | [Causal training](causal.md) | R | S (1D); 2D, 3D U | R | S | U |
 | [RAR](rar.md) | U | S (1D); 2D, 3D U | S (test) | S (test) | U |
 | [RBA](point-weights.md) | U | S (1D test, 2D); 3D U | U | U | U |
@@ -61,11 +60,12 @@ not refused; this page adds which of those cases have been exercised.
 `tests/test_audit_v160.py` generate time-window scripts on a disk
 (`test_time_windows_on_a_disk_keep_only_grid_points_in_the_domain`,
 `test_time_windows_on_a_disk_keep_the_domain_grid_after_the_first_window`).
-Stationary: the window disables **Time Adaptive Training**, and the code generator switches it off in a problem
-file that has both. Inverse: the window removes the choice in **Inverse** mode, and `validate()` refuses it
-("Time-adaptive training is available for forward problems only"). ODE: the window still offers the choice,
-but the generator solves an ODE as a 1D problem in \( t \) and switches time windows off, so the run trains
-the whole interval at once.
+Stationary: the window disables **Time Adaptive Training**, and `validate()` refuses a problem file that has
+both ("Time-adaptive training needs a time-dependent problem"). Inverse: the window removes the choice in
+**Inverse** mode, and `validate()` refuses it ("Time-adaptive training is available for forward problems only").
+ODE: the window still offers the choice, and `validate()` refuses it (an ODE is solved as a problem in \( t \)
+without a separate time axis, so there are no windows to step through). Before v1.6.0 the scripts switched time
+windows off silently in the stationary and ODE cases.
 
 **Causal training.** Examples: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)
 (Settings: Tuned, and Inverse mode). Refused for a stationary problem ("Causal training needs a time-dependent

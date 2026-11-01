@@ -93,7 +93,7 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
     - **Network:** multi-scale Fourier-feature network (MsFFN), hidden layers 5 × 256, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; Fourier-feature scales 1, 5
     - **Points:** 10,000 domain, 200 boundary, 512 initial, 1,000 test
     - **Loss weights:** `1.0,1.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** [causal training](../../reference/causal.md); [multi-scale Fourier features](../../reference/networks.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+    - **Methods:** [causal training](../../reference/causal.md); [multi-scale Fourier features](../../reference/networks.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -107,7 +107,7 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 - **Network:** multi-scale Fourier-feature network (MsFFN), hidden layers 4 × 128, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; Fourier-feature scales 1, 5
 - **Points:** 10,000 domain, 200 boundary, 512 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
-- **Methods:** [causal training](../../reference/causal.md); [multi-scale Fourier features](../../reference/networks.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+- **Methods:** [causal training](../../reference/causal.md); [multi-scale Fourier features](../../reference/networks.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|

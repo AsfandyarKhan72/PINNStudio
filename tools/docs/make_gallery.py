@@ -544,8 +544,8 @@ _METHOD_PAGES = [("bc-PINN", "time-windows.md"), ("growing time range", "time-wi
                  ("guided learning", "pretraining.md"), ("pre-training", "pretraining.md"),
                  ("RAR", "rar.md"), ("causal training", "causal.md"), ("point weights", "point-weights.md"),
                  ("Fourier features", "networks.md"), ("output transform", "networks.md"),
-                 ("input features", "networks.md"), ("exact initial condition", "exact-constraints.md"),
-                 ("exact periodicity", "exact-constraints.md"), ("initial losses", "loss-weights.md")]
+                 ("exact periodicity", "exact-constraints.md"), ("input features", "networks.md"),
+                 ("exact initial condition", "exact-constraints.md"), ("initial losses", "loss-weights.md")]
 
 
 def _link_method(text):

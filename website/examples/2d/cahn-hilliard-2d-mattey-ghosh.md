@@ -92,7 +92,7 @@ From the benchmark records: same template, switched to **Inverse**, recovering \
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -106,7 +106,7 @@ From the benchmark records: same template, switched to **Inverse**, recovering \
 - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
-- **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+- **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -120,7 +120,7 @@ From the benchmark records: same template, switched to **Inverse**, recovering \
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
-    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
+    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
