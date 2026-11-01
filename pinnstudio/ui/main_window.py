@@ -11400,6 +11400,15 @@ class MainWindow(QMainWindow):
             c.ea_ref_mode = 'formula'
             c.ea_ref_formula = ea.get('ref_formula') or c.ea_ref_formula
             c.ea_ref_times = ea.get('ref_times') or c.ea_ref_times
+            # model_config.json does not store the run folder: find it from the model file, which sits in
+            # <run>/solution_results/ (or a sub-folder of it), the folder that holds reference_from_formula/
+            _mp = self.restore_model_path.text().strip() if hasattr(self, "restore_model_path") else ""
+            _d = os.path.dirname(os.path.abspath(_mp)) if _mp else ""
+            for _ in range(4):
+                if _d and os.path.isdir(os.path.join(_d, "reference_from_formula")):
+                    c.save_dir = _d
+                    break
+                _d = os.path.dirname(_d) if _d else ""
             files = [(t, pth, i) for t, pth, i, _e in _formula_reference_entries(c) if os.path.isfile(pth)]
         except Exception:
             return ea
