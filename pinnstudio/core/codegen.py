@@ -3359,6 +3359,13 @@ if {config.time_adaptive}:
             model_i.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights=_rs_w)
             lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
+        if _ta_rs_rounds > 0 and _use_save:
+            # the window's final network is the one after resampling: save it, so Error Analysis and
+            # Restore use the same network as the plots and the next window (they look for this file first)
+            _step_dir_rs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+            _os.makedirs(_step_dir_rs, exist_ok=True)
+            _rs_saved = model_i.save(_os.path.join(_step_dir_rs, "model_resampled"))
+            print(f"  Window model after resampling saved: {{_rs_saved}}")
 
         if _is_3d or _is_2d:
             # 2D/3D: predict at t=t1 on the window grid itself -- the box grid,
@@ -3735,6 +3742,11 @@ if {config.time_adaptive}:
                 if _lbfgs_pts:
                     _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
                     print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
+            _rs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_resampled*.pt")))
+            if _rs_pts:
+                # the window's final network when it was resampled (saved after the resampling rounds)
+                _prev_step_model_path = max(_rs_pts, key=_os.path.getmtime)
+                print(f"  Transfer learning source (after resampling): {{_os.path.basename(_prev_step_model_path)}}")
             if not _prev_step_model_path:
                 # Fall back to adam
                 _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
@@ -3881,7 +3893,7 @@ if {config.time_adaptive}:
                         _sd_for_t = _sds; break
                 # Load step model
                 _spt_ta = ""
-                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                for _pat_ta in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                     _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
                     if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
                 try:
@@ -4094,7 +4106,7 @@ if {config.time_adaptive}:
                 _step_model = dde.Model(_step_data, _step_net)
 
                 _step_pt = ""
-                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                     _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                     if _step_pts:
                         _step_pt = max(_step_pts, key=_os.path.getmtime)
@@ -4234,7 +4246,7 @@ if {config.time_adaptive}:
                             _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
                             _model_l = dde.Model(_data_l, _net_l)
                             _pt_l = ""
-                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                            for _pat_l in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                                 _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
                                 if _pts_l:
                                     _pt_l = max(_pts_l, key=_os.path.getmtime)
@@ -4333,7 +4345,7 @@ if {config.time_adaptive}:
                             _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
                             _sm2 = dde.Model(_sd2, _sn2)
                             _spt2 = ""
-                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                            for _pat2 in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                                 _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
                                 if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
                             if _spt2:
@@ -6514,11 +6526,12 @@ def _bc_operator_fn(_expr):
         return eval(_code, _ns)
     return _f
 
+{_POINT_TABLE_READER}
 def _bc_load_points_file(_path, _bc_label, _n_values=1):
     if not _path or not _os.path.isfile(_path):
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs a points file, but "
                             f"'{{_path}}' was not found. Browse for a valid file in that BC's row.")
-    _data = np.loadtxt(_path, delimiter=",") if _path.lower().endswith(".csv") else np.loadtxt(_path)
+    _data = _read_point_table(_path)
     if _data.ndim == 1:
         _data = _data.reshape(1, -1)
     # _n_values > 1 is PointSetBC's multi-component case (component=[i, j,
@@ -8326,7 +8339,7 @@ for _pval in _param_values:
 
                         # Find best saved model for this step (lbfgs preferred)
                         _step_pt = ""
-                        for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                        for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                             _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                             if _step_pts:
                                 _step_pt = max(_step_pts, key=_os.path.getmtime)
@@ -10010,6 +10023,36 @@ def _panel_figsize(_pw, _ph, _ncols, _nrows):
     return (_pw * _ncols * _fw / 7.0, _ph * _nrows * _fh / 5.0)''' + _PLOT_TEXT_HELPERS
 
 
+# Reader for points files (Point Set BC rows, extra-points files): the same rules as the other data files.
+_POINT_TABLE_READER = '''def _read_point_table(path):
+    """Reads a points file like the other data files: commas, semicolons or spaces; header and comment lines,
+    rows with a missing value and rows with a different number of columns are skipped, with a note."""
+    rows = []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            parts = line.replace(",", " ").replace(";", " ").split()
+            if not parts or parts[0][0] in "#%":
+                continue
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue
+    lens = [len(r) for r in rows]
+    width = max(set(lens), key=lambda w: (lens.count(w), w)) if lens else 0   # the most common row length
+    data = np.array([r for r in rows if len(r) == width], dtype=float) if width else np.zeros((0, 0))
+    n_bad = len(rows) - len(data)
+    if width:
+        ok = np.all(np.isfinite(data), axis=1)
+        n_bad += int((~ok).sum())
+        data = data[ok]
+    if n_bad:
+        print("  Note: " + str(n_bad) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    if data.size == 0:
+        raise RuntimeError("No usable rows in points file " + repr(path))
+    return data
+
+'''
+
 _PLOT_TEXT_HELPERS = """
 
 def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
@@ -10483,7 +10526,8 @@ def _anchor_points_code(config):
         return "\n".join([
             "# Extra training points (anchors) from a file -- one column per input:",
             f"# {', '.join(c[0] for c in cols)}",
-            f"_user_anchors = np.loadtxt({path!r}, delimiter=',' if {path!r}.lower().endswith('.csv') else None, ndmin=2)",
+            _POINT_TABLE_READER.rstrip("\n"),
+            f"_user_anchors = _read_point_table({path!r})",
             f"if _user_anchors.shape[1] < {len(cols)}:",
             f"    raise RuntimeError(f'Anchor points file needs {len(cols)} columns ({', '.join(c[0] for c in cols)}), "
             "got {_user_anchors.shape[1]}.')",
@@ -12028,6 +12072,7 @@ if save_dir:
     return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
 
     if needs_points_loader:
+        parts.append(_POINT_TABLE_READER)
         parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}, n_values=1):
     """Loads a points file for a PointSetBC / PointSetOperatorBC row:
     n_coord_cols coordinate (+ time) columns, then n_values target value
@@ -12036,7 +12081,7 @@ if save_dir:
     component, in the same order DeepXDE expects."""
     if not path or not os.path.isfile(path):
         raise RuntimeError(f"Boundary condition points file not found: {{path!r}}")
-    data = np.loadtxt(path, delimiter=",") if path.lower().endswith(".csv") else np.loadtxt(path)
+    data = _read_point_table(path)
     if data.ndim == 1:
         data = data.reshape(1, -1)
     n_have = data.shape[1] - n_coord_cols

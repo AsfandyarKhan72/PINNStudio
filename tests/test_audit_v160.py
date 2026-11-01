@@ -498,3 +498,47 @@ def test_unsupported_derivative_names_are_refused():
         c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
                                 num_outputs=len(names.split(",")), pde_expressions=pde)
         assert not any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde
+
+
+def test_bc_output_beyond_the_problem_outputs_is_refused():
+    """A boundary-condition row for output 3 of a one-output problem passed validation (the Output box offers 1-10
+    whatever the problem has) and only failed inside DeepXDE."""
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    assert not [e for e in c.validate() if "applies to output" in e]
+    rows[0]["component"] = 2
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows))
+    assert any("BC 1 applies to output 3" in e for e in c.validate())
+
+
+def test_point_set_and_extra_points_files_are_read_like_the_other_data_files(tmp_path):
+    """Point Set BC files and extra-points files were read with np.loadtxt: no ';', no header, and a row with a
+    missing value went into training. They now use the same reader as measured-data, IC and reference files."""
+    import numpy as np
+    ns = {"np": np}
+    exec(codegen._POINT_TABLE_READER, ns)
+    f = tmp_path / "pts.txt"
+    f.write_text("# x y t u\n1.0;0.5;0.1;0\n1.0 0.2 0.3 0\n1.0,0.8,0.5,nan\n1.0 0.4\n")
+    data = ns["_read_point_table"](str(f))
+    assert data.shape == (2, 4) and np.isfinite(data).all()
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    rows.append({"type": "pointset", "component": 0, "location": "on_boundary", "value": "0", "points_mode": "file",
+                 "points_file": str(f), "values_mode": "file"})
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows), anchors_mode="file", anchors_file=str(f))
+    for script in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "def _read_point_table" in script and "np.loadtxt" not in script.split("def _read_point_table")[1][:3000]
+        assert "_user_anchors = _read_point_table(" in script
+
+
+def test_resampled_time_window_model_is_saved_and_used():
+    """Time windows with resampling rounds saved each window's model before the rounds, and Error Analysis and
+    Restore loaded that file, so they evaluated a different network from the plots and the next window."""
+    from pinnstudio.core import paper_settings
+    c = _template("1D Cahn-Hilliard")
+    c = paper_settings.apply(c, "paper_wz", "1D Cahn-Hilliard")    # Wight & Zhao's method: 2 resampling rounds per window
+    assert c.time_adaptive and c.ta_resample_rounds > 0
+    s = codegen.generate_script(c)
+    i_rs, i_save = s.index("Resampling round"), s.index('"model_resampled"')
+    assert i_save > i_rs
+    assert s.count('"model_resampled-*.pt"') >= 4
