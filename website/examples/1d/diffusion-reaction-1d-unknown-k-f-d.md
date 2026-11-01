@@ -83,22 +83,20 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - None bundled; you can add your own files in the **Error Analysis** dialog.
 
-## Source and citation
-
-- DeepXDE script: [reaction_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/reaction_inverse.py)
-- DeepXDE documentation: [reaction.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html)
-- Source paper (from the benchmark records): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
-
 ## Notes
 
 - Unknown kf (true 0.1) and D (true 2, i.e. diffusion 2e-3). Measured ca, cb computed by tools/make_deepxde_reference_data.py (DeepXDE uses its reaction.npz).
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%E2%80%93%20unknown%20k_f%2C%20D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-reaction-system) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-reaction-1d-unknown-k-f-d.md) (`benchmarks/problems/diffusion-reaction-1d-unknown-k-f-d.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Inverse: diffusion-reaction system" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** none bundled
+- **Measured data** (Inverse): [`reference_data/deepxde/reaction_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/reaction_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/diffusion-reaction-1d-unknown-k-f-d.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-reaction-1d-unknown-k-f-d.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-reaction-system), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%E2%80%93%20unknown%20k_f%2C%20D%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [reaction_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/reaction_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

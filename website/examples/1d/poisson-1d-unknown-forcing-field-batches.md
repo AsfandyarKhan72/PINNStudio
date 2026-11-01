@@ -77,20 +77,20 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = sin(pi*x)`, `q = -pi**2*sin(pi*x)`
 
-## Source and citation
-
-- DeepXDE script: [elliptic_inverse_field_batch.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
-
 ## Notes
 
 - 10,000 measurements of u, used 100 at a time (resampled every iteration). The boundary value sin(pi x) in DeepXDE's script is 0 at x = -1 and 1.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%201D%20%E2%80%93%20unknown%20forcing%20field%20%28batches%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-1d-unknown-forcing-field-batches.md) (`benchmarks/problems/poisson-1d-unknown-forcing-field-batches.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Inverse: Poisson with unknown forcing field (batches)" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Settings: Tuned: entry "Inverse: Poisson with unknown forcing field (batches)" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Benchmark records:** [`benchmarks/problems/poisson-1d-unknown-forcing-field-batches.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-1d-unknown-forcing-field-batches.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%201D%20%E2%80%93%20unknown%20forcing%20field%20%28batches%29%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [elliptic_inverse_field_batch.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

@@ -62,21 +62,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = (x + 1)**2`
 
-## Source and citation
-
-- DeepXDE script: [Poisson_Robin_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Robin_1d.py)
-- DeepXDE documentation: [poisson.1d.dirichletrobin.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html)
-
 ## Notes
 
 - DeepXDE's script passes (x + 1)^2 as the left boundary value; it is 0 at x = -1.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%201D%20%E2%80%93%20Dirichlet%20-%20Robin%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-1d-dirichlet-robin) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-1d-dirichlet-robin.md) (`benchmarks/problems/poisson-1d-dirichlet-robin.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Poisson 1D – Dirichlet/Robin" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Benchmark records:** [`benchmarks/problems/poisson-1d-dirichlet-robin.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-1d-dirichlet-robin.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-1d-dirichlet-robin), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%201D%20%E2%80%93%20Dirichlet%20-%20Robin%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Poisson_Robin_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Robin_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

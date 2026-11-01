@@ -135,23 +135,22 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/1D/schrodinger/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/schrodinger)
 
-## Source and citation
-
-- DeepXDE script: [Schrodinger.ipynb](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
-- Source paper (from the benchmark records): [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
-
 ## Notes
 
 - |h| = sqrt(u^2 + v^2) is compared against a Fourier pseudo-spectral (split-step) solution in PINNStudio's reference_data/1D/schrodinger.
 - Inverse mode (PINNStudio's addition): the coefficient c (0.5 in the equations; initial guess 1) is learned from |h| = sqrt(u^2 + v^2) measured at t = 0.75, with the forward example's training. |h| at t = 1.5 alone would not do: c = 1.95 reproduces it almost as well as c = 0.5.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Schrödinger 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Schrödinger 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-schr-dinger-equation) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/schr-dinger-1d.md) (`benchmarks/problems/schr-dinger-1d.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Schrödinger equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Settings: Tuned: entry "Schrödinger equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/1D/schrodinger/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/schrodinger), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/1D/schrodinger/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/schrodinger), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/schr-dinger-1d.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/schr-dinger-1d.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-schr-dinger-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Schrödinger 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%20%28tuned%29.pinn.json), [`Schrödinger 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Schr%C3%B6dinger%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Schrodinger.ipynb](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Raissi et al. 2019](../../about/references.md#raissi2019)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

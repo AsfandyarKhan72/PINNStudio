@@ -67,20 +67,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = sin(k0*x)*sin(k0*y)`
 
-## Source and citation
-
-- DeepXDE script: [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
-- Source paper (from the benchmark records): [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
-
 ## Notes
 
 - Bayesian search over learning rate (1e-4 to 5e-2, log scale), hidden layers (1 to 10), neurons per layer (5 to 500) and activation (sin, sigmoid, tanh): the baseline (1e-3, 4 x 50, sin) and 9 random runs (10 before the model, the baseline counted), then runs chosen by a Gaussian-process model, 50 in all (Parameter Sweep, mode Bayesian search). Each run minimizes the final training loss (DeepXDE's script uses the lowest test loss). Click Run Sweep.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-hyperparameter-search.md) (`benchmarks/problems/helmholtz-2d-hyperparameter-search.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Helmholtz 2D – hyperparameter optimization" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Benchmark records:** [`benchmarks/problems/helmholtz-2d-hyperparameter-search.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-hyperparameter-search.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
+- **DeepXDE example:** [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Escapil-Inchauspé & Ruz 2023](../../about/references.md#escapil2023)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

@@ -83,21 +83,20 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/deepxde/lorenz_forced/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz_forced)
 
-## Source and citation
-
-- DeepXDE script: [Lorenz_inverse_forced.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py)
-- DeepXDE documentation: [lorenz.inverse.forced.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/lorenz.inverse.forced.html)
-
 ## Notes
 
 - As the Lorenz example with an exogenous input 10 sin(2 pi t) in the third equation, written as a formula (DeepXDE's script interpolates samples of the same function); measurements at 200 times.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lorenz%20ODE%20%E2%80%93%20unknown%20C%E2%82%81%2C%20C%E2%82%82%2C%20C%E2%82%83%2C%20exogenous%20input%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-lorenz-system-with-exogenous-input) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lorenz-ode-unknown-c-c-c-exogenous-input.md) (`benchmarks/problems/lorenz-ode-unknown-c-c-c-exogenous-input.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Inverse: Lorenz system with exogenous input" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/deepxde/lorenz_forced/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz_forced), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/deepxde/lorenz_forced/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz_forced), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/lorenz-ode-unknown-c-c-c-exogenous-input.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lorenz-ode-unknown-c-c-c-exogenous-input.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-lorenz-system-with-exogenous-input), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lorenz%20ODE%20%E2%80%93%20unknown%20C%E2%82%81%2C%20C%E2%82%82%2C%20C%E2%82%83%2C%20exogenous%20input%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Lorenz_inverse_forced.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/lorenz.inverse.forced.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

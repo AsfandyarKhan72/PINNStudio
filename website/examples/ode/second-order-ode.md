@@ -113,23 +113,23 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = 50/81 + t*5/9 - 2*exp(t) + 31/81*exp(9*t)`
 
-## Source and citation
-
-- DeepXDE script: [ode_2nd.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py)
-- DeepXDE documentation: [ode.2nd.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html)
-
 ## Notes
 
 - u(0) = -1 is the initial condition; u'(0) = 2 is an Operator BC 'du_t - 2' at the initial time.
 - Inverse mode (PINNStudio's addition): the coefficients a (10 in the forward equation; initial guess 5) and b (9; initial guess 4.5) of u'' - a u' + b u = 5t are learned from u at 30 times (reference_data/deepxde/ode2_inverse). An L-BFGS phase follows Adam.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Second-order ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Second-order%20ODE%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Second-order ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Second-order%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-second-order-ode) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/second-order-ode.md) (`benchmarks/problems/second-order-ode.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Second-order ODE" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Second-order ODE"]`, same file
+    - Settings: Tuned: entry "Second-order ODE" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Measured data** (Inverse): [`reference_data/deepxde/ode2_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/ode2_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/second-order-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/second-order-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-second-order-ode), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Second-order ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Second-order%20ODE%20%28tuned%29.pinn.json), [`Second-order ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Second-order%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [ode_2nd.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

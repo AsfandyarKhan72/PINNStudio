@@ -105,24 +105,23 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/2D/poisson_lshape/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/poisson_lshape)
 
-## Source and citation
-
-- DeepXDE script: [Poisson_Lshape.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py)
-- DeepXDE documentation: [poisson.Lshape.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html)
-- Source paper (from the benchmark records): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
-
 ## Notes
 
 - Compared against PINNStudio's own reference solution for this problem. The source term is the constant f = 1 (DeepXDE's script writes 1), so that Inverse mode can learn it.
 - Inverse mode (PINNStudio's addition): the source term f is unknown (initial guess 0.1, true 1) and learned from measurements of u (reference_data/2D/poisson_lshape/u_obs.txt).
 - PINNStudio's own L-shape template is not listed separately: this DeepXDE example is the same problem (HIDDEN_TEMPLATES in example_catalog.py).
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Poisson 2D – L-shape (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%202D%20%E2%80%93%20L-shape%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-over-an-l-shaped-domain) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-2d-l-shape.md) (`benchmarks/problems/poisson-2d-l-shape.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Poisson over an L-shaped domain" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Settings: Tuned: entry "Poisson over an L-shaped domain" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/2D/poisson_lshape/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/poisson_lshape), written by [`tools/make_poisson_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_poisson_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/2D/poisson_lshape/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/poisson_lshape), written by [`tools/make_poisson_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_poisson_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/poisson-2d-l-shape.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-2d-l-shape.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-over-an-l-shaped-domain), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Poisson 2D – L-shape (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%202D%20%E2%80%93%20L-shape%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Poisson_Lshape.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

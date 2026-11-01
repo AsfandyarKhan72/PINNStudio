@@ -131,23 +131,23 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = x*cos(t)`
 
-## Source and citation
-
-- DeepXDE script: [Klein_Gordon.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Klein_Gordon.py)
-- DeepXDE documentation: [klein.gordon.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html)
-
 ## Notes
 
 - The second initial condition du/dt = 0 is applied at t = 0. (DeepXDE's script passes it to an OperatorBC, which selects spatial-boundary points rather than t = 0.)
 - Inverse mode (PINNStudio's addition): the coefficient gamma of the nonlinear term (initial guess 0.5, true 1) is learned from u measured at t = 1, 2, ..., 10 (reference_data/deepxde/klein_gordon_inverse). alpha and beta stay known: the solution u = x cos t has u_xx = 0, so the data cannot tell alpha, and beta = 0.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Klein-Gordon 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Klein-Gordon%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Klein-Gordon 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Klein-Gordon%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-klein-gordon-equation) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/klein-gordon-1d.md) (`benchmarks/problems/klein-gordon-1d.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Klein-Gordon equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Klein-Gordon equation"]`, same file
+    - Settings: Tuned: entry "Klein-Gordon equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Measured data** (Inverse): [`reference_data/deepxde/klein_gordon_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/klein_gordon_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/klein-gordon-1d.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/klein-gordon-1d.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-klein-gordon-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Klein-Gordon 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Klein-Gordon%201D%20%28tuned%29.pinn.json), [`Klein-Gordon 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Klein-Gordon%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Klein_Gordon.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Klein_Gordon.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

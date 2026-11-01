@@ -76,20 +76,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = exp(-(x**2 + y**2 + z**2))`
 
-## Source and citation
-
-- PINNStudio's own problem (no source paper).
-
 ## Notes
 
 - A cube [-1, 1]^3 with a sphere of radius R = 0.7 centred on its top face subtracted (Geometry -> Custom); u = exp(-(x^2 + y^2 + z^2)) on the cube's faces (Dirichlet, the named sides) and its normal derivative on the spherical surface (Neumann, a coordinate expression); compared with the exact solution.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%203D%20%E2%80%93%20cube%20with%20spherical%20cut-out%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-poisson-cube-with-spherical-cut-out) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-3d-cube-with-spherical-cut-out.md) (`benchmarks/problems/poisson-3d-cube-with-spherical-cut-out.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "3D Poisson (Cube with spherical cut-out)" in [`pinnstudio/core/pinnstudio_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/pinnstudio_examples.py)
+    - Settings: Tuned: entry "3D Poisson (Cube with spherical cut-out)" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Benchmark records:** [`benchmarks/problems/poisson-3d-cube-with-spherical-cut-out.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/poisson-3d-cube-with-spherical-cut-out.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-poisson-cube-with-spherical-cut-out), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%203D%20%E2%80%93%20cube%20with%20spherical%20cut-out%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json)
+- **Cite:** PINNStudio's own problem (no source paper)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

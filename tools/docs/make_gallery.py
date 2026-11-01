@@ -28,6 +28,14 @@ What is read:
   reads another copy. Also ``benchmarks/problems/index.json`` (benchmark record per example),
   ``benchmarks/tuning/*.pinn.json`` (configuration files) and ``reference_data/``.
 
+Each page ends with *Definition and records*: where the example is defined in the code (the template in
+``MainWindow._on_template_selected``, the ``EXAMPLES`` entry of ``deepxde_examples.py`` / ``pinnstudio_examples.py``,
+its Inverse mode, paper and Tuned settings), the reference and measured data with the script that writes each folder
+(``_REF_GENERATORS``; a folder it does not classify stops the run), the benchmark records, the method pages, and the
+citation from ``website/about/references.md`` (DeepXDE for a DeepXDE example, and the entry whose DOI/arXiv link or
+author and year is the example's paper, or that names the example). Links to repository files use
+``extra.repo_blob`` + ``extra.source_ref`` of ``mkdocs.yml``, like ``tools/docs/make_source_links.py``.
+
 Images: only existing result images from the repository (``assets/Images``, ``docs/assets``),
 copied to ``website/assets/images/examples/``; the list ``IMAGES`` below says which example
 each one shows and where it comes from. No numerical results are written on the pages.
@@ -53,9 +61,29 @@ WEB = REPO / "website"
 OUT = WEB / "examples"
 IMG_DIR = WEB / "assets" / "images" / "examples"
 REF_ROOT = REPO / "reference_data"
-GH = "https://github.com/AsfandyarKhan72/PINNStudio"
-GH_BLOB = GH + "/blob/main/"
-GH_TREE = GH + "/tree/main/"
+sys.path.insert(0, str(REPO / "tools" / "docs"))
+from make_source_links import mkdocs_extra   # noqa: E402  (extra.repo_blob and extra.source_ref of mkdocs.yml)
+
+_BLOB, SOURCE_REF = mkdocs_extra(REPO / "mkdocs.yml")
+GH_BLOB = f"{_BLOB}{SOURCE_REF}/"                     # links to files: one base, set in mkdocs.yml
+GH_TREE = GH_BLOB.replace("/blob/", "/tree/", 1)      # links to folders
+REFERENCES = WEB / "about" / "references.md"
+
+# Which script writes each reference-data folder (checked in _ref_generator: the script exists and names the
+# folder). None: the folder has no generator script in tools/; it is checked by an independent solution instead.
+_REF_GENERATORS = {
+    **{f"reference_data/1D/{d}": "tools/make_exact_reference_data.py"
+       for d in ("burgers", "heat", "schrodinger", "allen_cahn", "cahn_hilliard", "fisher_kpp")},
+    **{d: "tools/make_phase_field_reference_data.py"
+       for d in ("reference_data/1D/cahn_hilliard_mattey", "reference_data/2D/cahn_hilliard_wight",
+                 "reference_data/2D/cahn_hilliard_mattey", "reference_data/3D/allen_cahn_wight")},
+    "reference_data/2D/burgers_mathias": "tools/make_burgers2d_reference_data.py",
+    **{d: "tools/make_poisson_reference_data.py"
+       for d in ("reference_data/2D/poisson_disk", "reference_data/2D/poisson_lshape", "reference_data/3D/poisson_sphere")},
+    **{d: None for d in ("reference_data/2D/heat", "reference_data/3D/heat", "reference_data/2D/allen_cahn_mattey",
+                         "reference_data/2D/allen_cahn_wight")},
+}
+_REF_CHECK = "benchmarks/reference_regeneration/check_other_references.py"
 DIM_DIRS = {"ODE": "ode", "1D": "1d", "2D": "2d", "3D": "3d"}
 
 # Files whose content decides what a template loads with (cache key).
@@ -639,6 +667,235 @@ def _ref_folders(cfg):
     return seen, obs
 
 
+def _blob(path, label=None):
+    return f"[`{label or path}`]({GH_BLOB}{urllib.parse.quote(path)})"
+
+
+def _ref_generator(folder):
+    """The script in tools/ that writes a reference-data folder, or None (no generator script: checked by
+    _REF_CHECK). LookupError for a folder _REF_GENERATORS does not classify or a script that does not name it."""
+    folder = folder.rstrip("/")
+    script = ("tools/make_deepxde_reference_data.py" if folder.startswith("reference_data/deepxde/")
+              else _REF_GENERATORS.get(folder, "?"))
+    if script == "?":
+        raise LookupError(f"reference-data folder {folder}: say in _REF_GENERATORS (make_gallery.py) which "
+                          "script writes it, or None")
+    check = script or _REF_CHECK
+    if os.path.basename(folder) not in (REPO / check).read_text(encoding="utf-8"):
+        raise LookupError(f"{check} does not name {folder}")
+    return script
+
+
+def _ref_data_lines(rec):
+    """'- **Reference data:** ...' (what Error Analysis compares with) and, for an Inverse mode,
+    '- **Measured data:** ...', each folder with the script that writes it."""
+    ea_folders, obs_folders, formula = [], [], False
+    for m in rec["modes"].values():
+        cfg = m["cfg"]
+        ea, obs = _ref_folders(cfg)
+        if cfg.ea_ref_mode == "formula" and (cfg.ea_ref_formula or "").strip():
+            formula, ea = True, []
+        for f in ea:
+            if f not in ea_folders:
+                ea_folders.append(f)
+        for f in (os.path.dirname(o) for o in obs):
+            if f not in obs_folders:
+                obs_folders.append(f)
+
+    def describe(folders):
+        by_script = {}
+        for f in folders:
+            by_script.setdefault(_ref_generator(f), []).append(f)
+        parts = []
+        for script, fs in by_script.items():
+            where = ", ".join(f"[`{f}/`]({GH_TREE}{f})" for f in fs)
+            parts.append(f"{where}, written by {_blob(script)}" if script else
+                         f"{where}, no generator script in the repository (checked against an independent "
+                         f"solution by {_blob(_REF_CHECK)})")
+        return parts
+
+    ref = describe(ea_folders)
+    if formula:
+        ref.append("the exact-solution formula under *Reference solution* (no data files)")
+    out = ["- **Reference data:** " + ("; ".join(ref) if ref else "none bundled")]
+    if obs_folders:
+        out.append("- **Measured data** (Inverse): " + "; ".join(describe(obs_folders)))
+    return out
+
+
+_REF_CACHE = []
+
+
+def _references():
+    """[(anchor, heading, urls, example names in italics)] of the entries of about/references.md."""
+    if not _REF_CACHE:
+        text = REFERENCES.read_text(encoding="utf-8")
+        for m in re.finditer(r"(?ms)^### (.+?) \{#([a-z0-9]+)\}\n(.*?)(?=^##|\Z)", text):
+            urls = {_norm_url(u) for u in re.findall(r"https?://[^\s)>\]]+", m.group(3))}
+            names = set(re.findall(r"\*([^*\n]+)\*", m.group(3)))
+            _REF_CACHE.append((m.group(2), m.group(1).strip(), urls, names))
+    return _REF_CACHE
+
+
+def _norm_url(u):
+    return u.rstrip(".,;").lower()
+
+
+def _author_year(text):
+    """('lu', '2021') from a citation such as '[Lu, Meng, Mao & Karniadakis (2021), ...' or 'Lu et al. 2021'."""
+    m = re.match(r"\W*([^\W\d_][\w\-]*)", text or "")
+    y = re.search(r"\b(19|20)\d\d\b", text or "")
+    return (m.group(1).lower(), y.group(0)) if m and y else None
+
+
+def _paper_entries(paper_text):
+    """Anchors of the reference entries that are the paper in `paper_text`: the entries with the same DOI or arXiv
+    link; failing that, the one entry with the same first author and year (none if that is ambiguous)."""
+    urls = {_norm_url(u) for u in re.findall(r"https?://[^\s)>\]]+", paper_text or "")}
+    by_url = [key for key, _, rurls, _ in _references() if urls & rurls]
+    if by_url:
+        return by_url
+    for keyfn in (_authors_year, _author_year):          # all authors and year, then first author and year
+        ay = keyfn(paper_text)
+        found = [key for key, head, _, _ in _references() if ay is not None and ay == keyfn(head)]
+        if len(found) == 1:
+            return found
+    return []
+
+
+def _authors_year(text):
+    """('wang, wang & perdikaris', '2021') from '[Wang, Wang & Perdikaris (2021), ...' or 'Wang, Wang & Perdikaris 2021'."""
+    m = re.match(r"\W*(.+?)\s*\(?\b((?:19|20)\d\d)\b", text or "")
+    return (m.group(1).lower().strip(" ,"), m.group(2)) if m else None
+
+
+def _citations(e, paper_line):
+    """Anchors of about/references.md this example cites: DeepXDE for a DeepXDE example, and every entry whose DOI or
+    arXiv link is the example's paper or that names the example (in italics) as following it."""
+    from pinnstudio.core import example_catalog as cat
+    paper = paper_line or (f"{e.reference} {cat.PAPERS.get(e.reference, '')}" if e.source == cat.PINNSTUDIO else "")
+    out = ["lu2021deepxde"] if e.source == cat.DEEPXDE else []
+    for key in _paper_entries(paper) + [k for k, _, _, names in _references() if e.name in names]:
+        if key not in out:
+            out.append(key)
+    return [(k, h) for k in out for key, h, _, _ in _references() if key == k]
+
+
+def _definition_lines(rec):
+    """Where the example is defined in the code: '- **Definition:** ...' plus sub-items."""
+    from pinnstudio.core import example_catalog as cat, deepxde_examples as dx, paper_settings as ps
+    from pinnstudio.ui.main_window import MainWindow
+    e, modes = rec["entry"], rec["modes"]
+    sub = []
+    if e.key in cat.TEMPLATE_KEYS:
+        mw = "pinnstudio/ui/main_window.py"
+        if f'"{e.key}"' not in _method_source(mw, "MainWindow", "_on_template_selected"):
+            raise LookupError(f"template {e.key!r} is not set up in MainWindow._on_template_selected")
+        head = f'template "{e.key}" in `MainWindow._on_template_selected`, {_blob(mw)}'
+        if True in modes and e.key in MainWindow.INVERSE_AUTO_VARS:
+            sub.append(f'Inverse mode: `MainWindow.INVERSE_AUTO_VARS["{e.key}"]` (unknowns) and '
+                       f'`INVERSE_AUTO_OBS["{e.key}"]` (measured data), same file')
+        paper = ps.TEMPLATE_PAPER.get(e.key)
+        fn = ps.PAPER.get((e.key, paper))
+        if fn is not None and any(m["paper_default"] for m in modes.values()):
+            sub.append(f"Settings: Default (the paper's method): `{fn.__name__}` in "
+                       f"{_blob('pinnstudio/core/paper_settings.py')}")
+    elif e.key in dx.BY_NAME:
+        path = "pinnstudio/core/deepxde_examples.py"
+        head = f'`EXAMPLES` entry "{e.key}" in {_blob(path)}'
+        if e.key in dx.ADDED_INVERSE:
+            sub.append(f'Inverse mode (PINNStudio\'s addition): `ADDED_INVERSE["{e.key}"]`, same file')
+    else:
+        head = f'`EXAMPLES` entry "{e.key}" in {_blob("pinnstudio/core/pinnstudio_examples.py")}'
+    if any(m["has_tuned"] for m in modes.values()):
+        sub.append(f'Settings: Tuned: entry "{e.key}" in {_blob("pinnstudio/resources/tuned_settings.json")}')
+    return [f"- **Definition:** {head}"] + [f"    - {x}" for x in sub]
+
+
+_SRC_CACHE = {}
+
+
+def _method_source(path, cls, name):
+    if (path, cls, name) not in _SRC_CACHE:
+        text = (REPO / path).read_text(encoding="utf-8")
+        node = next(n for n in ast.parse(text).body if isinstance(n, ast.ClassDef) and n.name == cls)
+        fn = next(n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == name)
+        _SRC_CACHE[(path, cls, name)] = "\n".join(text.split("\n")[fn.lineno - 1:fn.end_lineno])
+    return _SRC_CACHE[(path, cls, name)]
+
+
+def _method_links(rec, root_rel):
+    """The reference pages of the training methods the Default and Tuned settings use, in _METHOD_PAGES order."""
+    used = []
+    for m in rec["modes"].values():
+        for c in (m["default"], m["tuned"]):
+            if c is None:
+                continue
+            for text in _methods(c):
+                page = next((pg for key, pg in _METHOD_PAGES if key in text), None)
+                if page and page not in used:
+                    used.append(page)
+    order = [pg for _, pg in _METHOD_PAGES]
+    used.sort(key=order.index)
+    out = []
+    for pg in used:
+        lines = (WEB / "reference" / pg).read_text(encoding="utf-8").splitlines()
+        title = next(x[2:].strip() for x in lines if x.startswith("# "))
+        out.append(f"[{title}]({root_rel}reference/{pg})")
+    return out
+
+
+def _records_list(rec, paper_line, after_line, root_rel):
+    from pinnstudio.core import example_catalog as cat
+    e, ex = rec["entry"], rec["example"]
+    L = _definition_lines(rec)
+    L.append("- **Equations:** [Governing equations](#governing-equations) on this page")
+    L += _ref_data_lines(rec)
+    if rec["bench"]:
+        b = rec["bench"]
+        rec_links = [_blob(f"benchmarks/problems/{b['file']}")]
+        if SRC["anchor_url"]:
+            rec_links.append(f"its entry in the [examples overview]({GH_BLOB}benchmarks/examples.md#{b['anchor']})")
+        rec_links.append(f"the [benchmark collection]({GH_BLOB}benchmarks/README.md)")
+        L.append("- **Benchmark records:** " + ", ".join(rec_links))
+    if rec["tuned_files"]:
+        L.append("- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved "
+                 "Problem...**; not presets of the Examples list): "
+                 + ", ".join(_blob(f"benchmarks/tuning/{f}", f) for f in rec["tuned_files"]))
+    if not rec["bench"] and not rec["tuned_files"]:
+        L.append("- **Benchmark records:** none for this example")
+    meth = _method_links(rec, root_rel)
+    if meth:
+        L.append("- **Methods** (Default and Tuned settings): " + ", ".join(meth))
+    if e.source == cat.DEEPXDE:
+        url = cat.code_url(ex.source)
+        doc = f" ([documentation]({ex.source}))" if "readthedocs" in ex.source else ""
+        L.append(f"- **DeepXDE example:** [{url.rsplit('/', 1)[-1]}]({url}){doc}")
+    cites = _citations(e, paper_line)
+    if cites:
+        links = [f"[{h}]({root_rel}about/references.md#{k})" for k, h in cites]
+        if e.source == cat.DEEPXDE:      # DeepXDE first; a further entry is the paper the example's problem is from
+            text = links[0] + " (DeepXDE)" + (f"; the problem follows {', '.join(links[1:])}" if links[1:] else "")
+        else:
+            text = "; ".join(links)
+        L.append("- **Cite:** " + text)
+    elif e.source == cat.DEEPXDE and paper_line:
+        L.append(f"- **Source paper** (from {SRC['label']}): {paper_line}")
+    elif e.reference:
+        link = cat.PAPERS.get(e.reference, "")
+        L.append(f"- **Paper:** [{e.reference}]({link})" if link else f"- **Paper:** {e.reference}")
+    else:
+        L.append("- **Cite:** PINNStudio's own problem (no source paper)")
+    if e.source == cat.DEEPXDE and paper_line and cites and not _paper_cited(paper_line, cites):
+        L.append(f"- **Source paper** (from {SRC['label']}): {paper_line}")
+    return L
+
+
+def _paper_cited(paper_line, cites):
+    """Whether the paper of the records' source-paper line is one of the cited reference entries."""
+    return bool(set(_paper_entries(paper_line)) & {k for k, _ in cites})
+
+
 def _gui_path(entry, inverse, tuned):
     cat_name = "Inverse" if inverse else "Forward"
     return (f"toolbar **Examples:** › **{cat_name}** › under the **── {entry.dim} ──** heading, "
@@ -783,7 +1040,7 @@ def _page(rec, images, root_rel):
             L += ["No **Tuned** choice in the GUI: the **Tuned** item is greyed out for this example. "
                   "`pinnstudio/resources/tuned_settings.json` does hold a tuned setting for it (under its inverse "
                   "entry), but the example loads as a Forward problem, so the Examples list does not offer it. "
-                  "The tuning-study configuration file is linked under *Configuration and benchmark records*.", ""]
+                  "The tuning-study configuration file is linked under *Definition and records*.", ""]
         else:
             L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example "
                   "(its Default settings are PINNStudio's best).", ""]
@@ -820,24 +1077,6 @@ def _page(rec, images, root_rel):
         ref_lines = ["- " + b0[0].upper() + b0[1:]]
     L += ref_lines + [""]
 
-    # source and citation
-    L += ["## Source and citation", ""]
-    if e.source == cat.DEEPXDE:
-        L.append(f"- DeepXDE script: [{cat.code_url(ex.source).rsplit('/', 1)[-1]}]({cat.code_url(ex.source)})")
-        if "readthedocs" in ex.source:
-            L.append(f"- DeepXDE documentation: [{ex.source.rsplit('/', 1)[-1]}]({ex.source})")
-        if paper_line:
-            L.append(f"- Source paper (from {SRC['label']}): {paper_line}")
-    else:
-        if e.reference:
-            link = cat.PAPERS.get(e.reference, "")
-            L.append(f"- Paper: [{e.reference}]({link})" if link else f"- Paper: {e.reference}")
-            if after_line:
-                L.append(f"- From {SRC['label']}: {after_line}")
-        else:
-            L.append("- PINNStudio's own problem (no source paper).")
-    L.append("")
-
     # notes
     notes = []
     if ex is not None and ex.note:
@@ -856,24 +1095,10 @@ def _page(rec, images, root_rel):
     if notes:
         L += ["## Notes", ""] + [f"- {_md_math(n)}" for n in notes] + [""]
 
-    # configuration and benchmark records
-    L += ["## Configuration and benchmark records", ""]
-    links = []
-    for f in rec["tuned_files"]:
-        links.append(f"- [`benchmarks/tuning/{f}`]({GH_BLOB}benchmarks/tuning/{urllib.parse.quote(f)}) — "
-                     "a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)")
-    if rec["bench"] and SRC["anchor_url"]:
-        links.append(f"- [Entry in the examples overview]({GH_BLOB}benchmarks/examples.md#{rec['bench']['anchor']}) "
-                     "(`benchmarks/examples.md`)")
-    if rec["bench"]:
-        links.append(f"- [Benchmark record]({GH_BLOB}benchmarks/problems/{rec['bench']['file']}) "
-                     f"(`benchmarks/problems/{rec['bench']['file']}`)")
-        links.append(f"- [Entry in the benchmark collection]({GH_BLOB}benchmarks/README.md)"
-                     " (`benchmarks/README.md`)")
-    if not links:
-        links.append("- No configuration file or benchmark record for this example.")
-    L += links + ["", "Verified error values are reported in the [Reproducibility](" + root_rel +
-                  "reproducibility/benchmarks.md) section, not on this page.", ""]
+    # definition and records: where the example is defined, its data, records and citation
+    L += ["## Definition and records", ""] + _records_list(rec, paper_line, after_line, root_rel)
+    L += ["", "Verified error values are reported in the [Reproducibility](" + root_rel +
+          "reproducibility/benchmarks.md) section, not on this page.", ""]
     L += ["[← Back to the example gallery](../index.md)", ""]
     return "\n".join(L)
 

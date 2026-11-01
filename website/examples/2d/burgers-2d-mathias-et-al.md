@@ -132,17 +132,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/2D/burgers_mathias/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/burgers_mathias)
 
-## Source and citation
+## Definition and records
 
-- Paper: [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824)
-
-## Configuration and benchmark records
-
-- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-2d-mathias-et-al.md) (`benchmarks/problems/burgers-2d-mathias-et-al.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** template "2D Burgers (Mathias)" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
+    - Inverse mode: `MainWindow.INVERSE_AUTO_VARS["2D Burgers (Mathias)"]` (unknowns) and `INVERSE_AUTO_OBS["2D Burgers (Mathias)"]` (measured data), same file
+    - Settings: Default (the paper's method): `_burgers2d_mathias` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/paper_settings.py)
+    - Settings: Tuned: entry "2D Burgers (Mathias)" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/2D/burgers_mathias/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/burgers_mathias), written by [`tools/make_burgers2d_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_burgers2d_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/2D/burgers_mathias/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/burgers_mathias), written by [`tools/make_burgers2d_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_burgers2d_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/burgers-2d-mathias-et-al.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-2d-mathias-et-al.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json), [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [Networks and Fourier features](../../reference/networks.md)
+- **Cite:** [Mathias et al. 2022](../../about/references.md#mathias2022)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

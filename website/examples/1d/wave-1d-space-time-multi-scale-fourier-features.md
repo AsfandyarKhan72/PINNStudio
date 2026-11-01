@@ -126,23 +126,24 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - Forward mode: exact solution, **Error Analysis** › reference from formula: `u = sin(pi*x)*cos(C*pi*t) + sin(A*pi*x)*cos(A*C*pi*t)`
 - Inverse mode: exact solution, **Error Analysis** › reference from formula: `u = sin(pi*x)*cos(10*pi*t) + sin(A*pi*x)*cos(A*10*pi*t)`
 
-## Source and citation
-
-- DeepXDE script: [wave_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py)
-- Source paper (from the benchmark records): [Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3](https://arxiv.org/abs/2012.10047) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
-
 ## Notes
 
 - Space-time multi-scale Fourier feature network (space scale 1, time scales 1 and 10) for a wave that oscillates fast in time. Loss weights are set from the initial losses (5 / L_i(0)), as in DeepXDE's script; the inputs are rescaled to zero mean and unit variance by an input-transform formula; collocation points are redrawn every iteration -- pseudo-random here: DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same points and the network overfits them (test loss stays near 1). DeepXDE's script passes the exact solution as the boundary value; it is 0 at x = 0 and 1.
 - Inverse mode (PINNStudio's addition): the wave speed C (initial guess 5, true 10) is learned from u measured at 2,000 random points in space and time (reference_data/deepxde/wave_inverse). At regular times the fast mode cos(20 pi t) is sampled in step with its period, so a slower wave fits the same data (at t = 0.25, 0.5, 0.75 and 1, speeds 10 and 6 give the same u). 5,000 residual points instead of the forward example's 360. An L-BFGS phase follows Adam.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md) (`benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Wave propagation – space-time multi-scale Fourier features" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Wave propagation – space-time multi-scale Fourier features"]`, same file
+    - Settings: Tuned: entry "Wave propagation – space-time multi-scale Fourier features" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Measured data** (Inverse): [`reference_data/deepxde/wave_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/wave_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%20%28tuned%29.pinn.json), [`Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md), [Loss weights](../../reference/loss-weights.md)
+- **DeepXDE example:** [wave_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Wang, Wang & Perdikaris 2021](../../about/references.md#wang2021fourier)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

@@ -108,24 +108,23 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Exact solution, **Error Analysis** › reference from formula: `u = 1 - exp(l*x)*cos(2*pi*y)`, `v = l/(2*pi)*exp(l*x)*sin(2*pi*y)`, `p = 0.5*(1 - exp(2*l*x))`
 
-## Source and citation
-
-- DeepXDE script: [Kovasznay_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py)
-- DeepXDE documentation: [Kovasznay.flow.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html)
-- Source paper (from the benchmark records): [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)](https://doi.org/10.1016/j.jcp.2020.109951) — studies a related problem.
-
 ## Notes
 
 - Constants Re, nu and l are defined as in DeepXDE's script.
 - Inverse mode (PINNStudio's addition): the Reynolds number Re (initial guess 10, true 20) is learned from u and v measured at 500 points (reference_data/deepxde/kovasznay_inverse); the boundary values keep the true Re.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-kovasznay-flow) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/navier-stokes-2d-kovasznay-flow.md) (`benchmarks/problems/navier-stokes-2d-kovasznay-flow.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Kovasznay flow" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Kovasznay flow"]`, same file
+    - Settings: Tuned: entry "Kovasznay flow" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** the exact-solution formula under *Reference solution* (no data files)
+- **Measured data** (Inverse): [`reference_data/deepxde/kovasznay_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/kovasznay_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/navier-stokes-2d-kovasznay-flow.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/navier-stokes-2d-kovasznay-flow.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-kovasznay-flow), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%20%28tuned%29.pinn.json), [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%202D%20%E2%80%93%20Kovasznay%20flow%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Kovasznay_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Jin et al. 2021](../../about/references.md#jin2021)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

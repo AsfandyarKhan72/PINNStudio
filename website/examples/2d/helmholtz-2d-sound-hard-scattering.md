@@ -67,20 +67,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/deepxde/helmholtz_sound_hard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/helmholtz_sound_hard)
 
-## Source and citation
-
-- DeepXDE script: [Helmholtz_Sound_hard_ABC_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
-
 ## Notes
 
 - Scattering of the plane wave exp(i k0 x) by a sound-hard disk: u_re, u_im are the real and imaginary parts of the scattered field. On the disk, du/dn = -d(exp(i k0 x))/dn (Neumann rows); on the outer square, the first-order absorbing condition du/dn = i k0 u (Robin rows, each using the other part). Reference: the Bessel/Hankel series of DeepXDE's script, written by tools/make_deepxde_reference_data.py.
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20sound-hard%20scattering%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-sound-hard-scattering.md) (`benchmarks/problems/helmholtz-2d-sound-hard-scattering.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Helmholtz sound-hard scattering (absorbing BC)" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/deepxde/helmholtz_sound_hard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/helmholtz_sound_hard), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/helmholtz-2d-sound-hard-scattering.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-sound-hard-scattering.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20sound-hard%20scattering%20%28tuned%29.pinn.json)
+- **DeepXDE example:** [Helmholtz_Sound_hard_ABC_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

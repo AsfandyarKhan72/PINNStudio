@@ -75,19 +75,18 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - None bundled; you can add your own files in the **Error Analysis** dialog.
 
-## Source and citation
-
-- DeepXDE script: [american_put.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py)
-
 ## Notes
 
 - Strike K, rate r and volatility sigma are constants. DeepXDE resamples points only during its L-BFGS phase; here resampling (every 1000 iterations) is on for the whole run. No closed-form reference (DeepXDE compares against a binomial-tree price).
 
-## Configuration and benchmark records
+## Definition and records
 
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-american-put-option) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/black-scholes-1d-american-put.md) (`benchmarks/problems/black-scholes-1d-american-put.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "American put option" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** none bundled
+- **Benchmark records:** [`benchmarks/problems/black-scholes-1d-american-put.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/black-scholes-1d-american-put.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-american-put-option), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **DeepXDE example:** [american_put.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py)
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 

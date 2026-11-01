@@ -111,23 +111,23 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - Reference data files: [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra)
 
-## Source and citation
-
-- DeepXDE script: [Lotka_Volterra.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py)
-- DeepXDE documentation: [lotka.volterra.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/lotka.volterra.html)
-
 ## Notes
 
 - Populations scaled by ub = 200, time by rb = 20, as in DeepXDE's script; the initial values (100/ub, 15/ub) are imposed exactly by the output transform. Reference computed with SciPy's solve_ivp by tools/make_deepxde_reference_data.py.
 - Inverse mode (PINNStudio's addition): the prey growth rate a (2 in the forward equations; initial guess 1) and the predator death rate d (1.06; initial guess 2) are learned from both populations (reference_data/deepxde/lotka_volterra).
 
-## Configuration and benchmark records
+## Definition and records
 
-- [`benchmarks/tuning/Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [`benchmarks/tuning/Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
-- [Entry in the examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation) (`benchmarks/examples.md`)
-- [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lotka-volterra-ode.md) (`benchmarks/problems/lotka-volterra-ode.md`)
-- [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
+- **Definition:** `EXAMPLES` entry "Lotka-Volterra equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+    - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Lotka-Volterra equation"]`, same file
+- **Equations:** [Governing equations](#governing-equations) on this page
+- **Reference data:** [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/lotka-volterra-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lotka-volterra-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json), [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
+- **DeepXDE example:** [Lotka_Volterra.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/lotka.volterra.html))
+- **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
 
