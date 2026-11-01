@@ -1,6 +1,6 @@
 # Adding an example
 
-The **Quick Examples** list (and the README's examples table) come from one catalogue,
+The **Quick Examples** list (and the examples table of `benchmarks/examples.md`) come from one catalogue,
 `pinnstudio/core/example_catalog.py`, which collects three kinds of entries:
 
 | Kind | Defined in | Loaded by |
@@ -85,8 +85,9 @@ CATALOG["3D Poisson (Cube with spherical cut-out)"] = ("Poisson 3D – cube with
     starts away from its true value. `test_templates.py` does the same for every template through the
     window. Then load the example in the window and press **Solve** once.
 
-7. **Document.** Add a CHANGELOG entry. The README's examples section and the benchmark pages are generated
-   (`tools/make_benchmarks_readme.py`); do not edit the generated text by hand.
+7. **Document.** Add a CHANGELOG entry. The examples overview (`benchmarks/examples.md`: the table and one
+   section per example) and the benchmark pages are generated (`tools/make_benchmarks_readme.py`), and this site's
+   example gallery is generated from them (`tools/docs/make_gallery.py`); do not edit the generated text by hand.
 
 ## Local templates
 

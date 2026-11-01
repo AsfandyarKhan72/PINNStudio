@@ -104,6 +104,20 @@ round until the mean residual is below 0.005, which here stops after a single po
 **Allen-Cahn 1D – Wight & Zhao** with **Settings: Default** (Wight & Zhao's resampling trial: 6 rounds of
 200 points). See [Tutorial 10: RAR](../tutorials/10-rar.md).
 
+The two figures of one round show whether the new points went where they should: the points added in that round
+(red) next to the original ones and those added earlier, and the solution and its error at the same round. In this
+Burgers 1D run the added points line up with the shock at \( x = 0 \), where the error is largest.
+
+<figure markdown>
+![Collocation points of a Burgers 1D RAR run after round 2: original points, points added in earlier rounds and the points added in this round, which cluster along the shock at x = 0](../assets/images/examples/burgers-1d-rar-points.png){ loading=lazy }
+<figcaption>Round 2 of a Burgers 1D run with RAR, <code>collocation_points.png</code>, from the repository's figures.</figcaption>
+</figure>
+
+<figure markdown>
+![PINN solution, reference and error over (t, x) of the same Burgers 1D RAR run after round 2; the error is concentrated along the shock](../assets/images/examples/burgers-1d-rar-solution.png){ loading=lazy }
+<figcaption>The same round: PINN, reference and error.</figcaption>
+</figure>
+
 ## See also
 
 - [Theory › Adaptive sampling](../theory/adaptive-sampling.md#residual-based-adaptive-refinement-rar)

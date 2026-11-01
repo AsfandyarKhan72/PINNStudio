@@ -50,8 +50,11 @@ Problem; **Open a saved problem…** on Results and Restore & visualize.
 ## Settings column
 
 The top of the settings column names the page and says in one line what it is for. The **?** button
-at its top right opens the matching section of the PINNStudio README on GitHub. Each box on a page can
-be folded with the arrow at its top right.
+at its top right opens the page of this user guide that describes it (a boundary-condition row opens
+[Boundary conditions](boundary-conditions.md)). Each box on a page can be folded with the arrow at its top right.
+
+!!! info "New in v1.6.0 (in development)"
+    In v1.5.0 the **?** button opened a section of the README on GitHub.
 
 Many boxes have small toggles with an information icon, such as **Derivative syntax**,
 **About boundary conditions** or **About automatic weighting**. Clicking one shows or hides a short
@@ -106,4 +109,7 @@ The right part shows the floating-point precision chosen in **Settings › Float
 
 Drag the dividers between the columns, and between the graphics and the Training Log, to resize them.
 PINNStudio remembers the layout; **View › Reset Layout** puts it back. The look of the window (theme,
-fonts, text sizes) is set in **Settings › Display Settings...**.
+fonts, text sizes) is set in **Settings › Display Settings...**: three themes are built in, **Studio Light**
+(the default), **Studio Dark** and **Solarized Dark**, with an accent colour and a UI scale.
+
+In the **Sketch** tab, Ctrl+Z undoes the last change to the drawing and Ctrl+Y (or Ctrl+Shift+Z) redoes it.

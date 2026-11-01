@@ -91,6 +91,22 @@ run (`run_01__…`, named after the values it set; `…__baseline` for the basel
 Each run folder is a normal run folder, so the runs also appear in the **History** tab of the Results
 area, where **Compare** plots several of them together.
 
+## Example: network size for Burgers 1D
+
+A sweep like Table 1 of [Raissi et al. (2019)](../about/references.md#raissi2019): load **Burgers 1D – Raissi et al.**, set **Mode:** to **All
+combinations**, and add two parameters, *Network: Hidden layers* with the values 2, 4, 6, 8 and *Network:
+Neurons per layer* with 10, 20, 40. That makes 12 runs, each a full training run with the example's other
+settings. `sweep_error_vs_parameter.png` then plots the error against the number of layers, one line per width,
+and selecting the runs of one width in **History** and clicking **Compare** shows their loss curves together.
+
+In the recorded run of this sweep two hidden layers were too few for the shock at \( x = 0 \), the error dropped
+by more than an order of magnitude from two to four layers, and the widest networks were the most accurate at
+every depth. The record, with the table of errors and the figures, is
+[`benchmarks/network_size_sweep.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/network_size_sweep.md).
+It was made with the example's settings of that time (Adam and L-BFGS, 8,000 points); the example's
+**Settings: Default** is now the paper's method (L-BFGS only, 10,000 points), so a sweep today gives other
+numbers. Tutorial [13](../tutorials/13-compare.md) runs a shorter sweep step by step.
+
 ## Settings on this page
 
 | GUI label | Meaning | Default | Saved as |

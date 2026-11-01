@@ -179,6 +179,7 @@ nav:
       - 15. Restoring a trained model: tutorials/15-restore.md
       - 16. Standalone scripts: tutorials/16-scripts.md
       - 17. Error analysis: tutorials/17-error-analysis.md
+      - 18. Your own PDE (Fisher-KPP): tutorials/18-own-problem.md
   - Feature reference:
       - reference/index.md
       - Problems:

@@ -17,7 +17,8 @@ arbitrary problem (see [Scope and limitations](../theory/limitations.md)).
 ## Where to start
 
 If you are new to PINNStudio, do tutorials 1 and 2 first. They introduce the model tree, the editors,
-**Solve** and **Error Analysis**, which the other tutorials take for granted.
+**Solve** and **Error Analysis**, which the other tutorials take for granted. Tutorial 18 then shows the
+whole path for an equation of your own.
 
 | # | Tutorial | Starts from | You learn |
 |---|---|---|---|
@@ -38,6 +39,7 @@ If you are new to PINNStudio, do tutorials 1 and 2 first. They introduce the mod
 | 15 | [Restoring a trained model](15-restore.md) | a finished run | Restore & visualize, what can and cannot be restored |
 | 16 | [Standalone scripts](16-scripts.md) | tutorial 1 | the Script tab, Export script, running a script without the GUI |
 | 17 | [Error analysis](17-error-analysis.md) | tutorials 1–2 | reference files vs formulas, metrics, output files |
+| 18 | [Your own PDE (Fisher-KPP)](18-own-problem.md) | blank 1D problem | a nonlinear PDE of your own from start to finish, one boundary row for two sides, your own reference files |
 
 ## Conventions
 

@@ -367,7 +367,15 @@ See [Restore & visualize](../guide/restore.md) and [Checkpoints and restoring](.
   the set-up works.
 - **Callbacks.** **Early Stopping** ends a run once the loss stops improving; **Training Timer** stops it after a
   given time.
-- **Windows.** Starting a run takes longer than on Linux (importing PyTorch and DeepXDE). On a laptop, plug in and use
-  the *Best performance* power mode.
+- **Windows: starting a run.** Starting a run takes longer than on Linux, most of it importing PyTorch and
+  DeepXDE. Windows Defender scans every file Python loads, which added 1.5 to 2 s per run on a test laptop. If you
+  are comfortable with it, an exclusion for the folder of an installer copy removes that (PowerShell as
+  administrator: `Add-MpPreference -ExclusionPath "$env:APPDATA\uv\tools\pinnstudio"`; `uv tool dir` shows the
+  folder if yours is elsewhere). It is optional; PINNStudio works the same without it.
+- **Windows laptops: power mode.** Plug in and choose the *Best performance* power mode (Windows **Settings ›
+  System › Power**). A small network on the GPU is limited by how fast the CPU hands it work, so a CPU that slows
+  down on battery or when hot slows the GPU too; on the test laptop the 1D examples trained 1.5 to 3 times faster
+  with **Train on:** **CPU**.
 
+[Training speed](../reproducibility/environment.md#training-speed) summarizes the speed measurements, and
 [Seeds, precision and hardware](../reproducibility/environment.md) has more on hardware and precision.

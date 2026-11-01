@@ -50,6 +50,16 @@ boundary-condition row that picks it; *no BC yet* means none does.
 
 ![A new 2D problem with Shape set to Disk: the Disk dimensions box with center 0.5, 0.5 and radius 0.5, and the Geometry tab showing the disk with its one edge E1 and the legend "no BC yet"](../assets/screenshots/guide_geometry_disk.png){ .screenshot loading=lazy }
 
+Sides that an output transform fixes exactly (for example \( x(1-x)y(1-y)N \) on the **Neural network** page)
+are drawn in black and labelled *Exact: set by the output transform* rather than as having no condition.
+
+For a 3D domain the **View:** list also has **3D**: the whole domain as a shaded solid that you can rotate and
+zoom, with **Iso**, **Top**, **Front** and **Side** buttons. Only the surfaces that bound the domain are drawn, so
+a cut-out shows as a hole; each face carries its label and the colour of its boundary condition, and the slice
+that the flat views show is drawn as a translucent plane. **Show points** adds the training points, sampled by
+DeepXDE with the **Collocation points** settings, so you can check that none fall inside a cut-out. Shapes are
+drawn, and faces picked, in the flat views or the face list.
+
 ## Combine shapes (Custom)
 
 **Custom** builds a domain from several basic shapes, combined from top to bottom:

@@ -103,7 +103,8 @@ SweepParam(
 ## 8. Documentation
 
 - a CHANGELOG entry under *Unreleased*;
-- the README feature section and its source links (`python tools/update_source_links.py`);
+- its entry under [Where each feature is in the code](structure.md#where-each-feature-is-in-the-code), with a
+  `<!-- source: ... -->` comment, and its source links (`python tools/update_source_links.py`);
 - this site: the [Feature reference](../reference/index.md) page, the [Theory](../theory/index.md) page with the
   formulas as implemented and any difference from the paper, the reference in
   [Scientific references](../about/references.md), and the configuration table

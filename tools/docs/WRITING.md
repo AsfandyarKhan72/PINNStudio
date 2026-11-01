@@ -53,6 +53,6 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
 ## Site map (nav in mkdocs.yml — do not edit mkdocs.yml)
 
 getting-started/ (installation, first-run, save-and-export, reporting-bugs) · guide/ (one page per model-tree
-page and Solve/Results/Error Analysis/Restore/Export/Sweeps/Settings) · tutorials/01–17 · reference/ (one page
+page and Solve/Results/Error Analysis/Restore/Export/Sweeps/Settings) · tutorials/01–18 · reference/ (one page
 per feature) · examples/ (gallery + one generated page per example) · theory/ · reproducibility/ · help/ ·
 developer/ · about/.

@@ -41,6 +41,26 @@ Two platforms have restrictions that come from PyTorch:
 On a Mac, PINNStudio trains on the CPU. Apple's GPU (MPS) was not faster for PINNs in the project's tests on an
 M1 MacBook Air, and it has no float64.
 
+## Open a terminal
+
+Every way of installing starts with a command typed in a terminal:
+
+- **Windows:** open the Start menu, type `PowerShell` and open **Windows PowerShell**.
+- **macOS:** press Cmd+Space to open Spotlight, type `Terminal` and press Enter (or open
+  **Applications › Utilities › Terminal**).
+- **Linux:** open your terminal application (often Ctrl+Alt+T, or search for "Terminal" in the application menu).
+
+For a `pip` or source installation, check Python (3.9 or newer) and, for a source installation, git:
+
+```bash
+git --version
+python3 --version
+```
+
+On Windows type `python --version` instead of `python3 --version`. If a command is not found, see
+[Common installation problems](#common-installation-problems). After installing Python or git, close the terminal
+and open a new one, so that it finds them.
+
 ## One-command installer (recommended)
 
 The installer needs neither Python nor git. It installs the current release (v1.5.0) from PyPI.
@@ -106,7 +126,9 @@ pinnstudio
 ```
 
 This installs PINNStudio and its dependencies: DeepXDE (1.10.0 or newer), PyTorch (2.0 or newer), PyQt6,
-NumPy (below 2.5), SciPy, Matplotlib and pandas. Install it into a virtual environment, so that these packages do
+NumPy (below 2.5), SciPy, Matplotlib and pandas. NumPy is kept below 2.5 because DeepXDE's 2D `Polygon` and
+`Triangle` geometries call `np.cross` on two-component vectors, which NumPy 2.5 no longer allows (see
+[Missing or incompatible packages](../help/troubleshooting.md#missing-or-incompatible-packages)). Install it into a virtual environment, so that these packages do
 not interfere with other projects:
 
 === "venv (Linux / macOS)"

@@ -42,3 +42,9 @@ adaptive training. If something goes wrong on the way, see [Troubleshooting](../
     The current release on PyPI is **v1.5.0**. This documentation describes the development version that will
     become **v1.6.0**. Features and fixes that exist only in the development version are marked
     *New in v1.6.0 (in development)*. The [Installation](installation.md) page explains how to install either.
+
+## Demo video
+
+A [demo video on YouTube](https://youtu.be/5ILxuutvEZw) walks through the window: loading an example, setting up a
+PDE of your own, sketching a domain and its boundary conditions, training with the live loss, Error Analysis, the
+run history and parameter sweeps. Some labels in the video may differ from the version these pages describe.

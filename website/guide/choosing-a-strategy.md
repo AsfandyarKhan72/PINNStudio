@@ -150,7 +150,9 @@ Mathias et al. ([2022](../about/references.md#mathias2022)).
 
 **What it costs.** Almost nothing in time; a loss term disappears. The cost is in flexibility: the network
 can no longer trade the condition against the equation, and an exact initial condition with a poorly chosen
-blending can make the rest harder to fit. Try the initial condition both exact and as a loss term.
+blending can make the rest harder to fit. Try the initial condition both exact and as a loss term. An exact
+initial condition should also be a smooth formula: a kink (from a `max` or an `abs`) has derivatives the network
+cannot represent.
 
 **Limitations in PINNStudio** (all refused by the check that runs before each Solve):
 
