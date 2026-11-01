@@ -104,3 +104,10 @@ model assumes that neighbouring choices behave alike.
     Training is stochastic. Two runs with the same settings and a different seed can differ more than two
     settings do. Minimising the final loss is not the same as minimising the error; when a reference solution
     exists, the **L2 error** objective measures what matters, but it then tunes the settings on that reference.
+
+## Implementation and source code
+
+The Gaussian-process search above is `BayesOptimizer` in `pinnstudio/core/bayes_opt.py`, driven run by run from
+the sweep runner:
+
+--8<-- "_snippets/source/sweeps.md"

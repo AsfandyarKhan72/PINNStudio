@@ -47,6 +47,10 @@ saved before the field existed load unchanged (a missing key keeps the dataclass
 above the field: the table below is generated from it. The complete procedure is in
 [Adding a training method](add-method.md).
 
+## Implementation and source code
+
+--8<-- "_snippets/source/config.md"
+
 ## Field reference
 
 The table is generated from `pinnstudio/core/config.py` by `tools/docs/make_config_reference.py`; do not edit

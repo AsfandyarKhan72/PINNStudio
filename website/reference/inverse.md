@@ -111,7 +111,14 @@ IC pre-training and parameter sweeps (including the unknowns' initial guesses an
 **Poisson 1D – unknown forcing field** (an unknown field) in **Examples**, category **Inverse**. See
 [Tutorial 6: Inverse parameter estimation](../tutorials/06-inverse.md).
 
-## See also
+## Related
 
-- [Theory › Forward and inverse problems](../theory/forward-inverse.md)
-- [Tutorial 6: inverse problem](../tutorials/06-inverse.md)
+- **Tutorial:** [6. Inverse parameter estimation](../tutorials/06-inverse.md)
+- **Examples:** [Diffusion 1D – unknown coefficient](../examples/1d/diffusion-1d-unknown-coefficient.md), [Navier-Stokes 2D – Kovasznay flow](../examples/2d/navier-stokes-2d-kovasznay-flow.md), [Poisson 1D – unknown forcing field](../examples/1d/poisson-1d-unknown-forcing-field.md); more in the gallery under [Inverse problems](../examples/index.md#inverse)
+- **Theory:** [Forward and inverse problems](../theory/forward-inverse.md)
+- **Method references:** [Raissi et al. 2019](../about/references.md#raissi2019); [Lu et al. 2021](../about/references.md#lu2021deepxde) (DeepXDE)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/inverse.md"

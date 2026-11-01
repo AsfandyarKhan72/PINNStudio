@@ -1,0 +1,19 @@
+{#- Material's copyright partial, plus a link to report a documentation problem (extra.docs_issue_url in mkdocs.yml). -#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">
+      {{ config.copyright }}
+    </div>
+  {% endif %}
+  {% if config.extra.docs_issue_url %}
+    <div class="md-copyright__report">
+      <a href="{{ config.extra.docs_issue_url }}" target="_blank" rel="noopener">Report a documentation problem</a>
+    </div>
+  {% endif %}
+  {% if not config.extra.generator == false %}
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  {% endif %}
+</div>

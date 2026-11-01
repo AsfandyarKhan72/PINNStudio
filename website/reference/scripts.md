@@ -112,6 +112,13 @@ Export any example, e.g. **Poisson 1D – Dirichlet/Robin**, and compare it with
 [Tutorial 16: Standalone scripts](../tutorials/16-scripts.md) and the
 [Exporting a script guide page](../guide/export.md).
 
-## See also
+## Related
 
-- [Tutorial 16: standalone scripts](../tutorials/16-scripts.md)
+- **Tutorial:** [16. Exporting and running standalone scripts](../tutorials/16-scripts.md)
+- **Examples:** [Poisson 1D – Dirichlet/Robin](../examples/1d/poisson-1d-dirichlet-robin.md)
+- **Theory:** how the two scripts are checked against each other: [Export equivalence](../reproducibility/export-equivalence.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/scripts.md"

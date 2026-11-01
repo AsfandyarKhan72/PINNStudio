@@ -49,6 +49,10 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
 - Links: relative Markdown links to other pages (`../reference/rar.md`, `#anchor`); they are checked by the
   strict build. External links: only stable URLs (DOIs, official docs, the GitHub repository).
 - Citations: author–year in the text with a link to `about/references.md#key` (keys listed there), or a DOI.
+- Feature reference pages end with `## Related` (tutorial, gallery examples, theory, the method's reference entry,
+  a link to the page's own limitations) and `### Implementation and source code` with
+  `--8<-- "_snippets/source/<id>.md"`. Do not write links to the code by hand: add the function to
+  `tools/docs/source_map.py` and run `python tools/docs/make_source_links.py` (see `tools/docs/README.md`).
 
 ## Site map (nav in mkdocs.yml — do not edit mkdocs.yml)
 

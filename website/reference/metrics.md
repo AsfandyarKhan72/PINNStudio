@@ -117,6 +117,13 @@ Most DeepXDE examples use an exact-solution formula, e.g. **Poisson 1D – Diric
 [Tutorial 17: Error analysis](../tutorials/17-error-analysis.md) and the
 [Error Analysis guide page](../guide/error-analysis.md).
 
-## See also
+## Related
 
-- [Tutorial 17: error analysis](../tutorials/17-error-analysis.md)
+- **Tutorial:** [17. Error analysis and reference-data comparison](../tutorials/17-error-analysis.md)
+- **Examples:** [Poisson 1D – Dirichlet](../examples/1d/poisson-1d-dirichlet.md), [Heat 1D – Dirichlet](../examples/1d/heat-1d-dirichlet.md)
+- **Theory:** [Error measures](../theory/metrics.md); how the bundled references were computed: [Reference data](../reproducibility/reference-data.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/metrics.md"

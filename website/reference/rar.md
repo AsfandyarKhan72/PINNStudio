@@ -118,8 +118,14 @@ Burgers 1D run the added points line up with the shock at \( x = 0 \), where the
 <figcaption>The same round: PINN, reference and error.</figcaption>
 </figure>
 
-## See also
+## Related
 
-- [Theory › Adaptive sampling](../theory/adaptive-sampling.md#residual-based-adaptive-refinement-rar)
-- [Tutorial 10: RAR](../tutorials/10-rar.md)
-- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Burgers 1D – RAR](../examples/1d/burgers-1d-rar.md)
+- **Tutorial:** [10. Residual-based adaptive refinement (RAR)](../tutorials/10-rar.md)
+- **Examples:** [Burgers 1D – RAR](../examples/1d/burgers-1d-rar.md), [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)
+- **Theory:** [Adaptive sampling › RAR](../theory/adaptive-sampling.md#residual-based-adaptive-refinement-rar)
+- **Method references:** [Lu et al. 2021](../about/references.md#lu2021deepxde); [Wu et al. 2023](../about/references.md#wu2023rar)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/rar.md"

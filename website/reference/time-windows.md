@@ -153,8 +153,14 @@ each window.
 **Allen-Cahn 2D – Mattey & Ghosh** and **Cahn-Hilliard 2D – Mattey & Ghosh** with **Settings: Default**
 (bc-PINN) in **Examples**. See [Tutorial 12: Causal and time-window training](../tutorials/12-causal-windows.md).
 
-## See also
+## Related
 
-- [Theory › Time-dependent training](../theory/time-dependent.md)
-- [Tutorial 12: causal training and time windows](../tutorials/12-causal-windows.md)
-- Examples that use it: [Cahn-Hilliard 1D – Mattey & Ghosh](../examples/1d/cahn-hilliard-1d-mattey-ghosh.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Allen-Cahn 2D – Wight & Zhao](../examples/2d/allen-cahn-2d-wight-zhao.md), [Burgers 2D – Mathias et al.](../examples/2d/burgers-2d-mathias-et-al.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md) and 2 more in the [example gallery](../examples/index.md)
+- **Tutorial:** [12. Causal and time-window training](../tutorials/12-causal-windows.md)
+- **Examples:** [Allen-Cahn 2D – Wight & Zhao](../examples/2d/allen-cahn-2d-wight-zhao.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Cahn-Hilliard 1D – Mattey & Ghosh](../examples/1d/cahn-hilliard-1d-mattey-ghosh.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md); more in the gallery under [Advanced training strategies](../examples/index.md#advanced-training)
+- **Theory:** [Time-dependent training](../theory/time-dependent.md)
+- **Method references:** [Wight & Zhao 2021](../about/references.md#wight2021) (time windows, growing range, resampling); [Mattey & Ghosh 2022](../about/references.md#mattey2022) (bc-PINN)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/time-windows.md"

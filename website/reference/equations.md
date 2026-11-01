@@ -172,3 +172,15 @@ Causal training and time windows are not available for an ODE (see [Causal train
 and **Fractional Poisson 2D – disk** (`frac(...)`), and **Linear ODE system** in **Examples**. See
 [Tutorial 1: First forward ODE](../tutorials/01-ode.md) and the
 [Equations guide page](../guide/equations.md).
+
+## Related
+
+- **Tutorials:** [1. First forward ODE](../tutorials/01-ode.md), [18. Your own PDE (Fisher-KPP)](../tutorials/18-own-problem.md)
+- **Examples:** [Euler beam 1D](../examples/1d/euler-beam-1d.md), [Integro-differential ODE](../examples/ode/integro-differential-ode.md), [Fractional Poisson 1D](../examples/1d/fractional-poisson-1d.md), [Fractional Poisson 2D – disk](../examples/2d/fractional-poisson-2d-disk.md), [Linear ODE system](../examples/ode/linear-ode-system.md)
+- **Theory:** [Losses and automatic differentiation](../theory/losses.md)
+- **Method references:** [Raissi et al. 2019](../about/references.md#raissi2019); [Lu et al. 2021](../about/references.md#lu2021deepxde) (DeepXDE)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/equations.md"

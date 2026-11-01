@@ -22,7 +22,10 @@ Each feature page uses the same headings: *What it does*, *When to use it*, *How
 model-tree page and the exact labels), *Settings* (a table with the label, its meaning, the default, the
 allowed range and the configuration field it is saved as), *Formulation*, *Defaults and limitations*,
 *Supported problem types*, *Compatibility with other features*, *Common mistakes and troubleshooting*, and
-*Example*.
+*Example*. Each ends with *Related*: the tutorial, example problems from the gallery, the theory page, the original
+method's reference and a pointer to the page's limitations, then *Implementation and source code*, the functions
+and tests behind the feature with links to the code on GitHub (written by `tools/docs/make_source_links.py` from
+`tools/docs/source_map.py`).
 
 The configuration fields are those of `PINNConfig` in `pinnstudio/core/config.py`, the content of a saved
 `.pinn.json` problem file (see [Configuration schema](../developer/config.md)). Messages quoted under

@@ -41,6 +41,9 @@ jobs:
           cache-dependency-path: website/requirements.txt
       - name: Install MkDocs
         run: pip install -r website/requirements.txt
+      - name: Check source-code links
+        # every file and function named in tools/docs/source_map.py exists, and website/_snippets/source/ is up to date
+        run: python tools/docs/make_source_links.py --check
       - name: Build (strict)
         run: mkdocs build --strict --site-dir _site
       - name: Check links (internal and external)

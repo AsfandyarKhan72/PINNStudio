@@ -44,7 +44,9 @@ trigger, and on a push to `docs/official-site` it only builds, checks links and 
    and whether a custom domain is set (expected: none). Take a screenshot for the record.
 2. **Merge.** Merge `docs/official-site` into `main` through a pull request. The pull request runs the
    strict build and link check; merging changes nothing on the live site (the source is still the
-   `/docs` folder, which the merge does not touch).
+   `/docs` folder, which the merge does not touch). In the same pull request (or right after it), change
+   `edit_uri` in `mkdocs.yml` from `edit/docs/official-site/website/` to `edit/main/website/`, so that
+   **Edit this page** and **View source of this page** open the files on `main`.
 3. **Allow deployment.** Settings → Secrets and variables → Actions → Variables → New repository
    variable `DOCS_PUBLISH_APPROVED` = `true`.
 4. **Switch the source.** Settings → Pages → Source: **GitHub Actions**. From this moment until step 5
@@ -68,5 +70,7 @@ trigger, and on a push to `docs/official-site` it only builds, checks links and 
 ## Later releases
 
 Each release: update the version banner (`extra.version_label`, `extra.released_version` in
-`mkdocs.yml`), the installation page and the changelog page, merge, then run step 5 again. See
+`mkdocs.yml`), set `extra.source_ref` to the release tag once it exists (so the source-code links point at the
+released code; rerun `tools/docs/make_source_links.py` and `tools/docs/make_gallery.py`), update the installation
+page and the changelog page, merge, then run step 5 again. See
 "Documentation" in the release checklist (`website/developer/releases.md`).

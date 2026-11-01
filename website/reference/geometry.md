@@ -127,6 +127,12 @@ Every shape for forward and inverse, stationary and time-dependent problems of i
 [Tutorial 8: Custom geometry](../tutorials/08-geometry.md) and the
 [Geometry guide page](../guide/geometry.md).
 
-## See also
+## Related
 
-- [Tutorial 8: geometry](../tutorials/08-geometry.md)
+- **Tutorial:** [8. Custom geometry](../tutorials/08-geometry.md)
+- **Examples:** [Poisson 2D – disk](../examples/2d/poisson-2d-disk.md), [Poisson 2D – L-shape](../examples/2d/poisson-2d-l-shape.md), [Helmholtz 2D – square with hole](../examples/2d/helmholtz-2d-square-with-hole.md), [Poisson 3D – sphere](../examples/3d/poisson-3d-sphere.md), [Poisson 3D – cube with spherical cut-out](../examples/3d/poisson-3d-cube-with-spherical-cut-out.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/geometry.md"

@@ -59,13 +59,20 @@ Before the version commit:
 
 - [ ] **Version banner.** In `mkdocs.yml`, set `extra.released_version` to the new version and change
       `extra.version_label` (for example to `"v1.6.0"`). Every page's banner and the "new in" notes read these.
+- [ ] **Source-code links.** After the tag `vX.Y.Z` exists, set `extra.source_ref` in `mkdocs.yml` from `main` to
+      the tag (this one value is the base of every source-code link: `extra.repo_blob` + `extra.source_ref` + path),
+      then run `python tools/docs/make_source_links.py` and `python tools/docs/make_gallery.py` and commit the
+      changed snippets and gallery pages. Do not set it to a tag that does not exist yet.
+- [ ] **Edit links.** `edit_uri` in `mkdocs.yml` points to `main` (`edit/main/website/`) once the documentation
+      branch has been merged, so **Edit this page** and **View source of this page** open the merged files.
 - [ ] **"New in" notes.** Notes such as `!!! info "New in v1.6.0"` stay; they tell readers of the released
       version what changed. Remove the "in development" wording from them.
 - [ ] **Installation page.** The version installed by `pip install pinnstudio` and the installers.
 - [ ] **Changelog page.** `website/about/changelog.md` follows `CHANGELOG.md`.
-- [ ] **Generated pages.** `python tools/docs/make_gallery.py` (example gallery) and
-      `python tools/docs/make_config_reference.py --check` (configuration reference) report no changes, or
-      their output is committed.
+- [ ] **Generated pages.** `python tools/docs/make_gallery.py` (example gallery),
+      `python tools/docs/make_config_reference.py --check` (configuration reference) and
+      `python tools/docs/make_source_links.py --check` (source-code links) report no changes, or their output is
+      committed.
 - [ ] **Screenshots.** If the interface changed, regenerate them with the three commands in
       `tools/docs/README.md` and look through the changed images before committing.
 - [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version.

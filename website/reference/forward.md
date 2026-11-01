@@ -93,6 +93,14 @@ Extra training points are refused with time windows:
 [Tutorial 2: 1D Burgers equation](../tutorials/02-burgers.md) and
 [Tutorial 3: 2D heat equation](../tutorials/03-heat-2d.md).
 
-## See also
+## Related
 
-- [Theory › Forward and inverse problems](../theory/forward-inverse.md)
+- **Tutorials:** [2. 1D Burgers equation](../tutorials/02-burgers.md), [3. 2D heat equation](../tutorials/03-heat-2d.md)
+- **Examples:** [Heat 2D](../examples/2d/heat-2d.md), [Burgers 1D – Raissi et al.](../examples/1d/burgers-1d-raissi-et-al.md); more in the gallery under [Forward problems](../examples/index.md#forward)
+- **Theory:** [Forward and inverse problems](../theory/forward-inverse.md)
+- **Method references:** [Raissi et al. 2019](../about/references.md#raissi2019); [Lu et al. 2021](../about/references.md#lu2021deepxde) (DeepXDE)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/problem.md"

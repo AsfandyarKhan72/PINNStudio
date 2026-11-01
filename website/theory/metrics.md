@@ -87,3 +87,9 @@ for a time-dependent problem. It is not the mean of the per-time errors: times w
 An error measure is only as good as the reference. A reference computed on a coarse grid, or with a
 different formulation of the problem, limits what the comparison can show. Report which reference was used
 and how it was obtained; see [Reference data](../reproducibility/reference-data.md).
+
+## Implementation and source code
+
+The metrics above are computed in the generated scripts; the code that writes them:
+
+--8<-- "_snippets/source/metrics.md"

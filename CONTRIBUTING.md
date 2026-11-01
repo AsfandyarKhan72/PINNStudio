@@ -59,7 +59,7 @@ PINNStudio is licensed under the GNU General Public License version 3 (GPL-3.0-o
 - Run the tests (above).
 - Launch the app (`python -m pinnstudio.main`) and confirm it still starts cleanly.
 - Run at least one built-in Quick Example end-to-end (Solve → Stop/finish) to confirm script generation still produces a runnable script.
-- If you changed code that a feature on the documentation's developer page links to (`website/developer/structure.md`, *Where each feature is in the code*), run `python tools/update_source_links.py` so the **Source code** links point at the right lines (each feature names its functions once, in a `<!-- source: ... -->` comment).
+- If you renamed, moved or removed a function that the documentation's source-code links name (the mapping `tools/docs/source_map.py`, shown on the developer page *Where each feature is in the code* and at the end of each feature page), update the mapping and run `python tools/docs/make_source_links.py`; `tests/test_source_links.py` fails until you do. The links name files and functions, not line numbers, so code that only moves needs nothing.
 - Keep PRs focused — one feature or fix per PR is easier to review than a bundle of unrelated changes.
 - Describe *what changed and why* in the PR description; screenshots or a snippet of the generated script are welcome for UI or codegen changes.
 

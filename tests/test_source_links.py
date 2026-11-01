@@ -1,60 +1,72 @@
-"""The "Source code" links of the documentation's feature map (website/developer/structure.md, kept by
-tools/update_source_links.py): every feature names code that still exists. Line numbers are rewritten by the
-script before a merge into main, so a moved function is not an error here; a renamed or deleted one is.
-The page is on the documentation branch; without it the page tests are skipped."""
+"""The documentation's source-code links (tools/docs/make_source_links.py, from the mapping tools/docs/source_map.py):
+every file and every function, class or method the mapping names still exists, and the snippets the site includes
+(website/_snippets/source/) are up to date. A renamed or deleted function fails here, so the mapping is updated with
+the code. The site is on the documentation branch; without website/ the checks that need it are skipped."""
+import importlib.util
 import os
-import re
-import sys
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOL = os.path.join(ROOT, "tools", "docs", "make_source_links.py")
 
-from tools import update_source_links as usl
-
-needs_page = pytest.mark.skipif(not os.path.isfile(usl.DOC), reason=f"{usl.DOC_NAME} is not in this checkout")
-
-SECTION = "## Where each feature is in the code"
-
-
-def _text():
-    with open(usl.DOC, encoding="utf-8") as f:
-        return f.read()
+needs_tool = pytest.mark.skipif(not os.path.isfile(TOOL), reason="tools/docs/make_source_links.py is not in this checkout")
+needs_site = pytest.mark.skipif(not os.path.isdir(os.path.join(ROOT, "website")),
+                                reason="website/ is not in this checkout")
 
 
-def _specs():
-    return [m.group(1) for m in map(usl.MARKER.match, _text().split("\n")) if m]
+def _tool():
+    spec = importlib.util.spec_from_file_location("make_source_links", TOOL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-@needs_page
-def test_every_target_exists():
-    specs = _specs()
-    assert len(specs) >= 20
-    for spec in specs:
-        for path, name, label in usl.parse_targets(spec):
-            assert label, spec
-            assert usl.link(path, name, label).startswith(f"[{label}]({usl.REPO_URL}/blob/main/{path}")
+@needs_tool
+@needs_site
+def test_every_name_exists():
+    msl = _tool()
+    features = msl.load_map()
+    assert len(features) >= 20
+    assert msl.validate(features) == []
 
 
-@needs_page
-def test_every_feature_has_a_source_line():
-    text = _text()
-    feats = text[text.index(SECTION) + len(SECTION):]
-    end = re.search(r"(?m)^## ", feats)
-    feats = feats[:end.start()] if end else feats
-    heads = re.findall(r"(?m)^#### .+$", feats)
-    with_source = re.findall(r"(?m)^#### .+\n\n<!-- source: ", feats)
-    assert heads and len(with_source) == len(heads), "a feature without a <!-- source: --> line"
+@needs_tool
+@needs_site
+def test_snippets_up_to_date(capsys):
+    assert _tool().main(["--check"]) == 0, capsys.readouterr().out
 
 
-def test_rendering():
-    a, b = usl.find("pinnstudio/core/codegen.py", "_training_methods_defs")
-    assert 0 < a < b
-    line = usl.render("pinnstudio/core/codegen.py::_training_methods_defs | methods ; pinnstudio/ui/results.py | results")
-    assert line.startswith(usl.PREFIX) and f"#L{a}-L{b}" in line and line.endswith("results.py) (`results.py`)")
+@needs_tool
+def test_find():
+    msl = _tool()
+    msl.find("pinnstudio/core/codegen.py", "generate_clean_script")
+    msl.find("pinnstudio/core/codegen.py", "generate_clean_script._result_plot_parts")     # nested function
+    msl.find("pinnstudio/core/config.py", "PINNConfig.validate")                           # method
+    msl.find("pinnstudio/ui/main_window.py", "MainWindow.INVERSE_AUTO_VARS")               # class attribute
+    msl.find("pinnstudio/core/deepxde_examples.py", "EXAMPLES")                            # module assignment
+    for path, name in [("pinnstudio/core/codegen.py", "no_such_function"),
+                       ("pinnstudio/core/config.py", "PINNConfig.no_such_method"),
+                       ("pinnstudio/no_such_file.py", None)]:
+        with pytest.raises(LookupError):
+            msl.find(path, name)
 
 
-def test_without_the_page(monkeypatch, capsys):
-    monkeypatch.setattr(usl, "DOC", os.path.join(usl.ROOT, "no-such-page.md"))
-    assert usl.main(["--check"]) == 0
+@needs_tool
+def test_links_use_the_base_and_no_line_numbers():
+    msl = _tool()
+    feat = {"id": "x", "title": "X", "pages": [], "entries": [
+        {"path": "pinnstudio/core/codegen.py", "symbol": "generate_script", "role": "entry point", "note": "n"},
+        {"path": "tests/test_source_links.py", "symbol": None, "role": "test", "note": ""}]}
+    text = msl.render(feat, "https://example.org/r/blob/", "v9.9.9")
+    assert "(https://example.org/r/blob/v9.9.9/pinnstudio/core/codegen.py)" in text
+    assert "`generate_script`" in text and "#L" not in text
+    assert "release `v9.9.9`" in text and text.index("**Entry points**") < text.index("**Tests**")
+
+
+@needs_tool
+def test_without_the_site(monkeypatch, capsys):
+    msl = _tool()
+    monkeypatch.setattr(msl, "WEB", os.path.join(ROOT, "no-such-folder"))
+    assert msl.main(["--check"]) == 0
     assert "not in this checkout" in capsys.readouterr().out

@@ -152,3 +152,13 @@ and **Poisson 1D – Dirichlet/point-set operator** (one condition type each), *
 scattering** (Neumann and Robin on a combined shape), **Second-order ODE** and **Klein-Gordon 1D**
 (Operator at the initial time) in **Examples**. See the
 [Boundary conditions guide page](../guide/boundary-conditions.md).
+
+## Related
+
+- **Tutorials:** [3. 2D heat equation](../tutorials/03-heat-2d.md), [8. Custom geometry](../tutorials/08-geometry.md)
+- **Examples:** [Poisson 1D – Dirichlet/Neumann](../examples/1d/poisson-1d-dirichlet-neumann.md), [Poisson 1D – Dirichlet/Robin](../examples/1d/poisson-1d-dirichlet-robin.md), [Poisson 1D – Dirichlet/Periodic](../examples/1d/poisson-1d-dirichlet-periodic.md), [Poisson 1D – Dirichlet/point-set operator](../examples/1d/poisson-1d-dirichlet-point-set-operator.md), [Helmholtz 2D – sound-hard scattering](../examples/2d/helmholtz-2d-sound-hard-scattering.md), [Klein-Gordon 1D](../examples/1d/klein-gordon-1d.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/boundary-conditions.md"

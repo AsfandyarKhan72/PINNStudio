@@ -94,3 +94,7 @@ CATALOG["3D Poisson (Cube with spherical cut-out)"] = ("Poisson 3D – cube with
 Templates you keep for yourself go in `pinnstudio/core/local_examples.py`, with their data under
 `reference_data/local/`. The file defines `EXAMPLES`, `CATALOG` and `PAPERS` in the same form as
 `pinnstudio_examples.py` and is added to the lists when present. Both paths are ignored by git.
+
+## Implementation and source code
+
+--8<-- "_snippets/source/examples.md"

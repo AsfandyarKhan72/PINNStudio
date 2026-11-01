@@ -150,8 +150,14 @@ ICGL needs no transfer learning, but it is meant for one network carried through
 **Examples**. No shipped example uses IC pre-training. See
 [Tutorial 12: Causal and time-window training](../tutorials/12-causal-windows.md).
 
-## See also
+## Related
 
-- [Theory › IC pre-training](../theory/time-dependent.md#ic-pre-training)
-- [Theory › Initial-condition guided learning](../theory/time-dependent.md#initial-condition-guided-learning)
-- Examples that use it: [Cahn-Hilliard 1D – Mattey & Ghosh](../examples/1d/cahn-hilliard-1d-mattey-ghosh.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)
+- **Tutorial:** [12. Causal and time-window training](../tutorials/12-causal-windows.md)
+- **Examples:** [Cahn-Hilliard 1D – Mattey & Ghosh](../examples/1d/cahn-hilliard-1d-mattey-ghosh.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)
+- **Theory:** [IC pre-training](../theory/time-dependent.md#ic-pre-training) and [initial-condition guided learning](../theory/time-dependent.md#initial-condition-guided-learning)
+- **Method reference:** [Mattey & Ghosh 2022](../about/references.md#mattey2022)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/pretraining.md"

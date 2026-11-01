@@ -125,8 +125,14 @@ exact periodicity), and **Cahn-Hilliard 1D – Wight & Zhao**, **Allen-Cahn 2D �
 **Cahn-Hilliard 2D – Mattey & Ghosh** with **Settings: Tuned** (SA-PINN, kept during L-BFGS, with an exact
 initial condition) in **Examples**. See [Tutorial 11: RBA and SA-PINN](../tutorials/11-point-weights.md).
 
-## See also
+## Related
 
-- [Theory › Per-point weights](../theory/loss-weighting.md#per-point-weights)
-- [Tutorial 11: RBA and SA-PINN](../tutorials/11-point-weights.md)
-- Examples that use it: [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Allen-Cahn 2D – Wight & Zhao](../examples/2d/allen-cahn-2d-wight-zhao.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)
+- **Tutorial:** [11. Per-point weights: RBA and SA-PINN](../tutorials/11-point-weights.md)
+- **Examples:** [Allen-Cahn 2D – Wight & Zhao](../examples/2d/allen-cahn-2d-wight-zhao.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)
+- **Theory:** [Adaptive loss weighting › Per-point weights](../theory/loss-weighting.md#per-point-weights)
+- **Method references:** [McClenny & Braga-Neto 2023](../about/references.md#mcclenny2023) (SA-PINN); [Anagnostopoulos et al. 2024](../about/references.md#anagnostopoulos2024) (RBA)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/point-weights.md"

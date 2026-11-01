@@ -93,6 +93,14 @@ All dimensions, forward and inverse.
 equations for one output) and **Poisson 1D – unknown forcing field** (Inverse: an unknown field) in
 **Examples**. See [Tutorial 4: Coupled PDE system](../tutorials/04-coupled.md).
 
-## See also
+## Related
 
-- [Tutorial 4: coupled system](../tutorials/04-coupled.md)
+- **Tutorial:** [4. Coupled PDE system](../tutorials/04-coupled.md)
+- **Examples:** [Linear ODE system](../examples/ode/linear-ode-system.md), [Navier-Stokes 2D – Kovasznay flow](../examples/2d/navier-stokes-2d-kovasznay-flow.md), [Cahn-Hilliard 2D – Wight & Zhao](../examples/2d/cahn-hilliard-2d-wight-zhao.md), [Linear elasticity 2D – plate](../examples/2d/linear-elasticity-2d-plate.md); more in the gallery under [Coupled systems](../examples/index.md#coupled-systems)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+A coupled system goes through the same equation code as a single equation.
+
+--8<-- "_snippets/source/equations.md"

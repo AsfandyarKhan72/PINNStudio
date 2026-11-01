@@ -113,3 +113,13 @@ note in the Training Log. With time windows the surface and line plots are stitc
 **Schrödinger 1D** (a **Custom...** field \( |h| = \sqrt{u^2 + v^2} \)) and any 2D time-dependent example
 such as **Heat 2D** (Surface Animation (GIF)) in **Examples**. See the
 [Results and plots guide page](../guide/results.md).
+
+## Related
+
+- **Tutorial:** [2. 1D Burgers equation](../tutorials/02-burgers.md) (Plot type: Line (time steps))
+- **Examples:** [Schrödinger 1D](../examples/1d/schrodinger-1d.md), [Heat 2D](../examples/2d/heat-2d.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/plots.md"

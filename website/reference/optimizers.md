@@ -163,6 +163,14 @@ and train with a **constant** learning rate (no decay).
 **Heat 1D – resampling** (the Point Resampling callback) in **Examples**. See the
 [Training guide page](../guide/training.md).
 
-## See also
+## Related
 
-- [Theory › Losses and optimizers](../theory/losses.md)
+- **Tutorial:** [2. 1D Burgers equation](../tutorials/02-burgers.md) (a single L-BFGS phase)
+- **Examples:** [Klein-Gordon 1D](../examples/1d/klein-gordon-1d.md), [Poisson 1D – hard BCs](../examples/1d/poisson-1d-hard-bcs.md), [Burgers 1D – Raissi et al.](../examples/1d/burgers-1d-raissi-et-al.md), [Heat 1D – resampling](../examples/1d/heat-1d-resampling.md)
+- **Theory:** [Losses and automatic differentiation](../theory/losses.md)
+- **Method reference:** [Rathore et al. 2024](../about/references.md#rathore2024)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/optimizers.md"

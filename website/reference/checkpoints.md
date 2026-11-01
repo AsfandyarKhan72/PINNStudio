@@ -108,6 +108,12 @@ Any example run with a save folder, e.g. **Burgers 1D – Raissi et al.** See
 [Tutorial 15: Restoring a trained model](../tutorials/15-restore.md) and the
 [Restore & visualize guide page](../guide/restore.md).
 
-## See also
+## Related
 
-- [Tutorial 15: restore](../tutorials/15-restore.md)
+- **Tutorial:** [15. Restoring a trained model](../tutorials/15-restore.md)
+- **Examples:** [Burgers 1D – Raissi et al.](../examples/1d/burgers-1d-raissi-et-al.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/checkpoints.md"

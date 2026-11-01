@@ -152,7 +152,13 @@ network size and the activation, as in DeepXDE's HPO example). See
 [Tutorial 14: Bayesian hyperparameter search](../tutorials/14-bayesian.md) and the
 [Parameter sweeps guide page](../guide/sweeps.md).
 
-## See also
+## Related
 
-- [Tutorial 13: comparing settings](../tutorials/13-compare.md)
-- [Tutorial 14: Bayesian search](../tutorials/14-bayesian.md)
+- **Tutorials:** [13. Comparing training configurations](../tutorials/13-compare.md), [14. Bayesian hyperparameter search](../tutorials/14-bayesian.md)
+- **Examples:** [Helmholtz 2D – hyperparameter search](../examples/2d/helmholtz-2d-hyperparameter-search.md)
+- **Theory:** [Bayesian optimization](../theory/bayesian.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/sweeps.md"

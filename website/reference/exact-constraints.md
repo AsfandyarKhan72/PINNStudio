@@ -135,6 +135,14 @@ with causal training and an MsFFN network), **Cahn-Hilliard 1D – Wight & Zhao*
 **Diffusion 1D – hard IC and BCs** (a hand-written output-transform formula) in **Examples**. See
 [Tutorial 9: Exact constraints](../tutorials/09-exact.md).
 
-## See also
+## Related
 
-- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)
+- **Tutorial:** [9. Exact boundary and initial constraints](../tutorials/09-exact.md)
+- **Examples:** [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md), [Diffusion 1D – hard IC and BCs](../examples/1d/diffusion-1d-hard-ic-and-bcs.md)
+- **Theory:** [Exact constraints](../theory/exact-constraints.md)
+- **Method reference:** [Lagaris et al. 1998](../about/references.md#lagaris1998)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/exact-constraints.md"

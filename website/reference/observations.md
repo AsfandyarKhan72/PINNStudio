@@ -109,7 +109,13 @@ picked) and each file's weight (see [Sweeps](sweeps.md)).
 **Examples**, category **Inverse**. See [Tutorial 7: Importing observational data](../tutorials/07-data.md)
 and the [Inverse problems guide page](../guide/inverse.md).
 
-## See also
+## Related
 
-- [Theory › Forward and inverse problems](../theory/forward-inverse.md)
-- [Tutorial 7: measured data](../tutorials/07-data.md)
+- **Tutorial:** [7. Importing observational data](../tutorials/07-data.md)
+- **Examples:** [Navier-Stokes 2D – Kovasznay flow](../examples/2d/navier-stokes-2d-kovasznay-flow.md), [Diffusion-reaction 1D](../examples/1d/diffusion-reaction-1d.md), [Klein-Gordon 1D](../examples/1d/klein-gordon-1d.md), [Allen-Cahn 3D – Wight & Zhao](../examples/3d/allen-cahn-3d-wight-zhao.md)
+- **Theory:** [Forward and inverse problems](../theory/forward-inverse.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/observations.md"

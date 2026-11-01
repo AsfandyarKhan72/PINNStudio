@@ -138,7 +138,13 @@ features** (STMsFFN, with an input-feature formula), **Linear elasticity 2D – 
 **Laplace 2D – disk** (input-feature formula in polar coordinates) and **Poisson 1D – hard BCs** (output
 formula) in **Examples**. See the [Neural network guide page](../guide/network.md).
 
-## See also
+## Related
 
-- [Theory › PINNs](../theory/pinns.md)
-- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Brinkman-Forchheimer 1D – unknown ν_e, K](../examples/1d/brinkman-forchheimer-1d-unknown-nu-e-k.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Diffusion 1D – hard IC and BCs](../examples/1d/diffusion-1d-hard-ic-and-bcs.md), [Diffusion-reaction 1D](../examples/1d/diffusion-reaction-1d.md), [Fractional diffusion 1D](../examples/1d/fractional-diffusion-1d.md) and 19 more in the [example gallery](../examples/index.md)
+- **Examples:** [Poisson 1D – multi-scale Fourier features](../examples/1d/poisson-1d-multi-scale-fourier-features.md), [Wave 1D – space-time multi-scale Fourier features](../examples/1d/wave-1d-space-time-multi-scale-fourier-features.md), [Linear elasticity 2D – plate](../examples/2d/linear-elasticity-2d-plate.md), [Laplace 2D – disk](../examples/2d/laplace-2d-disk.md), [Poisson 1D – hard BCs](../examples/1d/poisson-1d-hard-bcs.md)
+- **Theory:** [Physics-informed neural networks](../theory/pinns.md)
+- **Method reference:** [Wang, Wang & Perdikaris 2021](../about/references.md#wang2021fourier) (Fourier features)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/networks.md"

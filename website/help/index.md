@@ -26,3 +26,11 @@ If the answer is not here:
 Questions about the method itself (why a PINN does or does not converge on a given problem) are often answered in the
 [Theory](../theory/index.md) section and in the papers listed under
 [Scientific references](../about/references.md).
+
+## A problem with this documentation
+
+If a page is wrong, out of date, unclear or missing something, use
+[Report a documentation problem](https://github.com/AsfandyarKhan72/PINNStudio/issues/new?template=documentation.md&labels=documentation) (also at the bottom of every page). It opens a GitHub issue with the
+*documentation* label and asks for the page, what is wrong and your PINNStudio version. Each page also has
+**Edit this page** and **View source of this page** buttons at the top right, for a direct correction through a
+pull request ([Contributing and documentation](../developer/contributing.md)).

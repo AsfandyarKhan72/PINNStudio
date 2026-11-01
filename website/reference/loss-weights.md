@@ -119,7 +119,13 @@ two boundary conditions and the initial condition) in **Examples**. See
 [Tutorial 13: Comparing configurations](../tutorials/13-compare.md) and the
 [Loss weights guide page](../guide/loss-weights.md).
 
-## See also
+## Related
 
-- [Theory › Loss weighting](../theory/loss-weighting.md)
-- Examples that use it: [Wave 1D – space-time multi-scale Fourier features](../examples/1d/wave-1d-space-time-multi-scale-fourier-features.md)
+- **Tutorial:** [13. Comparing training configurations](../tutorials/13-compare.md)
+- **Examples:** [Wave 1D – space-time multi-scale Fourier features](../examples/1d/wave-1d-space-time-multi-scale-fourier-features.md), [Black-Scholes 1D – American put](../examples/1d/black-scholes-1d-american-put.md)
+- **Theory:** [Adaptive loss weighting](../theory/loss-weighting.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/loss-weights.md"

@@ -113,3 +113,13 @@ Every time-dependent example has formula initial conditions, e.g. **Burgers 1D �
 example reads its initial condition from a file. See the
 [Initial conditions guide page](../guide/initial-conditions.md) and
 [Tutorial 7: Importing observational data](../tutorials/07-data.md).
+
+## Related
+
+- **Tutorial:** [7. Importing observational data](../tutorials/07-data.md)
+- **Examples:** [Burgers 1D – Raissi et al.](../examples/1d/burgers-1d-raissi-et-al.md), [Cahn-Hilliard 2D – Wight & Zhao](../examples/2d/cahn-hilliard-2d-wight-zhao.md)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/initial-conditions.md"

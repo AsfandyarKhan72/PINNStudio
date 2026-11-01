@@ -27,9 +27,10 @@ Open an issue with the templates provided:
     - start the app (`python -m pinnstudio.main`) and check that it opens cleanly;
     - run at least one Quick Example end to end (Solve, then Stop or let it finish), so that script generation
       still produces a runnable script;
-    - if you changed code that a feature links to under
-      [Where each feature is in the code](structure.md#where-each-feature-is-in-the-code), run
-      `python tools/update_source_links.py`;
+    - if you renamed, moved or removed code that a feature links to under
+      [Where each feature is in the code](structure.md#where-each-feature-is-in-the-code), update
+      `tools/docs/source_map.py` and run `python tools/docs/make_source_links.py` (`--check` and
+      `tests/test_source_links.py` fail until you do);
     - do not edit generated text: the benchmark pages and the examples overview (`benchmarks/examples.md`) are
       written by `tools/make_benchmarks_readme.py` and `tools/make_tuning_page.py`, the example gallery on this site
       by `tools/docs/make_gallery.py` (from `benchmarks/examples.md`), and the configuration table by

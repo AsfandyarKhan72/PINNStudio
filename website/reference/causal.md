@@ -102,8 +102,14 @@ residuals and together did worse than either alone in PINNStudio's benchmarks.
 schedule, an MsFFN network, an exact initial condition and exact periodicity). See
 [Tutorial 12: Causal and time-window training](../tutorials/12-causal-windows.md).
 
-## See also
+## Related
 
-- [Theory › Causal training](../theory/loss-weighting.md#causal-training)
-- [Tutorial 12: causal training and time windows](../tutorials/12-causal-windows.md)
-- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)
+- **Tutorial:** [12. Causal and time-window training](../tutorials/12-causal-windows.md)
+- **Examples:** [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)
+- **Theory:** [Adaptive loss weighting › Causal training](../theory/loss-weighting.md#causal-training)
+- **Method reference:** [Wang, Sankaran & Perdikaris 2024](../about/references.md#wang2024causal)
+- **Known limitations:** [Defaults and limitations](#defaults-and-limitations) and [Compatibility with other features](#compatibility-with-other-features) on this page
+
+### Implementation and source code
+
+--8<-- "_snippets/source/causal.md"

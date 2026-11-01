@@ -39,3 +39,6 @@
   .md-banner .banner-long { display: none; }
 }
 .md-typeset .home-hero h1 { color: var(--md-default-fg-color); }
+
+/* Footer: "Report a documentation problem" (overrides/partials/copyright.html) */
+.md-copyright__report { margin-top: 0.2rem; }
