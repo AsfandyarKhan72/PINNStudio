@@ -47,7 +47,10 @@ def test_error_in_slot_is_logged_and_app_survives(tmp_path):
     assert "ValueError: restore went wrong" in log and "a library printing with no console" in log
 
 
-def test_without_handler_the_app_dies(tmp_path):
-    """What happened before: PyQt ends the program on an uncaught error."""
+def test_without_handler_the_error_is_lost(tmp_path):
+    """What happens without the handler: PySide6 keeps running after an
+    uncaught error in a slot (PyQt6 ended the program), but with no console
+    the error is not written anywhere."""
     r = _run(tmp_path, False)
-    assert r.returncode != 0 and not (tmp_path / "survived").exists()
+    assert r.returncode == 0 and (tmp_path / "survived").exists()
+    assert not (tmp_path / ".pinnstudio" / "pinnstudio.log").exists()
