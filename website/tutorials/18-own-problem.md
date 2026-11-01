@@ -91,7 +91,7 @@ Your numbers will differ with hardware, seed and PINNStudio version.
 
 <figure markdown>
 ![Line plots of the PINN and the finite-difference reference of the Fisher-KPP equation at t = 0, 0.25, 0.5, 0.75 and 1: a bump at x = 0.5 that spreads and flattens, the two curves on top of each other](../assets/images/tut18_line_comparison.png){ loading=lazy }
-<figcaption>Error Analysis line comparison of the PINN against the reference, from the run made for this walkthrough.</figcaption>
+<figcaption>Error Analysis line comparison of the PINN against the reference, from the run described above.</figcaption>
 </figure>
 
 On the 1D surface plots time is on the horizontal axis by default; untick **Time on the x-axis**
