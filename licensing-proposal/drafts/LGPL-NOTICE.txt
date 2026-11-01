@@ -1,0 +1,18 @@
+Notice for a bundled distribution of PINNStudio (installer or frozen
+application that contains Qt / PySide6). Not needed for the PyPI package,
+which does not contain them.
+
+This distribution contains Qt for Python (PySide6 <version>, shiboken6
+<version>) and the Qt <version> libraries Qt Core, Qt GUI, Qt Widgets and
+Qt SVG, Copyright (C) The Qt Company Ltd. and other contributors. They are
+licensed under the GNU Lesser General Public License version 3; the texts of the
+LGPLv3 and of the GNU GPLv3 it refers to are in licenses/LGPL-3.0.txt and
+licenses/GPL-3.0.txt in this distribution.
+
+They are included unmodified, as separate shared libraries in <folder>. You may
+replace them with your own build of the same or a compatible version: <steps>.
+
+The complete corresponding source code of these libraries is available at
+https://code.qt.io/cgit/pyside/pyside-setup.git/tag/?h=v<version> and
+https://code.qt.io/cgit/qt/qt5.git/tag/?h=v<version>, or on request from
+<contact> for at least three years after this distribution.
