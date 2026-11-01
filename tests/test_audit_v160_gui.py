@@ -123,7 +123,7 @@ def test_time_window_resampling_candidates_can_be_set():
 def test_renamed_outputs_show_their_new_names_on_other_pages():
     """Renaming an output left the Loss weights rows and the Results/Restore output lists with the old name
     until the problem was reopened."""
-    from PyQt6.QtWidgets import QLabel
+    from PySide6.QtWidgets import QLabel
     w = _window()
     w._new_problem("ODE")
     _settle()
