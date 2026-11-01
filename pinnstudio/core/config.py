@@ -894,6 +894,14 @@ class PINNConfig:
             if isinstance(_r, dict) and str(_r.get("location", "")).strip() == "False":
                 errors.append(f"BC {_i + 1} picks no part of the boundary (its last edge was taken out): pick its "
                               f"edges in the Geometry view, or delete the BC.")
+            if isinstance(_r, dict):
+                try:
+                    _comp = int(_r.get("component", 0) or 0)
+                except (TypeError, ValueError):
+                    _comp = 0
+                if not 0 <= _comp < int(self.num_outputs or 1):
+                    errors.append(f"BC {_i + 1} applies to output {_comp + 1}, but the problem has "
+                                  f"{int(self.num_outputs or 1)} output(s): pick one of them in the BC's Output box.")
         if self.causal_training:
             if self.steady_state:
                 errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")

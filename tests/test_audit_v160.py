@@ -498,3 +498,15 @@ def test_unsupported_derivative_names_are_refused():
         c = dataclasses.replace(base, problem_dim=dim, steady_state=st, output_names=names,
                                 num_outputs=len(names.split(",")), pde_expressions=pde)
         assert not any(e.startswith("Equations:") and "not available" in e for e in c.validate()), pde
+
+
+def test_bc_output_beyond_the_problem_outputs_is_refused():
+    """A boundary-condition row for output 3 of a one-output problem passed validation (the Output box offers 1-10
+    whatever the problem has) and only failed inside DeepXDE."""
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    assert not [e for e in c.validate() if "applies to output" in e]
+    rows[0]["component"] = 2
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows))
+    assert any("BC 1 applies to output 3" in e for e in c.validate())
+
