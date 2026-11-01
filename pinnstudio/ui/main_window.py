@@ -335,6 +335,29 @@ class TrueValueLineEdit(InitGuessLineEdit):
 
 
 # ── Background worker thread ─────────────────────────────────
+_LIVE_THREADS = set()
+
+
+def _keep_until_finished(th):
+    """Hold a reference to a QThread until its thread has really ended.
+
+    The window keeps only the latest thread of each kind (self.thread,
+    self._view3d_pts_thread, ...). Replacing that attribute while the old
+    thread is still running -- or still inside run() after emitting its last
+    signal, whose slot may start the next one -- dropped the last Python
+    reference, and Qt aborts ("QThread: Destroyed while thread is still
+    running") or frees the object under the running thread. The set keeps the
+    object alive; finished() (queued to the main thread) waits for the thread
+    to exit and lets it go."""
+    _LIVE_THREADS.add(th)
+
+    def _release(th=th):
+        th.wait()
+        _LIVE_THREADS.discard(th)
+    th.finished.connect(_release, Qt.ConnectionType.QueuedConnection)
+    return th
+
+
 class SolverThread(QThread):
     output_signal = Signal(str)
     done_signal   = Signal(str)
@@ -11846,7 +11869,7 @@ class MainWindow(QMainWindow):
         self.thread = SolverThread(config)
         self.thread.output_signal.connect(self._on_output)
         self.thread.done_signal.connect(self._on_done)
-        self.thread.start()
+        _keep_until_finished(self.thread).start()
 
     def _start_sweep(self, config):
         """Runs a Parameter Sweep through the exact same Solve/Stop
@@ -11888,7 +11911,7 @@ class MainWindow(QMainWindow):
         self.sweep_thread.output_signal.connect(self._on_sweep_output)
         self.sweep_thread.run_done_signal.connect(self._on_sweep_run_done)
         self.sweep_thread.finished_signal.connect(self._on_sweep_finished)
-        self.sweep_thread.start()
+        _keep_until_finished(self.sweep_thread).start()
 
     def _on_sweep_root(self, root):
         """Fires once, right as the sweep starts -- see
@@ -13087,7 +13110,7 @@ def _style_legend(ax):
         th = _PointsThread(tmp)
         th.done_sig.connect(lambda ok, msg, key=key, out=out, dist=dist: self._on_view3d_points(ok, msg, key, out, dist))
         self._view3d_pts_thread = th
-        th.start()
+        _keep_until_finished(th).start()
 
     def _on_view3d_points(self, ok, msg, key, out, dist):
         if ok and os.path.exists(out):
@@ -13463,7 +13486,7 @@ print("DOMAIN_PREVIEW_DONE")
         self._preview_thread = _PreviewThread(tmp)
         self._preview_thread.done_sig.connect(self._on_preview_done)
         self._preview_thread.log_sig.connect(self.log_box.append)
-        self._preview_thread.start()
+        _keep_until_finished(self._preview_thread).start()
 
     def _build_3d_preview_script(self, geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist):
         """Build the domain-preview script for a 3D shape (Cuboid or
@@ -16633,7 +16656,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._restore_thread = _ParamRestoreThread(tmp)
             self._restore_thread.line_signal.connect(self.log_box.append)
             self._restore_thread.done_signal.connect(self._on_restore_done)
-            self._restore_thread.start()
+            _keep_until_finished(self._restore_thread).start()
             return
 
         model_path  = self.restore_model_path.text().strip()
@@ -16962,7 +16985,7 @@ print("DOMAIN_PREVIEW_DONE")
         self._restore_thread = _RestoreThread(tmp)
         self._restore_thread.line_signal.connect(self.log_box.append)
         self._restore_thread.done_signal.connect(self._on_restore_done)
-        self._restore_thread.start()
+        _keep_until_finished(self._restore_thread).start()
 
     def _on_restore_done(self, success):
         self.restore_btn.setEnabled(True)
