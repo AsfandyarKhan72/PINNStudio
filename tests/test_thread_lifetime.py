@@ -14,7 +14,7 @@ SCRIPT = textwrap.dedent('''
     import os, sys
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     sys.path.insert(0, {repo!r})
-    from PyQt6.QtCore import QCoreApplication, QThread, QTimer, pyqtSignal
+    from PySide6.QtCore import QCoreApplication, QThread, QTimer, Signal as pyqtSignal
     from pinnstudio.ui.main_window import _keep_until_finished, _LIVE_THREADS
     app = QCoreApplication([])
     KEEP = {keep}
