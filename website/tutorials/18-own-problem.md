@@ -85,9 +85,9 @@ Diffusion spreads the bump and lowers its peak, while the logistic term lifts th
 maximum of the reference solution is about 0.76, and \( u \) at the two ends has grown from almost 0 to about 0.04.
 The PINN curves lie on the reference curves at all five times.
 
-In the run recorded for this walkthrough when it was part of the README (the default settings above, seed 2026,
-8 CPU threads, about 6 minutes), the relative L2 error was \( 1.3 \times 10^{-3} \) at \( t = 1 \) and
-\( 8.8 \times 10^{-4} \) over all five times. Your numbers will differ with hardware, seed and PINNStudio version.
+In a run of exactly these steps with the v1.6.0 development code (seed 2026, CPU, 2 threads, about 6 minutes),
+the relative L2 error grew from \( 2.7 \times 10^{-4} \) at \( t = 0 \) to \( 1.6 \times 10^{-3} \) at \( t = 1 \).
+Your numbers will differ with hardware, seed and PINNStudio version.
 
 <figure markdown>
 ![Line plots of the PINN and the finite-difference reference of the Fisher-KPP equation at t = 0, 0.25, 0.5, 0.75 and 1: a bump at x = 0.5 that spreads and flattens, the two curves on top of each other](../assets/images/tut18_line_comparison.png){ loading=lazy }
