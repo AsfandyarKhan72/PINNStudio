@@ -42,8 +42,10 @@ with \( \zeta = 0.1 \), \( \omega = 2 \) and \( t \in [0, 5] \). Its exact solut
 ### Outputs, constants and equations
 
 2. On the **Equations** page, set **Outputs:** to `2`. Two name boxes and two equation boxes appear; the
-   **Equations:** count follows the number of outputs.
-3. Type `y1` in **Output 1 name:** and `y2` in **Output 2 name:**.
+   **Equations:** count follows the number of outputs. The boxes hold example text (`u`, `v`, `du_t + 0.4 * u`,
+   ...): replace it in the next steps.
+3. Type `y1` in **Output 1 name:** and `y2` in **Output 2 name:**. The other pages (Initial conditions, Loss
+   weights, the output lists on the Results page) follow the new names.
 4. Click **Add constant** twice. In the first row type the name `zeta` and the value `0.1`; in the second,
    `om` and `2`. Constants can be used by name in equations, initial and boundary conditions, transforms
    and the exact-solution formula.
@@ -72,7 +74,8 @@ with \( \zeta = 0.1 \), \( \omega = 2 \) and \( t \in [0, 5] \). Its exact solut
 
     ![The Geometry page of the ODE problem with the time interval t from 0 to 5](../assets/screenshots/tut01_geometry.png){ .screenshot loading=lazy }
 
-7. Open the **Initial conditions** page. Under **Output 1 (y1)** type `1`; under **Output 2 (y2)** type `0`.
+7. Open the **Initial conditions** page. Under **Output 1 (y1)** replace the example text with `1`; under
+   **Output 2 (y2)** type `0`.
    Leave **IC for y1** and **IC for y2** ticked, so both conditions are loss terms.
 
     ![The Initial conditions page with y1(0) = 1 and y2(0) = 0, both IC checkboxes ticked](../assets/screenshots/tut01_ic.png){ .screenshot loading=lazy }

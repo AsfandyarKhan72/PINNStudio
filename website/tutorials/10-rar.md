@@ -46,7 +46,7 @@ iterations, so RAR runs take noticeably longer.
 Each round writes a folder `solution_results/rar_rounds/round_0k/` with that round's models, a solution snapshot,
 `collocation_points.png` (the original points and the points added so far) and `error_compare.png`. When reference
 data are configured, the log also compares each round with the reference at the last time, e.g.
-`[RAR round 2] vs Reference t=1: L2 rel error = 5.2423e-03`.
+`[RAR round 2] vs Reference t=1: L₂ rel error = 5.2423e-03, MSE = …`.
 
 In our test run on a CPU we kept the example's 3 rounds, 100 000 candidates and 100 points per round, but shortened
 the training to 6000 Adam + 3000 L-BFGS iterations before the rounds and 2000 Adam + 2000 L-BFGS per round (about

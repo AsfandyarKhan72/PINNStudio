@@ -46,7 +46,12 @@ the comparison figures. The status bar shows the mean relative L₂ error too.
 ![The Error analysis tab after a 1D Burgers run: the summary line with the mean and worst relative L₂ error over 5 reference times, the table of errors per time, and the line comparison figure with the PINN and reference curves at five times](../assets/screenshots/guide_results_error_analysis_saved.png){ .screenshot loading=lazy }
 
 The run folder's `error_analysis/` folder holds the figures (`line_comparison.png`,
-`surface_comparison.png`) and the numbers (`error_metrics.txt`).
+`surface_comparison.png`) and the numbers (`error_metrics.txt`, one file per output when there are several).
+
+The tab's table shows the relative L₂ and mean absolute error only; **MSE** and **Max Error**, when ticked,
+are in the `error_metrics` files and the Training Log. The table has no output column: with several outputs (an
+ODE system, for example) it lists each output's rows one after the other, in output order, and its summary line
+counts each output's row as a reference time. `error_spacetime.txt` is written for time-dependent PDEs only.
 
 !!! info "New in v1.6.0 (in development)"
     - Error Analysis also gives the relative L₂ error over all reference times together (every

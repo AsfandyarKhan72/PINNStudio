@@ -106,7 +106,7 @@ The run folder's `error_analysis/` contains:
 | File | Contents |
 |---|---|
 | `error_metrics.txt` (or `error_metrics_<output>.txt`) | one line per time: `t`, `L2_relative`, then `MSE` / `Max_error` if ticked, and `Mean_abs_error` |
-| `error_spacetime.txt` | the relative L2 error over all reference times together |
+| `error_spacetime.txt` | the relative L2 error over all reference times together (time-dependent PDEs only) |
 | `line_comparison*.png` | PINN and reference along x at each time (for an ODE, over t) |
 | `surface_comparison*.png` | PINN, reference and absolute error over space and time |
 

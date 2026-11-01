@@ -50,8 +50,10 @@ Constants are listed in a comment at the top and substituted into the expression
 
     The script prints the same loss table as the **Training Log**, then the Error Analysis lines.
 5. Results are written to the folder named in the script's `save_dir = '…'` line: by default a timestamped
-   folder under the **Save to:** folder that was set when you exported. To write somewhere else, change that one
-   line (this is the only edit you may want; it is optional).
+   folder under the **Save to:** folder that was set when you exported. To write somewhere else, change that
+   line. With a formula reference (as here) the script also writes its reference files to
+   `reference_from_formula/` under the export-time folder, a path written out in full further down; to move
+   everything, export again with a different **Save to:** folder rather than editing the script.
 
 ## Expected results
 

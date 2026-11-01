@@ -69,7 +69,9 @@ Click through the model tree to see what the example contains. For instance, **T
 
 ![The Training page of Burgers 1D with Default settings: Training phases with one phase (Optimizer L-BFGS, Iterations 50000, Loss function MSE), the Add Phase button, Use recommended L-BFGS settings ticked and Precision float32; Initial-condition pre-training and Callbacks below are off](../assets/screenshots/burgers_training.png){ .screenshot loading=lazy }
 
-You do not need to change anything for a first run. The [User guide](../guide/index.md) explains every page.
+You do not need to change anything for a first run. The Default settings train for 50,000 L-BFGS iterations,
+which takes a while on a CPU. For a quick look first, set **Iterations:** of the phase to 1000: the run then
+finishes in about a minute, with a larger error. The [User guide](../guide/index.md) explains every page.
 
 ## Solve
 
@@ -85,7 +87,8 @@ While the run is going:
 
 - the **Solve** button reads **Solving…** and **Stop** becomes active;
 - the status bar shows the phase (for example `phase 1/1 (L-BFGS)`), a progress bar, the iteration, the current
-  loss, the elapsed time and an estimate of the time left;
+  loss, the elapsed time and an estimate of the time left. L-BFGS reports in steps of 1000 iterations, so for an
+  L-BFGS phase the counter can stay at 0 for a while at the start;
 - the **Training Log** shows what the script prints: the device it trains on, the loss table that DeepXDE prints
   at regular intervals (step, training loss terms, test loss), and messages from PINNStudio.
 
@@ -99,7 +102,9 @@ training.
 
 When training ends, the Training Log says `✅ Training complete!` and the folder the results were saved to
 (`💾 Results saved to: ...`). The status bar sums up the run: `Finished`, the training time, the final loss and,
-when error analysis ran, the mean relative \( L_2 \) error.
+when error analysis ran, the mean relative \( L_2 \) error. That is the mean of the errors at the separate
+reference times; the Training Log also prints the error over all reference times taken together
+(`All 5 reference times together: L₂=...`), so the two numbers differ slightly.
 
 The **Results** tab opens on **Overview**, with the loss curve and the solution plot of this run. The other tabs are:
 

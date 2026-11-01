@@ -296,7 +296,8 @@ the log file `~/.pinnstudio/pinnstudio.log` (in your home folder).
 3. Train a small example, as described in [First run](first-run.md). A run that finishes with
    `✅ Training complete!` in the Training Log shows that PyTorch, DeepXDE and the generated scripts work.
 
-You can also check the installed packages from a terminal, in the Python PINNStudio runs in:
+`pinnstudio` has no command-line options (`pinnstudio --version` or `--help` simply opens the window). To see
+the version, and to check the installed packages, run these in a terminal, in the Python PINNStudio runs in:
 
 ```bash
 python -c "import importlib.metadata as m; print(m.version('pinnstudio'))"

@@ -21,7 +21,7 @@ Burgers model from [Tutorial 2](02-burgers.md).
 ## Prerequisites
 
 - A finished run, for example from [Tutorial 2](02-burgers.md). Its run folder contains
-  `solution_results/` with a model file per training phase (here `model_lbfgs-phase1-3000.pt`) and
+  `solution_results/` with a model file per training phase (named after the phase and the last iteration, for example `model_lbfgs-phase1-3000.pt`; the number depends on the run, so the screenshot below shows a different one) and
   `model_config.json`, the settings the model was trained with.
 
 ## Steps
@@ -42,7 +42,8 @@ Burgers model from [Tutorial 2](02-burgers.md).
     ![The Restore & visualize page with a model file and its config filled in, Plot type Line (time steps), Output 1 (u), and the Restore & Visualize button](../assets/screenshots/tut15_restore.png){ .screenshot loading=lazy }
 
 6. Click **Restore & Visualize**. PINNStudio rebuilds the network, loads the weights, and writes the plot
-   into a new folder `Restore_…__<date>_<time>` under the **Save to:** folder of the **Results** page.
+   into a new folder `Restore_…__<date>_<time>` under the **Save to:** folder of the **Results** page (the `…` is
+   the run's kind, for example `Restore_1D_TimeDependent_Forward__…`).
    Because Error Analysis is configured (step 1), it also compares the restored model with the reference
    files and writes `error_analysis/line_comparison_restore.png`, `surface_comparison_restore.png` and
    `error_metrics_restore.txt` there.
