@@ -75,11 +75,9 @@ settings were saved and reloaded consistently.
 | start the main training from an IC-pre-trained network | **Training** › **Restore from checkpoint** (IC pre-training only) |
 
 !!! note "Error Analysis with a formula after restoring"
-    In our test, restoring the ODE model of [Tutorial 1](01-ode.md) with an **Exact solution formula**
-    configured did not run the comparison: the log said
-    `Error analysis from a formula: the run's reference_from_formula files weren't found`, although the run
-    folder contained them. The plot itself was produced. Comparing with reference **files**, as above,
-    worked. To get errors against a formula, configure Error Analysis before **Solve**.
+    When the run compared with an **Exact solution formula**, Restore uses the reference files that run wrote
+    (its `reference_from_formula/` folder, next to `solution_results/`), so keep that folder with the model.
+    New in v1.6.0: earlier versions looked for them in the wrong folder and skipped the comparison.
 
 ## Troubleshooting
 
