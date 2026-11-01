@@ -98,7 +98,7 @@ Refused by `validate()` or before Solve:
 
 > STMsFFN needs space and time; an ODE has only t -- use MsFFN.
 
-> STMsFFN takes the network's last input as time: with an input-feature formula, end it with t (e.g.
+> STMsFFN takes the network's last input as time: with an input-feature formula, end it with a feature of t alone (e.g.
 > 'cos(x); sin(x); t') or use MsFFN.
 
 > MsFFN: the first hidden layer needs an even number of neurons (half cosine, half sine Fourier features);

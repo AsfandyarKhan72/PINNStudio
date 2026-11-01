@@ -82,7 +82,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [Lorenz_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py)
-- DeepXDE documentation: [Lorenz.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html)
+- DeepXDE documentation: [lorenz.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/lorenz.inverse.html)
 - Source paper (from the README): [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 ## Notes

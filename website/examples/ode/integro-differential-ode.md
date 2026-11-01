@@ -63,7 +63,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [ide.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py)
-- DeepXDE documentation: [ide.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html)
 
 ## Notes
 

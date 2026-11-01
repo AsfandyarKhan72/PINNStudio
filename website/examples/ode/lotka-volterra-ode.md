@@ -109,7 +109,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [Lotka_Volterra.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py)
-- DeepXDE documentation: [Lotka.Volterra.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html)
+- DeepXDE documentation: [lotka.volterra.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/lotka.volterra.html)
 
 ## Notes
 

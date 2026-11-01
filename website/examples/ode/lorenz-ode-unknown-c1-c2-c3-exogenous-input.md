@@ -81,7 +81,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 ## Source and citation
 
 - DeepXDE script: [Lorenz_inverse_forced.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py)
-- DeepXDE documentation: [Lorenz.inverse.forced.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html)
+- DeepXDE documentation: [lorenz.inverse.forced.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/lorenz.inverse.forced.html)
 
 ## Notes
 
