@@ -38,23 +38,29 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
 ## Key capabilities
 
 - **Forward and inverse problems.** Solve a known equation, or learn unknown coefficients or a whole unknown field
-  from measured data while the solution is found.
+  from measured data while the solution is found. Learn more: [forward problems](https://asfandyarkhan72.github.io/PINNStudio/reference/forward/), [inverse problems](https://asfandyarkhan72.github.io/PINNStudio/reference/inverse/), [parameter-estimation tutorial](https://asfandyarkhan72.github.io/PINNStudio/tutorials/06-inverse/).
 - **ODEs and PDEs in 1D, 2D and 3D.** Steady or time-dependent equations and coupled systems, including
   integro-differential and fractional equations, typed as residuals such as `du_t + u*du_x - 0.01/pi*du_xx`.
+  Learn more: [equations](https://asfandyarkhan72.github.io/PINNStudio/reference/equations/), [coupled systems](https://asfandyarkhan72.github.io/PINNStudio/reference/coupled/).
 - **Domains and conditions.** Built-in shapes and combinations of them, or a domain drawn in the Sketch or imported
   from a DXF or SVG drawing; Dirichlet, Neumann, Robin, periodic, point-data and operator conditions, or conditions
-  imposed exactly through the network output.
+  imposed exactly through the network output. Learn more: [geometry](https://asfandyarkhan72.github.io/PINNStudio/guide/geometry/), [boundary conditions](https://asfandyarkhan72.github.io/PINNStudio/reference/boundary-conditions/),
+  [exact constraints](https://asfandyarkhan72.github.io/PINNStudio/reference/exact-constraints/).
 - **Training methods.** Multi-phase training (for example Adam, then L-BFGS), residual-based adaptive refinement,
   time windows and bc-PINN, causal training, RBA and SA-PINN point weights, and an exact initial condition or
-  exact periodicity.
+  exact periodicity. Learn more: [choosing a training strategy](https://asfandyarkhan72.github.io/PINNStudio/guide/choosing-a-strategy/), [RAR](https://asfandyarkhan72.github.io/PINNStudio/reference/rar/),
+  [RBA and SA-PINN](https://asfandyarkhan72.github.io/PINNStudio/reference/point-weights/), [causal training](https://asfandyarkhan72.github.io/PINNStudio/reference/causal/), [time windows](https://asfandyarkhan72.github.io/PINNStudio/reference/time-windows/).
 - **Parameter sweeps.** Vary almost any setting one at a time, in all combinations, as paired values or with a
-  Bayesian search, and compare the runs on one plot.
+  Bayesian search, and compare the runs on one plot. [Full guide](https://asfandyarkhan72.github.io/PINNStudio/reference/sweeps/).
 - **Error analysis and plots.** Relative L₂, MSE, maximum and mean absolute error against reference data or an
-  exact formula, with line and surface plots, animations and a history of every saved run.
+  exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
+  [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
 - **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script that trains the same model
-  as **Solve**, and a saved model can be reloaded and plotted again without retraining.
+  as **Solve**, and a saved model can be reloaded and plotted again without retraining. Learn more:
+  [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D, covering DeepXDE's documented
   examples and published PINN benchmarks, almost all with an exact solution or reference data.
+  [Example gallery](https://asfandyarkhan72.github.io/PINNStudio/examples/).
 
 ## Installation
 
