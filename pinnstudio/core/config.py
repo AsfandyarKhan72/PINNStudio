@@ -1155,9 +1155,12 @@ class PINNConfig:
             if (self.network_type == "STMsFFN" and self.input_transform_enabled
                     and (self.input_transform_mode or "scale") == "formula"):
                 _feats = [f.strip() for f in (self.input_feature_formula or "").split(";") if f.strip()]
-                if _feats and _feats[-1] != "t":
+                import re as _re_st
+                _last = _feats[-1] if _feats else ""
+                # the last feature must be a function of t alone (t itself, or e.g. DeepXDE's scaled (t - 0.5)*2*sqrt(3))
+                if _feats and (not _re_st.search(r"\bt\b", _last) or _re_st.search(r"\b[xyz]\b", _last)):
                     errors.append("STMsFFN takes the network's last input as time: with an input-feature formula, "
-                                  "end it with t (e.g. 'cos(x); sin(x); t') or use MsFFN.")
+                                  "end it with a feature of t alone (e.g. 'cos(x); sin(x); t') or use MsFFN.")
             if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
                 errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
                               "(half of them are cosine and half sine Fourier features).")

@@ -110,7 +110,7 @@ PAPERS = {
 _DEEPXDE_CODE_ROOT = "https://github.com/lululxvi/deepxde/blob/master/examples/"
 # DeepXDE documentation page -> the example's script in DeepXDE's repository.
 _DOC_TO_SCRIPT = {
-    "ode.system": "ode_system.py", "Lotka.Volterra": "Lotka_Volterra.py", "ode.2nd": "ode_2nd.py", "ide": "ide.py",
+    "ode.system": "ode_system.py", "lotka.volterra": "Lotka_Volterra.py", "ode.2nd": "ode_2nd.py",
     "poisson.1d.dirichlet": "Poisson_Dirichlet_1d.py", "poisson.1d.neumanndirichlet": "Poisson_Neumann_1d.py",
     "poisson.1d.dirichletrobin": "Poisson_Robin_1d.py", "poisson.1d.dirichletperiodic": "Poisson_periodic_1d.py",
     "poisson.1d.pointsetoperator": "Poisson_PointSetOperator_1d.py", "poisson.Lshape": "Poisson_Lshape.py",
@@ -120,7 +120,7 @@ _DOC_TO_SCRIPT = {
     "heat.resample": "heat_resample.py", "diffusion.1d": "diffusion_1d.py", "diffusion.1d.exactBC": "diffusion_1d_exactBC.py",
     "diffusion.1d.resample": "diffusion_1d_resample.py", "diffusion.reaction": "diffusion_reaction.py",
     "allen.cahn": "Allen_Cahn.py", "klein.gordon": "Klein_Gordon.py", "black_scholes": "black_scholes_call.py",
-    "Lorenz.inverse": "Lorenz_inverse.py", "Lorenz.inverse.forced": "Lorenz_inverse_forced.py",
+    "lorenz.inverse": "Lorenz_inverse.py", "lorenz.inverse.forced": "Lorenz_inverse_forced.py",
     "diffusion.1d.inverse": "diffusion_1d_inverse.py", "reaction.inverse": "reaction_inverse.py",
     "elliptic.inverse.field": "elliptic_inverse_field.py",
 }
