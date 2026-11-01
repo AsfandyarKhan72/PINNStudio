@@ -530,3 +530,15 @@ def test_point_set_and_extra_points_files_are_read_like_the_other_data_files(tmp
         assert "def _read_point_table" in script and "np.loadtxt" not in script.split("def _read_point_table")[1][:3000]
         assert "_user_anchors = _read_point_table(" in script
 
+
+def test_resampled_time_window_model_is_saved_and_used():
+    """Time windows with resampling rounds saved each window's model before the rounds, and Error Analysis and
+    Restore loaded that file, so they evaluated a different network from the plots and the next window."""
+    from pinnstudio.core import paper_settings
+    c = _template("1D Cahn-Hilliard")
+    c = paper_settings.apply(c, "paper_wz", "1D Cahn-Hilliard")    # Wight & Zhao's method: 2 resampling rounds per window
+    assert c.time_adaptive and c.ta_resample_rounds > 0
+    s = codegen.generate_script(c)
+    i_rs, i_save = s.index("Resampling round"), s.index('"model_resampled"')
+    assert i_save > i_rs
+    assert s.count('"model_resampled-*.pt"') >= 4
