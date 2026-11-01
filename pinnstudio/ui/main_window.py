@@ -16515,6 +16515,30 @@ print("DOMAIN_PREVIEW_DONE")
         if f:
             target.setText(f)
 
+    def _restore_ea_mismatch(self, cfg):
+        """How the problem in the window differs from a restored model's
+        model_config.json, in the ways that make the window's Error Analysis
+        reference files meaningless for it (dimension, time dependence, ODE,
+        outputs); "" when they agree."""
+        try:
+            win = self._build_config()
+        except Exception:
+            return ""
+
+        def _names(v):
+            if isinstance(v, (list, tuple)):
+                return [str(x).strip() for x in v]
+            return [x.strip() for x in str(v or "").split(",") if x.strip()]
+        diffs = []
+        model_dim = "ODE" if (cfg.get("ode") or cfg.get("problem_dim") == "ODE") else cfg.get("problem_dim", win.problem_dim)
+        if str(model_dim) != str(win.problem_dim):
+            diffs.append(f"{win.problem_dim}, the model is {model_dim}")
+        elif model_dim != "ODE" and bool(cfg.get("steady_state", win.steady_state)) != bool(win.steady_state):
+            diffs.append("steady" if win.steady_state else "time-dependent")
+        if "output_names" in cfg and _names(cfg["output_names"]) != _names(win.output_names):
+            diffs.append(f"outputs {', '.join(_names(win.output_names))}")
+        return "; ".join(diffs)
+
     def _on_restore(self):
         import json, tempfile, subprocess, sys
         viz_type    = self.restore_viz_combo.currentText()
@@ -16791,6 +16815,16 @@ print("DOMAIN_PREVIEW_DONE")
         # rather than aborting the whole restore over the EA add-on.
         try:
             ea = getattr(self, '_ea_settings', None)
+            _ea_mismatch = self._restore_ea_mismatch(cfg) if ea else ""
+            if _ea_mismatch:
+                # The Error Analysis set-up belongs to the problem in the
+                # window, not necessarily to the restored model: a 1D
+                # time-dependent model compared with the reference files of
+                # a steady 2D example failed inside matplotlib
+                # ("Input z must be at least a (2, 2) shaped array").
+                self.log_box.append(f"ℹ Error Analysis skipped: its reference files are for the problem in the "
+                                    f"window ({_ea_mismatch}). Load or set up that model's problem to compare it.")
+                ea = None
             ea = self._ea_with_formula_files(ea, cfg)
             if ea and ea.get('files'):
                 # (time, path) from a single-output setup, (time, path, output)
