@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Diffusion 1D – hard IC and BCs
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -44,7 +49,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 - **Network:** FNN, hidden layers 3 × 32, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform
 - **Points:** 40 domain, 0 boundary, 0 initial, 10,000 test
 - **Loss weights:** `1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `t*(1 - x**2)*u + sin(pi*x)`
+- **Methods:** output transform `t*(1 - x**2)*u + sin(pi*x)` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -70,7 +75,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Diffusion 1D – hard IC and BCs (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20hard%20IC%20and%20BCs%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Diffusion 1D – hard IC and BCs (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20hard%20IC%20and%20BCs%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md) (`benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Forward problems
 
 ## What it does
@@ -86,3 +91,7 @@ Extra training points are refused with time windows:
 **Heat 2D** and **Burgers 1D – Raissi et al.** in **Examples** (Forward). See
 [Tutorial 2: 1D Burgers equation](../tutorials/02-burgers.md) and
 [Tutorial 3: 2D heat equation](../tutorials/03-heat-2d.md).
+
+## See also
+
+- [Theory › Forward and inverse problems](../theory/forward-inverse.md)

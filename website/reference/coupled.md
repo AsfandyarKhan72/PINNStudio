@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Coupled systems
 
 ## What it does
@@ -87,3 +92,7 @@ All dimensions, forward and inverse.
 (\( u, v \)), **Linear elasticity 2D – plate** (PFNN), **Black-Scholes 1D – American put** (three
 equations for one output) and **Poisson 1D – unknown forcing field** (Inverse: an unknown field) in
 **Examples**. See [Tutorial 4: Coupled PDE system](../tutorials/04-coupled.md).
+
+## See also
+
+- [Tutorial 4: coupled system](../tutorials/04-coupled.md)

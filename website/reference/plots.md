@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Plots and data export
 
 ## What it does

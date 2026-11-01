@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # ODEs and PDEs
 
 ## What it does

@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # RBA and SA-PINN
 
 ## What it does
@@ -119,3 +124,9 @@ together did worse than either alone in PINNStudio's benchmarks.
 exact periodicity), and **Cahn-Hilliard 1D – Wight & Zhao**, **Allen-Cahn 2D – Mattey & Ghosh** and
 **Cahn-Hilliard 2D – Mattey & Ghosh** with **Settings: Tuned** (SA-PINN, kept during L-BFGS, with an exact
 initial condition) in **Examples**. See [Tutorial 11: RBA and SA-PINN](../tutorials/11-point-weights.md).
+
+## See also
+
+- [Theory › Per-point weights](../theory/loss-weighting.md#per-point-weights)
+- [Tutorial 11: RBA and SA-PINN](../tutorials/11-point-weights.md)
+- Examples that use it: [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Allen-Cahn 2D – Wight & Zhao](../examples/2d/allen-cahn-2d-wight-zhao.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)

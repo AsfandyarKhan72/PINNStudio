@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Black-Scholes 1D – American put
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |

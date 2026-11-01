@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Error metrics
 
 ## What it does
@@ -111,3 +116,7 @@ Most DeepXDE examples use an exact-solution formula, e.g. **Poisson 1D – Diric
 **Heat 1D – Dirichlet**; the phase-field templates use reference files. See
 [Tutorial 17: Error analysis](../tutorials/17-error-analysis.md) and the
 [Error Analysis guide page](../guide/error-analysis.md).
+
+## See also
+
+- [Tutorial 17: error analysis](../tutorials/17-error-analysis.md)

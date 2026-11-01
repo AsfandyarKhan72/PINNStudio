@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Exact constraints
 
 ## What it does
@@ -129,3 +134,7 @@ with causal training and an MsFFN network), **Cahn-Hilliard 1D – Wight & Zhao*
 (exact initial condition for the phase field only, exact periodicity, SA-PINN), and
 **Diffusion 1D – hard IC and BCs** (a hand-written output-transform formula) in **Examples**. See
 [Tutorial 9: Exact constraints](../tutorials/09-exact.md).
+
+## See also
+
+- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)

@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Cahn-Hilliard 2D – Mattey & Ghosh
 
-| | |
+| Example | |
 |---|---|
 | **Source** | PINNStudio template |
 | **Problem** | Forward and Inverse |
@@ -73,7 +78,7 @@ From the README: same template, switched to **Inverse**, recovering \(\alpha\) a
 - **Network:** FNN, hidden layers 5 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 50,000 domain, 1,600 boundary, 4,096 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,64.0` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** time windows (4 windows, transfer learning); backward-compatible PINN (bc-PINN) across the windows; initial-condition guided learning
+- **Methods:** [time windows (4 windows, transfer learning)](../../reference/time-windows.md); [backward-compatible PINN (bc-PINN) across the windows](../../reference/time-windows.md); [initial-condition guided learning](../../reference/pretraining.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -87,7 +92,7 @@ From the README: same template, switched to **Inverse**, recovering \(\alpha\) a
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** SA-PINN point weights; exact initial condition; exact periodicity (periodic input features)
+    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -101,7 +106,7 @@ From the README: same template, switched to **Inverse**, recovering \(\alpha\) a
 - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
-- **Methods:** SA-PINN point weights; exact initial condition; exact periodicity (periodic input features)
+- **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -115,7 +120,7 @@ From the README: same template, switched to **Inverse**, recovering \(\alpha\) a
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 20,000 domain, 800 boundary, 1,024 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
-    - **Methods:** SA-PINN point weights; exact initial condition; exact periodicity (periodic input features)
+    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -140,8 +145,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/cahn-hilliard-2d-mattey-ghosh.md) (`benchmarks/problems/cahn-hilliard-2d-mattey-ghosh.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

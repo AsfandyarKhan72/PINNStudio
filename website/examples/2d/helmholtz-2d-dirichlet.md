@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Helmholtz 2D – Dirichlet
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward and Inverse (the Inverse mode is PINNStudio's addition) |
@@ -57,7 +62,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** FNN, hidden layers 3 × 150, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
 - **Points:** 400 domain, 80 boundary, 3,600 test
 - **Loss weights:** `1` (equations, then boundary-condition rows)
-- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u`
+- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -72,7 +77,7 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 - **Network:** FNN, hidden layers 3 × 150, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
 - **Points:** 400 domain, 80 boundary, 3,600 test
 - **Loss weights:** `1` (equations, then boundary-condition rows)
-- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u`
+- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -86,7 +91,7 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
     - **Network:** FNN, hidden layers 4 × 300, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
     - **Points:** 400 domain, 80 boundary, 3,600 test
     - **Loss weights:** `1` (equations, then boundary-condition rows)
-    - **Methods:** output transform `x*(1 - x)*y*(1 - y)*u`
+    - **Methods:** output transform `x*(1 - x)*y*(1 - y)*u` ([reference](../../reference/networks.md))
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -118,8 +123,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Helmholtz 2D – Dirichlet (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20Dirichlet%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20Dirichlet%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Helmholtz 2D – Dirichlet (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20Dirichlet%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Helmholtz%202D%20%E2%80%93%20Dirichlet%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-dirichlet.md) (`benchmarks/problems/helmholtz-2d-dirichlet.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Burgers 2D – Mathias et al.
 
-| | |
+| Example | |
 |---|---|
 | **Source** | PINNStudio template |
 | **Problem** | Forward and Inverse |
@@ -70,7 +75,7 @@ From the README: same template, switched to **Inverse**, recovering the shared v
 - **Network:** FNN, hidden layers 4 × 20, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 10,000 domain, 0 boundary, 0 initial, 1,000 test
 - **Loss weights:** `1.0,1.0` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `u*16*x*(1 - x)*y*(1 - y)*tanh(26.4*t) + (1 - 16*x*(1 - x)*y*(1 - y)*tanh(26.4*t))*sin(2*pi*x)*sin(2*pi*y)|v*16*x*(1 - x)*y*(1 - y)*tanh(26.4*t) + (1 - 16*x*(1 - x)*y*(1 - y)*tanh(26.4*t))*sin(pi*x)*sin(pi*y)`
+- **Methods:** output transform `u*16*x*(1 - x)*y*(1 - y)*tanh(26.4*t) + (1 - 16*x*(1 - x)*y*(1 - y)*tanh(26.4*t))*sin(2*pi*x)*sin(2*pi*y)|v*16*x*(1 - x)*y*(1 - y)*tanh(26.4*t) + (1 - 16*x*(1 - x)*y*(1 - y)*tanh(26.4*t))*sin(pi*x)*sin(pi*y)` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -83,7 +88,7 @@ From the README: same template, switched to **Inverse**, recovering the shared v
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 8,000 domain, 2,000 boundary, 2,000 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,100.0,100.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** time windows (4 windows, transfer learning)
+    - **Methods:** [time windows (4 windows, transfer learning)](../../reference/time-windows.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -133,8 +138,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%202D%20%E2%80%93%20Mathias%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-2d-mathias-et-al.md) (`benchmarks/problems/burgers-2d-mathias-et-al.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

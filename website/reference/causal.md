@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Causal training
 
 ## What it does
@@ -96,3 +101,9 @@ residuals and together did worse than either alone in PINNStudio's benchmarks.
 **Allen-Cahn 1D – Wight & Zhao** with **Settings: Tuned** in **Examples** (causal training with the
 schedule, an MsFFN network, an exact initial condition and exact periodicity). See
 [Tutorial 12: Causal and time-window training](../tutorials/12-causal-windows.md).
+
+## See also
+
+- [Theory › Causal training](../theory/loss-weighting.md#causal-training)
+- [Tutorial 12: causal training and time windows](../tutorials/12-causal-windows.md)
+- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)

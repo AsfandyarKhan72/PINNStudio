@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Helmholtz 2D – hyperparameter search
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -44,7 +49,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 - **Network:** FNN, hidden layers 4 × 50, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
 - **Points:** 400 domain, 80 boundary, 3,600 test
 - **Loss weights:** `1` (equations, then boundary-condition rows)
-- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u`
+- **Methods:** output transform `x*(1 - x)*y*(1 - y)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|

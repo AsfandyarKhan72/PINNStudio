@@ -48,6 +48,8 @@ The other pages of the guide cover the parts of the window that are not tree ent
 [Error Analysis](error-analysis.md), [Exporting a script](export.md) and the
 [Settings menu](settings.md).
 
+For an overview of the whole workflow see [The PINNStudio workflow](../getting-started/workflow.md); for when to use which training method see [Choosing a training strategy](choosing-a-strategy.md).
+
 ## How the settings depend on each other
 
 Many settings change what other pages show. The most important links are:

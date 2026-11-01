@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Loss weights
 
 ## What it does
@@ -113,3 +118,8 @@ DeepXDE's wave example) and **Black-Scholes 1D – American put** (hand-set weig
 two boundary conditions and the initial condition) in **Examples**. See
 [Tutorial 13: Comparing configurations](../tutorials/13-compare.md) and the
 [Loss weights guide page](../guide/loss-weights.md).
+
+## See also
+
+- [Theory › Loss weighting](../theory/loss-weighting.md)
+- Examples that use it: [Wave 1D – space-time multi-scale Fourier features](../examples/1d/wave-1d-space-time-multi-scale-fourier-features.md)

@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Linear elasticity 2D – plate
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward and Inverse (the Inverse mode is PINNStudio's addition) |
@@ -71,7 +76,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** parallel FNN (PFNN), hidden layers 4 × 40, inputs (x, y), 5 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 500 domain, 500 boundary, 100 test
 - **Loss weights:** `1,1,1,1,1` (equations, then boundary-condition rows)
-- **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy`
+- **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -85,7 +90,7 @@ Measured data (**Inverse** page, measured-data files):
     - **Network:** parallel FNN (PFNN), hidden layers 5 × 80, inputs (x, y), 5 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 1,500 domain, 1,500 boundary, 100 test
     - **Loss weights:** `1,1,1,1,1` (equations, then boundary-condition rows)
-    - **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy`
+    - **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy` ([reference](../../reference/networks.md))
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -99,7 +104,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** parallel FNN (PFNN), hidden layers 4 × 40, inputs (x, y), 5 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 500 domain, 500 boundary, 100 test
 - **Loss weights:** `1,1,1,1,1` (equations, then boundary-condition rows)
-- **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (1 + 2*0.5)*Q*sin(pi*x)|sxy`
+- **Methods:** output transform `ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (1 + 2*0.5)*Q*sin(pi*x)|sxy` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -133,8 +138,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Linear elasticity 2D – plate (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Linear elasticity 2D – plate (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/linear-elasticity-2d-plate.md) (`benchmarks/problems/linear-elasticity-2d-plate.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Networks and Fourier features
 
 ## What it does
@@ -132,3 +137,8 @@ output **Formula** (see [Exact constraints](exact-constraints.md)).
 features** (STMsFFN, with an input-feature formula), **Linear elasticity 2D – plate** (PFNN),
 **Laplace 2D – disk** (input-feature formula in polar coordinates) and **Poisson 1D – hard BCs** (output
 formula) in **Examples**. See the [Neural network guide page](../guide/network.md).
+
+## See also
+
+- [Theory › PINNs](../theory/pinns.md)
+- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Brinkman-Forchheimer 1D – unknown ν_e, K](../examples/1d/brinkman-forchheimer-1d-unknown-nu-e-k.md), [Cahn-Hilliard 1D – Wight & Zhao](../examples/1d/cahn-hilliard-1d-wight-zhao.md), [Diffusion 1D – hard IC and BCs](../examples/1d/diffusion-1d-hard-ic-and-bcs.md), [Diffusion-reaction 1D](../examples/1d/diffusion-reaction-1d.md), [Fractional diffusion 1D](../examples/1d/fractional-diffusion-1d.md) and 19 more in the [example gallery](../examples/index.md)

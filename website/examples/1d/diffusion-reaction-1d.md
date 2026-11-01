@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Diffusion-reaction 1D
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward and Inverse (the Inverse mode is PINNStudio's addition) |
@@ -65,7 +70,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** FNN, hidden layers 6 × 30, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform
 - **Points:** 320 domain, 0 boundary, 0 initial, 80,000 test
 - **Loss weights:** `1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8`
+- **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -78,7 +83,7 @@ Measured data (**Inverse** page, measured-data files):
     - **Network:** FNN, hidden layers 7 × 60, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform
     - **Points:** 960 domain, 0 boundary, 0 initial, 80,000 test
     - **Loss weights:** `1` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8`
+    - **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8` ([reference](../../reference/networks.md))
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -92,7 +97,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** FNN, hidden layers 6 × 30, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform
 - **Points:** 320 domain, 0 boundary, 0 initial, 80,000 test
 - **Loss weights:** `1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8`
+- **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -106,7 +111,7 @@ Measured data (**Inverse** page, measured-data files):
     - **Network:** FNN, hidden layers 7 × 60, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform
     - **Points:** 960 domain, 0 boundary, 0 initial, 80,000 test
     - **Loss weights:** `1` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8`
+    - **Methods:** output transform `t*(pi**2 - x**2)*u + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8` ([reference](../../reference/networks.md))
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -136,8 +141,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Diffusion-reaction 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Diffusion-reaction 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-reaction-1d.md) (`benchmarks/problems/diffusion-reaction-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

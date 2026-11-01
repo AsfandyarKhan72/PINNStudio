@@ -65,6 +65,8 @@ refuses a combination.
 | [Causal training](causal.md) | Time-chunk weights and the ε schedule |
 | [Time windows and bc-PINN](time-windows.md) | Time-adaptive training, transfer learning, growing range, backward compatibility, resampling |
 
+Which of these methods to try for a given problem is discussed in [Choosing a training strategy](../guide/choosing-a-strategy.md).
+
 ## Data and results
 
 | Page | Content |

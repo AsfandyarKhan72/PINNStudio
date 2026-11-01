@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Initial conditions and imported data
 
 ## What it does

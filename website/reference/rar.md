@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # RAR
 
 ## What it does
@@ -98,3 +103,9 @@ of largest residual out of 100,000 candidates and no tolerance: DeepXDE's own sc
 round until the mean residual is below 0.005, which here stops after a single point), and
 **Allen-Cahn 1D – Wight & Zhao** with **Settings: Default** (Wight & Zhao's resampling trial: 6 rounds of
 200 points). See [Tutorial 10: RAR](../tutorials/10-rar.md).
+
+## See also
+
+- [Theory › Adaptive sampling](../theory/adaptive-sampling.md#residual-based-adaptive-refinement-rar)
+- [Tutorial 10: RAR](../tutorials/10-rar.md)
+- Examples that use it: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md), [Burgers 1D – RAR](../examples/1d/burgers-1d-rar.md)

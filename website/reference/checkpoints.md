@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Checkpoints and restoring
 
 ## What it does
@@ -102,3 +107,7 @@ No refusals specific to checkpoints.
 Any example run with a save folder, e.g. **Burgers 1D – Raissi et al.** See
 [Tutorial 15: Restoring a trained model](../tutorials/15-restore.md) and the
 [Restore & visualize guide page](../guide/restore.md).
+
+## See also
+
+- [Tutorial 15: restore](../tutorials/15-restore.md)

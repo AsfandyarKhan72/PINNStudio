@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # IC pre-training and guided learning
 
 PINNStudio has two ways of fitting the network to the initial state before the main training:
@@ -144,3 +149,9 @@ ICGL needs no transfer learning, but it is meant for one network carried through
 **Cahn-Hilliard 2D – Mattey & Ghosh** with **Settings: Default** (ICGL 0.25 and 0.2, with bc-PINN) in
 **Examples**. No shipped example uses IC pre-training. See
 [Tutorial 12: Causal and time-window training](../tutorials/12-causal-windows.md).
+
+## See also
+
+- [Theory › IC pre-training](../theory/time-dependent.md#ic-pre-training)
+- [Theory › Initial-condition guided learning](../theory/time-dependent.md#initial-condition-guided-learning)
+- Examples that use it: [Cahn-Hilliard 1D – Mattey & Ghosh](../examples/1d/cahn-hilliard-1d-mattey-ghosh.md), [Allen-Cahn 2D – Mattey & Ghosh](../examples/2d/allen-cahn-2d-mattey-ghosh.md), [Cahn-Hilliard 2D – Mattey & Ghosh](../examples/2d/cahn-hilliard-2d-mattey-ghosh.md)

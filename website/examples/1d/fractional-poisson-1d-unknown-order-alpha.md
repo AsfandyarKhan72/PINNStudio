@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Fractional Poisson 1D – unknown order α
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Inverse (DeepXDE inverse example) |
@@ -49,7 +54,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** FNN, hidden layers 4 × 20, inputs (x), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 20 domain, 0 boundary, 100 test
 - **Loss weights:** `1` (equations, then boundary-condition rows)
-- **Methods:** output transform `(1 - x**2)*u`
+- **Methods:** output transform `(1 - x**2)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -77,7 +82,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Fractional Poisson 1D – unknown order α (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%201D%20%E2%80%93%20unknown%20order%20%CE%B1%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Fractional Poisson 1D – unknown order α (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%201D%20%E2%80%93%20unknown%20order%20%CE%B1%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-poisson-1d-unknown-order.md) (`benchmarks/problems/fractional-poisson-1d-unknown-order.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

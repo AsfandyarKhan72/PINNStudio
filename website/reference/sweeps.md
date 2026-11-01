@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Sweeps and Bayesian optimization
 
 ## What it does
@@ -146,3 +151,8 @@ network size and the activation, as in DeepXDE's HPO example). See
 [Tutorial 13: Comparing configurations](../tutorials/13-compare.md),
 [Tutorial 14: Bayesian hyperparameter search](../tutorials/14-bayesian.md) and the
 [Parameter sweeps guide page](../guide/sweeps.md).
+
+## See also
+
+- [Tutorial 13: comparing settings](../tutorials/13-compare.md)
+- [Tutorial 14: Bayesian search](../tutorials/14-bayesian.md)

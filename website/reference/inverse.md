@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Inverse problems
 
 ## What it does
@@ -105,3 +110,8 @@ IC pre-training and parameter sweeps (including the unknowns' initial guesses an
 **Diffusion 1D – unknown coefficient**, **Navier-Stokes 2D – Kovasznay flow** (Inverse) and
 **Poisson 1D – unknown forcing field** (an unknown field) in **Examples**, category **Inverse**. See
 [Tutorial 6: Inverse parameter estimation](../tutorials/06-inverse.md).
+
+## See also
+
+- [Theory › Forward and inverse problems](../theory/forward-inverse.md)
+- [Tutorial 6: inverse problem](../tutorials/06-inverse.md)

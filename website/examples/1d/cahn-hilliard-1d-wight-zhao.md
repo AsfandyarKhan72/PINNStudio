@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Cahn-Hilliard 1D – Wight & Zhao
 
-| | |
+| Example | |
 |---|---|
 | **Source** | PINNStudio template |
 | **Problem** | Forward |
@@ -53,7 +58,7 @@ du_t - dmu_xx
 - **Network:** FNN, hidden layers 4 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 10,000 domain, 200 boundary, 512 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** time windows (10 windows, transfer learning); growing time range; adaptive resampling in each window
+- **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [growing time range](../../reference/time-windows.md); [adaptive resampling in each window](../../reference/time-windows.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -67,7 +72,7 @@ du_t - dmu_xx
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 10,000 domain, 200 boundary, 512 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** SA-PINN point weights; exact initial condition; exact periodicity (periodic input features)
+    - **Methods:** [SA-PINN point weights](../../reference/point-weights.md); [exact initial condition](../../reference/exact-constraints.md); [exact periodicity (periodic input features)](../../reference/networks.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -95,7 +100,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/cahn-hilliard-1d-wight-zhao.md) (`benchmarks/problems/cahn-hilliard-1d-wight-zhao.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Fractional Poisson 3D – sphere
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -39,7 +44,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 - **Network:** FNN, hidden layers 4 × 20, inputs (x, y, z), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 256 domain, 0 boundary, 100 test
 - **Loss weights:** `1` (equations, then boundary-condition rows)
-- **Methods:** output transform `(1 - x**2 - y**2 - z**2)*u`
+- **Methods:** output transform `(1 - x**2 - y**2 - z**2)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -67,7 +72,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Fractional Poisson 3D – sphere (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%203D%20%E2%80%93%20sphere%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Fractional Poisson 3D – sphere (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%203D%20%E2%80%93%20sphere%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-poisson-3d-sphere.md) (`benchmarks/problems/fractional-poisson-3d-sphere.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

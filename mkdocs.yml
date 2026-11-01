@@ -10,6 +10,10 @@ repo_url: https://github.com/AsfandyarKhan72/PINNStudio
 repo_name: AsfandyarKhan72/PINNStudio
 edit_uri: edit/docs/official-site/website/
 docs_dir: website
+# build files that sit in docs_dir but are not pages or assets
+exclude_docs: |
+  /requirements.txt
+  /overrides/
 copyright: >
   Copyright &copy; 2024&ndash;2026 Asfandyar Khan and Boise State University.
   The software license is stated in the repository's LICENSE file.
@@ -38,15 +42,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: blue
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark theme
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: light blue
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light theme
@@ -54,6 +58,7 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.indexes
+    - navigation.path
     - navigation.top
     - navigation.footer
     - navigation.instant
@@ -115,6 +120,10 @@ markdown_extensions:
 
 plugins:
   - search
+  - glightbox:          # click a screenshot to see it at full size
+      touchNavigation: true
+      zoomable: true
+      skip_classes: [no-zoom]
 
 # Per-example pages are reached from the gallery (examples/index.md), not listed in the navigation
 not_in_nav: |
@@ -124,6 +133,7 @@ nav:
   - Home: index.md
   - Getting started:
       - getting-started/index.md
+      - The PINNStudio workflow: getting-started/workflow.md
       - Installation: getting-started/installation.md
       - First run: getting-started/first-run.md
       - Save, reopen and export: getting-started/save-and-export.md
@@ -142,6 +152,7 @@ nav:
       - Training phases: guide/training.md
       - Loss weights: guide/loss-weights.md
       - Adaptive training: guide/adaptive.md
+      - Choosing a training strategy: guide/choosing-a-strategy.md
       - Solve and the training log: guide/solve.md
       - Results and plots: guide/results.md
       - Error Analysis: guide/error-analysis.md

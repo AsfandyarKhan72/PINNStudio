@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Burgers 1D – RAR
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -56,7 +61,7 @@ du_t + u*du_x - 0.01/pi*du_xx
 - **Network:** FNN, hidden layers 3 × 20, inputs (x, t), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 2,500 domain, 100 boundary, 160 initial, 1,000 test
 - **Loss weights:** `1,1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** residual-based adaptive refinement (RAR, 3 rounds of 100 points)
+- **Methods:** [residual-based adaptive refinement (RAR, 3 rounds of 100 points)](../../reference/rar.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -87,7 +92,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Burgers 1D – RAR (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20RAR%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Burgers 1D – RAR (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20RAR%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-1d-rar.md) (`benchmarks/problems/burgers-1d-rar.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

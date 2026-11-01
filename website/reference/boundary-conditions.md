@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Boundary conditions
 
 ## What it does

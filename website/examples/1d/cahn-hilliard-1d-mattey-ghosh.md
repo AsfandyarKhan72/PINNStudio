@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Cahn-Hilliard 1D – Mattey & Ghosh
 
-| | |
+| Example | |
 |---|---|
 | **Source** | PINNStudio template |
 | **Problem** | Forward |
@@ -53,7 +58,7 @@ mu - 1.0*(h**3 - h) + 0.02*dh_xx
 - **Network:** FNN, hidden layers 6 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
 - **Points:** 10,000 domain, 20 boundary, 128 initial, 1,000 test
 - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,64.0` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** time windows (10 windows, transfer learning); backward-compatible PINN (bc-PINN) across the windows; initial-condition guided learning
+- **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [backward-compatible PINN (bc-PINN) across the windows](../../reference/time-windows.md); [initial-condition guided learning](../../reference/pretraining.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -67,7 +72,7 @@ mu - 1.0*(h**3 - h) + 0.02*dh_xx
     - **Network:** FNN, hidden layers 6 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
     - **Points:** 10,000 domain, 20 boundary, 128 initial, 1,000 test
     - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,64.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** time windows (10 windows, transfer learning); backward-compatible PINN (bc-PINN) across the windows; initial-condition guided learning
+    - **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [backward-compatible PINN (bc-PINN) across the windows](../../reference/time-windows.md); [initial-condition guided learning](../../reference/pretraining.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -95,7 +100,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/cahn-hilliard-1d-mattey-ghosh.md) (`benchmarks/problems/cahn-hilliard-1d-mattey-ghosh.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

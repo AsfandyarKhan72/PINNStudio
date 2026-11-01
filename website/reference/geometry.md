@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Geometry
 
 ## What it does
@@ -121,3 +126,7 @@ Every shape for forward and inverse, stationary and time-dependent problems of i
 **Poisson 3D – cube with spherical cut-out** (Custom: Cuboid − Sphere) in **Examples**. See
 [Tutorial 8: Custom geometry](../tutorials/08-geometry.md) and the
 [Geometry guide page](../guide/geometry.md).
+
+## See also
+
+- [Tutorial 8: geometry](../tutorials/08-geometry.md)

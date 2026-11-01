@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Laplace 2D – disk
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -39,7 +44,7 @@ x*du_x + x**2*du_xx + du_yy
 - **Network:** FNN, hidden layers 3 × 20, inputs (x, y), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 2,540 domain, 80 boundary, 1,000 test
 - **Loss weights:** `1,1` (equations, then boundary-condition rows)
-- **Methods:** input features `x*sin(y); x*cos(y)`
+- **Methods:** input features `x*sin(y); x*cos(y)` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -68,7 +73,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Laplace 2D – disk (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Laplace%202D%20%E2%80%93%20disk%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Laplace 2D – disk (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Laplace%202D%20%E2%80%93%20disk%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/laplace-2d-disk.md) (`benchmarks/problems/laplace-2d-disk.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

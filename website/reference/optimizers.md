@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Optimizers and training phases
 
 ## What it does
@@ -157,3 +162,7 @@ and train with a **constant** learning rate (no decay).
 **Burgers 1D – Raissi et al.** with **Settings: Default** (L-BFGS only, Raissi et al.'s settings), and
 **Heat 1D – resampling** (the Point Resampling callback) in **Examples**. See the
 [Training guide page](../guide/training.md).
+
+## See also
+
+- [Theory › Losses and optimizers](../theory/losses.md)

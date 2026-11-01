@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Fractional Poisson 1D
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -41,7 +46,7 @@ Constants: `alpha = 1.5`
 - **Network:** FNN, hidden layers 4 × 20, inputs (x), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 101 domain, 2 boundary, 100 test
 - **Loss weights:** `1,1` (equations, then boundary-condition rows)
-- **Methods:** output transform `x*(1 - x)*u`
+- **Methods:** output transform `x*(1 - x)*u` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -54,7 +59,7 @@ Constants: `alpha = 1.5`
     - **Network:** FNN, hidden layers 5 × 40, inputs (x), 1 output; activation tanh, initializer Glorot normal
     - **Points:** 101 domain, 2 boundary, 100 test
     - **Loss weights:** `1,1` (equations, then boundary-condition rows)
-    - **Methods:** output transform `x*(1 - x)*u`
+    - **Methods:** output transform `x*(1 - x)*u` ([reference](../../reference/networks.md))
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -81,7 +86,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Fractional Poisson 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%201D%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Fractional Poisson 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-poisson-1d.md) (`benchmarks/problems/fractional-poisson-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Observational data
 
 ## What it does
@@ -103,3 +108,8 @@ picked) and each file's weight (see [Sweeps](sweeps.md)).
 **Klein-Gordon 1D** (Inverse, ten files) and **Allen-Cahn 3D – Wight & Zhao** (Inverse, **Use:** grid) in
 **Examples**, category **Inverse**. See [Tutorial 7: Importing observational data](../tutorials/07-data.md)
 and the [Inverse problems guide page](../guide/inverse.md).
+
+## See also
+
+- [Theory › Forward and inverse problems](../theory/forward-inverse.md)
+- [Tutorial 7: measured data](../tutorials/07-data.md)

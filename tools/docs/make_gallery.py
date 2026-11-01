@@ -477,6 +477,24 @@ def _methods(cfg):
     return m
 
 
+# Each method named on an example page links to the reference page that explains it (pages are examples/<dim>/x.md).
+_METHOD_PAGES = [("bc-PINN", "time-windows.md"), ("growing time range", "time-windows.md"),
+                 ("resampling in each window", "time-windows.md"), ("time windows", "time-windows.md"),
+                 ("guided learning", "pretraining.md"), ("pre-training", "pretraining.md"),
+                 ("RAR", "rar.md"), ("causal training", "causal.md"), ("point weights", "point-weights.md"),
+                 ("Fourier features", "networks.md"), ("output transform", "networks.md"),
+                 ("input features", "networks.md"), ("exact initial condition", "exact-constraints.md"),
+                 ("exact periodicity", "exact-constraints.md"), ("initial losses", "loss-weights.md")]
+
+
+def _link_method(text):
+    for key, page in _METHOD_PAGES:
+        if key in text:
+            url = "../../reference/" + page
+            return f"[{text}]({url})" if "`" not in text else f"{text} ([reference]({url}))"
+    return text
+
+
 def _strategies(cfg):
     s = set()
     if cfg.time_adaptive:
@@ -518,7 +536,7 @@ def _settings_block(cfg, title_note=""):
                    + (", then measured data" if inv else "") + ")" + ("" if same else " in phase 1; see the phase table"))
     meth = _methods(cfg)
     if meth:
-        out.append("- **Methods:** " + "; ".join(meth))
+        out.append("- **Methods:** " + "; ".join(_link_method(x) for x in meth))
     out += ["", *_phase_table(cfg)]
     return out
 
@@ -604,14 +622,14 @@ def _page(rec, images, root_rel):
     here = rec["path"]
     where = [_fix_links(w, here) for w in where]
     paper_line, after_line, inv_par = (_fix_links(x, here) for x in (paper_line, after_line, inv_par))
-    L = [f"# {e.name}", ""]
+    L = ["---", "search:", "  boost: 0.5", "---", "", f"# {e.name}", ""]
     src = "PINNStudio template" if e.source == cat.PINNSTUDIO else "DeepXDE example"
     mode_txt = " and ".join("Inverse" if m else "Forward" for m in sorted(modes))
     if e.problem == cat.INVERSE:
         mode_txt = "Inverse (DeepXDE inverse example)"
     elif e.problem == cat.BOTH and e.source == cat.DEEPXDE:
         mode_txt += " (the Inverse mode is PINNStudio's addition)"
-    L += ["| | |", "|---|---|",
+    L += ["| Example | |", "|---|---|",
           f"| **Source** | {src} |",
           f"| **Problem** | {mode_txt} |",
           f"| **Dimension** | {_dim_text(cfg0)} |",
@@ -810,7 +828,7 @@ def _page(rec, images, root_rel):
     links = []
     for f in rec["tuned_files"]:
         links.append(f"- [`benchmarks/tuning/{f}`]({GH_BLOB}benchmarks/tuning/{urllib.parse.quote(f)}) — "
-                     "problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)")
+                     "a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)")
     if rec["bench"]:
         links.append(f"- [Benchmark record]({GH_BLOB}benchmarks/problems/{rec['bench']['file']}) "
                      f"(`benchmarks/problems/{rec['bench']['file']}`)")

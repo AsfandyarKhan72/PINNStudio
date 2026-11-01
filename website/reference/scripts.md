@@ -1,3 +1,8 @@
+---
+search:
+  boost: 2
+---
+
 # Generated scripts
 
 ## What it does
@@ -106,3 +111,7 @@ own) apply.
 Export any example, e.g. **Poisson 1D – Dirichlet/Robin**, and compare it with the **Script** tab. See
 [Tutorial 16: Standalone scripts](../tutorials/16-scripts.md) and the
 [Exporting a script guide page](../guide/export.md).
+
+## See also
+
+- [Tutorial 16: standalone scripts](../tutorials/16-scripts.md)

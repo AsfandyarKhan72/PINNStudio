@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Fractional diffusion 1D
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward |
@@ -48,7 +53,7 @@ Constants: `alpha = 1.8`
 - **Network:** FNN, hidden layers 4 × 20, inputs (x, t), 1 output; activation tanh, initializer Glorot normal
 - **Points:** 400 domain, 2 boundary, 2 initial, 100 test
 - **Loss weights:** `1,1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `x*(1 - x)*t*u + x**3*(1 - x)**3`
+- **Methods:** output transform `x*(1 - x)*t*u + x**3*(1 - x)**3` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -76,7 +81,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Fractional diffusion 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20diffusion%201D%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Fractional diffusion 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20diffusion%201D%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-diffusion-1d.md) (`benchmarks/problems/fractional-diffusion-1d.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

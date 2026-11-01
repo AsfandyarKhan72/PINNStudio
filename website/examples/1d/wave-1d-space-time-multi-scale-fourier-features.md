@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Wave 1D – space-time multi-scale Fourier features
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward and Inverse (the Inverse mode is PINNStudio's addition) |
@@ -61,7 +66,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** space-time multi-scale Fourier-feature network (STMsFFN), hidden layers 3 × 100, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; scales 1 (space), 1, 10 (time)
 - **Points:** 360 domain, 360 boundary, 360 initial, 10,000 test
 - **Loss weights:** `1,1,1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** multi-scale Fourier features; collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`; loss weights set from the initial losses
+- **Methods:** [multi-scale Fourier features](../../reference/networks.md); collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)` ([reference](../../reference/networks.md)); [loss weights set from the initial losses](../../reference/loss-weights.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -74,7 +79,7 @@ Measured data (**Inverse** page, measured-data files):
     - **Network:** space-time multi-scale Fourier-feature network (STMsFFN), hidden layers 4 × 200, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; scales 1 (space), 1, 10 (time)
     - **Points:** 1,080 domain, 1,080 boundary, 1,080 initial, 10,000 test
     - **Loss weights:** `1,1,1,1` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** multi-scale Fourier features; collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`; loss weights set from the initial losses
+    - **Methods:** [multi-scale Fourier features](../../reference/networks.md); collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)` ([reference](../../reference/networks.md)); [loss weights set from the initial losses](../../reference/loss-weights.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -88,7 +93,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** space-time multi-scale Fourier-feature network (STMsFFN), hidden layers 3 × 100, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; scales 1 (space), 1, 10 (time)
 - **Points:** 5,000 domain, 360 boundary, 360 initial, 10,000 test
 - **Loss weights:** `1,1,1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** multi-scale Fourier features; collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`; loss weights set from the initial losses
+- **Methods:** [multi-scale Fourier features](../../reference/networks.md); collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)` ([reference](../../reference/networks.md)); [loss weights set from the initial losses](../../reference/loss-weights.md)
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -102,7 +107,7 @@ Measured data (**Inverse** page, measured-data files):
     - **Network:** space-time multi-scale Fourier-feature network (STMsFFN), hidden layers 4 × 200, inputs (x, t), 1 output; activation tanh, initializer Glorot uniform; scales 1 (space), 1, 10 (time)
     - **Points:** 15,000 domain, 1,080 boundary, 1,080 initial, 10,000 test
     - **Loss weights:** `1,1,1,1` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** multi-scale Fourier features; collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`; loss weights set from the initial losses
+    - **Methods:** [multi-scale Fourier features](../../reference/networks.md); collocation-point resampling every 1 iterations; input features `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)` ([reference](../../reference/networks.md)); [loss weights set from the initial losses](../../reference/loss-weights.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
@@ -133,8 +138,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Wave%201D%20%E2%80%93%20space-time%20multi-scale%20Fourier%20features%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md) (`benchmarks/problems/wave-1d-space-time-multi-scale-fourier-features.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 

@@ -1,6 +1,11 @@
+---
+search:
+  boost: 0.5
+---
+
 # Lotka-Volterra ODE
 
-| | |
+| Example | |
 |---|---|
 | **Source** | DeepXDE example |
 | **Problem** | Forward and Inverse (the Inverse mode is PINNStudio's addition) |
@@ -70,7 +75,7 @@ Measured data (**Inverse** page, measured-data files):
 - **Network:** FNN, hidden layers 6 × 64, inputs (t), 2 outputs; activation tanh, initializer Glorot normal
 - **Points:** 3,000 domain, 2 boundary, 3,000 test
 - **Loss weights:** `1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `r*tanh(t) + 100/ub|p*tanh(t) + 15/ub`; input features `t; sin(t); sin(2*t); sin(3*t); sin(4*t); sin(5*t); sin(6*t)`
+- **Methods:** output transform `r*tanh(t) + 100/ub|p*tanh(t) + 15/ub` ([reference](../../reference/networks.md)); input features `t; sin(t); sin(2*t); sin(3*t); sin(4*t); sin(5*t); sin(6*t)` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -86,7 +91,7 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 - **Network:** FNN, hidden layers 6 × 64, inputs (t), 2 outputs; activation tanh, initializer Glorot normal
 - **Points:** 3,000 domain, 2 boundary, 3,000 test
 - **Loss weights:** `1,1` (equations, then boundary-condition rows, then initial conditions)
-- **Methods:** output transform `r*tanh(t) + 100/ub|p*tanh(t) + 15/ub`; input features `t; sin(t); sin(2*t); sin(3*t); sin(4*t); sin(5*t); sin(6*t)`
+- **Methods:** output transform `r*tanh(t) + 100/ub|p*tanh(t) + 15/ub` ([reference](../../reference/networks.md)); input features `t; sin(t); sin(2*t); sin(3*t); sin(4*t); sin(5*t); sin(6*t)` ([reference](../../reference/networks.md))
 
 | Phase | Optimizer | Iterations | Learning rate | Decay |
 |---|---|---|---|---|
@@ -118,8 +123,8 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Configuration and benchmark records
 
-- [`benchmarks/tuning/Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
-- [`benchmarks/tuning/Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json) — problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)
+- [`benchmarks/tuning/Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
+- [`benchmarks/tuning/Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json) — a configuration tried in the tuning study, kept as a record (it can be opened with **Problem › Open Saved Problem...**; it is not a preset of the Examples list)
 - [Benchmark record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lotka-volterra-ode.md) (`benchmarks/problems/lotka-volterra-ode.md`)
 - [Entry in the benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) (`benchmarks/README.md`)
 
