@@ -5771,6 +5771,29 @@ class MainWindow(QMainWindow):
             self.output_transform_cb.setChecked(False)
             self._tpl_output_scaled = False
 
+    def _schedule_output_name_refresh(self):
+        """Renaming an output: relabel the other pages' lists once typing pauses."""
+        t = getattr(self, "_out_name_timer", None)
+        if t is None:
+            t = self._out_name_timer = QTimer(self)
+            t.setSingleShot(True)
+            t.timeout.connect(self._refresh_output_name_labels)
+        t.start(300)
+
+    def _refresh_output_name_labels(self):
+        """Loss weights rows and the output lists (Results › Outputs to plot, Restore, measured-data rows) show
+        each output by its current name; they kept the name they were built with until the problem was reopened."""
+        names = [e.text().strip() or f"u{i + 1}" for i, e in enumerate(getattr(self, "output_name_inputs", []))]
+        for combo in [getattr(self, "plot_output_combo", None), getattr(self, "restore_output_combo", None)] + \
+                [r.get("output_combo") for r in getattr(self, "inv_data_rows", [])]:
+            if combo is None:
+                continue
+            for i, nm in enumerate(names):
+                if i < combo.count() and combo.itemText(i).startswith(f"Output {i + 1} ("):
+                    combo.setItemText(i, f"Output {i + 1} ({nm})")
+        if hasattr(self, "num_outputs_spin"):
+            self._build_weight_inputs(self.num_outputs_spin.value())
+
     def _refresh_ic_names(self):
         """Initial Conditions page: label each output by its current name."""
         names = [e.text().strip() for e in getattr(self, "output_name_inputs", [])]
@@ -7185,9 +7208,11 @@ class MainWindow(QMainWindow):
             # just-auto-loaded path back to empty).
             self._ea_auto_inv_path = _inv_default_file
             self._ea_auto_inv_template = getattr(self, '_current_template', '')
-            self.log_box.append(
-                f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
-                f"(t={valid_files[-1][0]:.4g})")
+            # the file is filled in for Inverse mode; a Forward run does not use it, so say so only in Inverse mode
+            if getattr(self, 'radio_inverse', None) is not None and self.radio_inverse.isChecked():
+                self.log_box.append(
+                    f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
+                    f"(t={valid_files[-1][0]:.4g})")
 
     # ── Plot type change ──────────────────────────────────────
     @staticmethod
@@ -7898,6 +7923,7 @@ class MainWindow(QMainWindow):
                 self.output_name_inputs.append(name_input)
                 name_input.textChanged.connect(lambda _t: self._refresh_equation_previews())
                 name_input.textChanged.connect(lambda _t: self._refresh_ic_names())
+                name_input.textChanged.connect(lambda _t: self._schedule_output_name_refresh())
                 nw = QWidget(); nw.setLayout(name_row)
                 self.pde_main_layout.addWidget(nw)
 
