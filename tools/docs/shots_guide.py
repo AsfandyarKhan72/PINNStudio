@@ -13,14 +13,16 @@ and the Restore & visualize page can be shown with a real saved run.
 Output files are named guide_*.png.
 """
 import os
+import tempfile
 import shutil
 import sys
 import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
-os.environ["HOME"] = os.environ.get("PINNSTUDIO_DOCS_HOME", "/tmp/home/user")
-os.makedirs(os.environ["HOME"], exist_ok=True)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _docs_home import private_home  # noqa: E402
+private_home()
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
 

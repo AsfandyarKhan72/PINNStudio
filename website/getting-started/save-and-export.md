@@ -114,8 +114,8 @@ What to keep in mind:
 - **Export solution data** (on the **Results** page) is written only by a run from the window. In the development
   version, the exported script says so in its header when that option is on.
 
-PINNStudio's copyright holders allow generated scripts to be used, changed and shared under terms of your choice;
-the libraries they import keep their own licenses. See [License](../about/license.md).
+For the terms under which generated scripts can be used and shared, see [License](../about/license.md); the libraries
+a script imports keep their own licenses ([Dependencies and attribution](../about/dependencies.md)).
 
 More on the scripts: [Exporting a script](../guide/export.md) and [Generated scripts](../reference/scripts.md). If an
 exported script fails outside PINNStudio, see

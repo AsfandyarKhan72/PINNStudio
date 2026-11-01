@@ -38,6 +38,7 @@ import os
 import re
 import shutil
 import sys
+import urllib.parse
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -77,7 +78,7 @@ IMAGES = [
      "Animated plots of the inferred parameters gamma_1 and gamma_2 against the training iteration"),
     ("assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png", "2D Allen-Cahn (Wight & Zhao)",
      "allen-cahn-2d-wight-zhao-rar-points.png",
-     "Figure from PINNStudio's README (section on RAR): a run of this example with RAR switched on, round 1 -- "
+     "Figure from PINNStudio's README (section on RAR): a run of this example with RAR switched on, round 1 — "
      "the collocation points added in that round. RAR is not part of the example's Default settings.",
      "Collocation points of a 2D Allen-Cahn run after RAR round 1, the added points near the interface"),
     ("assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png", "2D Allen-Cahn (Wight & Zhao)",
@@ -85,7 +86,7 @@ IMAGES = [
      "Figure from PINNStudio's README (section on RAR): the same RAR run, PINN, reference and error after round 1.",
      "PINN solution, reference solution and error of a 2D Allen-Cahn run after RAR round 1"),
     ("assets/Images/1D-Burgers/rar_collocation_points.png", "Burgers equation with RAR", "burgers-1d-rar-points.png",
-     "Figure from PINNStudio's README (section on RAR): a Burgers 1D run with RAR, round 2 -- original points, "
+     "Figure from PINNStudio's README (section on RAR): a Burgers 1D run with RAR, round 2 — original points, "
      "points added in earlier rounds and points added in this round. The README does not state which example's "
      "settings the run used.",
      "Collocation points of a Burgers 1D RAR run after round 2, the added points along the shock at x = 0"),
@@ -93,16 +94,16 @@ IMAGES = [
      "Figure from PINNStudio's README (section on RAR): the same Burgers 1D RAR run, PINN, reference and error after round 2.",
      "PINN solution, reference solution and error over (t, x) of a Burgers 1D RAR run after round 2"),
     ("assets/Images/3D_AllenCahn-Wight/isosurface.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-isosurface.png",
-     "Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode -- "
+     "Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — "
      "the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).",
      "Spherical interface of the 3D Allen-Cahn PINN shrinking at five times, and the error inside the cube"),
     ("assets/Images/3D_AllenCahn-Wight/radius.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-radius.png",
      "Figure from the repository's benchmark notes (benchmarks/paper.md): the same Inverse-mode run, the drop's radius "
-     "over time -- PINN, reference and the sharp-interface limit.",
+     "over time — PINN, reference and the sharp-interface limit.",
      "Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit"),
     ("assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png",
      "Helmholtz 2D – hyperparameter optimization", "helmholtz-2d-hpo-surface.png",
-     "Figure from PINNStudio's README (this example's results): a run with DeepXDE's settings (Default) -- "
+     "Figure from PINNStudio's README (this example's results): a run with DeepXDE's settings (Default) — "
      "PINN, reference and error.",
      "Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem"),
 ]
@@ -266,6 +267,26 @@ def _readme_math(lines):
     return eqs, inv_eqs, where, paper, after, _md_math(inv_par)
 
 
+ANCHOR_PAGES = {}     # README anchor -> page path (filled in main)
+
+
+def _fix_links(text, here):
+    """README-relative links in text taken from the README -> site pages or GitHub."""
+    def repl(m):
+        label, target = m.group(1), m.group(2)
+        if target.startswith("#"):
+            page = ANCHOR_PAGES.get(target[1:])
+            if page:
+                return f"[{label}]({os.path.relpath(page, os.path.dirname(here))})"
+            return label
+        if re.match(r"https?://", target):
+            return m.group(0)
+        path = target.split("?")[0]
+        base = GH_TREE if path.endswith("/") or "." not in os.path.basename(path) else GH_BLOB
+        return f"[{label}]({base}{path})"
+    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", repl, text)
+
+
 # ----------------------------------------------------------------- page parts
 def _dim_text(cfg):
     if cfg.problem_dim == "ODE":
@@ -335,7 +356,12 @@ def _bc_rows(cfg, bc_labels):
                 extra.append(f"points: {r.get('points_list')}")
             elif r.get("points_file"):
                 extra.append(f"points from `{_rel_ref(r['points_file']) or os.path.basename(r['points_file'])}`")
-            if r.get("values_mode") == "formula" and r.get("values_formula"):
+            if t == "pointset_operator":
+                if r.get("values_mode") == "formula" and r.get("values_formula"):
+                    extra.append(f"operator `{value}` equals `{r['values_formula']}` at the points")
+                else:
+                    extra.append(f"operator `{value}` equals the values in the file")
+            elif r.get("values_mode") == "formula" and r.get("values_formula"):
                 value = r["values_formula"]
             elif r.get("points_file") and t == "pointset":
                 value = "(values from the file)"
@@ -344,6 +370,10 @@ def _bc_rows(cfg, bc_labels):
         if t == "robin":
             extra.append("value is the right-hand side of du/dn = f(x, u)")
         where = r.get("location", "") if t not in ("pointset", "pointset_operator") else "—"
+        if r.get("apply_at") == "initial":
+            where = "initial time"
+        elif where.strip() == "True":
+            where = "True (the whole boundary)"
         table.append((bc_labels.get(t, t), where, out_name, value, "; ".join(extra)))
     return table
 
@@ -380,7 +410,11 @@ def _network(cfg):
     kind = {"MsFFN": "multi-scale Fourier-feature network (MsFFN)",
             "STMsFFN": "space-time multi-scale Fourier-feature network (STMsFFN)",
             "PFNN": "parallel FNN (PFNN)"}.get(cfg.network_type, cfg.network_type)
-    s = f"{kind}, hidden layers {size}, {lay[0]} input{'s' if lay[0] != 1 else ''}, {lay[-1]} output{'s' if lay[-1] != 1 else ''}; " \
+    if cfg.problem_dim == "ODE":
+        coords = "t"
+    else:
+        coords = {"1D": "x", "2D": "x, y", "3D": "x, y, z"}[cfg.problem_dim] + ("" if cfg.steady_state else ", t")
+    s = f"{kind}, hidden layers {size}, inputs ({coords}), {lay[-1]} output{'s' if lay[-1] != 1 else ''}; " \
         f"activation {cfg.activation}, initializer {cfg.kernel_initializer}"
     if cfg.network_type == "MsFFN":
         s += f"; Fourier-feature scales {cfg.msffn_sigmas}"
@@ -472,6 +506,16 @@ def _phase_table(cfg):
 
 def _settings_block(cfg, title_note=""):
     out = [f"- **Network:** {_network(cfg)}", f"- **Points:** {_points(cfg)}"]
+    ph = _phases(cfg)
+    w = (ph[0].get("weights") if ph and ph[0].get("weights") else cfg.loss_weights_multi) or ""
+    if w.strip():
+        from pinnstudio.core import paper_settings as _ps
+        n_terms = sum(_ps._n_terms(cfg)) if not cfg.steady_state else sum(_ps._n_terms(cfg)[:2])
+        inv = len([x for x in w.split(",") if x.strip()]) > n_terms
+        same = all((p.get("weights") or w) == w for p in ph)
+        out.append(f"- **Loss weights:** `{w}` (equations, then boundary-condition rows"
+                   + ("" if cfg.steady_state else ", then initial conditions")
+                   + (", then measured data" if inv else "") + ")" + ("" if same else " in phase 1; see the phase table"))
     meth = _methods(cfg)
     if meth:
         out.append("- **Methods:** " + "; ".join(meth))
@@ -498,7 +542,10 @@ def _record(entry, tcache, readme, bench_index, tuned_files, bc_labels):
         t_msg = re.sub(r"\s*\(benchmarks: [^)]*\)", "", t_msg or "")
         paper_default = (not gui_inverse and entry.key in ps.TEMPLATE_PAPER
                          and (entry.key, ps.TEMPLATE_PAPER[entry.key]) in ps.PAPER)
+        tt = es.tuned_table().get(entry.key, {})
+        unoffered = inv and not gui_inverse and not has_t and bool(tt.get("inverse"))
         rec["modes"][inv] = dict(cfg=cfg, default=d_cfg, tuned=t_cfg, tuned_msg=t_msg, has_tuned=has_t,
+                                 tuned_unoffered=unoffered,
                                  paper_default=ps.PAPER_LABEL.get(ps.TEMPLATE_PAPER.get(entry.key)) if paper_default else "",
                                  gui_inverse=gui_inverse)
     ex = dx.BY_NAME.get(entry.key) or pse.BY_NAME.get(entry.key)
@@ -541,10 +588,10 @@ def _ref_folders(cfg):
     return seen, obs
 
 
-def _gui_path(entry, inverse):
+def _gui_path(entry, inverse, tuned):
     cat_name = "Inverse" if inverse else "Forward"
     return (f"toolbar **Examples:** › **{cat_name}** › under the **── {entry.dim} ──** heading, "
-            f"**{entry.name}** › **Default** or **Tuned**")
+            f"**{entry.name}** › **Default**" + (" or **Tuned**" if tuned else ""))
 
 
 def _page(rec, images, root_rel):
@@ -554,6 +601,9 @@ def _page(rec, images, root_rel):
     first = modes[min(modes)]           # forward if it exists
     cfg0 = first["cfg"]
     eqs, inv_eqs, where, paper_line, after_line, inv_par = rec["readme"]
+    here = rec["path"]
+    where = [_fix_links(w, here) for w in where]
+    paper_line, after_line, inv_par = (_fix_links(x, here) for x in (paper_line, after_line, inv_par))
     L = [f"# {e.name}", ""]
     src = "PINNStudio template" if e.source == cat.PINNSTUDIO else "DeepXDE example"
     mode_txt = " and ".join("Inverse" if m else "Forward" for m in sorted(modes))
@@ -606,17 +656,17 @@ def _page(rec, images, root_rel):
     L += [f"- {d}" for d in dl] + [""]
 
     # initial and boundary conditions
-    ic = _ic_rows(cfg0)
+    ic = _ic_rows(first["default"])
     if ic:
-        L += ["## Initial conditions", "", "| Output | Initial value | How it is imposed |", "|---|---|---|"]
+        L += ["## Initial conditions", "", "| Output | Initial value | How it is imposed (Settings: Default) |", "|---|---|---|"]
         L += [f"| `{o}` | {_cell(_code(x))} | {h} |" for o, x, h in ic] + [""]
         if cfg0.forward_ic_from_file and cfg0.forward_ic_file:
             L += [f"The initial condition is read from `{_rel_ref(cfg0.forward_ic_file)}`.", ""]
     L += ["## Boundary conditions", ""]
-    bcs = _bc_rows(cfg0, rec["bc_labels"])
+    bcs = _bc_rows(first["default"], rec["bc_labels"])
     if bcs:
         L += ["| Type | Where | Output | Value | Details |", "|---|---|---|---|---|"]
-        L += [f"| {t} | {_cell(_code(w)) if w != '—' else '—'} | {_cell(o if o == '—' else '`' + o + '`')} | "
+        L += [f"| {t} | {_cell(_code(w)) if w not in ('—', 'initial time') else w} | {_cell(o if o == '—' else '`' + o + '`')} | "
               f"{_cell(_code(v)) if v and not v.startswith('(') else (v or '—')} | {_cell(x) or '—'} |"
               for t, w, o, v, x in bcs] + [""]
     else:
@@ -660,14 +710,29 @@ def _page(rec, images, root_rel):
         head = "Inverse mode" if inv and e.problem != cat.INVERSE else ("Forward mode" if not inv else "")
         if len(modes) > 1:
             L += [f"### {head}", ""]
-        L += ["**Settings: Default**" + (f" — the paper's method ({m['paper_default']})" if m["paper_default"] else
-                                          (" — DeepXDE's own settings" if e.source == cat.DEEPXDE and not inv
-                                           or e.problem == cat.INVERSE else " — the template's own settings")), ""]
+        if m["paper_default"]:
+            what = f"the paper's method ({m['paper_default']})"
+        elif e.source == cat.DEEPXDE and (not inv or e.problem == cat.INVERSE):
+            what = "DeepXDE's own settings"
+        elif e.source == cat.DEEPXDE:
+            what = "DeepXDE's settings with PINNStudio's Inverse-mode changes (see *Notes*)"
+        else:
+            what = "the template's own settings"
+        L += [f"**Settings: Default** — {what}", ""]
         L += _settings_block(m["default"]) + [""]
         if m["has_tuned"] and m["tuned"] is not None:
             msg = m["tuned_msg"].replace("Tuned settings: ", "")
-            L += [f'??? note "Settings: Tuned — {_cell(msg.rstrip("."))}"', ""]
+            base = ("the template's own settings (not the paper's method that Default loads)" if m["paper_default"]
+                    else "the example's own settings")
+            L += ['??? note "Settings: Tuned"', "",
+                  f"    The Training Log reports: *Tuned settings: {msg.rstrip('.')}.*"
+                  + ("" if msg.startswith("the template's own") else f" The change is applied to {base}."), ""]
             L += ["    " + x if x else "" for x in _settings_block(m["tuned"])] + [""]
+        elif m["tuned_unoffered"]:
+            L += ["No **Tuned** choice in the GUI: the **Tuned** item is greyed out for this example. "
+                  "`pinnstudio/resources/tuned_settings.json` does hold a tuned setting for it (under its inverse "
+                  "entry), but the example loads as a Forward problem, so the Examples list does not offer it. "
+                  "The tuning-study configuration file is linked under *Configuration and benchmark records*.", ""]
         else:
             L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example "
                   "(its Default settings are PINNStudio's best).", ""]
@@ -675,7 +740,7 @@ def _page(rec, images, root_rel):
     # load
     L += ["## Loading it in PINNStudio", ""]
     for inv in sorted(modes):
-        L.append(f"- {'Inverse' if inv else 'Forward'}: {_gui_path(e, inv)}, then **Solve**.")
+        L.append(f"- {'Inverse' if inv else 'Forward'}: {_gui_path(e, inv, modes[inv]['has_tuned'])}, then **Solve**.")
     L += ["", "Loading an example fills in every setting; anything you change before **Solve** is listed in the "
           "Training Log. Your save folder, GPU, random-seed and plot-style settings are kept.", ""]
 
@@ -697,11 +762,12 @@ def _page(rec, images, root_rel):
                     f"[`{f}/`]({GH_TREE}{f})" for f in folders))
             else:
                 ref_lines.append(f"- {tag}none bundled; you can add your own files in the **Error Analysis** dialog.")
-    seen = []
-    for r in ref_lines:
-        if r not in seen:
-            seen.append(r)
-    L += seen + [""]
+    bodies = [r.split(": ", 1)[1] if r.startswith(("- Forward mode: ", "- Inverse mode: ")) else r[2:]
+              for r in ref_lines]
+    if len(set(bodies)) == 1:
+        b0 = bodies[0]
+        ref_lines = ["- " + b0[0].upper() + b0[1:]]
+    L += ref_lines + [""]
 
     # source and citation
     L += ["## Source and citation", ""]
@@ -743,8 +809,8 @@ def _page(rec, images, root_rel):
     L += ["## Configuration and benchmark records", ""]
     links = []
     for f in rec["tuned_files"]:
-        links.append(f"- [`benchmarks/tuning/{f}`]({GH_BLOB}benchmarks/tuning/{f.replace(' ', '%20')}) — "
-                     "problem file of a tuning-study configuration (open it with **File › Open**)")
+        links.append(f"- [`benchmarks/tuning/{f}`]({GH_BLOB}benchmarks/tuning/{urllib.parse.quote(f)}) — "
+                     "problem file of a tuning-study configuration (open it with **Problem › Open Saved Problem...**)")
     if rec["bench"]:
         links.append(f"- [Benchmark record]({GH_BLOB}benchmarks/problems/{rec['bench']['file']}) "
                      f"(`benchmarks/problems/{rec['bench']['file']}`)")
@@ -754,7 +820,7 @@ def _page(rec, images, root_rel):
         links.append("- No configuration file or benchmark record for this example.")
     L += links + ["", "Verified error values are reported in the [Reproducibility](" + root_rel +
                   "reproducibility/benchmarks.md) section, not on this page.", ""]
-    L += [f"[← Back to the example gallery]({root_rel}examples/index.md)", ""]
+    L += ["[← Back to the example gallery](../index.md)", ""]
     return "\n".join(L)
 
 
@@ -856,6 +922,8 @@ def main():
         r = _record(e, tcache, readme, bench_index, tuned_files, bc_labels)
         r["bc_labels"] = bc_labels
         records.append(r)
+        if r["bench"]:
+            ANCHOR_PAGES[r["bench"]["anchor"]] = r["path"]
 
     # README / code differences
     issues = []

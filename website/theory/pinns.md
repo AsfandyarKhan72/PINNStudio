@@ -71,12 +71,12 @@ mechanism for its [exact constraints](exact-constraints.md).
 
 ## Collocation points
 
-The equation is enforced on finite point sets, the **Collocation points** page
-([reference](../guide/points.md)):
+The equation is enforced on finite point sets, set on the **Collocation points** page (see the
+[guide page](../guide/points.md)):
 
 | Set | Count | Used for |
 |---|---|---|
-| \(\mathcal{T}_r \subset \Omega \times (t_{\min}, t_{\max}]\) | **Domain points:** | the equation residuals |
+| \(\mathcal{T}_r \subset \Omega \times (t_{\min}, t_{\max}]\) | **Domain points:** | the equation residuals (DeepXDE also evaluates the residuals at the boundary and initial points) |
 | \(\mathcal{T}_b \subset \partial\Omega \times [t_{\min}, t_{\max}]\) | **Boundary points:** | the boundary conditions |
 | \(\mathcal{T}_0 \subset \Omega \times \{t_{\min}\}\) | **Initial points:** | the initial conditions |
 | \(\mathcal{T}_{\text{test}}\) | **Test points:** | the test loss reported in the Training Log (not trained on) |
@@ -98,14 +98,16 @@ Training minimises a weighted sum of mean losses over these point sets,
 \mathcal{L}(\theta) = \sum_{k} w_k \, \mathcal{L}_k(\theta),
 \]
 
-with gradient-based optimizers run in sequence (the **Training phases**: Adam, AdamW, L-BFGS, NNCG; see
+with gradient-based optimizers run in sequence (the **Training phases**: Adam, AdamW, L-BFGS, and NNCG of
+[Rathore et al., 2024](../about/references.md#rathore2024); see
 [Optimizers and training phases](../reference/optimizers.md)). The loss terms and the derivatives they
 need are described in [Losses and automatic differentiation](losses.md).
 
 Two run settings affect what is computed:
 
-- **Precision.** The script uses single precision (float32) unless **Settings › Float Precision...** selects
-  float64 (for the whole run, or only for L-BFGS phases).
+- **Precision.** The script uses single precision (float32) unless **Precision:** on the **Training** page or
+  **Settings › Float Precision...** selects float64; float64 then applies to the whole run, not only to the
+  L-BFGS phases.
 - **Random seed.** With **Settings › Random Seed...** on (the default, seed 2026) the script calls
   `dde.config.set_random_seed`, which seeds Python, NumPy and PyTorch, so point sampling and weight
   initialisation repeat between runs. GPU runs are not made bit-for-bit deterministic (cuDNN

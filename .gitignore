@@ -26,3 +26,4 @@ pinnstudio/core/local_examples.py
 reference_data/local/
 tools/local/
 tests/local/
+!website/assets/**/*.png
