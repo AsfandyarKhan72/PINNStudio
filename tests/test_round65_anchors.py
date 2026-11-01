@@ -73,7 +73,8 @@ def run():
     check("np.random.uniform(0.5, 1.5, (500, 1))" in code and "np.random.uniform(0.0, 1.0, (500, 1))" in code,
           f"box: given x range, t defaults to the domain range:\n{code}")
     check(_anchor_points_code(_heat("/tmp/x", 10, anchors_mode="none")) == "", "none -> no code")
-    check("np.loadtxt('/data/a.txt'" in _anchor_points_code(_heat("/tmp/x", 10, anchors_mode="file", anchors_file="/data/a.txt")),
+    # read with the same reader as the other data files (';' separators, header and NaN rows skipped)
+    check("_read_point_table('/data/a.txt')" in _anchor_points_code(_heat("/tmp/x", 10, anchors_mode="file", anchors_file="/data/a.txt")),
           "file mode loads the file")
     for gen in (generate_script, generate_clean_script):
         ast.parse(gen(_heat("/tmp/x", 10)))

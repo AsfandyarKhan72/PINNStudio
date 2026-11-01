@@ -553,3 +553,14 @@ def test_time_windows_are_refused_for_an_inverse_problem():
                             ta_transfer_learning=True, ic_hard=",".join(["False"] * n), ic_active=",".join(["True"] * n))
     assert any("forward problems only" in e for e in c.validate())
     assert not any("forward problems only" in e for e in dataclasses.replace(c, problem_type="Forward").validate())
+
+
+def test_time_windows_are_refused_for_an_ode_or_a_stationary_problem():
+    """The window offered Time Adaptive Training for an ODE, and the scripts silently switched it off (the ODE is
+    solved as a problem in t, the steady case has no time). Both are now refused with a message."""
+    from pinnstudio.core.config import PINNConfig
+    base = dataclasses.replace(PINNConfig(), time_adaptive=True, adapt_method="Time Adaptive", ta_transfer_learning=True)
+    ode = dataclasses.replace(base, problem_dim="ODE", pde_expressions="du_t + 0.4*u", pde_expression="du_t + 0.4*u")
+    assert any("isn't available for an ODE" in e for e in ode.validate())
+    steady = dataclasses.replace(base, steady_state=True, pde_expressions="du_xx + 1", pde_expression="du_xx + 1")
+    assert any("needs a time-dependent problem" in e for e in steady.validate())

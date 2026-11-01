@@ -1841,8 +1841,8 @@ def _gs_rar_loop_code(config):
             _rar_final_model_name = "model_lbfgs" if {config.rar_lbfgs_iters} > 0 else "model_adam"
             if _use_save:
                 try:
-                    model.save(_os.path.join(_rd, _rar_final_model_name))
-                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_os.path.join(_rd, _rar_final_model_name)}}.pt")
+                    _saved_pt = model.save(_os.path.join(_rd, _rar_final_model_name))
+                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_saved_pt}}")
                 except Exception as _rar_err_save:
                     print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
 
@@ -2483,8 +2483,8 @@ def _gs_rar_loop_code(config):
                     _rar_rd_adam = _os.path.join(_rar_rounds_dir, f"round_{{rar_cycle+1:02d}}")
                     _os.makedirs(_rar_rd_adam, exist_ok=True)
                     try:
-                        model.save(_os.path.join(_rar_rd_adam, "model_adam"))
-                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_os.path.join(_rar_rd_adam, 'model_adam')}}.pt")
+                        _saved_pt = model.save(_os.path.join(_rar_rd_adam, "model_adam"))
+                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_saved_pt}}")
                     except Exception as _rar_adam_save_err:
                         print(f"  [RAR round {{rar_cycle+1}}] model_adam save failed: {{_rar_adam_save_err}}")
                 dde.optimizers.set_LBFGS_options(
@@ -3235,8 +3235,8 @@ if {config.time_adaptive}:
                 _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                 _os.makedirs(_step_dir_adam, exist_ok=True)
                 _step_adam_path = _os.path.join(_step_dir_adam, "model_adam")
-                model_i.save(_step_adam_path)
-                print(f"Step Adam model saved: {{_step_adam_path}}.pt")
+                _saved_pt = model_i.save(_step_adam_path)
+                print(f"Step Adam model saved: {{_saved_pt}}")
 
         # ── Optimizer Scheduler phases ────────────────────────
         if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
@@ -3275,8 +3275,8 @@ if {config.time_adaptive}:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_saved_pt}}")
                 elif _sp['optimizer'] == 'nncg':
                     # See the matching NNCG branch in the Standard scheduler
                     # loop above for why: exact-case "NNCG" name, no lr=, no
@@ -3291,8 +3291,8 @@ if {config.time_adaptive}:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_nncg-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_saved_pt}}")
                 else:
                     _sp_decay = None
                     _sp_decay_type = _sp.get('decay_type', 'none')
@@ -3317,8 +3317,8 @@ if {config.time_adaptive}:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_adam-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_saved_pt}}")
         elif "{config.optimizer2}" != "none":
             dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -3334,8 +3334,8 @@ if {config.time_adaptive}:
                 _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                 _os.makedirs(_step_dir_lbfgs, exist_ok=True)
                 _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
-                model_i.save(_step_lbfgs_path)
-                print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
+                _saved_pt = model_i.save(_step_lbfgs_path)
+                print(f"Step L-BFGS model saved: {{_saved_pt}}")
 
         # ── Adaptive resampling in this window (Wight & Zhao's approach I + resampling) ──
         # Random candidates over the window's range; those with the largest PDE residual
@@ -7162,11 +7162,11 @@ for _pval in _param_values:
                 # itself actually ran.
                 if _use_save:
                     _adam_model_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}")
-                    model.save(_adam_model_path)
+                    _saved_pt = model.save(_adam_model_path)
                     _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                     with open(_adam_cfg_path, "w") as _acf:
                         _json.dump(_model_config, _acf, indent=2)
-                    print(f"Adam model saved: {{_adam_model_path}}.pt")
+                    print(f"Adam model saved: {{_saved_pt}}")
                     print(f"Adam config saved to: {{_adam_cfg_path}}")
             else:
                 # Scheduler phases below define all training — skip this
@@ -7200,8 +7200,8 @@ for _pval in _param_values:
                 # Adam-only run, with no Phase 2, is still covered -- this
                 # is the only save it would otherwise ever get).
                 _adam_model_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}")
-                model.save(_adam_model_path)
-                print(f"Adam model saved: {{_adam_model_path}}.pt")
+                _saved_pt = model.save(_adam_model_path)
+                print(f"Adam model saved: {{_saved_pt}}")
                 _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                 with open(_adam_cfg_path, "w") as _acf:
                     _json.dump(_model_config, _acf, indent=2)
@@ -7265,8 +7265,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_saved_pt}}")
                 elif _sp['optimizer'] == 'nncg':
                     # NNCG (deepxde>=1.13.0, version-guarded above): exact-case
                     # "NNCG" name required, no lr= (ignored with a warning --
@@ -7301,8 +7301,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_nncg-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} NNCG model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} NNCG model saved: {{_saved_pt}}")
                 else:
                     _sp_decay = None
                     _sp_decay_type = _sp.get('decay_type', 'none')
@@ -7345,8 +7345,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} Adam model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} Adam model saved: {{_saved_pt}}")
         elif "{config.optimizer2}" != "none":
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
