@@ -80,3 +80,18 @@ def test_align_forms_is_idempotent_and_aligns_labels():
     for h in page.findChildren(QHBoxLayout):
         assert h.stretch(1) == 0
     page.close()
+
+
+def test_no_layout_itemat_or_takeat_in_the_interface():
+    """QLayout.itemAt/takeAt create the layout-item wrappers PySide6 keeps (see above); the interface finds
+    a layout's widgets through the QObject tree instead (workspace.layout_widgets / layout_sublayouts)."""
+    import re
+    ui = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pinnstudio", "ui")
+    bad = []
+    for name in sorted(os.listdir(ui)):
+        if name.endswith(".py"):
+            for n, line in enumerate(open(os.path.join(ui, name), encoding="utf-8"), 1):
+                code = line.split("#", 1)[0]
+                if re.search(r"\.(itemAt|takeAt)\(", code) and "tree.itemAt" not in code:
+                    bad.append(f"{name}:{n}: {line.strip()}")
+    assert not bad, "\n".join(bad)
