@@ -104,8 +104,11 @@ test_line_slice_and_sketch_bcs, test_workspace_layout, test_form_alignment: 11 p
 
 ## Open
 
-- One heap-corruption abort in 1 of 5 PySide6 GUI walkthroughs (example loading), not reproduced in 4 reruns; none in
-  PyQt6 runs. Suspected widget/layout-item lifetime difference (other `takeAt` + `deleteLater` sites remain).
+- One heap-corruption abort in 11 full PySide6 GUI walkthroughs (example loading; the other 10, including 6 identical
+  repeats, completed with the same 84/90 checks as PyQt6); none in PyQt6 runs. Suspected widget/layout-item lifetime difference (other `takeAt` + `deleteLater` sites remain).
 - Windows (the PyQt6 6.6.1 DLL pin), macOS and real high-DPI displays untested.
 - GUI construction 20-50 % slower (training unaffected: separate process).
 - CI workflows, README/CONTRIBUTING/CHANGELOG and license wording not changed.
+
+- tests/test_portable_paths.py: PyQt6 crashed (segfault) in pytest's final garbage collection after all 8 tests passed;
+  fixed on audit/v1.6.0 (5dc6559, windows deleted explicitly). Under PySide6 the file passes 3 of 3 runs, rc 0.
