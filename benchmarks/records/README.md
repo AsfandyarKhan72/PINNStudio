@@ -34,8 +34,11 @@ Reference-data subtrees that differ between the two builds (git tree ids):
   - `changes.md`: every value that changed from the original build and why (re-scored, or left out and trained
     again).
   - `a13_*`, `a14_*` and `new_primary.json`: the retrained inverse runs.
-- `original_2026-10-30/primary_final.json`: the primary file the corrected build started from
-  (`benchmarks/reference_regeneration/apply_reeval.py --primary`).
+- `original_2026-10-30/primary_final.json`: the primary file the original build used, and the one the corrected
+  build started from (`benchmarks/reference_regeneration/apply_reeval.py --primary`).
+  `original_2026-10-30/primary.json` is an earlier version without the seed-1/seed-2 runs of the papers'
+  methods; it is kept for the record but not used (with it, 16 rows of `forward_per_seed.csv` fall back to the
+  worst printed error and differ from the committed file).
 
 The run folders themselves (logs, models, figures) stay on the GPU machine; only these summaries are kept here.
 
@@ -44,9 +47,10 @@ The run folders themselves (logs, models, figures) stay on the GPU machine; only
 From a checkout of the commit that produced the build (its `tools/` and `benchmarks/tuning/readme_results.json`):
 
 ```bash
-B=benchmarks/records/corrected_2026-10-31          # or original_2026-10-30
+B=benchmarks/records/corrected_2026-10-31; P=$B/primary.json        # corrected build, on this branch
+# B=benchmarks/records/original_2026-10-30; P=$B/primary_final.json  # original build, at commit af321c1
 python tools/build_benchmark_records.py $(sed "s#^#$B/#" $B/results_args.txt) \
-    --primary $B/primary.json \
+    --primary $P \
     --papers "$(sed "s#^#$B/#" $B/papers_arg.txt | paste -sd,)" \
     --spacetime "$(sed "s#^#$B/#" $B/spacetime_arg.txt | paste -sd,)" \
     --out /tmp/records_check
@@ -55,3 +59,5 @@ diff /tmp/records_check/table_s2.tex benchmarks/tables/table_s2.tex
 
 `tools/build_benchmark_records.py` writes `table_s2.tex`, `forward_per_seed.csv`, `inverse_per_seed.csv`
 and the Figure 4 rows with the same functions as `tools/make_benchmarks_readme.py`.
+
+The last independent rebuild of both builds and the differences between them are in [`VERIFICATION.md`](VERIFICATION.md).
