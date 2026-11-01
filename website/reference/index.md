@@ -32,6 +32,13 @@ The configuration fields are those of `PINNConfig` in `pinnstudio/core/config.py
 *Compatibility* are the ones `PINNConfig.validate()` and the code generator print when Solve or a sweep
 refuses a combination.
 
+## Overview pages
+
+| Page | Content |
+|---|---|
+| [All settings](settings-index.md) | Every setting of the window in one searchable table: label, place, default, allowed values, configuration field, and the page that explains it |
+| [Compatibility of methods](compatibility.md) | Which methods and problem types can be combined: used by an example or test, refused, or untested |
+
 ## Problems
 
 | Page | Content |

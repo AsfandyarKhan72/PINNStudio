@@ -70,7 +70,8 @@ Both need transfer learning; **Solve** says so if it is off.
 ### When it is not available
 
 Time-adaptive training needs a time axis: it is greyed out for a **Stationary** problem and removed in
-**Inverse** mode. It cannot be combined with an exact initial condition or with *Scale by initial
+**Inverse** mode. For an ODE it can be selected, but it has no effect: the ODE is solved over the whole interval
+at once. It cannot be combined with an exact initial condition or with *Scale by initial
 losses*, and its resampling rounds not with per-point weights.
 
 ## Residual-based adaptive refinement (RAR)

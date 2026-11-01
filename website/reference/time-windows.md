@@ -29,8 +29,10 @@ whole interval follows poorly.
 
 ## How to enable it
 
-**Training** → **Adaptive training** page → **Method:** **Time Adaptive Training** (not offered for a
-stationary problem, an ODE, or an inverse problem). **About time-adaptive training** opens a description.
+**Training** → **Adaptive training** page → **Method:** **Time Adaptive Training** (greyed out for a
+stationary problem and removed for an inverse problem). For an ODE the choice is offered, but the code generator
+solves an ODE as a 1D problem in \( t \) and switches time windows off, so the run trains the whole interval at
+once. **About time-adaptive training** opens a description.
 
 ## Settings
 
@@ -134,8 +136,9 @@ Refused by `validate()`:
 > frac(...) problems can't use RAR, Time-Adaptive training or IC pre-training …
 
 Refused by the code generator: extra training points (anchors), and an Operator BC applied at the initial
-time. Causal training and per-point weights (without resampling) can be used; causal weights restart in
-each window.
+time. Causal training and per-point weights (without resampling) are not refused; causal weights restart in
+each window. Which of these combinations a shipped example or a test uses is on
+[Compatibility of methods](compatibility.md).
 
 ## Common mistakes and troubleshooting
 

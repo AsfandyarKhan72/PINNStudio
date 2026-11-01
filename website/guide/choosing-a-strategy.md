@@ -308,6 +308,8 @@ with a message that says what to change. The combinations that concern this page
 - **Scale by initial losses** with time-adaptive training
 
 The messages themselves are quoted on the reference pages and in [Troubleshooting](../help/troubleshooting.md).
+[Compatibility of methods](../reference/compatibility.md) has the complete picture: every pair of methods and
+every problem type, marked as used by a shipped example or test, refused, or untested.
 
 ## Compare before you choose
 

@@ -145,6 +145,7 @@ nav:
   - Home: index.md
   - Getting started:
       - getting-started/index.md
+      - Where should I start?: getting-started/learning-path.md
       - The PINNStudio workflow: getting-started/workflow.md
       - Installation: getting-started/installation.md
       - First run: getting-started/first-run.md
@@ -194,6 +195,8 @@ nav:
       - 18. Your own PDE (Fisher-KPP): tutorials/18-own-problem.md
   - Feature reference:
       - reference/index.md
+      - All settings: reference/settings-index.md
+      - Compatibility of methods: reference/compatibility.md
       - Problems:
           - Forward problems: reference/forward.md
           - Inverse problems: reference/inverse.md
@@ -242,10 +245,12 @@ nav:
       - Seeds, precision and hardware: reproducibility/environment.md
       - Export equivalence: reproducibility/export-equivalence.md
       - Reproducing the paper: reproducibility/paper.md
+      - Reporting your own experiment: reproducibility/own-experiments.md
   - Help:
       - help/index.md
       - Troubleshooting: help/troubleshooting.md
       - FAQ: help/faq.md
+      - Scope and limitations: theory/limitations.md
   - Developers:
       - developer/index.md
       - Repository structure: developer/structure.md

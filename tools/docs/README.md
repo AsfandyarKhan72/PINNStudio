@@ -25,7 +25,10 @@ folder is moved aside between steps (so every image shows the same neutral path)
 `/tmp` folder is used, which is fine for previews but shows a `/tmp` path in the status bar.
 
 Other generators: `make_gallery.py` (example gallery pages from the shipped examples),
-`make_config_reference.py` (the configuration reference) and `make_source_links.py` (below).
+`make_config_reference.py` (the configuration reference), `make_settings_index.py` (the *All settings* page,
+`website/reference/settings-index.md`, built from the settings tables of `website/guide/` and `website/reference/`;
+run it after changing one of those tables, `--check` in CI, `--verify` compares the tables' labels and defaults with
+`pinnstudio/ui/` and `PINNConfig` and prints what to review) and `make_source_links.py` (below).
 
 ## Source-code links
 

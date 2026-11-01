@@ -52,7 +52,7 @@ a saved IC pre-training model instead of pre-training again (see
 | **Config:** | The model's configuration: `<model>.json`, else `model_config.json`, else (time windows) the step's `step_config.json` | found automatically |
 | **Combine all detected steps into one full-domain animation** | For a model inside a time-window run: use every window | on when steps are found |
 | **Optimizer used for this model:** | Adam or L-BFGS (how the model is compiled before restoring) | from the config |
-| **Plot type:** | Surface, Line (time steps), Animation Line (GIF), Animation Surface (GIF); inverse: Parameter Convergence, Parameter Convergence (GIF) | — |
+| **Plot type:** | Surface, Line (time steps), Animation Line (GIF), Animation Surface (GIF); inverse: Parameter Convergence, Parameter Convergence (GIF) | Surface (Parameter Convergence for an inverse model) |
 | **Output:** | An output, or **Custom...** with an expression and label | Output 1 |
 | **Parameter names:**, convergence files (**➕ Add parameter file**), **Figures:**, **Log-scale y-axis** | Inverse models: the `<name>_convergence.txt` files, found in the run folder | found automatically |
 | **Save to:** | Folder for the new figures | — |
