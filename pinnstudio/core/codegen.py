@@ -6514,11 +6514,12 @@ def _bc_operator_fn(_expr):
         return eval(_code, _ns)
     return _f
 
+{_POINT_TABLE_READER}
 def _bc_load_points_file(_path, _bc_label, _n_values=1):
     if not _path or not _os.path.isfile(_path):
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs a points file, but "
                             f"'{{_path}}' was not found. Browse for a valid file in that BC's row.")
-    _data = np.loadtxt(_path, delimiter=",") if _path.lower().endswith(".csv") else np.loadtxt(_path)
+    _data = _read_point_table(_path)
     if _data.ndim == 1:
         _data = _data.reshape(1, -1)
     # _n_values > 1 is PointSetBC's multi-component case (component=[i, j,
@@ -10010,6 +10011,36 @@ def _panel_figsize(_pw, _ph, _ncols, _nrows):
     return (_pw * _ncols * _fw / 7.0, _ph * _nrows * _fh / 5.0)''' + _PLOT_TEXT_HELPERS
 
 
+# Reader for points files (Point Set BC rows, extra-points files): the same rules as the other data files.
+_POINT_TABLE_READER = '''def _read_point_table(path):
+    """Reads a points file like the other data files: commas, semicolons or spaces; header and comment lines,
+    rows with a missing value and rows with a different number of columns are skipped, with a note."""
+    rows = []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            parts = line.replace(",", " ").replace(";", " ").split()
+            if not parts or parts[0][0] in "#%":
+                continue
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue
+    lens = [len(r) for r in rows]
+    width = max(set(lens), key=lambda w: (lens.count(w), w)) if lens else 0   # the most common row length
+    data = np.array([r for r in rows if len(r) == width], dtype=float) if width else np.zeros((0, 0))
+    n_bad = len(rows) - len(data)
+    if width:
+        ok = np.all(np.isfinite(data), axis=1)
+        n_bad += int((~ok).sum())
+        data = data[ok]
+    if n_bad:
+        print("  Note: " + str(n_bad) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    if data.size == 0:
+        raise RuntimeError("No usable rows in points file " + repr(path))
+    return data
+
+'''
+
 _PLOT_TEXT_HELPERS = """
 
 def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
@@ -10483,7 +10514,8 @@ def _anchor_points_code(config):
         return "\n".join([
             "# Extra training points (anchors) from a file -- one column per input:",
             f"# {', '.join(c[0] for c in cols)}",
-            f"_user_anchors = np.loadtxt({path!r}, delimiter=',' if {path!r}.lower().endswith('.csv') else None, ndmin=2)",
+            _POINT_TABLE_READER.rstrip("\n"),
+            f"_user_anchors = _read_point_table({path!r})",
             f"if _user_anchors.shape[1] < {len(cols)}:",
             f"    raise RuntimeError(f'Anchor points file needs {len(cols)} columns ({', '.join(c[0] for c in cols)}), "
             "got {_user_anchors.shape[1]}.')",
@@ -12028,6 +12060,7 @@ if save_dir:
     return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
 
     if needs_points_loader:
+        parts.append(_POINT_TABLE_READER)
         parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}, n_values=1):
     """Loads a points file for a PointSetBC / PointSetOperatorBC row:
     n_coord_cols coordinate (+ time) columns, then n_values target value
@@ -12036,7 +12069,7 @@ if save_dir:
     component, in the same order DeepXDE expects."""
     if not path or not os.path.isfile(path):
         raise RuntimeError(f"Boundary condition points file not found: {{path!r}}")
-    data = np.loadtxt(path, delimiter=",") if path.lower().endswith(".csv") else np.loadtxt(path)
+    data = _read_point_table(path)
     if data.ndim == 1:
         data = data.reshape(1, -1)
     n_have = data.shape[1] - n_coord_cols

@@ -510,3 +510,23 @@ def test_bc_output_beyond_the_problem_outputs_is_refused():
     c = dataclasses.replace(c, custom_bc_json=json.dumps(rows))
     assert any("BC 1 applies to output 3" in e for e in c.validate())
 
+
+def test_point_set_and_extra_points_files_are_read_like_the_other_data_files(tmp_path):
+    """Point Set BC files and extra-points files were read with np.loadtxt: no ';', no header, and a row with a
+    missing value went into training. They now use the same reader as measured-data, IC and reference files."""
+    import numpy as np
+    ns = {"np": np}
+    exec(codegen._POINT_TABLE_READER, ns)
+    f = tmp_path / "pts.txt"
+    f.write_text("# x y t u\n1.0;0.5;0.1;0\n1.0 0.2 0.3 0\n1.0,0.8,0.5,nan\n1.0 0.4\n")
+    data = ns["_read_point_table"](str(f))
+    assert data.shape == (2, 4) and np.isfinite(data).all()
+    c = _template("2D Heat")
+    rows = json.loads(c.custom_bc_json)
+    rows.append({"type": "pointset", "component": 0, "location": "on_boundary", "value": "0", "points_mode": "file",
+                 "points_file": str(f), "values_mode": "file"})
+    c = dataclasses.replace(c, custom_bc_json=json.dumps(rows), anchors_mode="file", anchors_file=str(f))
+    for script in (codegen.generate_script(c), codegen.generate_clean_script(c)):
+        assert "def _read_point_table" in script and "np.loadtxt" not in script.split("def _read_point_table")[1][:3000]
+        assert "_user_anchors = _read_point_table(" in script
+
