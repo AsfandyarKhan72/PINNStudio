@@ -16205,6 +16205,8 @@ print("DOMAIN_PREVIEW_DONE")
             if _pt.startswith("model_" + _name):
                 detected = _name
                 break
+        if _pt.startswith("model_resampled"):
+            detected = "adam"     # a time window's model after resampling, trained last by a first-order optimizer
         if not hasattr(self, 'restore_optimizer_combo'):
             return
         idx = self.restore_optimizer_combo.findData(detected)
@@ -16303,7 +16305,7 @@ print("DOMAIN_PREVIEW_DONE")
             t1 = cfg.get("t_max", cfg.get("t1", 1.0))
 
             pt_path = ""
-            for pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+            for pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                 pts = sorted(_glob_ta.glob(os.path.join(d, pat)))
                 if pts:
                     pt_path = max(pts, key=os.path.getmtime)

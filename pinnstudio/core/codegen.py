@@ -3207,6 +3207,13 @@ if {config.time_adaptive}:
             model_i.compile("adam", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights=_rs_w)
             lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
+        if _ta_rs_rounds > 0 and _use_save:
+            # the window's final network is the one after resampling: save it, so Error Analysis and
+            # Restore use the same network as the plots and the next window (they look for this file first)
+            _step_dir_rs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+            _os.makedirs(_step_dir_rs, exist_ok=True)
+            _rs_saved = model_i.save(_os.path.join(_step_dir_rs, "model_resampled"))
+            print(f"  Window model after resampling saved: {{_rs_saved}}")
 
         if _is_3d:
             # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
@@ -3587,6 +3594,11 @@ if {config.time_adaptive}:
                 if _lbfgs_pts:
                     _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
                     print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
+            _rs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_resampled*.pt")))
+            if _rs_pts:
+                # the window's final network when it was resampled (saved after the resampling rounds)
+                _prev_step_model_path = max(_rs_pts, key=_os.path.getmtime)
+                print(f"  Transfer learning source (after resampling): {{_os.path.basename(_prev_step_model_path)}}")
             if not _prev_step_model_path:
                 # Fall back to adam
                 _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
@@ -3732,7 +3744,7 @@ if {config.time_adaptive}:
                         _sd_for_t = _sds; break
                 # Load step model
                 _spt_ta = ""
-                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                for _pat_ta in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                     _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
                     if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
                 try:
@@ -3936,7 +3948,7 @@ if {config.time_adaptive}:
                 _step_model = dde.Model(_step_data, _step_net)
 
                 _step_pt = ""
-                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                     _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                     if _step_pts:
                         _step_pt = max(_step_pts, key=_os.path.getmtime)
@@ -4076,7 +4088,7 @@ if {config.time_adaptive}:
                             _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
                             _model_l = dde.Model(_data_l, _net_l)
                             _pt_l = ""
-                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                            for _pat_l in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                                 _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
                                 if _pts_l:
                                     _pt_l = max(_pts_l, key=_os.path.getmtime)
@@ -4168,7 +4180,7 @@ if {config.time_adaptive}:
                             _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
                             _sm2 = dde.Model(_sd2, _sn2)
                             _spt2 = ""
-                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                            for _pat2 in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                                 _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
                                 if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
                             if _spt2:
@@ -8075,7 +8087,7 @@ for _pval in _param_values:
 
                         # Find best saved model for this step (lbfgs preferred)
                         _step_pt = ""
-                        for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                        for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                             _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                             if _step_pts:
                                 _step_pt = max(_step_pts, key=_os.path.getmtime)
