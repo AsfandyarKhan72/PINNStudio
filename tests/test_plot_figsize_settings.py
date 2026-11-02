@@ -57,6 +57,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
@@ -361,7 +362,21 @@ def run():
             sp = os.path.join(tmpdir, "run_script.py")
             with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
-            proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120)
+            # the script runs under faulthandler: if it is still running after 110 s it prints every thread's
+            # Python stack (one Windows / Python 3.14 run hit the 120 s limit; this shows where a run hangs)
+            runner = ("import faulthandler, runpy, sys; faulthandler.dump_traceback_later(110, exit=False); "
+                      f"sys.argv = [{sp!r}]; runpy.run_path({sp!r}, run_name='__main__')")
+            t_start = time.time()
+            try:
+                proc = subprocess.run([sys.executable, "-c", runner], cwd=tmpdir, capture_output=True, text=True,
+                                      timeout=120)
+            except subprocess.TimeoutExpired as exc:
+                out = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+                err = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+                check(False, f"[{mode}] the script did not finish in 120 s. stdout tail:\n{out[-2500:]}\n"
+                             f"stderr tail (thread stacks at 110 s):\n{err[-6000:]}")
+                continue
+            print(f"[{mode}] script finished in {time.time() - t_start:.1f} s")
             check(proc.returncode == 0, f"[{mode}] real run should exit 0, got {proc.returncode}. stderr tail: {proc.stderr[-1500:]}")
             loss_png = os.path.join(tmpdir, "solution_results", "loss_plot.png")
             if not os.path.isfile(loss_png):
