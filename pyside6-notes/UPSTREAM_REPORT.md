@@ -53,3 +53,20 @@ wrappers.
 
 **Expected:** a wrapper for a `QLayoutItem` owned by a layout should not keep a registration (address→wrapper)
 that outlives the item, or should not be kept alive once Python drops it, as with PyQt6.
+
+---
+
+# Draft 2 (not filed): PySide6 6.12.0 drops references to None (QTimer.singleShot) and True (Signal.emit)
+
+**Found by:** the Smoke test workflow (ubuntu-latest, Python 3.11) aborting in a PINNStudio GUI test with
+`Fatal Python error: none_dealloc: deallocating None`; reproduced locally 10 of 10 times on Python 3.11.17.
+
+**Versions:** PySide6-Essentials / shiboken6 6.12.0 on Python 3.10/3.11 (Linux x86-64). Not seen with 6.11.3,
+6.10.2 or 6.9.3 on the same Python. On Python 3.12+ None/True are immortal, so the lost references are invisible.
+
+**Reproducer:** `pyside612_refcount_repro.py` (prints the change in `sys.getrefcount(None)` / `(True)`).
+Each `QTimer.singleShot(0, callable)` lowers None's count by one, whatever the callable returns; each
+Python-side `signal.emit()` lowers True's count by one (emit's bool result is released once too often).
+
+**PINNStudio's handling:** setup.py / requirements.txt require PySide6 < 6.12 on Python < 3.12;
+tests/test_binding_refcounts.py fails on any installed binding with the defect (it runs in the Smoke test).
