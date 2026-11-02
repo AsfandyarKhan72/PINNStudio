@@ -97,8 +97,9 @@ Final-time judged error (worse of u and mu at t = 1) 2.06e-2 -> 2.58e-2 (+25 %),
   (paper_mg) h 2.04e-2 -> 2.42e-2; 1D CH M&G paper_mg h 5.66e-3 -> 7.52e-3 with mu 4.6e-2 -> 1.07.
 - **Table S2**: the same rows; for 1D CH M&G the selected configuration changes (paper_mg -> windows2) under the
   stated selection rule.
-- **Aggregates**: the forward median (5.2e-4 over 22 benchmarks) does not include the paper-method rows; it changes
-  only if 1D CH M&G's selected configuration is one of the 22 (to check when the records are rebuilt).
+- **Aggregates**: the forward median (5.2e-4 over 22 benchmarks) and the inverse median change only if a rerun row
+  is among the selected configurations they summarize; this is settled by rebuilding the records with these files
+  (not done yet).
 - **Conclusions**: PINNStudio's own best setups for these problems were not affected (they do not use the windowed
   weights or resampling rounds), so "exact constraints + SA-PINN give the lowest final-time errors" stands; the
   paper-method rows remain far behind them. Statements must keep final-time and all-times errors apart.
