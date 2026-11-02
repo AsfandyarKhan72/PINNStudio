@@ -3,16 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PINNStudio: A graphical platform for forward and inverse physics-informed neural networks</title>
-<meta name="description" content="A graphical platform for forward and inverse physics-informed neural networks.">
-<meta property="og:title" content="PINNStudio: A graphical platform for forward and inverse physics-informed neural networks">
-<meta property="og:description" content="A graphical platform for forward and inverse physics-informed neural networks.">
-<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/social_preview.png">
-<meta property="og:image:width" content="1280">
-<meta property="og:image:height" content="640">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="assets/pinnstudio_icon.png">
-<link rel="apple-touch-icon" href="assets/pinnstudio_icon.png">
+<title>PINNStudio — Physics-Informed Neural Networks Without Code</title>
+<meta name="description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.">
+<meta property="og:title" content="PINNStudio — Physics-Informed Neural Networks Without Code">
+<meta property="og:description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks.">
+<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/interface.png">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -52,9 +47,7 @@
     border-bottom: 1px solid var(--border);
   }
   nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 16px; }
-  nav.top .brand { font-weight: 700; color: var(--text); letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 9px; }
-  nav.top .brand img { border-radius: 6px; }
-  .hero-icon { display: block; margin: 0 auto 18px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+  nav.top .brand { font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
   nav.top .links { display: flex; gap: 22px; font-size: 14.5px; }
   nav.top .links a { color: var(--text-dim); }
   nav.top .links a:hover { color: var(--text); text-decoration: none; }
@@ -169,7 +162,7 @@
 
 <nav class="top">
   <div class="wrap">
-    <a class="brand" href="#"><img src="assets/pinnstudio_icon.png" alt="" width="26" height="26">PINNStudio</a>
+    <a class="brand" href="#">PINNStudio</a>
     <div class="links">
       <a href="#why">Why</a>
       <a href="#interface">Interface</a>
@@ -185,10 +178,9 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow">Open source · GPLv3 · Python</span>
-    <img class="hero-icon" src="assets/pinnstudio_icon.png" alt="PINNStudio icon" width="88" height="88">
+    <span class="eyebrow">Open source · MIT license · Python</span>
     <h1>PINNStudio</h1>
-    <p class="tagline">A graphical platform for forward and inverse physics-informed neural networks.</p>
+    <p class="tagline">A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.</p>
 
     <div class="install-box">
       <code>curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh</code>
@@ -203,7 +195,7 @@
     </div>
 
     <div class="stats">
-      <div><b>64</b>ready-to-run examples</div>
+      <div><b>65</b>ready-to-run examples</div>
       <div><b>ODE → 3D</b>steady and time-dependent</div>
       <div><b>Forward &amp; inverse</b>solve or learn from data</div>
       <div><b>No code</b>required</div>
@@ -267,8 +259,8 @@
           <figcaption><b>Sketch the domain.</b> Draw it, type it or import a DXF/SVG drawing, then click its edges to give them boundary conditions.</figcaption>
         </figure>
         <figure class="shot dark">
-          <img src="assets/live_loss.png" alt="Live loss: the training and test loss during training, progress and time left in the status bar" loading="lazy">
-          <figcaption><b>Watch it train.</b> The loss live (or every loss term), and the time left in the status bar.</figcaption>
+          <img src="assets/live_loss.png" alt="Live loss of each loss term during training, the L-BFGS phase marked, progress in the status bar" loading="lazy">
+          <figcaption><b>Watch it train.</b> Every loss term live, the phases marked, and the time left in the status bar.</figcaption>
         </figure>
       </div>
       <div class="shot-pair">
@@ -342,10 +334,8 @@
         <h3>Adaptive methods</h3>
         <ul>
           <li>Residual-based adaptive refinement (RAR)</li>
-          <li>Time windows with transfer learning, a growing time range, backward compatibility (bc-PINN) and per-window resampling</li>
+          <li>Time-adaptive training with transfer learning</li>
           <li>Initial-condition-guided pre-training</li>
-          <li>Per-point weights (RBA, SA-PINN) and causal training</li>
-          <li>Initial and periodic conditions built into the network</li>
         </ul>
       </div>
       <div class="card">
@@ -372,7 +362,7 @@
   <div class="wrap">
     <div class="kicker">Results</div>
     <h2>Everything you need to trust a result</h2>
-    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 64 examples.</p>
+    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 65 examples.</p>
     <div class="shots">
       <figure class="shot">
         <img src="assets/burgers_error.png" alt="PINN solution, reference solution and their difference for the Burgers equation" loading="lazy">
@@ -399,8 +389,8 @@
 <section id="examples">
   <div class="wrap">
     <div class="kicker">Examples</div>
-    <h2>64 examples, ready to run</h2>
-    <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 62 come with an exact solution or reference data, and 25 can be run as inverse problems. Each loads with its source's own settings (<em>Default</em>) or with PINNStudio's most accurate settings from the benchmarks (<em>Tuned</em>).</p>
+    <h2>65 examples, ready to run</h2>
+    <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 58 come with an exact solution or reference data, and 22 can be run as inverse problems.</p>
     <div class="ex-row">
       <div class="card">
         <h3>Published benchmarks</h3>
@@ -412,7 +402,7 @@
       </div>
       <div class="card">
         <h3>ODE · 1D · 2D · 3D</h3>
-        <p>7 ODE, 33 one-dimensional, 18 two-dimensional and 6 three-dimensional problems.</p>
+        <p>7 ODE, 32 one-dimensional, 17 two-dimensional and 4 three-dimensional problems.</p>
       </div>
     </div>
     <div class="chips">
@@ -424,8 +414,6 @@
     </div>
     <div class="cta-row" style="justify-content:flex-start; margin-top:28px;">
       <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio#examples">See all examples and their results</a>
-      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md">Benchmarks: the accuracy of every example</a>
-      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/performance.md">Speed: GPU, CPU threads and the window</a>
     </div>
   </div>
 </section>
@@ -460,7 +448,7 @@
     <div class="cite-box">
       <pre id="bibtex"><code>@software{khan2026pinnstudio,
   author  = {Khan, Asfandyar and Mamivand, Mahmood},
-  title   = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
+  title   = {PINNStudio: A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks},
   year    = {2026},
   url     = {https://github.com/AsfandyarKhan72/PINNStudio}
 }</code></pre>
@@ -479,7 +467,7 @@
       <a href="https://github.com/AsfandyarKhan72/PINNStudio">GitHub</a>
       <a href="https://pypi.org/project/pinnstudio/">PyPI</a>
       <a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
-      <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">GNU GPL v3</a>
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">MIT License</a>
     </div>
   </div>
 </footer>
