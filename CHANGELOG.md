@@ -120,6 +120,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The installers pointed to a "GPU troubleshooting" section the README does not have; they now point to *Troubleshooting* under Installation.
 
 ### Removed
+- Eight images that only the old long README used (the Fisher-KPP results, the three combined domain views, two old screenshots): no page, tool or test refers to them. They stay in the `v1.5.0` tag and the history.
 - Removed files nothing used any more: figures of variants the pages no longer show, the batch files of the first training-methods plan (all of them are in `benchmarks/plans/all.json`), two tuned-settings files under an old example name, and `benchmarks/timing_table.py`.
 
 ## [1.5.0] - 2026-10-21
