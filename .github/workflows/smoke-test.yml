@@ -24,7 +24,7 @@ jobs:
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0
 
       - name: Install Python dependencies
-        run: pip install PyQt6 numpy matplotlib pandas
+        run: pip install PySide6-Essentials numpy matplotlib pandas
 
       - name: Boot the GUI offscreen
         env:
@@ -32,7 +32,7 @@ jobs:
         run: |
           python -c "
           import sys
-          from PyQt6.QtWidgets import QApplication
+          from PySide6.QtWidgets import QApplication
           from pinnstudio.ui.main_window import MainWindow
 
           app = QApplication(sys.argv)

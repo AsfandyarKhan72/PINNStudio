@@ -61,7 +61,7 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ] || [ "$RUNNER_ARCH" = "ARM64" -a "$RUNNER_OS" = "Linux" ]; then python -m pip install torch; \
           else python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
           python -m pip install -e . pytest pytest-xdist
-          python -c "import sys, torch, PyQt6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.QT_VERSION_STR, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
+          python -c "import sys, torch, PySide6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.qVersion(), '| PySide6', __import__("PySide6").__version__, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
 
       - name: Install failed
         if: failure() && steps.install.outcome == 'failure'
