@@ -1,0 +1,58 @@
+{
+ "f7v2_ch2dmg_bcpinn": {
+  "logs": [
+   "f7v2_ch2dmg_bcpinn/log.txt"
+  ],
+  "l2": {
+   "h": {
+    "all": 0.032985
+   },
+   "mu": {
+    "all": 0.045798
+   }
+  }
+ },
+ "f7v2_ch2dmg_bcpinnEq": {
+  "logs": [
+   "f7v2_ch2dmg_bcpinnEq/log.txt"
+  ],
+  "l2": {
+   "h": {
+    "all": 0.18374
+   },
+   "mu": {
+    "all": 0.22268
+   }
+  }
+ },
+ "f7v2_ch2dmg_plain": {
+  "logs": [],
+  "l2": {}
+ },
+ "f7v2_ch2dmg_windows": {
+  "logs": [
+   "f7v2_ch2dmg_windows/log.txt"
+  ],
+  "l2": {
+   "h": {
+    "all": 0.024436
+   },
+   "mu": {
+    "all": 0.027753
+   }
+  }
+ },
+ "f7v2_ch2dmg_windowsEq": {
+  "logs": [
+   "f7v2_ch2dmg_windowsEq/log.txt"
+  ],
+  "l2": {
+   "h": {
+    "all": 0.12818
+   },
+   "mu": {
+    "all": 0.15968
+   }
+  }
+ }
+}
