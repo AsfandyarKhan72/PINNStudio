@@ -89,7 +89,7 @@ Inverse_fractional_Poisson_equation_2D base
 Template_2D_Allen_Cahn_Wight_Zhao_best_setup base
 Template_2D_Allen_Cahn_Wight_Zhao paper_wz
 Template_2D_Allen_Cahn_Wight_Zhao_inv invall
-Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup base
+Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup iters
 Template_2D_Allen_Cahn_Mattey_Ghosh paper_mg
 Template_2D_Allen_Cahn_Mattey_Ghosh_inv setup
 Template_2D_Cahn_Hilliard_Wight_Zhao base
@@ -102,7 +102,7 @@ Template_2D_Burgers_Mathias iters
 Template_2D_Burgers_Mathias paper_mathias
 Template_2D_Burgers_Mathias_inv times
 Template_2D_Heat base
-Template_2D_Heat_inv base
+Template_2D_Heat_inv times
 Fractional_Poisson_equation_3D base
 Template_3D_Poisson_Sphere base
 Template_3D_Poisson_Sphere_inv base
@@ -112,6 +112,6 @@ Template_3D_Allen_Cahn_Wight_Zhao net
 Template_3D_Allen_Cahn_Wight_Zhao paper_wz
 Template_3D_Allen_Cahn_Wight_Zhao_inv base
 Template_3D_Heat base
-Template_3D_Heat_inv base
+Template_3D_Heat_inv dataw
 Beltrami_flow base
 Beltrami_flow_inv lbfgs3

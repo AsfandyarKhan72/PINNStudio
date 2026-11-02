@@ -27,13 +27,18 @@ Not included from other projects:
   schedules); each one links to DeepXDE's original script, and any difference is stated in the example. The
   multi-scale Fourier feature networks in `pinnstudio/core/codegen.py` follow the method of Wang, Wang & Perdikaris
   (2021) and DeepXDE's `MsFFN` interface, and were written for PINNStudio.
-- **No dataset is copied from DeepXDE's repository.** The reference and measured data under `reference_data/` were
-  computed for PINNStudio: by the scripts in `tools/` (`make_exact_reference_data.py`,
-  `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`), except the data of four templates
-  (`reference_data/2D/burgers_mathias`, `2D/poisson_disk`, `2D/poisson_lshape`, `3D/poisson_sphere`). These four
-  were computed by PINNStudio's author with COMSOL Multiphysics on a computer of the Computational Materials Design
-  Lab at Boise State University; they were not copied from DeepXDE or from the published papers whose problems the
-  templates follow.
+- **No dataset is copied from DeepXDE's repository or from published papers.** The reference and measured data
+  under `reference_data/` were computed for PINNStudio by the scripts in `tools/`: `make_exact_reference_data.py`,
+  `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`, `make_poisson_reference_data.py`
+  (Poisson disk, L-shape, sphere), `make_burgers2d_reference_data.py` (Burgers 2D of Mathias et al.),
+  `make_heat_reference_data.py` (Heat 2D and 3D), `make_allen_cahn_mattey_reference_data.py` and
+  `make_allen_cahn_wight_reference_data.py` (2D Allen-Cahn of Mattey & Ghosh and of Wight & Zhao). Earlier
+  versions of eight of these datasets were finite-element exports (four of them documented as computed by
+  PINNStudio's author with COMSOL Multiphysics); they were replaced in October 2026, see
+  `benchmarks/reference_regeneration/README.md`. The
+  spectral solvers use the ETDRK4 scheme as published by Kassam & Trefethen (SIAM J. Sci. Comput. 26, 2005) and
+  the Chebyshev differentiation matrix of Trefethen (Spectral Methods in MATLAB, SIAM, 2000); the L-shape solver
+  uses the algebraic multigrid of PyAMG (MIT license), an optional dependency of that script only.
 - **The application icon** (`pinnstudio/resources/pinnstudio.png`, `.ico`, `.icns`, and the window icon drawn in
   `pinnstudio/ui/icons.py`) was created for PINNStudio, with the assistance of Claude (Anthropic), in October 2026,
   replacing an earlier icon. It is part of PINNStudio and is licensed with it; `tools/make_app_icon.py` renders the

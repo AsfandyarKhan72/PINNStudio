@@ -149,7 +149,7 @@
     "template_type": "",
     "inverse_variables_json": "[{\"name\": \"alpha\", \"init\": 1.0, \"true\": 0.4}]",
     "inverse_obs_output_idx": 0,
-    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/heat/t_1.0.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}]",
+    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/heat/t_1.0.txt\", \"output_idx\": 0, \"weight\": 1000.0, \"custom_expr\": \"\"}]",
     "inverse_obs_anchors": true,
     "inverse_obs_reduce": "all",
     "inverse_obs_grid_n": 51,

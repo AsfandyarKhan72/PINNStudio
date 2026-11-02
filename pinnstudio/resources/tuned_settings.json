@@ -220,12 +220,12 @@
     "rba"
    ],
    "variant": "base",
-   "error": "L2 1.6e-03 vs 7.9e-03 with its own settings"
+   "error": "L2 5.9e-05 vs 7.5e-03 with its own settings"
   },
   "inverse": {
    "switches": null,
    "variant": "invall",
-   "error": "parameter error 1.7%"
+   "error": "parameter error 0.55%"
   }
  },
  "2D Allen-Cahn (Mattey & Ghosh)": {
@@ -236,8 +236,8 @@
     "whole",
     "sa"
    ],
-   "variant": "base",
-   "error": "L2 3.6e-04 vs 6.6e-03 with its own settings"
+   "variant": "iters",
+   "error": "L2 1.3e-04 vs 6.6e-03 with its own settings"
   },
   "inverse": {
    "switches": [
@@ -247,7 +247,7 @@
     "sa"
    ],
    "variant": "base",
-   "error": "parameter error 1.5%"
+   "error": "parameter error 3.9%"
   }
  },
  "2D Cahn-Hilliard (Mattey & Ghosh)": {
@@ -274,6 +274,13 @@
    "error": "parameter error 0.16%"
   }
  },
+ "2D Heat": {
+  "inverse": {
+   "switches": null,
+   "variant": "times",
+   "error": "parameter error 0.11%"
+  }
+ },
  "3D Poisson (Cube with spherical cut-out)": {
   "forward": {
    "switches": null,
@@ -286,6 +293,13 @@
    "switches": null,
    "variant": "net",
    "error": "L2 1.9e-04 vs 2.7e-04 with its own settings"
+  }
+ },
+ "3D Heat": {
+  "inverse": {
+   "switches": null,
+   "variant": "dataw",
+   "error": "parameter error 0.22%"
   }
  },
  "Beltrami flow": {
