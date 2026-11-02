@@ -56,6 +56,20 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 **What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine. The error is the same with any thread count; only the speed changes.
 
+## Apple GPU (MPS) on a Mac
+
+*Not in the paper.* Measured on an Apple M1 MacBook Air with [`mac_gpu_check.py`](mac_gpu_check.py) (first recorded in the README in commit 28b7087, 2026-10-20; kept here since the README's timing section was retired). Three problems with an exact solution (Heat 1D, Poisson 2D with 20,000 points, Heat 2D with 30,000 points), Adam then L-BFGS in float32, on the CPU and on MPS:
+
+- **Heat 1D:** MPS ran at half the speed of the CPU (73 against 136 Adam iterations a second), and L-BFGS was 7 times slower on MPS.
+- **Poisson 2D and Heat 2D:** about the same on both, 3 to 4 Adam iterations a second.
+- **Accuracy:** the same on both. MPS has no float64.
+
+For comparison, an RTX 4090 ran the same 2D problems at 139 to 162 iterations a second ([`gpu_check.py`](gpu_check.py), which also checks an NVIDIA GPU's setup on Windows or Linux).
+
+**What this means for you.** PINNStudio trains on the CPU on a Mac. A Mac with more GPU cores (an M-series Pro or Max) may do better on large problems; `mac_gpu_check.py` measures it on your machine.
+
+The Windows measurements (a laptop with a Core i9-8950HK and an RTX 2080 Max-Q: start-up time, Windows Defender, power mode, when the GPU pays off) are in [`platform/windows_speed.md`](platform/windows_speed.md).
+
 ## Export check: the exported script trains the same model
 
 PINNStudio writes two scripts from one configuration: the one *Solve* runs, and the one *Export as DeepXDE script* saves. For every example (forward, and inverse where it has one) the check loads its *Tuned* settings, shortens the training (every Adam phase to 200 steps, every L-BFGS phase to 50), writes both scripts, runs them on the CPU with the same seed, and compares the printed loss history line by line and, for inverse problems, the identified parameters.

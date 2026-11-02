@@ -214,9 +214,10 @@ def _slug(s):
 
 
 def _readme_anchor(title_name):
-    """The README's <details id=...> for this example, when there is one."""
+    """The examples page's <details id=...> for this example (benchmarks/examples.md, formerly the README's
+    Examples section), when there is one."""
     try:
-        text = open(os.path.join(_REPO, "README.md"), encoding="utf-8").read()
+        text = open(os.path.join(_REPO, "benchmarks", "examples.md"), encoding="utf-8").read()
     except OSError:
         return None
     m = re.search(r'<details id="([^"]+)">\s*<summary><strong>' + re.escape(title_name) + r"</strong>", text)
@@ -543,7 +544,7 @@ def page(summ, rows, with_files):
       "the example's own result. It complements the [training methods study](training_methods.md), which tests "
       "specialised methods (causal training, per-point weights, time windows) on the hardest problems.\n")
     a(f"{len(summ)} problems are included, chosen as the ones with the largest errors in the "
-      f"[README results](../README.md). {better} of them improve by 1.5× or more; the median improvement is "
+      f"[example results](examples.md). {better} of them improve by 1.5× or more; the median improvement is "
       f"{statistics.median(ratios):.0f}×." if ratios else "")
     a("")
     a("## How it is done\n")
@@ -601,7 +602,7 @@ def page(summ, rows, with_files):
         a(f"<summary><strong>{title}</strong></summary>\n")
         anchor = _readme_anchor(display_name(s["name"]) if not s["name"].startswith(ts.TEMPLATE_PREFIX) else title)
         if anchor:
-            a(f"Its own settings and results are in the README: [{display_name(s['name'])}](../README.md#{anchor}).\n")
+            a(f"Its own settings and results are on the examples page: [{display_name(s['name'])}](examples.md#{anchor}).\n")
         b = s["variants"]["base"][0]
         a(f"**Own settings:** network {b['layers']}, {_phases_text(b)}, "
           f"{b['points'][0]:,} domain / {b['points'][1]:,} boundary / {b['points'][2]:,} initial points.\n")

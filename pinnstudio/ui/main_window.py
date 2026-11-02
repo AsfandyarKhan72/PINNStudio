@@ -1880,14 +1880,15 @@ class MainWindow(QMainWindow):
         self._mark_clean()
         self.workspace.select("problem")
 
-    # Each tree node's "?" opens its section of the README.
-    DOCS_URL = "https://github.com/AsfandyarKhan72/pinnstudio"
+    # Each tree node's "?" opens its page of the documentation website's user guide (a child node without
+    # an entry, such as a boundary-condition row, opens its parent's page).
+    DOCS_URL = "https://asfandyarkhan72.github.io/PINNStudio/"
     _HELP_ANCHORS = {
-        "problem": "#problem-setup", "equations": "#problem-setup", "inverse": "#problem-setup",
-        "geometry": "#problem-setup", "points": "#problem-setup", "ic": "#problem-setup",
-        "bcs": "#problem-setup", "network": "#problem-setup",
-        "training": "#training", "weights": "#training", "adaptive": "#training",
-        "sweep": "#parameter-sweep", "results": "#analysis--output", "restore": "#restore--visualize",
+        "problem": "guide/problem/", "equations": "guide/equations/", "inverse": "guide/inverse/",
+        "geometry": "guide/geometry/", "points": "guide/points/", "ic": "guide/initial-conditions/",
+        "bcs": "guide/boundary-conditions/", "network": "guide/network/",
+        "training": "guide/training/", "weights": "guide/loss-weights/", "adaptive": "guide/adaptive/",
+        "sweep": "guide/sweeps/", "results": "guide/results/", "restore": "guide/restore/",
     }
 
     def _tree_menu(self, key):
@@ -12574,8 +12575,8 @@ class MainWindow(QMainWindow):
         where_combo.addItem("CPU", "cpu")
         where_combo.setCurrentIndex(max(0, where_combo.findData(getattr(self, '_train_device', "auto"))))
         where_combo.setToolTip("A small network (1D problems, few points) often trains faster on the CPU: "
-                               "each GPU step waits on Python more than it computes. See the README's "
-                               "timing section.")
+                               "each GPU step waits on Python more than it computes. See Training speed "
+                               "in the documentation (Reproducibility > Seeds, precision and hardware).")
         where_row.addStretch(); where_row.addWidget(where_combo)
         layout.addLayout(where_row)
 
@@ -12588,7 +12589,7 @@ class MainWindow(QMainWindow):
         thr_spin.setFixedWidth(100)
         thr_spin.setToolTip("Threads PyTorch uses when training on the CPU. Automatic: about one per\n"
                             "performance core, at most 8. More threads than fast cores is usually slower\n"
-                            "(the slow cores hold every step back). See the README's Speed section.")
+                            "(the slow cores hold every step back). See Training speed in the documentation.")
         thr_row.addStretch(); thr_row.addWidget(thr_spin)
         layout.addLayout(thr_row)
 
