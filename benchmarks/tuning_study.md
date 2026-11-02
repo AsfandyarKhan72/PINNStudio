@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-88 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 36 of them improve by 1.5× or more; the median improvement is 1×.
+88 problems are included, chosen as the ones with the largest errors in the [example results](examples.md). 36 of them improve by 1.5× or more; the median improvement is 1×.
 
 ## How it is done
 
@@ -136,7 +136,7 @@ Click a problem to open its results.
 <details id="tune-poisson-1d-dirichlet-periodic">
 <summary><strong>Poisson 1D – Dirichlet/Periodic</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – Dirichlet/Periodic](../README.md#dx-poisson-1d-dirichlet-periodic).
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Periodic](examples.md#dx-poisson-1d-dirichlet-periodic).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -169,7 +169,7 @@ Tuned settings: [`Poisson 1D – Dirichlet - Periodic (tuned).pinn.json`](tuning
 <details id="tune-diffusion-reaction-1d">
 <summary><strong>Diffusion-reaction 1D</strong></summary>
 
-Its own settings and results are in the README: [Diffusion-reaction 1D](../README.md#dx-diffusion-reaction-equation).
+Its own settings and results are on the examples page: [Diffusion-reaction 1D](examples.md#dx-diffusion-reaction-equation).
 
 **Own settings:** network [2, 30, 30, 30, 30, 30, 30, 1], Adam 20,000, 320 domain / 0 boundary / 0 initial points.
 
@@ -202,7 +202,7 @@ Tuned settings: [`Diffusion-reaction 1D (tuned).pinn.json`](tuning/Diffusion-rea
 <details id="tune-linear-elasticity-2d-plate">
 <summary><strong>Linear elasticity 2D – plate</strong></summary>
 
-Its own settings and results are in the README: [Linear elasticity 2D – plate](../README.md#dx-linear-elastostatic-plate).
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate](examples.md#dx-linear-elastostatic-plate).
 
 **Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
 
@@ -266,7 +266,7 @@ Tuned settings: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Line
 <details id="tune-wave-1d-space-time-multi-scale-fourier-features">
 <summary><strong>Wave 1D – space-time multi-scale Fourier features</strong></summary>
 
-Its own settings and results are in the README: [Wave 1D – space-time multi-scale Fourier features](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
+Its own settings and results are on the examples page: [Wave 1D – space-time multi-scale Fourier features](examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
 
 **Own settings:** network [2, 100, 100, 100, 1], Adam 10,000, 360 domain / 360 boundary / 360 initial points.
 
@@ -301,7 +301,7 @@ Tuned settings: [`Wave 1D – space-time multi-scale Fourier features (tuned).pi
 <details id="tune-second-order-ode-inverse-mode">
 <summary><strong>Second-order ODE, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Second-order ODE](../README.md#dx-second-order-ode).
+Its own settings and results are on the examples page: [Second-order ODE](examples.md#dx-second-order-ode).
 
 **Own settings:** network [2, 50, 50, 50, 1], Adam 10,000 → L-BFGS 15,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -344,7 +344,7 @@ Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Seco
 <details id="tune-diffusion-1d-unknown-coefficient">
 <summary><strong>Diffusion 1D – unknown coefficient</strong></summary>
 
-Its own settings and results are in the README: [Diffusion 1D – unknown coefficient](../README.md#dx-inverse-diffusion-equation).
+Its own settings and results are on the examples page: [Diffusion 1D – unknown coefficient](examples.md#dx-inverse-diffusion-equation).
 
 **Own settings:** network [2, 32, 32, 32, 1], Adam 50,000, 40 domain / 20 boundary / 10 initial points.
 
@@ -386,7 +386,7 @@ Tuned settings: [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](tunin
 <details id="tune-klein-gordon-1d">
 <summary><strong>Klein-Gordon 1D</strong></summary>
 
-Its own settings and results are in the README: [Klein-Gordon 1D](../README.md#dx-klein-gordon-equation).
+Its own settings and results are on the examples page: [Klein-Gordon 1D](examples.md#dx-klein-gordon-equation).
 
 **Own settings:** network [2, 40, 40, 1], Adam 20,000 → L-BFGS 15,000, 30,000 domain / 1,500 boundary / 1,500 initial points.
 
@@ -420,7 +420,7 @@ Tuned settings: [`Klein-Gordon 1D (tuned).pinn.json`](tuning/Klein-Gordon%201D%2
 <details id="tune-euler-beam-1d-inverse-mode">
 <summary><strong>Euler beam 1D, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Euler beam 1D](../README.md#dx-euler-beam).
+Its own settings and results are on the examples page: [Euler beam 1D](examples.md#dx-euler-beam).
 
 **Own settings:** network [1, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 10 domain / 2 boundary / 0 initial points.
 
@@ -463,7 +463,7 @@ Tuned settings: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%2
 <details id="tune-helmholtz-2d-square-with-hole">
 <summary><strong>Helmholtz 2D – square with hole</strong></summary>
 
-Its own settings and results are in the README: [Helmholtz 2D – square with hole](../README.md#dx-helmholtz-2d-with-a-hole).
+Its own settings and results are on the examples page: [Helmholtz 2D – square with hole](examples.md#dx-helmholtz-2d-with-a-hole).
 
 **Own settings:** network [2, 350, 350, 350, 1], Adam 5,000, 225 domain / 240 boundary / 0 initial points.
 
@@ -498,7 +498,7 @@ Tuned settings: [`Helmholtz 2D – square with hole (tuned).pinn.json`](tuning/H
 <details id="tune-diffusion-1d">
 <summary><strong>Diffusion 1D</strong></summary>
 
-Its own settings and results are in the README: [Diffusion 1D](../README.md#dx-diffusion-equation).
+Its own settings and results are on the examples page: [Diffusion 1D](examples.md#dx-diffusion-equation).
 
 **Own settings:** network [2, 32, 32, 32, 1], Adam 10,000, 40 domain / 20 boundary / 10 initial points.
 
@@ -553,7 +553,7 @@ Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mo
 <details id="tune-euler-beam-1d">
 <summary><strong>Euler beam 1D</strong></summary>
 
-Its own settings and results are in the README: [Euler beam 1D](../README.md#dx-euler-beam).
+Its own settings and results are on the examples page: [Euler beam 1D](examples.md#dx-euler-beam).
 
 **Own settings:** network [1, 20, 20, 20, 1], Adam 10,000, 10 domain / 2 boundary / 0 initial points.
 
@@ -620,7 +620,7 @@ Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse m
 <details id="tune-diffusion-1d-resampling">
 <summary><strong>Diffusion 1D – resampling</strong></summary>
 
-Its own settings and results are in the README: [Diffusion 1D – resampling](../README.md#dx-diffusion-equation-with-resampling).
+Its own settings and results are on the examples page: [Diffusion 1D – resampling](examples.md#dx-diffusion-equation-with-resampling).
 
 **Own settings:** network [2, 32, 32, 32, 1], Adam 2,000, 40 domain / 20 boundary / 10 initial points.
 
@@ -655,7 +655,7 @@ Tuned settings: [`Diffusion 1D – resampling (tuned).pinn.json`](tuning/Diffusi
 <details id="tune-diffusion-reaction-1d-inverse-mode">
 <summary><strong>Diffusion-reaction 1D, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Diffusion-reaction 1D](../README.md#dx-diffusion-reaction-equation).
+Its own settings and results are on the examples page: [Diffusion-reaction 1D](examples.md#dx-diffusion-reaction-equation).
 
 **Own settings:** network [2, 30, 30, 30, 30, 30, 30, 1], Adam 20,000 → L-BFGS 15,000, 320 domain / 0 boundary / 0 initial points.
 
@@ -698,7 +698,7 @@ Tuned settings: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning
 <details id="tune-poisson-1d-unknown-forcing-field-batches">
 <summary><strong>Poisson 1D – unknown forcing field (batches)</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – unknown forcing field (batches)](../README.md#dx-inverse-poisson-with-unknown-forcing-field-batches).
+Its own settings and results are on the examples page: [Poisson 1D – unknown forcing field (batches)](examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches).
 
 **Own settings:** network [1, 20, 20, 20, 2], Adam 20,000, 200 domain / 2 boundary / 0 initial points.
 
@@ -739,7 +739,7 @@ Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.js
 <details id="tune-heat-1d-dirichlet-inverse-mode">
 <summary><strong>Heat 1D – Dirichlet, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Heat 1D – Dirichlet](../README.md#dx-heat-equation).
+Its own settings and results are on the examples page: [Heat 1D – Dirichlet](examples.md#dx-heat-equation).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 20,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
 
@@ -780,7 +780,7 @@ Tuned settings: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning
 <details id="tune-klein-gordon-1d-inverse-mode">
 <summary><strong>Klein-Gordon 1D, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Klein-Gordon 1D](../README.md#dx-klein-gordon-equation).
+Its own settings and results are on the examples page: [Klein-Gordon 1D](examples.md#dx-klein-gordon-equation).
 
 **Own settings:** network [2, 40, 40, 1], Adam 20,000 → L-BFGS 15,000, 30,000 domain / 1,500 boundary / 1,500 initial points.
 
@@ -835,7 +835,7 @@ Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse 
 <details id="tune-heat-1d-resampling">
 <summary><strong>Heat 1D – resampling</strong></summary>
 
-Its own settings and results are in the README: [Heat 1D – resampling](../README.md#dx-heat-equation-with-resampling).
+Its own settings and results are on the examples page: [Heat 1D – resampling](examples.md#dx-heat-equation-with-resampling).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 200,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
 
@@ -867,7 +867,7 @@ Tuned settings: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20
 <details id="tune-helmholtz-2d-dirichlet-inverse-mode">
 <summary><strong>Helmholtz 2D – Dirichlet, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Helmholtz 2D – Dirichlet](../README.md#dx-helmholtz-2d-dirichlet).
+Its own settings and results are on the examples page: [Helmholtz 2D – Dirichlet](examples.md#dx-helmholtz-2d-dirichlet).
 
 **Own settings:** network [2, 150, 150, 150, 1], Adam 5,000 → L-BFGS 15,000, 400 domain / 80 boundary / 0 initial points.
 
@@ -893,7 +893,7 @@ Tuned settings: [`Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](t
 <details id="tune-schr-dinger-1d-inverse-mode">
 <summary><strong>Schrödinger 1D, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Schrödinger 1D](../README.md#dx-schr-dinger-equation).
+Its own settings and results are on the examples page: [Schrödinger 1D](examples.md#dx-schr-dinger-equation).
 
 **Own settings:** network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 domain / 20 boundary / 200 initial points.
 
@@ -936,7 +936,7 @@ Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schr�
 <details id="tune-heat-1d-dirichlet">
 <summary><strong>Heat 1D – Dirichlet</strong></summary>
 
-Its own settings and results are in the README: [Heat 1D – Dirichlet](../README.md#dx-heat-equation).
+Its own settings and results are on the examples page: [Heat 1D – Dirichlet](examples.md#dx-heat-equation).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 20,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
 
@@ -1031,7 +1031,7 @@ Tuned settings: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`
 <details id="tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode">
 <summary><strong>Wave 1D – space-time multi-scale Fourier features, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Wave 1D – space-time multi-scale Fourier features](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
+Its own settings and results are on the examples page: [Wave 1D – space-time multi-scale Fourier features](examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
 
 **Own settings:** network [2, 100, 100, 100, 1], Adam 10,000 → L-BFGS 15,000, 5,000 domain / 360 boundary / 360 initial points.
 
@@ -1054,7 +1054,7 @@ Tuned settings: [`Wave 1D – space-time multi-scale Fourier features, inverse m
 <details id="tune-poisson-1d-unknown-forcing-field">
 <summary><strong>Poisson 1D – unknown forcing field</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – unknown forcing field](../README.md#dx-inverse-poisson-with-unknown-forcing-field).
+Its own settings and results are on the examples page: [Poisson 1D – unknown forcing field](examples.md#dx-inverse-poisson-with-unknown-forcing-field).
 
 **Own settings:** network [1, 20, 20, 20, 2], Adam 20,000, 200 domain / 2 boundary / 0 initial points.
 
@@ -1156,7 +1156,7 @@ Tuned settings: [`Poisson 3D – cube with spherical cut-out (PINNStudio templat
 <details id="tune-navier-stokes-2d-kovasznay-flow-inverse-mode">
 <summary><strong>Navier-Stokes 2D – Kovasznay flow, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay flow](../README.md#dx-kovasznay-flow).
+Its own settings and results are on the examples page: [Navier-Stokes 2D – Kovasznay flow](examples.md#dx-kovasznay-flow).
 
 **Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
 
@@ -1207,7 +1207,7 @@ Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn
 <details id="tune-fractional-poisson-1d">
 <summary><strong>Fractional Poisson 1D</strong></summary>
 
-Its own settings and results are in the README: [Fractional Poisson 1D](../README.md#dx-fractional-poisson-equation-1d).
+Its own settings and results are on the examples page: [Fractional Poisson 1D](examples.md#dx-fractional-poisson-equation-1d).
 
 **Own settings:** network [1, 20, 20, 20, 20, 1], Adam 10,000, 101 domain / 2 boundary / 0 initial points.
 
@@ -1240,7 +1240,7 @@ Tuned settings: [`Fractional Poisson 1D (tuned).pinn.json`](tuning/Fractional%20
 <details id="tune-brinkman-forchheimer-1d-unknown-e-k">
 <summary><strong>Brinkman-Forchheimer 1D – unknown ν_e, K</strong></summary>
 
-Its own settings and results are in the README: [Brinkman-Forchheimer 1D – unknown ν_e, K](../README.md#dx-inverse-brinkman-forchheimer-model).
+Its own settings and results are on the examples page: [Brinkman-Forchheimer 1D – unknown ν_e, K](examples.md#dx-inverse-brinkman-forchheimer-model).
 
 **Own settings:** network [1, 20, 20, 20, 1], Adam 30,000, 100 domain / 0 boundary / 0 initial points.
 
@@ -1284,7 +1284,7 @@ Tuned settings: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`
 <details id="tune-linear-ode-system-inverse-mode">
 <summary><strong>Linear ODE system, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Linear ODE system](../README.md#dx-ode-system).
+Its own settings and results are on the examples page: [Linear ODE system](examples.md#dx-ode-system).
 
 **Own settings:** network [2, 50, 50, 50, 2], Adam 20,000 → L-BFGS 15,000, 35 domain / 2 boundary / 0 initial points.
 
@@ -1335,7 +1335,7 @@ Tuned settings: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Lin
 <details id="tune-navier-stokes-3d-beltrami-flow-inverse-mode">
 <summary><strong>Navier-Stokes 3D – Beltrami flow, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami flow](../README.md#dx-beltrami-flow).
+Its own settings and results are on the examples page: [Navier-Stokes 3D – Beltrami flow](examples.md#dx-beltrami-flow).
 
 **Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
 
@@ -1393,7 +1393,7 @@ Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.
 <details id="tune-poisson-2d-l-shape">
 <summary><strong>Poisson 2D – L-shape</strong></summary>
 
-Its own settings and results are in the README: [Poisson 2D – L-shape](../README.md#dx-poisson-over-an-l-shaped-domain).
+Its own settings and results are on the examples page: [Poisson 2D – L-shape](examples.md#dx-poisson-over-an-l-shaped-domain).
 
 **Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 15,000, 1,200 domain / 120 boundary / 0 initial points.
 
@@ -1447,7 +1447,7 @@ Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template) (tuned).p
 <details id="tune-diffusion-reaction-1d-unknown-rate-field">
 <summary><strong>Diffusion-reaction 1D – unknown rate field</strong></summary>
 
-Its own settings and results are in the README: [Diffusion-reaction 1D – unknown rate field](../README.md#dx-inverse-diffusion-reaction-with-space-dependent-rate).
+Its own settings and results are on the examples page: [Diffusion-reaction 1D – unknown rate field](examples.md#dx-inverse-diffusion-reaction-with-space-dependent-rate).
 
 **Own settings:** network [1, 20, 20, 2], Adam 20,000, 50 domain / 8 boundary / 0 initial points.
 
@@ -1557,7 +1557,7 @@ Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pi
 <details id="tune-helmholtz-2d-sound-hard-scattering">
 <summary><strong>Helmholtz 2D – sound-hard scattering</strong></summary>
 
-Its own settings and results are in the README: [Helmholtz 2D – sound-hard scattering](../README.md#dx-helmholtz-sound-hard-scattering-absorbing-bc).
+Its own settings and results are on the examples page: [Helmholtz 2D – sound-hard scattering](examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc).
 
 **Own settings:** network [2, 350, 350, 350, 2], Adam 10,000, 1,600 domain / 320 boundary / 0 initial points.
 
@@ -1729,7 +1729,7 @@ Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best set
 <details id="tune-lotka-volterra-ode-inverse-mode">
 <summary><strong>Lotka-Volterra ODE, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Lotka-Volterra ODE](../README.md#dx-lotka-volterra-equation).
+Its own settings and results are on the examples page: [Lotka-Volterra ODE](examples.md#dx-lotka-volterra-equation).
 
 **Own settings:** network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 domain / 2 boundary / 0 initial points.
 
@@ -1768,7 +1768,7 @@ Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lo
 <details id="tune-linear-elasticity-2d-plate-inverse-mode">
 <summary><strong>Linear elasticity 2D – plate, inverse mode</strong></summary>
 
-Its own settings and results are in the README: [Linear elasticity 2D – plate](../README.md#dx-linear-elastostatic-plate).
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate](examples.md#dx-linear-elastostatic-plate).
 
 **Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
 
@@ -1791,7 +1791,7 @@ Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json
 <details id="tune-integro-differential-ode">
 <summary><strong>Integro-differential ODE</strong></summary>
 
-Its own settings and results are in the README: [Integro-differential ODE](../README.md#dx-integro-differential-equation).
+Its own settings and results are on the examples page: [Integro-differential ODE](examples.md#dx-integro-differential-equation).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -1810,7 +1810,7 @@ Tuned settings: [`Integro-differential ODE (tuned).pinn.json`](tuning/Integro-di
 <details id="tune-lotka-volterra-ode">
 <summary><strong>Lotka-Volterra ODE</strong></summary>
 
-Its own settings and results are in the README: [Lotka-Volterra ODE](../README.md#dx-lotka-volterra-equation).
+Its own settings and results are on the examples page: [Lotka-Volterra ODE](examples.md#dx-lotka-volterra-equation).
 
 **Own settings:** network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 domain / 2 boundary / 0 initial points.
 
@@ -1829,7 +1829,7 @@ Tuned settings: [`Lotka-Volterra ODE (tuned).pinn.json`](tuning/Lotka-Volterra%2
 <details id="tune-lorenz-ode-unknown-c-c-c">
 <summary><strong>Lorenz ODE – unknown C₁, C₂, C₃</strong></summary>
 
-Its own settings and results are in the README: [Lorenz ODE – unknown C₁, C₂, C₃](../README.md#dx-inverse-lorenz-system).
+Its own settings and results are on the examples page: [Lorenz ODE – unknown C₁, C₂, C₃](examples.md#dx-inverse-lorenz-system).
 
 **Own settings:** network [2, 40, 40, 40, 3], Adam 20,000 → L-BFGS 15,000, 400 domain / 2 boundary / 0 initial points.
 
@@ -1849,7 +1849,7 @@ Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](tu
 <details id="tune-fractional-poisson-1d-unknown-order">
 <summary><strong>Fractional Poisson 1D – unknown order α</strong></summary>
 
-Its own settings and results are in the README: [Fractional Poisson 1D – unknown order α](../README.md#dx-inverse-fractional-poisson-equation-1d).
+Its own settings and results are on the examples page: [Fractional Poisson 1D – unknown order α](examples.md#dx-inverse-fractional-poisson-equation-1d).
 
 **Own settings:** network [1, 20, 20, 20, 20, 1], Adam 10,000, 20 domain / 0 boundary / 0 initial points.
 
@@ -1869,7 +1869,7 @@ Tuned settings: [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`]
 <details id="tune-black-scholes-1d-european-call">
 <summary><strong>Black-Scholes 1D – European call</strong></summary>
 
-Its own settings and results are in the README: [Black-Scholes 1D – European call](../README.md#dx-black-scholes-equation-call-option).
+Its own settings and results are on the examples page: [Black-Scholes 1D – European call](examples.md#dx-black-scholes-equation-call-option).
 
 **Own settings:** network [2, 28, 28, 28, 28, 1], Adam 20,000 → L-BFGS 15,000, 2,047 domain / 63 boundary / 127 initial points.
 
@@ -1888,7 +1888,7 @@ Tuned settings: [`Black-Scholes 1D – European call (tuned).pinn.json`](tuning/
 <details id="tune-schr-dinger-1d">
 <summary><strong>Schrödinger 1D</strong></summary>
 
-Its own settings and results are in the README: [Schrödinger 1D](../README.md#dx-schr-dinger-equation).
+Its own settings and results are on the examples page: [Schrödinger 1D](examples.md#dx-schr-dinger-equation).
 
 **Own settings:** network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 domain / 20 boundary / 200 initial points.
 
@@ -1907,7 +1907,7 @@ Tuned settings: [`Schrödinger 1D (tuned).pinn.json`](tuning/Schrödinger%201D%2
 <details id="tune-helmholtz-2d-dirichlet">
 <summary><strong>Helmholtz 2D – Dirichlet</strong></summary>
 
-Its own settings and results are in the README: [Helmholtz 2D – Dirichlet](../README.md#dx-helmholtz-2d-dirichlet).
+Its own settings and results are on the examples page: [Helmholtz 2D – Dirichlet](examples.md#dx-helmholtz-2d-dirichlet).
 
 **Own settings:** network [2, 150, 150, 150, 1], Adam 5,000, 400 domain / 80 boundary / 0 initial points.
 
@@ -1926,7 +1926,7 @@ Tuned settings: [`Helmholtz 2D – Dirichlet (tuned).pinn.json`](tuning/Helmholt
 <details id="tune-navier-stokes-2d-kovasznay-flow">
 <summary><strong>Navier-Stokes 2D – Kovasznay flow</strong></summary>
 
-Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay flow](../README.md#dx-kovasznay-flow).
+Its own settings and results are on the examples page: [Navier-Stokes 2D – Kovasznay flow](examples.md#dx-kovasznay-flow).
 
 **Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
 
@@ -1945,7 +1945,7 @@ Tuned settings: [`Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](tuning
 <details id="tune-navier-stokes-3d-beltrami-flow">
 <summary><strong>Navier-Stokes 3D – Beltrami flow</strong></summary>
 
-Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami flow](../README.md#dx-beltrami-flow).
+Its own settings and results are on the examples page: [Navier-Stokes 3D – Beltrami flow](examples.md#dx-beltrami-flow).
 
 **Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
 
@@ -1981,7 +1981,7 @@ Tuned settings: [`Poisson 2D – disk (PINNStudio template) (tuned).pinn.json`](
 <details id="tune-integro-differential-ode-volterra-kernel">
 <summary><strong>Integro-differential ODE – Volterra kernel</strong></summary>
 
-Its own settings and results are in the README: [Integro-differential ODE – Volterra kernel](../README.md#dx-volterra-integro-differential-equation).
+Its own settings and results are on the examples page: [Integro-differential ODE – Volterra kernel](examples.md#dx-volterra-integro-differential-equation).
 
 **Own settings:** network [2, 20, 20, 20, 1], L-BFGS 15,000, 10 domain / 2 boundary / 0 initial points.
 
@@ -2000,7 +2000,7 @@ Tuned settings: [`Integro-differential ODE – Volterra kernel (tuned).pinn.json
 <details id="tune-linear-ode-system">
 <summary><strong>Linear ODE system</strong></summary>
 
-Its own settings and results are in the README: [Linear ODE system](../README.md#dx-ode-system).
+Its own settings and results are on the examples page: [Linear ODE system](examples.md#dx-ode-system).
 
 **Own settings:** network [2, 50, 50, 50, 2], Adam 20,000, 35 domain / 2 boundary / 0 initial points.
 
@@ -2019,7 +2019,7 @@ Tuned settings: [`Linear ODE system (tuned).pinn.json`](tuning/Linear%20ODE%20sy
 <details id="tune-second-order-ode">
 <summary><strong>Second-order ODE</strong></summary>
 
-Its own settings and results are in the README: [Second-order ODE](../README.md#dx-second-order-ode).
+Its own settings and results are on the examples page: [Second-order ODE](examples.md#dx-second-order-ode).
 
 **Own settings:** network [2, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -2038,7 +2038,7 @@ Tuned settings: [`Second-order ODE (tuned).pinn.json`](tuning/Second-order%20ODE
 <details id="tune-poisson-1d-dirichlet">
 <summary><strong>Poisson 1D – Dirichlet</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – Dirichlet](../README.md#dx-poisson-1d-dirichlet).
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet](examples.md#dx-poisson-1d-dirichlet).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -2057,7 +2057,7 @@ Tuned settings: [`Poisson 1D – Dirichlet (tuned).pinn.json`](tuning/Poisson%20
 <details id="tune-poisson-1d-dirichlet-neumann">
 <summary><strong>Poisson 1D – Dirichlet/Neumann</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – Dirichlet/Neumann](../README.md#dx-poisson-1d-dirichlet-neumann).
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Neumann](examples.md#dx-poisson-1d-dirichlet-neumann).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -2076,7 +2076,7 @@ Tuned settings: [`Poisson 1D – Dirichlet - Neumann (tuned).pinn.json`](tuning/
 <details id="tune-poisson-1d-dirichlet-point-set-operator">
 <summary><strong>Poisson 1D – Dirichlet/point-set operator</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – Dirichlet/point-set operator](../README.md#dx-poisson-1d-dirichlet-pointsetoperator).
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/point-set operator](examples.md#dx-poisson-1d-dirichlet-pointsetoperator).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 20,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -2095,7 +2095,7 @@ Tuned settings: [`Poisson 1D – Dirichlet - point-set operator (tuned).pinn.jso
 <details id="tune-poisson-1d-dirichlet-robin">
 <summary><strong>Poisson 1D – Dirichlet/Robin</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – Dirichlet/Robin](../README.md#dx-poisson-1d-dirichlet-robin).
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Robin](examples.md#dx-poisson-1d-dirichlet-robin).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
 
@@ -2114,7 +2114,7 @@ Tuned settings: [`Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](tuning/Po
 <details id="tune-poisson-1d-hard-bcs">
 <summary><strong>Poisson 1D – hard BCs</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – hard BCs](../README.md#dx-poisson-1d-hard-boundary-conditions).
+Its own settings and results are on the examples page: [Poisson 1D – hard BCs](examples.md#dx-poisson-1d-hard-boundary-conditions).
 
 **Own settings:** network [1, 50, 50, 50, 1], Adam 30,000, 64 domain / 0 boundary / 0 initial points.
 
@@ -2133,7 +2133,7 @@ Tuned settings: [`Poisson 1D – hard BCs (tuned).pinn.json`](tuning/Poisson%201
 <details id="tune-poisson-1d-multi-scale-fourier-features">
 <summary><strong>Poisson 1D – multi-scale Fourier features</strong></summary>
 
-Its own settings and results are in the README: [Poisson 1D – multi-scale Fourier features](../README.md#dx-poisson-1d-multi-scale-fourier-features).
+Its own settings and results are on the examples page: [Poisson 1D – multi-scale Fourier features](examples.md#dx-poisson-1d-multi-scale-fourier-features).
 
 **Own settings:** network [1, 100, 100, 100, 1], Adam 20,000, 1,280 domain / 2 boundary / 0 initial points.
 
@@ -2152,7 +2152,7 @@ Tuned settings: [`Poisson 1D – multi-scale Fourier features (tuned).pinn.json`
 <details id="tune-burgers-1d-rar">
 <summary><strong>Burgers 1D – RAR</strong></summary>
 
-Its own settings and results are in the README: [Burgers 1D – RAR](../README.md#dx-burgers-equation-with-rar).
+Its own settings and results are on the examples page: [Burgers 1D – RAR](examples.md#dx-burgers-equation-with-rar).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 2,500 domain / 100 boundary / 160 initial points.
 
@@ -2171,7 +2171,7 @@ Tuned settings: [`Burgers 1D – RAR (tuned).pinn.json`](tuning/Burgers%201D%20�
 <details id="tune-diffusion-1d-hard-ic-and-bcs">
 <summary><strong>Diffusion 1D – hard IC and BCs</strong></summary>
 
-Its own settings and results are in the README: [Diffusion 1D – hard IC and BCs](../README.md#dx-diffusion-equation-with-hard-ic-and-bc).
+Its own settings and results are on the examples page: [Diffusion 1D – hard IC and BCs](examples.md#dx-diffusion-equation-with-hard-ic-and-bc).
 
 **Own settings:** network [2, 32, 32, 32, 1], Adam 10,000, 40 domain / 0 boundary / 0 initial points.
 
@@ -2190,7 +2190,7 @@ Tuned settings: [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](tuning/Di
 <details id="tune-fractional-diffusion-1d">
 <summary><strong>Fractional diffusion 1D</strong></summary>
 
-Its own settings and results are in the README: [Fractional diffusion 1D](../README.md#dx-fractional-diffusion-equation).
+Its own settings and results are on the examples page: [Fractional diffusion 1D](examples.md#dx-fractional-diffusion-equation).
 
 **Own settings:** network [2, 20, 20, 20, 20, 1], Adam 10,000, 400 domain / 2 boundary / 2 initial points.
 
@@ -2209,7 +2209,7 @@ Tuned settings: [`Fractional diffusion 1D (tuned).pinn.json`](tuning/Fractional%
 <details id="tune-fractional-poisson-2d-disk">
 <summary><strong>Fractional Poisson 2D – disk</strong></summary>
 
-Its own settings and results are in the README: [Fractional Poisson 2D – disk](../README.md#dx-fractional-poisson-equation-2d).
+Its own settings and results are on the examples page: [Fractional Poisson 2D – disk](examples.md#dx-fractional-poisson-equation-2d).
 
 **Own settings:** network [2, 20, 20, 20, 20, 1], Adam 20,000, 100 domain / 0 boundary / 0 initial points.
 
@@ -2228,7 +2228,7 @@ Tuned settings: [`Fractional Poisson 2D – disk (tuned).pinn.json`](tuning/Frac
 <details id="tune-laplace-2d-disk">
 <summary><strong>Laplace 2D – disk</strong></summary>
 
-Its own settings and results are in the README: [Laplace 2D – disk](../README.md#dx-laplace-equation-on-a-disk).
+Its own settings and results are on the examples page: [Laplace 2D – disk](examples.md#dx-laplace-equation-on-a-disk).
 
 **Own settings:** network [2, 20, 20, 20, 1], Adam 15,000, 2,540 domain / 80 boundary / 0 initial points.
 
@@ -2247,7 +2247,7 @@ Tuned settings: [`Laplace 2D – disk (tuned).pinn.json`](tuning/Laplace%202D%20
 <details id="tune-linear-elasticity-2d-plate-soft-bcs">
 <summary><strong>Linear elasticity 2D – plate, soft BCs</strong></summary>
 
-Its own settings and results are in the README: [Linear elasticity 2D – plate, soft BCs](../README.md#dx-linear-elastostatic-plate-soft-bcs).
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate, soft BCs](examples.md#dx-linear-elastostatic-plate-soft-bcs).
 
 **Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
 
@@ -2266,7 +2266,7 @@ Tuned settings: [`Linear elasticity 2D – plate, soft BCs (tuned).pinn.json`](t
 <details id="tune-fractional-poisson-3d-sphere">
 <summary><strong>Fractional Poisson 3D – sphere</strong></summary>
 
-Its own settings and results are in the README: [Fractional Poisson 3D – sphere](../README.md#dx-fractional-poisson-equation-3d).
+Its own settings and results are on the examples page: [Fractional Poisson 3D – sphere](examples.md#dx-fractional-poisson-equation-3d).
 
 **Own settings:** network [3, 20, 20, 20, 20, 1], Adam 10,000, 256 domain / 0 boundary / 0 initial points.
 
@@ -2285,7 +2285,7 @@ Tuned settings: [`Fractional Poisson 3D – sphere (tuned).pinn.json`](tuning/Fr
 <details id="tune-lorenz-ode-unknown-c-c-c-exogenous-input">
 <summary><strong>Lorenz ODE – unknown C₁, C₂, C₃, exogenous input</strong></summary>
 
-Its own settings and results are in the README: [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](../README.md#dx-inverse-lorenz-system-with-exogenous-input).
+Its own settings and results are on the examples page: [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](examples.md#dx-inverse-lorenz-system-with-exogenous-input).
 
 **Own settings:** network [2, 40, 40, 40, 3], Adam 60,000, 400 domain / 2 boundary / 0 initial points.
 
@@ -2305,7 +2305,7 @@ Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tune
 <details id="tune-diffusion-reaction-1d-unknown-k-f-d">
 <summary><strong>Diffusion-reaction 1D – unknown k_f, D</strong></summary>
 
-Its own settings and results are in the README: [Diffusion-reaction 1D – unknown k_f, D](../README.md#dx-inverse-diffusion-reaction-system).
+Its own settings and results are on the examples page: [Diffusion-reaction 1D – unknown k_f, D](examples.md#dx-inverse-diffusion-reaction-system).
 
 **Own settings:** network [2, 20, 20, 20, 2], Adam 80,000, 2,000 domain / 100 boundary / 100 initial points.
 
@@ -2325,7 +2325,7 @@ Tuned settings: [`Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](t
 <details id="tune-fractional-poisson-2d-unknown-order">
 <summary><strong>Fractional Poisson 2D – unknown order α</strong></summary>
 
-Its own settings and results are in the README: [Fractional Poisson 2D – unknown order α](../README.md#dx-inverse-fractional-poisson-equation-2d).
+Its own settings and results are on the examples page: [Fractional Poisson 2D – unknown order α](examples.md#dx-inverse-fractional-poisson-equation-2d).
 
 **Own settings:** network [2, 20, 20, 20, 20, 1], Adam 10,000, 64 domain / 0 boundary / 0 initial points.
 
