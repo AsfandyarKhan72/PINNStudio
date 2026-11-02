@@ -233,6 +233,7 @@ FEATURES = [
             e(CODEGEN, "_gs_rar_loop_code", ENTRY, "the RAR loop of the Solve script"),
             e(CODEGEN, "_rar_phase", HELPER, "loss and weights of an RAR round"),
             e(CODEGEN, "_rar_tolerance_check", HELPER, "stop on a residual tolerance"),
+            e(CODEGEN, "_rar_optimizer", HELPER, "the optimizer and learning rate of each round"),
             e(CODEGEN, "_clean_rar_diagnostics_code", HELPER, "RAR in the exported script, with per-round figures"),
             e("tests/test_rar_round_diagnostics.py", None, TEST, "per-round diagnostics"),
             e("tests/test_round66_rar_tolerance.py", None, TEST, "residual tolerance"),
@@ -242,9 +243,10 @@ FEATURES = [
     {
         "id": "point-weights",
         "title": "RBA and SA-PINN point weights",
-        "pages": ["reference/point-weights.md", "guide/adaptive.md"],
+        "pages": ["reference/point-weights.md", "guide/loss-weights.md"],
         "entries": [
-            e(MW, "MainWindow._build_adaptive_and_sweep_panels", ENTRY, "Adaptive training page"),
+            e(MW, "MainWindow._build_adaptive_and_sweep_panels", ENTRY,
+              "the controls on the Loss weights page (Automatic weighting), built with the Adaptive training page"),
             e(CODEGEN, "_training_methods_defs", ENTRY, "runtime code of RBA, SA-PINN and causal training"),
             e(CODEGEN, "_point_weights_mode", HELPER, "which point weights a run uses"),
             e(CODEGEN, "_training_methods_cbs", HELPER, "the callbacks that update the weights"),
@@ -255,9 +257,10 @@ FEATURES = [
     {
         "id": "causal",
         "title": "Causal training",
-        "pages": ["reference/causal.md", "guide/adaptive.md"],
+        "pages": ["reference/causal.md", "guide/loss-weights.md"],
         "entries": [
-            e(MW, "MainWindow._build_adaptive_and_sweep_panels", ENTRY, "Adaptive training page"),
+            e(MW, "MainWindow._build_adaptive_and_sweep_panels", ENTRY,
+              "the controls on the Loss weights page (Automatic weighting), built with the Adaptive training page"),
             e(CODEGEN, "_training_methods_defs", ENTRY, "runtime code of causal training (and RBA, SA-PINN)"),
             e(CODEGEN, "_training_methods_cbs", HELPER, "the callback that updates the causal weights"),
             e("tests/test_training_methods.py", None, TEST, "causal training, RBA and SA-PINN"),

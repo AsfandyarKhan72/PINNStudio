@@ -2,7 +2,7 @@
 
 **Entry points**
 
-- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): Adaptive training page
+- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): the controls on the Loss weights page (Automatic weighting), built with the Adaptive training page
 - `_training_methods_defs` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): runtime code of causal training (and RBA, SA-PINN)
 
 **Helpers**

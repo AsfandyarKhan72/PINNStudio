@@ -9,6 +9,7 @@
 
 - `_rar_phase` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): loss and weights of an RAR round
 - `_rar_tolerance_check` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): stop on a residual tolerance
+- `_rar_optimizer` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): the optimizer and learning rate of each round
 - `_clean_rar_diagnostics_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): RAR in the exported script, with per-round figures
 
 **Tests**

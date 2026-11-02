@@ -275,6 +275,7 @@ Described in [IC pre-training and guided learning](../reference/pretraining.md),
 
 - `_rar_phase` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): loss and weights of an RAR round
 - `_rar_tolerance_check` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): stop on a residual tolerance
+- `_rar_optimizer` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): the optimizer and learning rate of each round
 - `_clean_rar_diagnostics_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): RAR in the exported script, with per-round figures
 
 **Tests**
@@ -289,7 +290,7 @@ Described in [RAR](../reference/rar.md), [Adaptive training](../guide/adaptive.m
 
 **Entry points**
 
-- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): Adaptive training page
+- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): the controls on the Loss weights page (Automatic weighting), built with the Adaptive training page
 - `_training_methods_defs` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): runtime code of RBA, SA-PINN and causal training
 
 **Helpers**
@@ -302,13 +303,13 @@ Described in [RAR](../reference/rar.md), [Adaptive training](../guide/adaptive.m
 - [`tests/test_training_methods.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_training_methods.py): causal training, RBA and SA-PINN
 - [`tests/test_ta_bcpinn.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_ta_bcpinn.py): point weights inside time windows
 
-Described in [RBA and SA-PINN](../reference/point-weights.md), [Adaptive training](../guide/adaptive.md).
+Described in [RBA and SA-PINN](../reference/point-weights.md), [Loss weights](../guide/loss-weights.md).
 
 #### Causal training
 
 **Entry points**
 
-- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): Adaptive training page
+- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): the controls on the Loss weights page (Automatic weighting), built with the Adaptive training page
 - `_training_methods_defs` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): runtime code of causal training (and RBA, SA-PINN)
 
 **Helpers**
@@ -319,7 +320,7 @@ Described in [RBA and SA-PINN](../reference/point-weights.md), [Adaptive trainin
 
 - [`tests/test_training_methods.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_training_methods.py): causal training, RBA and SA-PINN
 
-Described in [Causal training](../reference/causal.md), [Adaptive training](../guide/adaptive.md).
+Described in [Causal training](../reference/causal.md), [Loss weights](../guide/loss-weights.md).
 
 #### Time windows: transfer learning, bc-PINN, growing range, resampling
 
