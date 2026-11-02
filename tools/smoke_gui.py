@@ -252,6 +252,14 @@ if __name__ == "__main__":
     # os._exit, not sys.exit: the result is already printed, and Qt's own
     # teardown at interpreter exit sometimes crashed (exit code 139 after
     # "SMOKE PASSED" on Ubuntu 24.04 with Python 3.13), failing a passed check.
+    # The windows are deleted first: with PySide6 on Windows, os._exit while a
+    # main window still exists ends in an access violation in about 4 of 5 runs
+    # (0 of 6 once the window is deleted; the app's own quit, app.exec()
+    # returning, is clean: tools/quit_check.py).
+    for _top in QApplication.topLevelWidgets():
+        _top.close()
+        _top.deleteLater()
+    settle(0.5)
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(1 if FAILED or SHOWN else 0)
