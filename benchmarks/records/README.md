@@ -61,3 +61,33 @@ diff /tmp/records_check/table_s2.tex benchmarks/tables/table_s2.tex
 and the Figure 4 rows with the same functions as `tools/make_benchmarks_readme.py`.
 
 The last independent rebuild of both builds and the differences between them are in [`VERIFICATION.md`](VERIFICATION.md).
+
+## Regenerating the pages
+
+The pages are written from the same files (corrected build, from a checkout of this branch):
+
+```bash
+B=benchmarks/records/corrected_2026-10-31
+# benchmarks/tuning_study.md, figures/tuning_summary.png and the tuned problem files in benchmarks/tuning/
+python tools/make_tuning_page.py $(sed "s#^#$B/#" $B/results_args.txt) --primary $B/primary.json
+# benchmarks/README.md, benchmarks/examples.md, benchmarks/paper.md, figures/benchmarks_summary.* and paper_figure.*
+python tools/make_benchmarks_readme.py $(sed "s#^#$B/#" $B/results_args.txt) --primary $B/primary.json \
+    --papers "$(sed "s#^#$B/#" $B/papers_arg.txt | paste -sd,)" \
+    --spacetime "$(sed "s#^#$B/#" $B/spacetime_arg.txt | paste -sd,)"
+```
+
+Both read `benchmarks/tuning/readme_results.json` and `pinnstudio/resources/tuned_settings.json` as well; run them
+with `QT_QPA_PLATFORM=offscreen` and `MPLBACKEND=Agg` on a machine without a display. Memory: `make_tuning_page.py`
+peaks at about 2 GB; `make_benchmarks_readme.py` at about 6.7 GB (it loads every example's reference data and draws
+the figures), so it needs a machine with at least 8 GB free; on 8 GB in all it is killed. The figures use the Inter
+typeface: without it installed, matplotlib falls back to another font, so the figures differ in their lettering
+(not their values) from the committed ones.
+
+Checked on 2026-11-02 at commit `5c32644`: `make_tuning_page.py` (Python 3.13, CPU) reproduces
+`benchmarks/tuning_study.md` byte for byte; the tuned problem files differ only by the field `ta_backward_seed: -1`
+(added to the configuration later; -1 is also its default when a file does not have it, and no tuned file uses
+backward compatibility). `make_benchmarks_readme.py` (GPU workstation, Python 3.11, CPU only) rebuilds Table S2 and
+both per-seed tables identically. Its pages match the committed ones except the Settings toggles of five DeepXDE
+inverse examples (Brinkman-Forchheimer, Diffusion 1D – unknown coefficient, Diffusion-reaction 1D – unknown rate
+field, Poisson 1D – unknown forcing field and its batches version): the committed `benchmarks/README.md` was written
+before their Tuned settings were offered, and still lists their Default settings as PINNStudio's best.
