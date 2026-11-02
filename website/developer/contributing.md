@@ -19,7 +19,7 @@ Open an issue with the templates provided:
 
 1. Set up a development copy ([Developer documentation](index.md#development-setup)).
 2. Make the change. A feature usually needs a `PINNConfig` field, a widget in `main_window.py` and the code
-   path in `codegen.py` ([Adding a training method](add-method.md)). Follow the existing PyQt6 patterns, prefer a
+   path in `codegen.py` ([Adding a training method](add-method.md)). Follow the existing Qt patterns, prefer a
    configuration field over new function parameters, and keep the generated scripts readable: they are meant to be
    read and reused outside the window.
 3. Before opening a pull request:

@@ -7,7 +7,7 @@ version requirements are in `setup.py` and `requirements.txt`. PINNStudio's own 
 [License](license.md).
 
 PINNStudio is an independent project. It is not affiliated with, sponsored by or endorsed by the developers of
-DeepXDE, PyTorch, Riverbank Computing (PyQt), The Qt Company or the other projects listed here.
+DeepXDE, PyTorch, The Qt Company (Qt, Qt for Python) or the other projects listed here.
 
 ## Packages PINNStudio runs on
 
@@ -20,9 +20,9 @@ version you use.
 |---|---|---|---|
 | [DeepXDE](https://github.com/lululxvi/deepxde) | 1.10.0 or newer | Defining and training the physics-informed neural networks; every script PINNStudio writes runs on it | LGPL-2.1 |
 | [PyTorch](https://pytorch.org) | 2.0 or newer | The computational backend (CPU, CUDA) | BSD-3-Clause for PyTorch itself; its package also contains components under Apache-2.0, BSD-2-Clause, BSL-1.0 and MIT |
-| [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | 6.4 or newer; exactly 6.6.1 on Windows | The graphical interface | GPL-3.0-only, or a commercial license from Riverbank Computing |
-| PyQt6-Qt6 (the Qt 6 libraries) | installed with PyQt6; exactly 6.6.1 on Windows | The Qt libraries PyQt6 binds to (PINNStudio uses Qt Core, GUI, Widgets and SVG) | LGPL-3.0 (some Qt modules are GPL-3.0) |
-| PyQt6-sip | installed with PyQt6 | PyQt6's binding support | BSD-2-Clause |
+| [PySide6-Essentials](https://doc.qt.io/qtforpython-6/) (Qt for Python) | 6.5 or newer; below 6.12 on Python 3.10/3.11 | The graphical interface | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only, or a commercial license from The Qt Company |
+| Qt 6 libraries | installed with PySide6-Essentials | The Qt libraries PySide6 binds to (PINNStudio uses Qt Core, GUI, Widgets and SVG; none of the Addons) | LGPL-3.0 (some Qt modules are GPL-3.0) |
+| shiboken6 | installed with PySide6-Essentials | PySide6's binding support | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only |
 | [NumPy](https://numpy.org) | below 2.5; below 2 on Intel Macs | Arrays | BSD-3-Clause |
 | [SciPy](https://scipy.org) | any | Interpolation and spatial and special functions, in the window and in the generated scripts | BSD-3-Clause |
 | [Matplotlib](https://matplotlib.org) | any | Figures and animations | Matplotlib License (PSF-based, BSD-style) |
@@ -32,8 +32,8 @@ version you use.
 
 Why some versions are restricted:
 
-- **PyQt6 6.6.1 on Windows.** Newer PyQt6-Qt6 builds fail to load on some Windows versions with a
-  `DLL load failed` error; Linux and macOS use the newest compatible version.
+- **PySide6 below 6.12 on Python 3.10/3.11.** PySide6 6.12.0 loses references to `None` and `True`, which ends
+  the program on these Python versions (harmless from Python 3.12 on).
 - **NumPy below 2.5.** DeepXDE 1.15's 2D `Polygon` and `Triangle` geometries call `np.cross` on two-component
   vectors, which NumPy deprecated in 2.0 and removed in 2.5.
 - **NumPy below 2 on Intel Macs.** PyTorch's last Intel-Mac release (2.2.2) was built against NumPy 1 and cannot
@@ -46,7 +46,7 @@ Why some versions are restricted:
 The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download [uv](https://docs.astral.sh/uv/)
 (MIT or Apache-2.0) from Astral, and uv downloads a Python build. Neither is part of PINNStudio.
 
-The scripts PINNStudio writes import DeepXDE, PyTorch, NumPy, SciPy and Matplotlib, not PyQt6; these libraries keep
+The scripts PINNStudio writes import DeepXDE, PyTorch, NumPy, SciPy and Matplotlib, not PySide6; these libraries keep
 their own licenses when you use or share a script.
 
 ## Third-party material included in PINNStudio

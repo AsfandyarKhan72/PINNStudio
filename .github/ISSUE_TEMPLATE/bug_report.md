@@ -20,7 +20,7 @@ Paste the relevant lines from the Training Log panel (or the error traceback), i
 **Environment**
 - OS:
 - Python version:
-- PyQt6 version:
+- PySide6 version:
 - DeepXDE / PyTorch version:
 - GPU (if used):
 

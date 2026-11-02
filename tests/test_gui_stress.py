@@ -2,7 +2,7 @@
 
 Loads two examples back and forth in a child process, so a native crash (heap corruption, segfault)
 shows as a failed test instead of taking pytest down. PySide6 6.12.0 crashed in about 7 % of rounds of
-this loop (see PYSIDE6_TRIAL.md), so 60 rounds detect it with about 99 % probability.
+this loop (see notes/pyside6-migration/PYSIDE6_TRIAL.md), so 60 rounds detect it with about 99 % probability.
 """
 import os
 import signal

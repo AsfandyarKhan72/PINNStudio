@@ -22,7 +22,7 @@ python -m pinnstudio.main
 
 ## Project layout
 
-- `pinnstudio/ui/main_window.py` — the PyQt6 interface: every tab, dialog, and input widget.
+- `pinnstudio/ui/main_window.py` — the PySide6 (Qt for Python) interface: every tab, dialog, and input widget.
 - `pinnstudio/core/config.py` — `PINNConfig`, the dataclass that holds a full problem definition (domain, BCs/ICs, network, training schedule, etc.).
 - `pinnstudio/core/codegen.py` — turns a `PINNConfig` into a standalone DeepXDE/PyTorch script.
 - `pinnstudio/core/runner.py` — writes that script to a temp file, runs it as a subprocess, and streams stdout back into the GUI log.
@@ -65,7 +65,7 @@ PINNStudio is licensed under the GNU General Public License version 3 (GPL-3.0-o
 
 ## Code style
 
-- Follow the existing PyQt6 patterns already used in `main_window.py` (naming, signal/slot wiring, dialog structure) rather than introducing a new UI pattern.
+- Follow the existing Qt patterns already used in `main_window.py` (naming, signal/slot wiring, dialog structure) rather than introducing a new UI pattern.
 - Prefer adding a field to `PINNConfig` over threading new parameters through function signatures.
 - Keep generated scripts (`codegen.py` output) readable — they're meant to be inspected and reused outside the GUI, not just executed.
 

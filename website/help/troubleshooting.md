@@ -27,18 +27,19 @@ sudo apt-get install libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-curs
 window cannot open; train there with an [exported script](../getting-started/save-and-export.md#exporting-the-script)
 instead.
 
-**Windows: `ImportError: DLL load failed` for PyQt6.** Newer PyQt6/Qt builds fail to load on some Windows versions.
-PINNStudio therefore requires `PyQt6==6.6.1` and `PyQt6-Qt6==6.6.1` on Windows. If another package or a manual
-upgrade replaced them, put the pinned versions back in the Python PINNStudio runs in:
+**Python 3.10 or 3.11: `Fatal Python error: none_dealloc: deallocating None` (or `bool_dealloc`).** PySide6
+6.12.0 has a reference-counting defect that ends the program on these Python versions; PINNStudio therefore
+requires PySide6 below 6.12 there. If a manual upgrade installed 6.12.0, put an earlier version back (or use
+Python 3.12 or newer, where the defect is harmless):
 
 ```bash
-pip install "PyQt6==6.6.1" "PyQt6-Qt6==6.6.1"
+pip install "PySide6-Essentials<6.12"
 ```
 
 **Windows: `[WinError 1114] A dynamic link library (DLL) initialization routine failed` (`c10.dll`).** PyTorch fails
-to load on Windows if PyQt6 is loaded first, because both bring a Microsoft C++ runtime. PINNStudio loads PyTorch
+to load on Windows if Qt (PySide6) is loaded first, because both bring a Microsoft C++ runtime. PINNStudio loads PyTorch
 first when it starts (`pinnstudio` command, `python -m pinnstudio`, the icon). The error can still appear if you
-import PINNStudio's window from your own script after PyQt6; import `torch` before PyQt6 there.
+import PINNStudio's window from your own script after PySide6; import `torch` before PySide6 there.
 
 **The window opened, but disappeared or shows a message box "PINNStudio error".** An unexpected error is shown in a
 message box and written to `~/.pinnstudio/pinnstudio.log`; PINNStudio keeps running. Please report it with the text
@@ -52,7 +53,7 @@ restores the default layout. **Settings › Display Settings...** has the theme 
 
 ## Missing or incompatible packages
 
-PINNStudio needs DeepXDE (1.10.0 or newer), PyTorch (2.0 or newer), PyQt6, NumPy below 2.5, SciPy, Matplotlib and
+PINNStudio needs DeepXDE (1.10.0 or newer), PyTorch (2.0 or newer), PySide6, NumPy below 2.5, SciPy, Matplotlib and
 pandas. The installers and `pip install pinnstudio` install them. Problems appear when packages are installed or
 upgraded by hand afterwards:
 

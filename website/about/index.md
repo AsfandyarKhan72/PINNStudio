@@ -12,7 +12,7 @@ under the supervision of Prof. Mahmood Mamivand.
 ## Acknowledgment
 
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), [PyTorch](https://pytorch.org)
-and PyQt6. DeepXDE is the physics-informed learning library that every script PINNStudio generates runs on, and its
+and Qt for Python (PySide6). DeepXDE is the physics-informed learning library that every script PINNStudio generates runs on, and its
 documented examples are included among PINNStudio's examples, each linked to its original script. PINNStudio is an
 independent project and is not affiliated with or endorsed by the DeepXDE developers.
 

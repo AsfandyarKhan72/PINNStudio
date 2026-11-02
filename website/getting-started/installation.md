@@ -1,7 +1,7 @@
 # Installation
 
 PINNStudio is a Python package. It runs on Linux, Windows and macOS, trains on the CPU or on an NVIDIA GPU, and
-needs an internet connection while it is installed (to download PyTorch, DeepXDE, PyQt6 and the other packages).
+needs an internet connection while it is installed (to download PyTorch, DeepXDE, PySide6 and the other packages).
 
 There are two versions you can install:
 
@@ -125,7 +125,7 @@ pip install pinnstudio
 pinnstudio
 ```
 
-This installs PINNStudio and its dependencies: DeepXDE (1.10.0 or newer), PyTorch (2.0 or newer), PyQt6,
+This installs PINNStudio and its dependencies: DeepXDE (1.10.0 or newer), PyTorch (2.0 or newer), PySide6 (Qt for Python),
 NumPy (below 2.5), SciPy, Matplotlib and pandas. NumPy is kept below 2.5 because DeepXDE's 2D `Polygon` and
 `Triangle` geometries call `np.cross` on two-component vectors, which NumPy 2.5 no longer allows (see
 [Missing or incompatible packages](../help/troubleshooting.md#missing-or-incompatible-packages)). Install it into a virtual environment, so that these packages do

@@ -8,7 +8,7 @@ widgets are printed after every round, so a leak shows as steady growth.
 
 Found with this loop: PySide6 6.12.0 aborted ("malloc_consolidate(): unaligned fastbin chunk detected")
 or crashed in about 7 of 100 rounds of loading "Heat 3D" and "Allen-Cahn 1D -- Wight & Zhao
-(time-adaptive)" one after the other; PyQt6 never did (150 rounds). See PYSIDE6_TRIAL.md.
+(time-adaptive)" one after the other; PyQt6 never did (150 rounds). See notes/pyside6-migration/PYSIDE6_TRIAL.md.
 Runs offscreen unless QT_QPA_PLATFORM is set (xcb for a real X server or Xvfb).
 """
 import argparse

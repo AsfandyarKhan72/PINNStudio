@@ -143,7 +143,7 @@ be exported and run on its own.
 
 If PINNStudio is useful in your work, please [cite it](about/cite.md). A paper describing PINNStudio is in
 preparation. License terms are on the [License](about/license.md) page.
-PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), PyTorch and PyQt6; it
+PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), PyTorch and Qt for Python (PySide6); it
 is an independent project and is not affiliated with or endorsed by the DeepXDE developers.
 
 Developed in the Computational Materials Design Lab, Boise State University, under the supervision of

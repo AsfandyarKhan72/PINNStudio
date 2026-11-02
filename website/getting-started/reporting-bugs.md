@@ -31,10 +31,10 @@ Say also how you installed it: one-command installer, `pip`, or from source.
     A source installation of the development version still reports `1.5.0` until v1.6.0 is released. For the
     development version, give the commit instead: run `git rev-parse --short HEAD` in the `PINNStudio` folder.
 
-**2. Your system.** Operating system and version, Python version, and the versions of PyTorch, DeepXDE and PyQt6:
+**2. Your system.** Operating system and version, Python version, and the versions of PyTorch, DeepXDE and PySide6:
 
 ```bash
-python -c "import sys, torch, deepxde, PyQt6.QtCore as q; print(sys.version); print(torch.__version__, torch.cuda.is_available(), deepxde.__version__, q.PYQT_VERSION_STR)"
+python -c "import sys, torch, deepxde, PySide6, PySide6.QtCore as q; print(sys.version); print(torch.__version__, torch.cuda.is_available(), deepxde.__version__, PySide6.__version__, q.qVersion())"
 ```
 
 If you train on a GPU, name it, and give the driver's CUDA version (`nvidia-smi`).

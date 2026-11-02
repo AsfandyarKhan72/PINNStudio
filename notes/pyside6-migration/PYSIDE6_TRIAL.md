@@ -120,12 +120,12 @@ test_line_slice_and_sketch_bcs, test_workspace_layout, test_form_alignment: 11 p
 - **Cause:** PySide6 keeps the wrapper of every `QLayoutItem` that `QLayout.itemAt()` returns (PyQt6 keeps none).
   Qt deletes those items itself when a row widget or layout is destroyed and PySide6 is not told; when the widgets
   are destroyed, `Shiboken::Object::destroy` writes into a 32-byte block it freed earlier in the same call
-  (valgrind, `pyside6-notes/valgrind_invalid_write.txt`). `workspace.align_forms` walked every row with `itemAt()`
+  (valgrind, `repro-and-traces/valgrind_invalid_write.txt`). `workspace.align_forms` walked every row with `itemAt()`
   on each page switch: ~1200 such wrappers after a few example loads.
-- **Standalone reproducer:** `pyside6-notes/pyside_layoutitem_repro.py` crashes PySide6 in < 400 iterations;
+- **Standalone reproducer:** `repro-and-traces/pyside_layoutitem_repro.py` crashes PySide6 in < 400 iterations;
   without `itemAt()` it runs clean (valgrind: 0 errors vs 2046); the PyQt6 version runs clean.
 - **Fix:** no `QLayout.itemAt`/`takeAt` in `pinnstudio/ui` (`workspace.layout_widgets`, `layout_sublayouts`,
   `_row_slots`: QObject tree + `indexOf`). Pages render pixel-identical; generated scripts identical.
 - **Tests:** `tests/test_layout_item_wrappers.py` (fails on the old code: 843 wrappers), `tests/test_gui_stress.py`
   (`PINNSTUDIO_STRESS=1`), `tools/gui_stress.py`.
-- Upstream report drafted (`pyside6-notes/UPSTREAM_REPORT.md`), not filed.
+- Upstream report drafted (`repro-and-traces/UPSTREAM_REPORT.md`), not filed.

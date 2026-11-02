@@ -8,14 +8,14 @@ PINNStudio/
 │   ├── shortcut.py          desktop shortcuts (--create-shortcut / --remove-shortcut)
 │   ├── errors.py            error reporting for the window
 │   ├── core/                configuration, code generation, running, examples (no Qt)
-│   ├── ui/                  the PyQt6 interface
+│   ├── ui/                  the PySide6 interface
 │   └── resources/           icons and tuned_settings.json (packaged)
 ├── reference_data/          reference solutions and measured data used by the examples (packaged)
 ├── tests/                   the pytest suite
 ├── tools/                   developer scripts: reference-data generators, checks, figures, docs tools
 ├── benchmarks/              recorded benchmark runs, studies and the pages generated from them
 ├── website/                 this documentation site (MkDocs + Material); mkdocs.yml at the root
-├── docs/                    the single-page project website (index.html and its images)
+├── docs/                    the old single-page website (index.html), kept until this site is published
 ├── assets/                  images used by the README and the benchmark pages
 ├── .github/workflows/       CI: tests, platform matrix, smoke test, documentation
 ├── setup.py, pyproject.toml, MANIFEST.in, requirements.txt     packaging

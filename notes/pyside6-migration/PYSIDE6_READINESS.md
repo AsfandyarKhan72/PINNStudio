@@ -125,7 +125,7 @@ pixel differences are temporary folder names in path fields).
   reachable from this machine, so the clean install linked the system PyTorch.)
 
 ## 7. Licensing
-See `licensing-proposal/README.md` on the branch: MIT vs Apache-2.0 compared (Apache-2.0 suggested for its patent
+See `notes/licensing-proposal/README.md` on the branch: MIT vs Apache-2.0 compared (Apache-2.0 suggested for its patent
 and trademark clauses; MIT remains sound), LGPLv3 obligations and how a PyPI distribution meets them, draft
 `NOTICE`, LGPL notice for bundled installers, third-party entry. No GPL-only Qt module is used. The public license
 is unchanged; ownership/authorization at Boise State must be settled first.
@@ -164,7 +164,7 @@ is unchanged; ownership/authorization at Boise State must be settled first.
    branch again, and repeat: script equivalence (600 files), the matched training runs, the stress loops.
 3. Settle the licence; then update `LICENSE`, `NOTICE` (Apache), `setup.py` (licence, version 1.6.0),
    README/CONTRIBUTING/CHANGELOG/bug-report template/THIRD_PARTY_LICENSES (drafts in `licensing-proposal/`).
-4. Decide whether `pyside6-notes/` and `PYSIDE6_TRIAL.md` ship or move to the developer docs; file the upstream
+4. Decide whether `repro-and-traces/` and `PYSIDE6_TRIAL.md` ship or move to the developer docs; file the upstream
    report.
 5. Merge into a release candidate branch (not `main`), build the wheel and sdist, clean-install test, then the
    website/README wording for PySide6. Keep `audit/v1.6.0` (PyQt6) as the fallback until the release is out.

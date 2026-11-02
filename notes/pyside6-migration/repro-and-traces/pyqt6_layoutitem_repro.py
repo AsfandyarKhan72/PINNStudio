@@ -1,4 +1,4 @@
-"""Standalone reproducer (PySide6 only, no PINNStudio): stale QLayoutItem wrappers.
+"""Control for pyside_layoutitem_repro.py (the same loop with PyQt6, which keeps no item wrappers): no crash.
 
 PySide6 keeps the Python wrapper of every QLayoutItem returned by QLayout.itemAt() alive (PyQt6 does not).
 When Qt itself deletes such an item -- here because the widget whose layout holds it is deleted -- PySide6
