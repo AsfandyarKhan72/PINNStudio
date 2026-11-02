@@ -69,8 +69,7 @@ trigger, and on a push to `docs/official-site` it only builds, checks links and 
 
 ## Later releases
 
-Each release: update the version banner (`extra.version_label`, `extra.released_version` in
-`mkdocs.yml`), set `extra.source_ref` to the release tag once it exists (so the source-code links point at the
+Each release: set `extra.source_ref` to the release tag once it exists (so the source-code links point at the
 released code; rerun `tools/docs/make_source_links.py` and `tools/docs/make_gallery.py`), update the installation
 page and the changelog page, merge, then run step 5 again. See
 "Documentation" in the release checklist (`website/developer/releases.md`).

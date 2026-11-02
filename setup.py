@@ -1,13 +1,15 @@
+import re
 from setuptools import setup, find_packages
 from pathlib import Path
 this_dir = Path(__file__).parent
+# the version is set in one place, pinnstudio/__init__.py
+VERSION = re.search(r'^__version__ = "([^"]+)"', (this_dir / "pinnstudio" / "__init__.py").read_text(encoding="utf-8"),
+                    re.M).group(1)
 long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    # 1.5.0 is the latest release. main holds the unreleased development version for 1.6.0 (CHANGELOG, "Unreleased");
-    # the version number changes only when 1.6.0 is released.
-    version="1.5.0",
+    version=VERSION,
     author="AsfandyarKhan72",
     description="A graphical platform for forward and inverse physics-informed neural networks",
     long_description=long_description,

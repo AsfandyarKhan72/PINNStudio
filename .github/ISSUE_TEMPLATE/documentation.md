@@ -13,8 +13,8 @@ What the page says, and what is wrong, out of date or hard to follow. If the pag
 shows, say what the window shows instead (a screenshot helps).
 
 **Version**
-The PINNStudio version you are using (`pip show pinnstudio`; for a source install of the development version, the
-commit from `git rev-parse --short HEAD`), and the version named in the banner at the top of the page.
+The PINNStudio version you are using (`pip show pinnstudio`; for a source install, also the commit from
+`git rev-parse --short HEAD`).
 
 **Suggested change** (optional)
 How the text could read instead, or what is missing.

@@ -4,9 +4,10 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.6.0]
 
 ### Added
+- **Help menu**: *Documentation* opens the documentation website; *About PINNStudio* shows the version, the MIT License and the libraries PINNStudio is built on (Qt for Python under the LGPL v3); *About Qt* shows Qt's own notice. The version is set in one place, `pinnstudio/__init__.py` (`pinnstudio.__version__`), which `setup.py` reads.
 - **Examples → Settings: Default / Tuned.** *Default* loads a DeepXDE example with DeepXDE's own settings and a template taken from a paper the way the paper solves it (its network, points and training: Wight & Zhao, Mattey & Ghosh's bc-PINN, Raissi et al.); PINNStudio's own templates load as they are. *Tuned* loads PINNStudio's best for the example from the benchmarks (`benchmarks/README.md`): the most accurate run, and of the runs about as accurate the fastest. The Training Log says what the chosen settings change and the error they reached.
 - Time-adaptive training can now train **one network through all the time windows** (with transfer learning on): a **growing time range**, where each window trains on the whole range so far with the true initial condition (Wight & Zhao 2021, "approach I"); **backward compatibility** (bc-PINN, Mattey & Ghosh 2022), where after each window the solution on the range so far is stored and later windows are held to it with a chosen loss weight; and **initial-condition guided learning**, which first fits each window's starting profile for a chosen fraction of the Adam iterations. Time-adaptive training can also **resample in each window** (Wight & Zhao's approach I + resampling): after the window's training, the random points with the largest PDE residual join its collocation points and Adam training continues, for a chosen number of rounds (Time-Adaptive panel → *Resampling rounds*, 0 = off). The settings are in the Time-Adaptive panel; a combination that needs transfer learning says so before training.
 - Error Analysis also gives the relative $L_2$ error over all reference times together (every reference point at every time), the single number papers usually report, in the Training Log and in `error_spacetime.txt` next to `error_metrics.txt`.

@@ -16,11 +16,10 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
    already uses — and preferably not at all outside that section ("expected results" in tutorials describe
    what the user sees qualitatively, or numbers you obtained yourself by running the workflow, stated as
    such: "on a laptop CPU this run reached L2 ≈ … in our test").
-3. **Versions.** The public release is **v1.5.0** (PyPI, tag v1.5.0). These pages describe the
-   development version that will become **v1.6.0** (audit branch `audit/v1.6.0`). When a feature or fix
-   exists only in the development version, say so with:
-   `!!! info "New in v1.6.0 (in development)"`. Never write install instructions for v1.6.0 as if it were
-   released: `pip install pinnstudio` installs v1.5.0; the development version is installed from source.
+3. **Versions.** The pages describe the current version of PINNStudio (the one in `setup.py`) as it is,
+   without comparisons with earlier versions; what changed between versions belongs in `CHANGELOG.md` and
+   the changelog page. Never claim that a version is on PyPI before it is: `pip install pinnstudio`
+   installs the latest published release.
 4. **License, paper, DOI.** Do not describe the license (see `about/license.md`, written separately), do
    not invent a DOI, and refer to the paper only as "the PINNStudio paper" (in preparation); do not name a journal
    or say it has been submitted.
@@ -40,8 +39,7 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
   **Settings › Random Seed...**.
 - Equations: inline `\( u_t + u u_x = \nu u_{xx} \)`, display `\[ ... \]` (MathJax via arithmatex).
   The expression syntax users type in PINNStudio goes in code: `du_t + u*du_x - 0.01/pi*du_xx`.
-- Admonitions: `!!! note`, `!!! tip`, `!!! warning`, `!!! info "New in v1.6.0 (in development)"`,
-  collapsible `??? note "Details"`. Tabs: `=== "Linux / macOS"`.
+- Admonitions: `!!! note`, `!!! tip`, `!!! warning`, collapsible `??? note "Details"`. Tabs: `=== "Linux / macOS"`.
 - Screenshots: `![Alt text describing what is shown](../assets/screenshots/NAME.png){ .screenshot loading=lazy }`
   Alt text must describe the content. Only use screenshots of the real application (existing files in
   `website/assets/screenshots/`, or ones you create with a script under `tools/docs/` that drives the real

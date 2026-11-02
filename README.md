@@ -18,9 +18,6 @@
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/help/faq/">FAQ</a></strong>
 </p>
 
-> **Development version.** This branch holds the unreleased development version of PINNStudio 1.6.0. The latest
-> release is [1.5.0 on PyPI](https://pypi.org/project/pinnstudio/); see the [CHANGELOG](CHANGELOG.md) for what is new.
-
 PINNStudio is a desktop application for solving ordinary and partial differential equations with
 physics-informed neural networks (PINNs). You set up a problem in one window: the equations, the domain, the
 boundary and initial conditions, the network and how it is trained. PINNStudio writes a DeepXDE/PyTorch script
@@ -91,9 +88,8 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Asf
 
 The install takes a few minutes, and at the end it says which version was installed and whether training will run
 on the GPU. Running the same command again updates PINNStudio. Both `pip install pinnstudio` and the installer
-install the latest release from PyPI; features listed under *Unreleased* in the
-[CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md) come with the next release, or
-now with a source install.
+install the latest release from PyPI; the [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md)
+lists what each release changed.
 
 The [installation guide](https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/) covers
 choosing a CUDA build of PyTorch, the source install for development, the systems PINNStudio is tested on, Intel
@@ -199,8 +195,8 @@ Email: [asfandyarkhan@u.boisestate.edu](mailto:asfandyarkhan@u.boisestate.edu)
 
 ## License
 
-PINNStudio is released under the [MIT License](LICENSE). Copyright (c) 2026 Asfandyar Khan. Releases 1.0 to 1.5.0
-were published under the same license.
+PINNStudio is released under the [MIT License](LICENSE). Copyright (c) 2026 Asfandyar Khan. Every release has
+been published under this license.
 
 **Generated scripts.** PINNStudio writes a Python script for each problem: the script *Export script* saves, and the
 script *Solve* runs. You may use, change and share a generated script, including the parts of PINNStudio's code

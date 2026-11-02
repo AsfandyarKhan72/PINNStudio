@@ -1142,9 +1142,6 @@ def _index(records):
          "settings. *Default* is DeepXDE's own settings for a DeepXDE example, the paper's method for a template "
          "taken from a paper, and the template's own settings otherwise; *Tuned* is PINNStudio's best setting from "
          "the tuning study, where one exists.", "",
-         "!!! note \"Development version\"",
-         "    This gallery describes the development version that will become v1.6.0. The Examples list of the "
-         "released v1.5.0 may differ.", "",
          "!!! warning \"Scope\"",
          "    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not "
          "guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in "

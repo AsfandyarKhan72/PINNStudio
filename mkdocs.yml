@@ -86,8 +86,6 @@ extra:
   source_ref: main
   # "Report a documentation problem" (site footer, help/index.md): .github/ISSUE_TEMPLATE/documentation.md
   docs_issue_url: https://github.com/AsfandyarKhan72/PINNStudio/issues/new?template=documentation.md&labels=documentation
-  version_label: "v1.6.0 (in development)"
-  released_version: "v1.5.0"
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/AsfandyarKhan72/PINNStudio

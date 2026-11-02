@@ -914,9 +914,12 @@ class MainWindow(QMainWindow):
         self._update_thread.start()
 
     def _get_installed_version(self):
+        # the version of the code that is running (pinnstudio/__init__.py), not the metadata of whichever
+        # PINNStudio package is installed: a source checkout run in an environment with another install
+        # would otherwise report that one
         try:
-            from importlib.metadata import version as _pkg_version
-            return _pkg_version("pinnstudio")
+            from pinnstudio import __version__
+            return __version__
         except Exception:
             return None
 
@@ -1282,7 +1285,48 @@ class MainWindow(QMainWindow):
         reset = QAction("Reset Layout", self)
         reset.triggered.connect(self._reset_layout)
         view_menu.addAction(reset)
+
+        # Help: the documentation website, the version and license (About PINNStudio), and Qt's own notice (About
+        # Qt: the Qt version and its license, the usual attribution for an application built on the LGPL Qt).
+        help_menu = self.menuBar().addMenu("Help")
+        docs = QAction("Documentation", self)
+        docs.triggered.connect(lambda: __import__("webbrowser").open(self.DOCS_URL))
+        help_menu.addAction(docs)
+        help_menu.addSeparator()
+        about = QAction("About PINNStudio", self)
+        about.setMenuRole(QAction.MenuRole.AboutRole)
+        about.triggered.connect(self._show_about)
+        help_menu.addAction(about)
+        about_qt = QAction("About Qt", self)
+        about_qt.setMenuRole(QAction.MenuRole.AboutQtRole)
+        about_qt.triggered.connect(lambda: QMessageBox.aboutQt(self, "About Qt"))
+        help_menu.addAction(about_qt)
         self._restore_layout()
+
+    def _about_text(self):
+        """The About PINNStudio text: version, license, the libraries it is built on and where to find more."""
+        import PySide6
+        from PySide6.QtCore import qVersion
+        ver = self._get_installed_version() or ""
+        repo = "https://github.com/AsfandyarKhan72/PINNStudio"
+        return (f"<h3>PINNStudio {ver}</h3>"
+                "<p>A graphical platform for forward and inverse physics-informed neural networks.</p>"
+                "<p>Copyright &copy; 2026 Asfandyar Khan.<br>Released under the "
+                f'<a href="{repo}/blob/main/LICENSE">MIT License</a>.</p>'
+                f"<p>Built on DeepXDE and PyTorch, with Qt for Python (PySide6 {PySide6.__version__}, "
+                f"Qt {qVersion()}), which is used under the GNU Lesser General Public License version 3. "
+                "These and the other libraries keep their own licenses: see "
+                f'<a href="{repo}/blob/main/THIRD_PARTY_LICENSES.md">THIRD_PARTY_LICENSES.md</a>.</p>'
+                f'<p><a href="{self.DOCS_URL}">Documentation</a> &middot; <a href="{repo}">Source code</a></p>')
+
+    def _show_about(self):
+        box = QMessageBox(self)
+        box.setWindowTitle("About PINNStudio")
+        box.setTextFormat(Qt.TextFormat.RichText)
+        box.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        box.setText(self._about_text())
+        box.setIconPixmap(self.windowIcon().pixmap(64, 64))
+        box.exec()
 
     def _split_geometry_page(self):
         """Geometry page: the shape picker, the shape's own numbers, and
@@ -10070,11 +10114,7 @@ class MainWindow(QMainWindow):
         if not path.lower().endswith(".json"):
             path += ".pinn.json"
         config = self._build_config()
-        try:
-            from importlib.metadata import version as _pkg_version
-            installed_version = _pkg_version("pinnstudio")
-        except Exception:
-            installed_version = ""
+        installed_version = self._get_installed_version() or ""
         problem_name = os.path.splitext(os.path.basename(path))[0]
         if problem_name.endswith(".pinn"):
             problem_name = problem_name[:-5]
