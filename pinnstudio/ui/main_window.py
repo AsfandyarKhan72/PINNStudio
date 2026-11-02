@@ -659,6 +659,22 @@ class MainWindow(QMainWindow):
         # The graphics column's narrowest width follows the tab that is showing
         for _tabs in (self.right_tabs, self.bottom_tabs, self.results_tabs):
             _width_follows_current_tab(_tabs)
+        self._adopt_unplaced_widgets()
+
+    def _adopt_unplaced_widgets(self):
+        """Settings that are kept as widgets but never placed in the window
+        (steady_state_check, the legacy single-optimizer controls, export and
+        restore step counts, ...) get the window as their parent, hidden, so
+        Qt deletes them with the window. Without a parent they lived as long
+        as this object's Python wrapper, which PySide6 keeps alive after the
+        window is closed (its signal connections hold it): 18 controls (64
+        widgets with their parts) per closed window."""
+        import shiboken6
+        for _name, _w in list(vars(self).items()):
+            if (isinstance(_w, QWidget) and not isinstance(_w, (QDialog, QMainWindow))
+                    and _w is not self and shiboken6.isValid(_w) and _w.parent() is None):
+                _w.setParent(self)
+                _w.hide()
 
     def eventFilter(self, obj, ev):
         # (Never raises and never calls the base class: while the window is

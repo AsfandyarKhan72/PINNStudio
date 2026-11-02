@@ -95,3 +95,21 @@ def test_no_layout_itemat_or_takeat_in_the_interface():
                 if re.search(r"\.(itemAt|takeAt)\(", code) and "tree.itemAt" not in code:
                     bad.append(f"{name}:{n}: {line.strip()}")
     assert not bad, "\n".join(bad)
+
+
+def test_closing_the_window_releases_all_its_widgets():
+    """Settings kept as widgets but never placed in the window had no parent; PySide6 keeps the closed window's
+    Python object alive (its signal connections hold it), so 18 controls (64 widgets) outlived every closed
+    window. They are now children of the window (hidden) and go with it."""
+    before = len(app.allWidgets())
+    w = MainWindow()
+    w._maybe_save_changes = lambda: True
+    w.show()
+    _settle(0.3)
+    w.close()
+    w.deleteLater()
+    del w
+    _settle(0.5)
+    gc.collect()
+    _settle(0.2)
+    assert len(app.allWidgets()) <= before, len(app.allWidgets()) - before
