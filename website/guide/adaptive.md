@@ -39,7 +39,8 @@ warns about it.
 
 - **Enable transfer learning (warm start from previous step)** — each window's network starts from the
   previous window's weights instead of from scratch. **Transfer optimizer:** says which state is carried
-  over: **Adam** (the network after the last Adam phase) or **L-BFGS** (as the window ended).
+  over: **Adam** (the network after the last Adam phase, before any resampling rounds) or **L-BFGS** (as the
+  window ended).
 
 With transfer learning on, one network can be trained through all the windows:
 
@@ -64,7 +65,8 @@ Both need transfer learning; **Solve** says so if it is off.
 !!! info "New in v1.6.0 (in development)"
     Growing time range, backward compatibility, IC-guided learning and resampling rounds are new. The
     later windows now use the loss weights as set (see [Loss weights](loss-weights.md#weights-and-time-windows)),
-    IC-guided learning and resampling use the training phases' learning rate and loss function, and on a
+    IC-guided learning uses the first Adam phase's learning rate (with the mean squared error), resampling the
+    optimizer, learning rate and loss function of the last first-order phase, and on a
     disk, polygon or custom shape only grid points inside the domain carry the solution between windows.
 
 ### When it is not available
@@ -89,8 +91,9 @@ times, or stop earlier once the mean residual over the sampled points is below
 **All outputs (combined)** (the sum of the absolute residuals; **All equations (combined)** when
 equations and outputs differ in number) or one equation.
 
-Each round's Adam step uses the last Adam/AdamW training phase's learning rate, loss function and
-weights, and its L-BFGS step the last L-BFGS phase's. With a save folder, each round's model and a
+Each round's first-order step uses the optimizer, learning rate, loss function and weights of the last
+training phase that is not L-BFGS or NNCG (without its learning-rate decay), and its L-BFGS step the last
+L-BFGS phase's loss function and weights (the first-order phase's when there is no L-BFGS phase). With a save folder, each round's model and a
 picture of the collocation points are saved in the run folder.
 
 !!! info "New in v1.6.0 (in development)"

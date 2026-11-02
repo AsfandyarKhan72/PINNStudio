@@ -67,7 +67,8 @@ map the inputs to
 \]
 
 — written **without a factor \( 2\pi \)** inside the cosine and sine. Each \( \gamma_k \) passes through the
-same remaining hidden layers (shared weights), the \( K \) results are concatenated and a linear layer gives
+same remaining hidden layers (shared weights; the first hidden entry is this fixed feature layer, which has no
+trainable weights), the \( K \) results are concatenated and a linear layer gives
 the outputs. **STMsFFN** builds space features from all inputs but the last and time features from the last
 input (\( t \)) with the time scales, passes each through the shared hidden layers, multiplies every
 (space, time) pair point-wise, and concatenates the products. The matrices \( B_k \) are stored with the

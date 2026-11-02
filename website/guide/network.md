@@ -48,7 +48,7 @@ He normal or zeros.
 
 For MsFFN and STMsFFN the first hidden layer needs an even number of neurons (at least 2). Large σ
 lets the network represent fast oscillations. Weight decay (**Settings › Optimizer Settings...**) can only
-be used with an FNN: DeepXDE's PFNN, MsFFN and STMsFFN have no regularization, and **Solve** refuses the
+be used with an FNN: PFNN and PINNStudio's MsFFN/STMsFFN take no regularization argument, and **Solve** refuses the
 combination.
 
 !!! info "New in v1.6.0 (in development)"

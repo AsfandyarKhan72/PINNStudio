@@ -44,7 +44,8 @@ reference time with the network of its window.
 Without transfer learning every window starts from a freshly initialised network. With
 **Enable transfer learning (warm start from previous step)** each window starts from the weights of the
 previous window's network; **Transfer optimizer:** chooses which state is passed on: **Adam** the network after
-the previous window's last Adam phase, **L-BFGS** the network as the previous window ended.
+the previous window's last Adam phase (before any resampling rounds), **L-BFGS** the network as the previous
+window ended.
 
 ## One network through all windows
 
@@ -53,8 +54,9 @@ the previous window's last Adam phase, **L-BFGS** the network as the previous wi
     in each window are new in the development version. With any of them on, **Export as DeepXDE Script...**
     writes the full script that Solve runs.
 
-These options need transfer learning (the configuration is refused otherwise), so that one network is trained
-through all windows.
+The growing time range and backward compatibility need transfer learning (the configuration is refused
+otherwise), so that one network is trained through all windows; IC-guided learning and resampling also work
+without it.
 
 ### Growing time range
 

@@ -39,7 +39,7 @@ sweep (the button reads **Run Sweep** while it is enabled). **About sweeps** ope
 | list | Comma-separated values, e.g. `0.001, 0.005, 0.01` | — | — | `values` |
 | **Min** / **Max** / **Steps** | Range and number of values (Log needs Min, Max > 0) | — / 1 / 5 | −10¹²–10¹²; Steps 2–100 | `min`, `max`, `n` |
 | **Runs:** (Bayesian) | Total runs, the baseline included | 20 | 2–1000 | `sweep_bayes_calls` |
-| **Random first:** (Bayesian) | Random runs (after the baseline) before the model takes over | 5 | 1–100 | `sweep_bayes_initial` |
+| **Random first:** (Bayesian) | Starting runs before the model takes over (an in-space baseline counts as one; the rest are random) | 5 | 1–100 | `sweep_bayes_initial` |
 | **Minimize:** (Bayesian) | **Final loss**, **Final loss (unweighted)** (each term divided by its weight), **L2 error** | Final loss | — | `sweep_bayes_objective` (`loss`, `loss_unweighted`, `l2`) |
 | (no control) | Seed of the Bayesian search's random numbers | 0 | integer | `sweep_bayes_seed` |
 
@@ -82,7 +82,7 @@ exact-solution reference), and constants defined from it follow.
 
 **Bayesian search** (`pinnstudio/core/bayes_opt.py`, NumPy only): each parameter is a dimension mapped to
 \( [0, 1] \) — a Linear or Log range (log-scaled) for a number, or its list of values as categorical
-choices. After the baseline (if on) and **Random first:** random points, the surrogate is a Gaussian
+choices. After **Random first:** starting runs (an in-space baseline counts as one of them; the rest are random), the surrogate is a Gaussian
 process with a Matérn 5/2 kernel on these coordinates, fitted to \( \log_{10} \) of the objective (when all
 values are positive), normalized, with the length scale chosen from \( \{0.1, 0.2, 0.35, 0.6, 1\} \) by
 marginal likelihood. The next point maximizes the **expected improvement**

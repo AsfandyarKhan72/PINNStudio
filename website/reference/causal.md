@@ -54,7 +54,8 @@ schedule does not advance.
 
 The schedule starts over only for a new time range (the next time window); further training phases and
 RAR rounds on the same range continue with it. Only the training points are weighted: the test points and
-RAR or resampling candidates get the plain residual. The Training Log prints, every 1000 iterations, the
+RAR or resampling candidates get the plain residual (they are recognised by their number of points, so a set
+exactly as large as the training set would be weighted too). The Training Log prints, every 1000 iterations, the
 current ε, the smallest weight and how far in time the weights have settled (all above 0.99).
 
 ## Defaults and limitations
@@ -72,7 +73,8 @@ current ε, the smallest weight and how far in time the weights have settled (al
 
 ## Supported problem types
 
-Time-dependent 1D, 2D and 3D PDEs, forward and inverse; with RAR and time windows.
+Time-dependent 1D, 2D and 3D PDEs, forward and inverse; with RAR (script generated in the tests) and with time
+windows (not refused, untested; see [Compatibility](compatibility.md)).
 
 ## Compatibility with other features
 

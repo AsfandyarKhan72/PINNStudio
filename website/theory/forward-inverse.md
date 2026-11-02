@@ -66,7 +66,7 @@ one loss term, with its own **Loss weight:**:
 \qquad \text{(}\texttt{PointSetBC}\text{, } \textbf{Measures:} \text{ an output } i_f\text{)},
 \]
 
-or, when **Measures:** is `Custom...`, an expression \(G\) of the outputs and their derivatives,
+or, when **Measures:** is `Custom...`, an expression \(G\) of the outputs (not their derivatives),
 
 \[
 \mathcal{L}_{d,f}(\theta) = \ell\big(\{\, G[u_\theta](\mathbf{x}_n, t_n) - d_n \,\}_{n=1}^{N_f}\big)

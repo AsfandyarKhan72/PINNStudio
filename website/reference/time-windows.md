@@ -41,7 +41,7 @@ silently. **About time-adaptive training** opens a description.
 | **Time step groups:** rows **Start time:** → **End time:**, **Steps (n):** | Each group splits \( [t_s, t_e] \) into *n* equal windows; **➕ Add step group** adds a group | one group 0 → 1, 10 steps | steps 1–500 | `ta_step_groups` (JSON list of `{t_start, t_end, steps}`) |
 | **IC grid resolution:** | Points per axis of the grid that carries the solution to the next window (squared in 2D, cubed in 3D) | 201 (21 when switching to 3D) | 201, 101, 51, 21, 11, or any integer typed in | `ta_grid_size` |
 | **Enable transfer learning (warm start from previous step)** | Start each window from the previous window's weights | off | — | `ta_transfer_learning` |
-| **Transfer optimizer:** | Which state is carried over: **Adam** (after the window's last Adam phase) or **L-BFGS** (as the window ended) | Adam | Adam, L-BFGS | `ta_transfer_optimizer` |
+| **Transfer optimizer:** | Which state is carried over: **Adam** (after the window's last Adam phase, before any resampling rounds) or **L-BFGS** (as the window ended) | Adam | Adam, L-BFGS | `ta_transfer_optimizer` |
 | **Growing time range: each window trains on [start, t] (one network)** | Approach I | off | needs transfer learning | `ta_growing` |
 | **Backward compatibility (bc-PINN): keep the solution on earlier windows** | bc-PINN | off | needs transfer learning | `ta_backward` |
 | **Weight:** | Loss weight of the backward-compatibility terms | 100 | 0–10⁶ | `ta_backward_weight` |
@@ -104,7 +104,8 @@ which Restore & visualize and Error Analysis read.
       window ended); before, it depended on whether a save folder was set.
     - Only grid points inside a non-box domain carry the solution.
     - bc-PINN's stored points follow the run's seed (they used a fixed seed 1234).
-    - IC-guided learning and resampling use the Training Phases' learning rate and loss function.
+    - IC-guided learning uses the first Adam phase's learning rate (with the mean squared error); resampling uses
+      the optimizer, learning rate and loss function of the last first-order phase.
     - With resampling rounds, each window's network after the rounds is saved (`model_resampled-….pt`) and Error
       Analysis and Restore use it; before, they used the network saved before the rounds.
     - With these options, the exported script is Solve's own script (see [Generated scripts](scripts.md)).

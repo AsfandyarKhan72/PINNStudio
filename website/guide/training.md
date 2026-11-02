@@ -51,8 +51,8 @@ Right-clicking **Training** in the tree also offers **Add training phase**.
 - **RAR.** Each RAR round trains with the last Adam/AdamW phase's loss function and weights for its Adam
   step and the last L-BFGS phase's for its L-BFGS step ([Adaptive training](adaptive.md)).
 - **Time-adaptive training** runs all the phases in every time window. Its IC-guided learning takes its
-  learning rate and iterations from the first Adam or AdamW phase; its resampling rounds use the
-  phases' learning rate and loss function.
+  learning rate and iterations from the first Adam or AdamW phase (always with the mean squared error); its
+  resampling rounds use the optimizer, learning rate and loss function of the last first-order phase.
 - **Scale by initial losses** (Loss weights page) measures the initial losses with the first phase's
   loss function.
 - **Per-point weights** (RBA, SA-PINN) act during the Adam phases; **During L-BFGS** chooses whether

@@ -62,8 +62,8 @@ data — a comparison and its relative L2 error), and the models of its Adam and
 
 - **The rounds use a constant learning rate**: the last first-order phase's learning rate, without its
   decay schedule.
-- If the last first-order phase is NNCG, the round uses the last Adam/AdamW phase instead (NNCG takes no
-  learning rate).
+- If the last first-order phase is NNCG, the round uses the last phase that is neither L-BFGS nor NNCG instead
+  (NNCG takes no learning rate), with that phase's optimizer.
 - The candidates are sampled uniformly; there is no probability-weighted sampling (RAR-D).
 - With L-BFGS iterations > 0 the run uses L-BFGS, so weight decay must be 0.
 

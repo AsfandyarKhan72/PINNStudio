@@ -42,7 +42,8 @@ Each swept parameter is one dimension, mapped to the unit interval:
 
 ### Surrogate model
 
-After \(n_0\) = **Random first:** runs at uniformly random points (after the baseline, if any), the objective
+After \(n_0\) = **Random first:** starting runs (an in-space baseline counts as one of them; the others are at
+uniformly random points), the objective
 values \(y_1, \dots, y_n\) observed at the points \(\mathbf{u}_1, \dots, \mathbf{u}_n\) are modelled by a Gaussian
 process:
 

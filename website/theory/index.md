@@ -33,9 +33,9 @@ are described in their own detail.
 | Symbol | Meaning |
 |---|---|
 | \(\mathbf{x} \in \Omega \subset \mathbb{R}^d\) | spatial coordinates (\(d = 1, 2, 3\)); the problem's **Geometry** |
-| \(t \in [t_{\min}, t_{\max}]\) | time (absent for a steady problem) |
+| \(t \in [t_{\min}, t_{\max}]\) | time (absent for a steady problem; the only variable of an ODE, which has no \(\mathbf{x}\)) |
 | \(u_\theta(\mathbf{x}, t)\) | the network's outputs, one per output name, with parameters \(\theta\) |
-| \(\mathcal{N}[u](\mathbf{x}, t) = 0\) | a governing equation as typed on the **Equations** page, written as a residual |
+| \(\mathcal{N}_j[u](\mathbf{x}, t) = 0\), \(j = 1, \dots, J\) | the governing equations as typed on the **Equations** page, one per row, written as residuals; several for a coupled system with outputs \(u = (u_1, \dots, u_m)\) |
 | \(\mathcal{B}[u] = g\) on \(\partial\Omega\) | a boundary condition (one row of the **Boundary conditions** page) |
 | \(u(\mathbf{x}, t_{\min}) = u_0(\mathbf{x})\) | an initial condition |
 | \(\lambda\) | unknown physical coefficients of an inverse problem |

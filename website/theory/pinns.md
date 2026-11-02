@@ -4,7 +4,9 @@ A physics-informed neural network (PINN) represents the solution of a differenti
 network and trains the network so that it satisfies the equation, the boundary and initial conditions and,
 for an inverse problem, measured data ([Raissi, Perdikaris & Karniadakis, 2019](../about/references.md#raissi2019);
 [Lu et al., 2021](../about/references.md#lu2021deepxde)). No mesh is needed: the equation is enforced at a set of
-points, and derivatives of the network are obtained exactly by automatic differentiation.
+points, and derivatives of the network are computed by automatic differentiation, which applies the chain rule to
+the network's elementary operations: unlike finite differences it has no truncation error, but it is evaluated in
+floating point, so the derivatives carry rounding error.
 
 ## The problem
 
@@ -22,8 +24,9 @@ where \(u = (u_1, \dots, u_m)\) are the outputs named on the **Equations** page,
 equation typed there (for example `du_t + u*du_x - 0.01/pi*du_xx`, which is
 \( u_t + u u_x - \tfrac{0.01}{\pi} u_{xx} \)), each \(\mathcal{B}_b\) is one row of the **Boundary conditions**
 page (Dirichlet, Neumann, Robin, periodic, operator, point-set or interface condition), and the initial
-conditions come from the **Initial conditions** page. A steady problem has no \(t\) and no initial condition;
-an ODE problem has \(t\) as its only variable. The number of equations \(J\) is normally the number of outputs
+conditions come from the **Initial conditions** page; a condition on a time derivative (for example
+\(u_t(\mathbf{x}, t_{\min}) = v_0\)) is an operator condition applied at \(t = t_{\min}\). A steady problem has no
+\(t\) and no initial condition; an ODE problem has \(t\) as its only variable. The number of equations \(J\) is normally the number of outputs
 \(m\) (see [ODEs and PDEs](../reference/equations.md) and [Coupled systems](../reference/coupled.md)).
 
 ## The network
