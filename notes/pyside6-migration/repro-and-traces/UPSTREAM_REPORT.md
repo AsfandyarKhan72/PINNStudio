@@ -70,3 +70,22 @@ Python-side `signal.emit()` lowers True's count by one (emit's bool result is re
 
 **PINNStudio's handling:** setup.py / requirements.txt require PySide6 < 6.12 on Python < 3.12;
 tests/test_binding_refcounts.py fails on any installed binding with the defect (it runs in the Smoke test).
+
+---
+
+# Draft 3 (not filed): Windows, PySide6 6.12.0 - access violation at process exit while a widget wrapper is alive
+
+**Native stack** (`windows_exit_crash_cdb.txt`): `ExitProcess` -> `LdrShutdownProcess` -> shiboken6's DLL
+`atexit` table -> `Shiboken::BindingManager::~BindingManager` -> `Shiboken::Object::destroy` ->
+`SbkDeallocWrapper` deletes the still-alive, Python-owned `QMainWindow` -> `QWidget::~QWidget` sends an event ->
+`QCoreApplicationPrivate::sendThroughApplicationEventFilters` -> PySide calls the application's Python event
+filter -> `Shiboken::Conversions::copyToPython` with a null converter (`mov rax,[rcx+18h]`, rcx = 0): the type
+tables are already gone while the binding manager still deletes C++ objects and calls back into Python.
+
+**When:** only when the process ends without Python's own finalization (`os._exit`, i.e. `_exit` -> `ExitProcess`
+on Windows, which still runs DLL static destructors; Linux `_exit` does not). With `sys.exit` or the app's normal
+quit, Python finalization releases the window first and nothing is left for the binding manager.
+
+**PINNStudio's handling:** the program itself never calls `os._exit`; closing the window exits with code 0
+(tools/quit_check.py on Windows, macOS and Linux). Tools that end with `os._exit` delete their windows first
+(tools/smoke_gui.py: close, deleteLater, send the posted DeferredDelete events).

@@ -1,0 +1,69 @@
+Windows exit crash, native stack (cdb on the GitHub windows-latest runner, Python 3.12.10, PySide6 6.12.0)
+Scenario: .github/diag/exit_diag.py window  (MainWindow built and shown, then os._exit(0) with the window alive)
+Run 2026-11-02, branch integration/pyside6-diag-3 (temporary CI branch). Exit crash in 25 of 32 runs of this
+scenario; 0 of 6 when the window is closed and deleted first; 0 of 6 with sys.exit; 0 of 10 for tools/quit_check.py
+(the app's own quit: window closed, app.exec() returns). Lines below as cdb printed them (timestamps removed).
+
+os._exit
+QThreadStorage: entry 0 destroyed before end of thread 0x15d49759eb0
+(eb8.2338): Access violation - code c0000005 (first chance)
+First chance exceptions are reported before any exception handling.
+This exception may be expected and handled.
+shiboken6_abi3!Shiboken::Conversions::copyToPython+0x9:
+00007ffa`777ea049 488b4118        mov     rax,qword ptr [rcx+18h] ds:00000000`00000018=????????????????
+0:000> cdb: Reading initial command 'sxd ibp; .echo CRASH; r; kn 60; .echo THREADS; ~*kn 8; .echo MODULES; lm m Qt6*; lm m shiboken*; lm m pyside*; q'
+CRASH
+rax=0000000000000000 rbx=00000030d4bee9f0 rcx=0000000000000000
+rdx=00000030d4bee0e0 rsi=0000000000000000 rdi=0000000000000002
+rip=00007ffa777ea049 rsp=00000030d4bee070 rbp=0000000000000000
+ r8=0000000000000008  r9=8000000000000000 r10=00007ffa61f86740
+r11=00000030d4bee068 r12=0000000000000008 r13=0000000000000000
+r14=00007ffa625a3d50 r15=00007ffa625a3d50
+iopl=0         nv up ei pl nz na pe nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00010202
+shiboken6_abi3!Shiboken::Conversions::copyToPython+0x9:
+00007ffa`777ea049 488b4118        mov     rax,qword ptr [rcx+18h] ds:00000000`00000018=????????????????
+ # Child-SP          RetAddr               Call Site
+00 00000030`d4bee070 00007ffa`5ecd6cf0     shiboken6_abi3!Shiboken::Conversions::copyToPython+0x9
+01 00000030`d4bee0a0 00007ffa`61f92040     QtCore!PyInit_QtCore+0x13588c
+02 00000030`d4bee0d0 00007ffa`61f919c5     python312!PyObject_Vectorcall+0x6b0
+03 00000030`d4bee150 00007ffa`61f92ea5     python312!PyObject_Vectorcall+0x35
+04 00000030`d4bee190 00007ffa`61f9103c     python312!PyEval_EvalFrameDefault+0x895
+05 00000030`d4bee3c0 00007ffa`61f8bd8e     python312!PyFunction_Vectorcall+0x17c
+06 00000030`d4bee420 00007ffa`61fc2815     python312!PyArg_CheckPositional+0x3d2
+07 00000030`d4bee4e0 00007ffa`61fc275f     python312!PyObject_Call+0x125
+08 00000030`d4bee520 00007ffa`5eb9f864     python312!PyObject_Call+0x6f
+09 00000030`d4bee570 00007ffa`5ec5bb78     QtCore+0x3f864
+0a 00000030`d4bee5d0 00007ffa`5e1f993f     QtCore!PyInit_QtCore+0xba714
+0b 00000030`d4bee620 00007ffa`5ccf2ea2     Qt6Core!QCoreApplicationPrivate::sendThroughApplicationEventFilters+0xbf
+0c 00000030`d4bee680 00007ffa`5ccf1f8e     Qt6Widgets!QApplicationPrivate::notify_helper+0x52
+0d 00000030`d4bee6b0 00007ffa`5dfc6d9f     Qt6Widgets!QApplication::notify+0x161e
+0e 00000030`d4bee900 00007ffa`5e1f6e61     QtWidgets!PyInit_QtWidgets+0x32606f
+0f 00000030`d4bee950 00007ffa`5cd301c4     Qt6Core!QCoreApplication::notifyInternal2+0x101
+10 00000030`d4bee9c0 00007ffa`5de4b1c8     Qt6Widgets!QWidget::~QWidget+0x6e4
+11 00000030`d4beea40 00007ffa`5dc89f9c     QtWidgets!PyInit_QtWidgets+0x1aa498
+12 00000030`d4beea70 00007ffa`777fcb80     QtWidgets+0x9f9c
+13 00000030`d4beeaa0 00007ffa`777e9857     shiboken6_abi3!SbkDeallocWrapper+0x340
+14 00000030`d4beeb50 00007ffa`777eb9e5     shiboken6_abi3!Shiboken::Conversions::clearNegativeLazyCache+0x277
+15 00000030`d4beeb80 00007ffa`777e5524     shiboken6_abi3!Shiboken::Object::destroy+0x55
+16 00000030`d4beebc0 00007ffa`9dfbbc75     shiboken6_abi3!Shiboken::BindingManager::~BindingManager+0x64
+17 00000030`d4beebf0 00007ffa`9dfbb897     ucrtbase!<lambda_f03950bc5685219e0bcd2087efbe011e>::operator()+0xa5
+18 00000030`d4beec40 00007ffa`9dfbb84d     ucrtbase!__crt_seh_guarded_call<int>::operator()<<lambda_7777bce6b2f8c936911f934f8298dc43>,<lambda_f03950bc5685219e0bcd2087efbe011e> &,<lambda_3883c3dff614d5e0c5f61bb1ac94921c> >+0x3b
+19 00000030`d4beec70 00007ffa`778022ad     ucrtbase!execute_onexit_table+0x3d
+1a 00000030`d4beecb0 00007ffa`778023cd     shiboken6_abi3!init_DateTime+0xfdd
+1b 00000030`d4beecf0 00007ffa`a0e8003e     shiboken6_abi3!init_DateTime+0x10fd
+1c 00000030`d4beed50 00007ffa`a0d2c3be     ntdll!LdrpCallInitRoutineInternal+0x22
+1d 00000030`d4beed80 00007ffa`a0d6022f     ntdll!LdrpCallInitRoutine+0x10e
+1e 00000030`d4beedf0 00007ffa`a0d5f3fe     ntdll!LdrShutdownProcess+0x17f
+1f 00000030`d4beef00 00007ffa`9fbf19db     ntdll!RtlExitUserProcess+0x9e
+20 00000030`d4beef30 00007ffa`9e0100b3     KERNEL32!ExitProcessImplementation+0xb
+21 00000030`d4beef60 00007ffa`62136f15     ucrtbase!common_exit+0xc7
+22 00000030`d4beefc0 00007ffa`61f78376     python312!PyOS_AfterFork+0xb7d
+23 00000030`d4bef020 00007ffa`61f91a5f     python312!PySet_Add+0xac2
+24 00000030`d4bef060 00007ffa`61f919c5     python312!PyObject_Vectorcall+0xcf
+25 00000030`d4bef0e0 00007ffa`61f92ea5     python312!PyObject_Vectorcall+0x35
+26 00000030`d4bef120 00007ffa`61f481e4     python312!PyEval_EvalFrameDefault+0x895
+27 00000030`d4bef350 00007ffa`61f46b66     python312!PyObject_ClearManagedDict+0x384
+28 00000030`d4bef390 00007ffa`61ffe838     python312!PyEval_EvalCode+0xb6
+29 00000030`d4bef410 00007ffa`61ffea70     python312!Py_SourceAsString+0x90c
+2a 00000030`d4bef440 00007ffa`61fda5d4     python312!PyModule_ClearDict+0x1fc
