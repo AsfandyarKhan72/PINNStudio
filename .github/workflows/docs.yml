@@ -1,0 +1,89 @@
+# Documentation site (MkDocs + Material).
+#  - Every pull request and every push to the documentation branch builds the site with
+#    `mkdocs build --strict` (any warning, broken internal link or missing page fails the build),
+#    checks external links, and uploads the built site as a downloadable preview artifact.
+#  - Deployment to GitHub Pages is explicitly controlled and OFF until the maintainers approve publication.
+#    It runs only when ALL of these hold: the workflow is started by hand (Actions > Documentation > Run
+#    workflow) on the main branch with deploy=true, AND the repository variable DOCS_PUBLISH_APPROVED is
+#    set to "true" (Settings > Secrets and variables > Actions > Variables; it does not exist yet), AND the
+#    Pages source is "GitHub Actions" (Settings > Pages). Releases, pushes and pull requests never deploy.
+name: Documentation
+
+on:
+  pull_request:
+    paths: ["website/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+  push:
+    branches: ["docs/official-site"]
+    paths: ["website/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to GitHub Pages (main branch only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: website/requirements.txt
+      - name: Install MkDocs
+        run: pip install -r website/requirements.txt
+      - name: Check source-code links
+        # every file and function named in tools/docs/source_map.py exists, and website/_snippets/source/ is up to date
+        run: python tools/docs/make_source_links.py --check
+      - name: Check the settings index
+        # website/reference/settings-index.md is up to date with the settings tables of the other pages
+        run: python tools/docs/make_settings_index.py --check
+      - name: Build (strict)
+        run: mkdocs build --strict --site-dir _site
+      - name: Check links (internal and external)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress --root-dir "${{ github.workspace }}/_site"
+            --exclude-path _site/search --accept 200,202,206,429 --max-retries 2
+            --exclude '^https://asfandyarkhan72\.github\.io/PINNStudio/'
+            --exclude '^https://doi\.org/10\.1137/'
+            --exclude '^https://github\.com/AsfandyarKhan72/PINNStudio/(edit/|issues/new)'
+            --remap '^file://(.*)/_site/PINNStudio(/.*)?$ file://$1/_site$2'
+            --remap 'https://github.com/AsfandyarKhan72/PINNStudio/(blob|tree)/main/ https://github.com/AsfandyarKhan72/PINNStudio/$1/${{ github.ref_name }}/'
+            "_site/**/*.html"
+          fail: true
+      - name: Upload preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinnstudio-docs-preview
+          path: _site
+          retention-days: 14
+      - name: Upload Pages artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_APPROVED == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main' && vars.DOCS_PUBLISH_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

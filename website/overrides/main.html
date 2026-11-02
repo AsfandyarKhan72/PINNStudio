@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block announce %}
+  Documentation for <strong>PINNStudio {{ config.extra.version_label }}</strong>.
+  Current release: <strong>{{ config.extra.released_version }}</strong><span class="banner-long">; where the two differ,
+  the page says so (look for “New in” notes)</span>.
+{% endblock %}
