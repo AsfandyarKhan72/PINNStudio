@@ -110,7 +110,7 @@ which Restore & visualize and Error Analysis read.
       Analysis and Restore use it; before, they used the network saved before the rounds.
     - With resampling rounds and Transfer optimizer *Adam*, the next window starts from the network after the
       rounds; before, it started from the one before them while its initial condition came from the one after
-      them (this changes the Cahn-Hilliard 1D – Wight & Zhao paper-method runs).
+      them (an error in the development version only; the recorded runs already transferred the network after the rounds).
     - With these options, the exported script is Solve's own script (see [Generated scripts](scripts.md)).
 
 ## Supported problem types
