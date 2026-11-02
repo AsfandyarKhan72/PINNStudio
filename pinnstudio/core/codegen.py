@@ -831,10 +831,29 @@ def _training_methods_defs(config):
     out = ["", "# ── Training methods: causal training / per-point weights ──────"]
     if causal:
         out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
-           "w": None, "frozen": False, "n": 0,
+           "w": None, "frozen": False, "fp": None,
            "sched": {[0.01, 0.1, 1.0, 10.0, 100.0] if getattr(config, "causal_anneal", False) else None!r}, "k": 0}}
 if _CAUSAL["sched"]:
     _CAUSAL["eps"] = _CAUSAL["sched"][0]
+
+
+def _causal_sums(X):
+    # checksum of a point set: its size, plain sum and a position-weighted sum (a different set of the
+    # same size -- RAR or resampling candidates, test points -- or a reordering changes it)
+    _X = torch.as_tensor(X).detach().to(torch.float64).reshape(len(X), -1)
+    _i = torch.arange(1, len(_X) + 1, dtype=torch.float64, device=_X.device).unsqueeze(1) / len(_X)
+    return (len(_X), float(_X.sum()), float((_X * _i).sum()))
+
+
+def _causal_is_train(x):
+    _fp = _CAUSAL["fp"]
+    if _fp is None:
+        return True                        # no training run marked yet: weigh (as before any check)
+    if x.shape[0] != _fp[0]:
+        return False
+    _n, _a, _b = _causal_sums(x)
+    return (abs(_a - _fp[1]) <= 1e-5 * (1 + abs(_fp[1]))
+            and abs(_b - _fp[2]) <= 1e-5 * (1 + abs(_fp[2])))
 
 
 def _causal_wrap(_f):
@@ -842,7 +861,7 @@ def _causal_wrap(_f):
         _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
         if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
             return _r                      # residual on a subset of points (fractional): unchanged
-        if _CAUSAL["n"] and x.shape[0] != _CAUSAL["n"]:
+        if not _causal_is_train(x):
             return _r                      # not the training points (test points, RAR / resampling candidates): plain residual
         _M = _CAUSAL["M"]
         _t = x[:, -1].detach()
@@ -890,16 +909,26 @@ class _CausalMonitor(dde.callbacks.Callback):
         # residuals are weighted and only their weights are kept
         try:
             _X = np.asarray(self.model.data.train_x)
-            _CAUSAL["n"] = int(_X.shape[0])
+            _CAUSAL["fp"] = _causal_sums(_X)
             _rng = (float(_X[:, -1].min()), float(_X[:, -1].max()))
         except Exception:
-            _CAUSAL["n"], _rng = 0, None
+            _CAUSAL["fp"], _rng = None, None
         # a new training time range (the next time window): start the epsilon
         # schedule over; further phases and RAR rounds on the same range go on with it
         if _rng != _CAUSAL.get("rng"):
             _CAUSAL["rng"], _CAUSAL["w"] = _rng, None
             if _CAUSAL["sched"]:
                 _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
+
+    def on_batch_begin(self):
+        # the points this step trains on: a point resampler may have replaced them after the last step
+        try:
+            _X = self.model.data.train_x
+            if _X is not None and len(_X) and (_CAUSAL["fp"] is None or len(_X) != _CAUSAL["fp"][0]
+                                               or _causal_sums(_X) != _CAUSAL["fp"]):
+                _CAUSAL["fp"] = _causal_sums(_X)
+        except Exception:
+            pass
 
     def on_batch_end(self):
         st = self.model.train_state
@@ -3359,6 +3388,11 @@ if {config.time_adaptive}:
             model_i.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights=_rs_w)
             lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
+        if _ta_rs_rounds > 0:
+            # the resampling rounds are first-order training too: with Transfer optimizer "Adam" the next
+            # window starts from the network after them (it used to start from the one before them, while
+            # its initial condition came from the network after them)
+            _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
         if _ta_rs_rounds > 0 and _use_save:
             # the window's final network is the one after resampling: save it, so Error Analysis and
             # Restore use the same network as the plots and the next window (they look for this file first)
@@ -3442,7 +3476,7 @@ if {config.time_adaptive}:
         _ta_step_boundaries.append(_ta_loss_offset)
 
         # transfer learning (Transfer optimizer): the network after this window's
-        # last Adam phase, or (L-BFGS) as the window ended -- the network whose
+        # last Adam phase and resampling rounds, or (L-BFGS) as the window ended -- the network whose
         # prediction is the next window's initial condition. Kept in memory, so
         # the result does not depend on whether a save folder is set.
         if "{config.ta_transfer_optimizer}" == "adam" and _ta_state_fo is not None:

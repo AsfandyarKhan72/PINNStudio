@@ -97,7 +97,7 @@ def test_later_windows_keep_the_users_weights():
 def test_causal_weights_follow_the_training_points_only():
     c = _dx("Burgers equation with RAR", causal_training=True, causal_anneal=True)
     s = codegen.generate_script(c)
-    assert 'if _CAUSAL["n"] and x.shape[0] != _CAUSAL["n"]:' in s
+    assert 'if not _causal_is_train(x):' in s           # a checksum of the point set (was: their number)
     assert 'x.shape[0] >= _CAUSAL["n"]' not in s
     assert 'if _rng != _CAUSAL.get("rng"):' in s
 

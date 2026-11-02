@@ -39,7 +39,7 @@ warns about it.
 
 - **Enable transfer learning (warm start from previous step)** — each window's network starts from the
   previous window's weights instead of from scratch. **Transfer optimizer:** says which state is carried
-  over: **Adam** (the network after the last Adam phase, before any resampling rounds) or **L-BFGS** (as the
+  over: **Adam** (the network after the last Adam phase and the resampling rounds) or **L-BFGS** (as the
   window ended).
 
 With transfer learning on, one network can be trained through all the windows:

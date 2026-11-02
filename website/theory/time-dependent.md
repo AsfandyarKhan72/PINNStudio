@@ -44,7 +44,7 @@ reference time with the network of its window.
 Without transfer learning every window starts from a freshly initialised network. With
 **Enable transfer learning (warm start from previous step)** each window starts from the weights of the
 previous window's network; **Transfer optimizer:** chooses which state is passed on: **Adam** the network after
-the previous window's last Adam phase (before any resampling rounds), **L-BFGS** the network as the previous
+the previous window's last Adam phase and its resampling rounds, **L-BFGS** the network as the previous
 window ended.
 
 ## One network through all windows

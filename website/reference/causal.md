@@ -54,8 +54,9 @@ schedule does not advance.
 
 The schedule starts over only for a new time range (the next time window); further training phases and
 RAR rounds on the same range continue with it. Only the training points are weighted: the test points and
-RAR or resampling candidates get the plain residual (they are recognised by their number of points, so a set
-exactly as large as the training set would be weighted too). The Training Log prints, every 1000 iterations, the
+RAR or resampling candidates get the plain residual (the training points are recognised by a checksum of the
+point set, refreshed before every step, so a point resampler's new points are weighted and a candidate set of the
+same size is not). The Training Log prints, every 1000 iterations, the
 current ε, the smallest weight and how far in time the weights have settled (all above 0.99).
 
 ## Defaults and limitations
