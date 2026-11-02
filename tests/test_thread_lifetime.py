@@ -56,6 +56,16 @@ def test_replaced_thread_is_kept_until_it_ends():
 
 
 def test_without_the_keeper_the_pattern_aborts():
-    """The check above detects the failure: without the keeper the same loop aborts."""
+    """The check above detects the failure: without the keeper the same loop aborts.
+
+    The race depends on timing: on the CI's Apple-silicon Macs the threads end before their last reference
+    goes, so the loop finishes (skipped there). On Windows Qt's fatal message does not reach the child's
+    stderr pipe; the abort shows as exit code 0xC0000409 (3221226505) only."""
     p = _run(False)
-    assert p.returncode != 0 and "Destroyed while thread" in p.stderr, (p.returncode, p.stderr[-500:])
+    if p.returncode == 0:
+        import pytest
+        pytest.skip("the unprotected loop did not hit the race on this machine (no abort)")
+    if sys.platform == "win32":
+        assert p.returncode == 3221226505 or "Destroyed while thread" in p.stderr, (p.returncode, p.stderr[-500:])
+    else:
+        assert "Destroyed while thread" in p.stderr, (p.returncode, p.stderr[-500:])

@@ -39,7 +39,7 @@ def test_switching_examples_and_pages_leaves_no_layout_item_wrappers():
     w.show()
     _settle(0.3)
     counts = []
-    for _ in range(2):
+    for _ in range(3):
         for name in ("Heat 3D", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)"):
             w.quick_examples_combo.setCurrentIndex(w.quick_examples_combo.findText(name))
             _settle(0.5)
@@ -51,8 +51,27 @@ def test_switching_examples_and_pages_leaves_no_layout_item_wrappers():
     w.deleteLater()
     _settle(0.3)
     # before the fix: ~1200 and growing; after: the few made while the window is built
-    assert counts[-1] < 60, counts
     assert counts[-1] <= counts[0] + 5, counts
+    if not _binding_wraps_items_on_add_layout():
+        assert counts[-1] < 60, counts
+
+
+def _binding_wraps_items_on_add_layout():
+    """PySide6 6.11 and older wrap every item of a layout passed to addLayout() (their ownership code
+    walks it) and track those wrappers themselves, so after loading examples thousands are alive, a
+    constant number that does not grow (9741 here with 6.11.3 and 6.10.3). 6.12 makes none. Only the
+    growth check above applies then."""
+    from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+    before = _item_wrappers()
+    host = QWidget()
+    outer = QVBoxLayout(host)
+    row = QHBoxLayout()
+    row.addWidget(QLabel("probe"))
+    outer.addLayout(row)
+    made = _item_wrappers() - before
+    host.deleteLater()
+    _settle(0.05)
+    return made > 0
 
 
 def test_align_forms_is_idempotent_and_aligns_labels():
