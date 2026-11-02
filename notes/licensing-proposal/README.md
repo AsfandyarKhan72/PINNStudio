@@ -139,3 +139,36 @@ DeepXDE (LGPL-2.1) is used the same way: imported as a separately installed pack
 - GNU, "Various Licenses and Comments about Them": https://www.gnu.org/licenses/license-list.html
 - GNU Lesser General Public License v3: https://www.gnu.org/licenses/lgpl-3.0.html
 - Riverbank Computing, PyQt License FAQ (for the PyQt6 comparison).
+
+## 6. Final comparison for the v1.6.0 decision (checked on `integration/v1.6.0-final`, 2026-11-02)
+
+**Component check (unchanged by the integration):** PINNStudio imports `PySide6.QtCore` (46 places), `QtWidgets`
+(166), `QtGui` (16), `QtSvg` (2) and, in the tests only, `QtTest` (5); no other Qt module and nothing from
+`PySide6-Addons`. The wheel depends on `PySide6-Essentials` only: below 6.12 on Python 3.11 (6.11.3 is what the
+resolver installs there), 6.12.0 from Python 3.12 on (checked with `uv pip compile` for 3.11 to 3.14). Both are
+offered under LGPL-3.0-only (or GPL-2.0/3.0). PINNStudio does not bundle, modify or statically link Qt or PySide6.
+
+| | Keep MIT (stated preference) | Move to Apache-2.0 |
+|---|---|---|
+| Compatible with PySide6-Essentials (LGPLv3), Qt (LGPLv3), DeepXDE (LGPL-2.1), PyTorch (BSD) | yes | yes |
+| Continuity with 1.0-1.5.0 (all published MIT, PyPI 1.5.0 metadata `License: MIT`) | same license, nothing to explain | a license change to announce |
+| Patent grant / retaliation, contribution clause, trademark clause | none | yes (sections 3, 5, 6) |
+| Extra files | none beyond `LICENSE` | `NOTICE`; changed-file notices on redistribution |
+| Generated scripts (the GPL section-7 permission now in the README) | not needed: MIT already lets users do anything with generated code | not needed either |
+| What the LGPL asks of PINNStudio in both cases | notice that PySide6/Qt are used and are LGPLv3, the license texts or links, Qt's copyright notice reachable from the program (About), no terms that forbid replacing or reverse-engineering the libraries, and for any future bundled installer: shared libraries, license texts and the corresponding source or a written offer | same |
+
+**Metadata at adoption (either license):** `license="MIT"` (or `"Apache-2.0"`) as an SPDX expression and **no**
+`License ::` classifier (setuptools now warns that license classifiers are deprecated; the current build prints
+that warning for the GPLv3 classifier); `license_files` keeps `LICENSE`, `THIRD_PARTY_LICENSES.md` and
+`LICENSES/*`; the version becomes `1.6.0`.
+
+**Needs the rights holder's approval (Boise State ownership and authorization), nothing done yet:**
+the license itself; `LICENSE`; `setup.py` license and classifier; `CITATION.cff`; the README and website License
+sections (including the GPL section-7 paragraph, which only exists because of the GPL); `THIRD_PARTY_LICENSES.md`
+(PyQt6 entry -> PySide6/shiboken6/Qt, factual but part of the license set); the About dialog notice; the copyright
+line. **Does not need approval:** the technical PySide6 wording already changed in the README, CONTRIBUTING and
+the website (done on the candidate), and the dependency facts in `website/about/dependencies.md`.
+
+**State of the candidate today:** consistent but not final: GPL-3.0-only files and metadata (valid with
+PySide6, stricter than needed), PySide6 dependency, README License section still giving PyQt6's GPL as the
+reason. Before a release either the GPL text must say why it is kept, or the approved permissive license replaces it.
