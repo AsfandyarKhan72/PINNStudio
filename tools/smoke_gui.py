@@ -259,7 +259,12 @@ if __name__ == "__main__":
     for _top in QApplication.topLevelWidgets():
         _top.close()
         _top.deleteLater()
+    # outside app.exec() a deleteLater() runs only when the posted
+    # DeferredDelete events are sent explicitly
+    from PySide6.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
     settle(0.5)
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(1 if FAILED or SHOWN else 0)
