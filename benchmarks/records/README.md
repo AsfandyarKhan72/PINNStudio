@@ -90,4 +90,19 @@ backward compatibility). `make_benchmarks_readme.py` (GPU workstation, Python 3.
 both per-seed tables identically. Its pages match the committed ones except the Settings toggles of five DeepXDE
 inverse examples (Brinkman-Forchheimer, Diffusion 1D – unknown coefficient, Diffusion-reaction 1D – unknown rate
 field, Poisson 1D – unknown forcing field and its batches version): the committed `benchmarks/README.md` was written
-before their Tuned settings were offered, and still lists their Default settings as PINNStudio's best.
+before their Tuned settings were offered, and listed their Default settings as PINNStudio's best. Those five toggles
+were then taken from the workstation's output (commit after 351c21f) and checked against the settings PINNStudio
+loads as *Tuned* for each (network, points, training phases: identical); the regenerated figures were not taken
+(same values, other typeface).
+
+The workstation run: `.gpu_runner/done/q1_regen_pages/` (clone of `integration/v1.6.0-final` at 5c32644,
+`python tools/make_benchmarks_readme.py` with the arguments above, CPU only, Python 3.11.5, PySide6 6.11.3; exit 0,
+peak memory 6,734,100 kB; `tools/build_benchmark_records.py` with the same arguments: `table_s2.tex`,
+`forward_per_seed.csv` and `inverse_per_seed.csv` identical to the committed files).
+
+Note on the two pages' selection rules for these five examples (DeepXDE's own inverse examples, which the tuning
+study ran in their forward setting): `tuning_study.md` picks the change with the lowest error of the main output
+(*Chosen: all* for Brinkman-Forchheimer, Diffusion 1D and Diffusion-reaction 1D), while `benchmarks/README.md` and
+`pinnstudio/resources/tuned_settings.json` use the inverse-problem rule of that page (the error of the learned
+parameters or field, and the fastest within 25%: *iters*, *iters*, *net*). Both follow from the same records; what
+PINNStudio loads as *Tuned* is the latter.

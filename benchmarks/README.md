@@ -1200,11 +1200,9 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 *Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.3.1; reported as figures only.
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
+*Inverse problem*
 
 - **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 100 domain
@@ -1214,6 +1212,24 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Measured data:** u_obs.txt for u (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem*
+
+- **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
+- **Points:** 100 domain
+- **Training:** Adam 90,000
+- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Unknowns:** v_e (initial guess 0.1, true 0.001), K (initial guess 0.1, true 0.001)
+- **Measured data:** u_obs.txt for u (weight 1)
+
+*Load it:* toolbar → Examples: **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
 
 </details>
 
@@ -1274,17 +1290,30 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 *Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared.
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
+*Inverse problem*
 
 - **Network:** PFNN 2 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 50 domain, 8 boundary
 - **Training:** Adam 20,000
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown rate field** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem*
+
+- **Network:** PFNN 3 × 40 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 50 domain, 8 boundary
+- **Training:** Adam 20,000
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown rate field** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
 
 </details>
 
@@ -1387,17 +1416,30 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
+*Inverse problem*
 
 - **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 200 domain, 2 boundary
 - **Training:** Adam 20,000 (lr 0.0001)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem*
+
+- **Network:** PFNN 4 × 40 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 600 domain, 6 boundary
+- **Training:** Adam 60,000 (lr 0.0001) → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
 
 </details>
 
@@ -1455,17 +1497,30 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
+*Inverse problem*
 
 - **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 200 domain, 2 boundary
 - **Training:** Adam 20,000 (lr 0.0001)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field (batches)** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem*
+
+- **Network:** PFNN 4 × 40 (1 input, 2 outputs), tanh, Glorot uniform
+- **Points:** 600 domain, 6 boundary
+- **Training:** Adam 60,000 (lr 0.0001) → L-BFGS 15,000
+
+*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field (batches)** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
 
 </details>
 
@@ -3113,11 +3168,9 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
-
-*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
+*Inverse problem*
 
 - **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 40 domain, 10 initial, 20 boundary
@@ -3126,6 +3179,23 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Measured data:** u_obs_t1.txt for u (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion 1D – unknown coefficient** → **Default**, then Solve.
+
+</details>
+
+<details>
+<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
+
+*Inverse problem*
+
+- **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 40 domain, 10 initial, 20 boundary
+- **Training:** Adam 150,000
+- **Unknowns:** C (initial guess 2.0, true 1.0)
+- **Measured data:** u_obs_t1.txt for u (weight 1)
+
+*Load it:* toolbar → Examples: **Inverse** → **Diffusion 1D – unknown coefficient** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
 
 </details>
 
