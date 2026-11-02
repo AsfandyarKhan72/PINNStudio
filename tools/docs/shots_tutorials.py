@@ -26,8 +26,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, REPO)
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QTimer  # noqa: E402
-from PyQt6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEvent, QTimer  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 from pinnstudio.ui.main_window import MainWindow  # noqa: E402

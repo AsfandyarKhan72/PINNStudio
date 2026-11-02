@@ -21,11 +21,10 @@ setup(
     install_requires=[
         "deepxde>=1.10.0",
         "torch>=2.0",
-        # PySide6 experiment: the Essentials wheel has every Qt module PINNStudio
-        # uses (QtCore, QtGui, QtWidgets, QtSvg; QtTest for the tests). Tested
-        # with 6.12 on Linux only. The PyQt6 Windows pin (6.6.1, "DLL load
-        # failed" with newer PyQt6-Qt6 builds) has no PySide6 counterpart yet:
-        # whether one is needed must be tested on Windows.
+        # PySide6-Essentials has every Qt module PINNStudio uses (QtCore, QtGui,
+        # QtWidgets, QtSvg; QtTest for the tests) and none of the Addons. No
+        # Windows pin is needed (the PyQt6 one was for "DLL load failed"):
+        # 6.11 and 6.12 install and run on the Windows CI runners.
         # PySide6 6.12.0 loses a reference to None on every QTimer.singleShot
         # and to True on every signal emit(); harmless from Python 3.12 on
         # (immortal objects), fatal on 3.10/3.11 ("deallocating None").
