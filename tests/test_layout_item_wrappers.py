@@ -105,11 +105,16 @@ def test_no_layout_itemat_or_takeat_in_the_interface():
     """QLayout.itemAt/takeAt create the layout-item wrappers PySide6 keeps (see above); the package finds
     a layout's widgets through the QObject tree instead (workspace.layout_widgets / layout_sublayouts)."""
     import re
-    pkg = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pinnstudio")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     bad = []
-    files = [os.path.join(d, f) for d, _s, fs in os.walk(pkg) for f in fs if f.endswith(".py")]
+    # the package, and the tests and tools that run in the same process as the window (a wrapper left by a
+    # test walking a layout with itemAt stays in the test process and skews the counts above)
+    files = [os.path.join(d, f) for top in ("pinnstudio", "tests", "tools")
+             for d, _s, fs in os.walk(os.path.join(root, top)) for f in fs if f.endswith(".py")]
     for path in sorted(files):
-        name = os.path.relpath(path, pkg)
+        name = os.path.relpath(path, root)
+        if name == os.path.join("tests", "test_layout_item_wrappers.py"):
+            continue
         if True:
             for n, line in enumerate(open(path, encoding="utf-8"), 1):
                 code = line.split("#", 1)[0]
