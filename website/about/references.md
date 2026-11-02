@@ -55,8 +55,9 @@ time-adaptive training.
 ### Mathias et al. 2022 {#mathias2022}
 
 Mathias, M. S., de Almeida, W. P., de Barros, M. R., Coelho, J. F., et al. (2022). Augmenting a physics-informed
-neural network for the 2D Burgers equation by addition of solution data points. In *Intelligent Systems (BRACIS
-2022)*, Lecture Notes in Computer Science 13654. Springer. <https://doi.org/10.1007/978-3-031-21689-3_28>
+neural network for the 2D Burgers equation by addition of solution data points. In *Intelligent Systems: 11th
+Brazilian Conference, BRACIS 2022, Proceedings, Part II*, Lecture Notes in Computer Science 13654. Springer, Cham.
+<https://doi.org/10.1007/978-3-031-21689-3_28>
 ([arXiv:2301.07824](https://arxiv.org/abs/2301.07824))
 
 The example *Burgers 2D – Mathias et al.*
@@ -115,6 +116,14 @@ this paper. The **Bayesian search** mode of **Parameter sweep** uses the same ki
 search example (a Gaussian process model with expected improvement).
 
 ## Sampling and training methods
+
+### Jones, Schonlau & Welch 1998 {#jones1998}
+
+Jones, D. R., Schonlau, M., & Welch, W. J. (1998). Efficient global optimization of expensive black-box functions.
+*Journal of Global Optimization*, 13, 455–492.
+
+The expected-improvement criterion that the **Bayesian search** mode of **Parameter sweep** maximises to choose its
+next run ([Bayesian search](../theory/bayesian.md)).
 
 <a id="wu2023"></a>
 
@@ -183,7 +192,7 @@ examples that use them.
 ### Rathore et al. 2024 {#rathore2024}
 
 Rathore, P., Lei, W., Frangella, Z., Lu, L., & Udell, M. (2024). Challenges in training PINNs: A loss landscape
-perspective. *Proceedings of the 41st International Conference on Machine Learning (ICML)*, PMLR 235.
+perspective. *Proceedings of the 41st International Conference on Machine Learning (ICML)*, PMLR 235, 42159–42191.
 <https://proceedings.mlr.press/v235/rathore24a.html>
 
 The NNCG optimizer (Nyström-preconditioned Newton conjugate gradient) offered for a training phase.

@@ -66,7 +66,7 @@ The posterior mean and standard deviation at a candidate \(\mathbf{u}\) are
 
 ### Acquisition
 
-The next point maximises the expected improvement for minimisation (Jones, Schonlau & Welch, 1998),
+The next point maximises the expected improvement for minimisation ([Jones, Schonlau & Welch, 1998](../about/references.md#jones1998)),
 
 \[
 \mathrm{EI}(\mathbf{u}) = I\,\Phi(z) + \sigma(\mathbf{u})\,\varphi(z), \qquad

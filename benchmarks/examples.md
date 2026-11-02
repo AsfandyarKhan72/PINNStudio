@@ -83,7 +83,7 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 54 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.5 × 10<sup>-3</sup> | **1.3 × 10<sup>-4</sup>** |
 | 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
 | 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** |
-| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** |
+| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://doi.org/10.1007/978-3-031-21689-3_28) | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** |
 | 58 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — | 6.1 × 10<sup>-3</sup> | **6.1 × 10<sup>-3</sup>** |
 |  | **3D** |  |  |  |  |  |  |  |  |
 | 59 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** |
@@ -3822,7 +3822,7 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 <details id="2d-burgers-mathias">
 <summary><strong>Burgers 2D – Mathias et al.</strong></summary>
 
-Physics after [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
+Physics after [Mathias et al. (2022)](https://doi.org/10.1007/978-3-031-21689-3_28). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
 
 $$\Large \frac{\partial U}{\partial t} + U\frac{\partial U}{\partial x} + V\frac{\partial U}{\partial y} = \nu\left(\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2}\right)$$
 

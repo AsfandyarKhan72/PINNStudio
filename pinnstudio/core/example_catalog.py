@@ -102,7 +102,7 @@ PAPERS = {
     "Raissi et al. (2019)": "https://doi.org/10.1016/j.jcp.2018.10.045",
     "Wight & Zhao (2021)": "https://doi.org/10.4208/cicp.OA-2020-0086",
     "Mattey & Ghosh (2022)": "https://doi.org/10.1016/j.cma.2021.114474",
-    "Mathias et al. (2022)": "https://arxiv.org/abs/2301.07824",
+    "Mathias et al. (2022)": "https://doi.org/10.1007/978-3-031-21689-3_28",
     "Lu et al. (2021)": "https://doi.org/10.1137/19M1274067",
     **ps.PAPERS,
 }
