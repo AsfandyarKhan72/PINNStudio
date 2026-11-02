@@ -8,9 +8,10 @@ site_author: Asfandyar Khan
 site_url: https://asfandyarkhan72.github.io/PINNStudio/
 repo_url: https://github.com/AsfandyarKhan72/PINNStudio
 repo_name: AsfandyarKhan72/PINNStudio
-# "Edit this page" / "View source of this page": the branch the website/ sources are edited on (main; the site is
-# built and deployed from main).
-edit_uri: edit/main/website/
+# "Edit this page" / "View source of this page": the branch the website/ sources are edited on. Until the merge,
+# website/ exists only on the docs and integration branches, and the link check would fail on main's 404s; in the
+# merge commit into main, change this one line to edit/main/website/.
+edit_uri: edit/docs/official-site/website/
 docs_dir: website
 # build files that sit in docs_dir but are not pages or assets
 # (_snippets/: text included into pages with --8<--, e.g. the generated source-code links)
