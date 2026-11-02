@@ -42,3 +42,11 @@
 
 /* Footer: "Report a documentation problem" (overrides/partials/copyright.html) */
 .md-copyright__report { margin-top: 0.2rem; }
+
+/* Formulas on narrow screens: an inline formula wider than the text column (marked .ps-wide by
+   javascripts/mathjax.js) scrolls inside its own box instead of widening the page; MathJax's hidden
+   screen-reader copy is kept within the column for the same reason. Other formulas are unchanged. */
+.md-typeset mjx-assistive-mml { max-width: 100%; }
+.md-typeset span.arithmatex > mjx-container.ps-wide {
+  display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle;
+}
