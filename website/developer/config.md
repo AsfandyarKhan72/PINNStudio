@@ -451,7 +451,7 @@ the window is described in the [User guide](../guide/index.md) and the [Feature 
 | `sweep_enabled` | `bool` | `False` | **Enable Parameter Sweep** | Parameter Sweep. |
 | `sweep_mode` | `str` | `"oat"` | **Mode:** | "oat" (one-at-a-time, every other swept field held at its baseline value), "grid" (every combination of every parameter's values -- COMSOL calls this "All combinations"), or "zip" (every swept parameter's Nth value run together as one ... |
 | `sweep_bayes_calls` | `int` | `20` | **Runs:** | Sweep_mode "bayes" -- Bayesian search (DeepXDE's Helmholtz HPO example): the baseline, then sweep_bayes_calls - 1 runs each chosen by a Gaussian-process model of the results so far (pinnstudio/core/bayes_opt.py), minimizing the final ... |
-| `sweep_bayes_initial` | `int` | `5` | **Random first:** | The first sweep_bayes_initial runs after the baseline are random. |
+| `sweep_bayes_initial` | `int` | `5` | **Random first:** | The first sweep_bayes_initial runs are the starting runs: a baseline inside the search space counts as one of them, the others are random. |
 | `sweep_bayes_objective` | `str` | `"loss"` | **Minimize:** | -- |
 | `sweep_bayes_seed` | `int` | `0` |  | -- |
 | `sweep_parameters` | `str` | `"[]"` |  | JSON-encoded list of swept parameters, one dict per added row: {"id": "&lt;sweep_registry id&gt;", "mode": "list", "values": [..]} {"id": "...", "mode": "linear"\|"log", "min": .., "max": .., "n": ..} "id" is a key into ... |

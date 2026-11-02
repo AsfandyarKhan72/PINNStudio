@@ -430,7 +430,8 @@ class PINNConfig:
     # attention, Anagnostopoulos et al., CMAME 2024: lambda <- gamma*lambda
     # + eta*|r|/max|r|) or "SA-PINN" (self-adaptive weights, McClenny &
     # Braga-Neto, JCP 2023: lambda trained by gradient ascent, learning rate
-    # sa_lr). All are held fixed during L-BFGS.
+    # sa_lr). During L-BFGS the causal weights are held; point weights are
+    # dropped ("plain", the default) or held ("keep").
     causal_training: bool = False
     causal_chunks: int = 32
     causal_eps: float = 1.0
@@ -823,8 +824,9 @@ class PINNConfig:
     # (pinnstudio/core/bayes_opt.py), minimizing the final training loss
     # ("loss") or the Error Analysis L2 error ("l2"). Each swept parameter
     # is a search range: min..max (linear or log scale), or its list of
-    # values as the choices. The first sweep_bayes_initial runs after the
-    # baseline are random.
+    # values as the choices. The first sweep_bayes_initial runs are the
+    # starting runs: a baseline inside the search space counts as one of them,
+    # the others are random.
     sweep_bayes_calls: int = 20
     sweep_bayes_initial: int = 5
     sweep_bayes_objective: str = "loss"
