@@ -64,10 +64,17 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
 
 ## Installation
 
-The standard way is one command. It installs PINNStudio with its own Python and the PyTorch build that matches
-your computer's GPU (or a CPU-only build), and adds PINNStudio to the Start menu and desktop (Windows), the
-Applications folder in your home folder (macOS) or the app menu (Linux). Python and git do not need to be
-installed.
+PINNStudio needs Python 3.11 or newer. In a Python environment you already have (a virtual or conda environment
+is recommended):
+
+```bash
+pip install pinnstudio
+```
+
+**Or install with one command, without installing Python first.** The installer sets up PINNStudio with its own
+Python and the PyTorch build that matches your computer's GPU (or a CPU-only build), and adds PINNStudio to the
+Start menu and desktop (Windows), the Applications folder in your home folder (macOS) or the app menu (Linux).
+Python and git do not need to be installed.
 
 **macOS / Linux** (in a terminal):
 ```bash
@@ -80,16 +87,14 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Asf
 ```
 
 The install takes a few minutes, and at the end it says which version was installed and whether training will run
-on the GPU. Running the same command again updates PINNStudio. The installer and `pip install pinnstudio` install
-the latest release from PyPI; features listed under *Unreleased* in the
+on the GPU. Running the same command again updates PINNStudio. Both `pip install pinnstudio` and the installer
+install the latest release from PyPI; features listed under *Unreleased* in the
 [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md) come with the next release, or
 now with a source install.
 
-To install into a Python environment you already have (Python 3.11 or newer), use `pip install pinnstudio`. The
-[installation guide](https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/) covers pip in a
-virtual or conda environment, choosing a CUDA build of PyTorch, the source install for development, the systems
-PINNStudio is tested on, Intel Macs and Windows on ARM, updating and uninstalling, and common installation
-problems.
+The [installation guide](https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/) covers
+choosing a CUDA build of PyTorch, the source install for development, the systems PINNStudio is tested on, Intel
+Macs and Windows on ARM, updating and uninstalling, and common installation problems.
 
 ## Quick start
 
@@ -106,8 +111,9 @@ problems from an empty window.
 
 ## Examples
 
-A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list, with the source's own
-settings (*Default*) or PINNStudio's tuned settings (*Tuned*).
+A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
+*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the most
+accurate run of the tuning study (the fastest of the runs within 25% of the lowest error).
 
 | Example | Dimension | What it shows |
 |---|---|---|
@@ -147,8 +153,10 @@ records are kept in the repository, together with problem files that load the tu
 each example, the source's settings with PINNStudio's best and, for templates taken from a paper, with the error
 the paper reports. The [Reproducibility](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/) section of
 the website describes how the reference solutions were computed, how seeds, precision and hardware are handled,
-and how the exported scripts are checked against **Solve**. Runs use a fixed random seed by default, and each run
-saves its settings next to its results.
+and how the exported scripts are checked against **Solve**. The errors reported there are relative L₂ errors of
+the main output at the last reference time (papers' errors over all times are given separately), from seed 2026,
+or the median of seeds 1, 2 and 2026 where a setting was run three times. Runs use a fixed random seed by default,
+and each run saves its settings next to its results.
 
 ## Citation
 
