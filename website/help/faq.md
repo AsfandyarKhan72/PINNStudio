@@ -115,5 +115,5 @@ See [Citing PINNStudio](../about/cite.md). Please also cite DeepXDE and the meth
 ([Scientific references](../about/references.md)).
 
 **Under which license is PINNStudio distributed?**
-See [License](../about/license.md). The licenses of the libraries PINNStudio uses are listed under
+The MIT License; see [License](../about/license.md). The licenses of the libraries PINNStudio uses are listed under
 [Dependencies and attribution](../about/dependencies.md).

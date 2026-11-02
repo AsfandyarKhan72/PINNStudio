@@ -1,10 +1,10 @@
-# Licensing proposal for PINNStudio v1.6.0 with PySide6 (draft, not adopted)
+# Licensing analysis for PINNStudio v1.6.0 with PySide6 (adopted: MIT)
 
-**Status: proposal only.** Nothing in this folder changes PINNStudio's license. `LICENSE`, the README's License
-section and `THIRD_PARTY_LICENSES.md` are unchanged on this branch. Who may choose PINNStudio's license (ownership
-and distribution authorization at Boise State University) has to be settled first; that question is not answered
-here, and Boise State's silence is not taken as permission. This is a technical reading of the licenses and of the
-licensors' own documentation, not legal advice.
+**Status: adopted 2026-11-02.** The project chose the MIT License with PySide6-Essentials, on the recommendation of
+Prof. Mahmood Mamivand, with Asfandyar Khan as the copyright holder (as in every published release). The changes
+listed in section 2 were made on `integration/v1.6.0-final`; this folder keeps the analysis and the drafts as the
+record of the decision. This is a technical reading of the licenses and of the licensors' own documentation, not
+legal advice.
 
 ## 1. What the switch to PySide6 changes
 

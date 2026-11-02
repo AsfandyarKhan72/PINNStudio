@@ -52,7 +52,7 @@ The benchmark pages (`benchmarks/README.md`, `benchmarks/paper.md`, `benchmarks/
 
 ## License of contributions
 
-PINNStudio is licensed under the GNU General Public License version 3 (GPL-3.0-only; see [`LICENSE`](LICENSE)), with the additional permission for generated scripts stated in the README's License section. By contributing, you agree that your contribution is licensed under the same terms. Code or data from other projects can only be added when its license allows that; name its source and license in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
+PINNStudio is licensed under the MIT License (see [`LICENSE`](LICENSE)); the README's License section also states how generated scripts may be used. By contributing, you agree that your contribution is licensed under the same terms. Code or data from other projects can only be added when its license allows that; name its source and license in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
 ## Before opening a pull request
 

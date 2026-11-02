@@ -77,7 +77,8 @@ Before the version commit:
       committed.
 - [ ] **Screenshots.** If the interface changed, regenerate them with the three commands in
       `tools/docs/README.md` and look through the changed images before committing.
-- [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version.
+- [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version; remove
+  the README's *Development version* note (the README is also the PyPI description).
 - [ ] **Strict build and link check pass** on the pull request (the `docs.yml` workflow).
 - [ ] **Deploy** after the release is tagged (`tools/docs/DEPLOY.md`, step 5) and check the live site.
 

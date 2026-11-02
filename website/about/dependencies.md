@@ -20,9 +20,9 @@ version you use.
 |---|---|---|---|
 | [DeepXDE](https://github.com/lululxvi/deepxde) | 1.10.0 or newer | Defining and training the physics-informed neural networks; every script PINNStudio writes runs on it | LGPL-2.1 |
 | [PyTorch](https://pytorch.org) | 2.0 or newer | The computational backend (CPU, CUDA) | BSD-3-Clause for PyTorch itself; its package also contains components under Apache-2.0, BSD-2-Clause, BSL-1.0 and MIT |
-| [PySide6-Essentials](https://doc.qt.io/qtforpython-6/) (Qt for Python) | 6.5 or newer; below 6.12 on Python 3.11 | The graphical interface | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only, or a commercial license from The Qt Company |
-| Qt 6 libraries | installed with PySide6-Essentials | The Qt libraries PySide6 binds to (PINNStudio uses Qt Core, GUI, Widgets and SVG; none of the Addons) | LGPL-3.0 (some Qt modules are GPL-3.0) |
-| shiboken6 | installed with PySide6-Essentials | PySide6's binding support | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only |
+| [PySide6-Essentials](https://doc.qt.io/qtforpython-6/) (Qt for Python) | 6.5 or newer; below 6.12 on Python 3.11 | The graphical interface | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only, or a commercial license from The Qt Company; PINNStudio uses it under the LGPL-3.0 |
+| Qt 6 libraries | installed with PySide6-Essentials | The Qt libraries PySide6 binds to (PINNStudio uses Qt Core, GUI, Widgets and SVG, and Qt Test in its tests; none of the Addons) | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only; used under the LGPL-3.0 (no GPL-only Qt module is used) |
+| shiboken6 | installed with PySide6-Essentials | PySide6's binding support | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only; used under the LGPL-3.0 |
 | [NumPy](https://numpy.org) | below 2.5; below 2 on Intel Macs | Arrays | BSD-3-Clause |
 | [SciPy](https://scipy.org) | any | Interpolation and spatial and special functions, in the window and in the generated scripts | BSD-3-Clause |
 | [Matplotlib](https://matplotlib.org) | any | Figures and animations | Matplotlib License (PSF-based, BSD-style) |
@@ -45,6 +45,10 @@ Why some versions are restricted:
 
 The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download [uv](https://docs.astral.sh/uv/)
 (MIT or Apache-2.0) from Astral, and uv downloads a Python build. Neither is part of PINNStudio.
+
+PINNStudio is released under the MIT License. It uses PySide6, shiboken6 and Qt unchanged, as separately installed
+libraries, under the LGPL-3.0; the license texts (LGPL-3.0 and the GPL-3.0 it refers to) are in the repository's
+`LICENSES/` folder, and THIRD_PARTY_LICENSES.md lists what a bundled distribution of PINNStudio would have to add.
 
 The scripts PINNStudio writes import DeepXDE, PyTorch, NumPy, SciPy and Matplotlib, not PySide6; these libraries keep
 their own licenses when you use or share a script.

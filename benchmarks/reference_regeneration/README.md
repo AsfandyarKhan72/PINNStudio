@@ -1,5 +1,9 @@
 # Reference data without COMSOL: validation report
 
+> **Status (2026-10-29, commit 8aea7d1):** the regenerated files below have since replaced the COMSOL files in
+> `reference_data/`, and the affected runs were re-scored or trained again (`benchmarks/records/`). The report
+> below is kept as written before the replacement.
+
 Four reference datasets in `reference_data/` were computed with COMSOL Multiphysics: 2D Burgers (Mathias et al.),
 Poisson on the unit disk, Poisson on the L-shaped domain and Poisson on the unit ball. This folder holds
 regenerated versions made with Python scripts in `tools/` (no COMSOL), the evidence that they are correct, and

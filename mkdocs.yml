@@ -20,8 +20,7 @@ exclude_docs: |
   /overrides/
   /_snippets/
 copyright: >
-  Copyright &copy; 2024&ndash;2026 Asfandyar Khan and Boise State University.
-  The software license is stated in the repository's LICENSE file.
+  Copyright &copy; 2026 Asfandyar Khan. Released under the MIT License.
 
 strict: true
 validation:

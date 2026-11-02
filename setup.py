@@ -5,16 +5,18 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    version="1.5.0",   # the latest release (MIT); set to the next release number when it is published under GPL-3.0-only
+    # 1.5.0 is the latest release. main holds the unreleased development version for 1.6.0 (CHANGELOG, "Unreleased");
+    # the version number changes only when 1.6.0 is released.
+    version="1.5.0",
     author="AsfandyarKhan72",
     description="A graphical platform for forward and inverse physics-informed neural networks",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/AsfandyarKhan72/PINNStudio",
     project_urls={"Source": "https://github.com/AsfandyarKhan72/PINNStudio", "Issues": "https://github.com/AsfandyarKhan72/PINNStudio/issues"},
-    license="GPL-3.0-only",
+    license_expression="MIT",             # SPDX license expression (PEP 639)
     license_files=["LICENSE", "THIRD_PARTY_LICENSES.md", "LICENSES/*"],
-    classifiers=["License :: OSI Approved :: GNU General Public License v3 (GPLv3)", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
+    classifiers=["Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),
     include_package_data=True,
     package_data={"pinnstudio": ["resources/*"]},

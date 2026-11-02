@@ -84,8 +84,9 @@ Cahn-Hilliard time-window runs. See [Troubleshooting](../help/troubleshooting.md
 
 **License**
 
-- The development version changes PINNStudio's license; releases up to and including 1.5.0 keep theirs. See
-  [License](license.md), and [Dependencies and attribution](dependencies.md) for the licenses of the libraries.
+- PINNStudio stays under the MIT License: the interface now uses PySide6 (Qt for Python) under the LGPL-3.0
+  instead of PyQt6. See [License](license.md), and [Dependencies and attribution](dependencies.md) for the licenses
+  of the libraries.
 
 ## v1.5.0 (2026-10-21)
 

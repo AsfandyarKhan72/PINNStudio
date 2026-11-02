@@ -1,7 +1,7 @@
 # Third-party software and licenses
 
-PINNStudio's own code is licensed under the GNU General Public License version 3 only (GPL-3.0-only); see
-[`LICENSE`](LICENSE) and the [License section of the README](README.md#license). PINNStudio uses other free
+PINNStudio's own code is licensed under the MIT License; see [`LICENSE`](LICENSE) and the
+[License section of the README](README.md#license). PINNStudio uses other free
 software, which keeps its own license. This file lists it in two groups:
 
 1. **Included in this repository** (and in the PINNStudio package on PyPI): material from other projects that is
@@ -11,13 +11,13 @@ software, which keeps its own license. This file lists it in two groups:
    this repository or into its own package. Each library's license comes with its own package.
 
 PINNStudio is an independent project. It is not affiliated with, sponsored by or endorsed by the developers of
-DeepXDE, PyTorch, Riverbank Computing (PyQt), The Qt Company or the other projects listed here.
+DeepXDE, PyTorch, The Qt Company (Qt, Qt for Python) or the other projects listed here.
 
 ## 1. Included in this repository
 
 | Component | Where | Source | License |
 |---|---|---|---|
-| Icon path data for some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`); the other icons were drawn for PINNStudio in the same style | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev) ([repository](https://github.com/lucide-icons/lucide)), derived for these icons from [Feather](https://feathericons.com) ([repository](https://github.com/feathericons/feather)) | ISC (Lucide) and MIT (Feather); full texts in [`LICENSES/Lucide-ISC.txt`](LICENSES/Lucide-ISC.txt) and [`LICENSES/Feather-MIT.txt`](LICENSES/Feather-MIT.txt), reproduced below. Both are compatible with the GPL; their notices must stay with the copies. |
+| Icon path data for some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`); the other icons were drawn for PINNStudio in the same style | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev) ([repository](https://github.com/lucide-icons/lucide)), derived for these icons from [Feather](https://feathericons.com) ([repository](https://github.com/feathericons/feather)) | ISC (Lucide) and MIT (Feather); full texts in [`LICENSES/Lucide-ISC.txt`](LICENSES/Lucide-ISC.txt) and [`LICENSES/Feather-MIT.txt`](LICENSES/Feather-MIT.txt), reproduced below. Their notices must stay with the copies. |
 
 Not included from other projects:
 
@@ -54,9 +54,9 @@ installed package for the version you use.
 
 | Package | What PINNStudio uses it for | Project | License |
 |---|---|---|---|
-| **PyQt6** | the graphical interface | [Riverbank Computing](https://www.riverbankcomputing.com/software/pyqt/) | GPL-3.0-only, or a commercial license from Riverbank |
-| **PyQt6-Qt6** (Qt 6 libraries, installed with PyQt6) | the Qt libraries PyQt6 binds to | [The Qt Company](https://www.qt.io/licensing/) | LGPL-3.0 (some Qt modules are GPL-3.0; PINNStudio uses Qt Core, GUI, Widgets and SVG) |
-| **PyQt6-sip** | PyQt6's binding support | Riverbank Computing | BSD-2-Clause |
+| **PySide6-Essentials** (Qt for Python) | the graphical interface | [The Qt Company](https://doc.qt.io/qtforpython-6/) ([source](https://code.qt.io/cgit/pyside/pyside-setup.git/)) | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only (the user's choice); PINNStudio uses it under the **LGPL-3.0** |
+| Qt 6 libraries (inside the PySide6-Essentials package) | the Qt libraries PySide6 binds to; PINNStudio uses Qt Core, Qt GUI, Qt Widgets and Qt SVG (and Qt Test in its tests), all of them Qt Essentials modules available under the LGPL-3.0 | [The Qt Company](https://www.qt.io/licensing/open-source-lgpl-obligations) ([source](https://code.qt.io/cgit/qt/qt5.git/)) | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only; used under the **LGPL-3.0** |
+| **shiboken6** | PySide6's binding support | The Qt Company | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only; used under the **LGPL-3.0** |
 | **DeepXDE** | defining and training the physics-informed neural networks (every script PINNStudio writes runs on it) | [github.com/lululxvi/deepxde](https://github.com/lululxvi/deepxde) | LGPL-2.1 |
 | **PyTorch** | the computational backend (CPU, CUDA, Apple MPS) | [pytorch.org](https://pytorch.org), [github.com/pytorch/pytorch](https://github.com/pytorch/pytorch) | BSD-3-Clause for PyTorch itself; its package also contains components under Apache-2.0, BSD-2-Clause, BSL-1.0 and MIT |
 | NVIDIA CUDA libraries (installed with the CUDA builds of PyTorch, `nvidia-*` packages) | GPU computation | [NVIDIA](https://docs.nvidia.com/cuda/eula/) | NVIDIA's own license terms (proprietary, redistributable under their terms) |
@@ -73,33 +73,39 @@ The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download 
 
 *This is a summary for orientation, not legal advice.*
 
-- **PyQt6 (GPL-3.0)** is the reason PINNStudio is distributed under the GPL version 3: Riverbank Computing licenses
-  PyQt6 under the GPL version 3 or a commercial license, and a program built on the GPL version is distributed under
-  GPL-compatible terms. Anyone who distributes PINNStudio, changed or not, does so under the GPL version 3, with its
-  corresponding source code.
-- **DeepXDE (LGPL-2.1)** is a library that programs may use and be distributed with under their own terms, subject
-  to the conditions of the LGPL. PINNStudio uses DeepXDE unchanged, as a separately installed package, and attributes
-  it (README, *Acknowledgment* and *References*). The LGPL-2.1 is compatible with the GPL version 3.
-- **Qt (LGPL-3.0)** and the BSD, MIT, Apache-2.0 and PSF-style licenses of the other packages are compatible with
-  the GPL version 3.
-- **The scripts PINNStudio writes** import DeepXDE, PyTorch, NumPy and Matplotlib, not PyQt6. They contain code
-  from PINNStudio's own templates, which PINNStudio's copyright holders allow to be used under any terms (the
-  additional permission in the README's License section); the libraries they import keep their own licenses.
+- **PySide6, shiboken6 and Qt (LGPL-3.0)** may be used by a program under its own license, here the MIT License,
+  as long as the LGPL's conditions are met for the libraries themselves. PINNStudio uses them unchanged, as
+  separately installed packages that `import PySide6` loads as shared libraries, so a user can replace them with
+  another build or version; PINNStudio contains no Qt or PySide6 code. The LGPL-3.0 and the GPL-3.0 it builds on
+  are reproduced in [`LICENSES/LGPL-3.0.txt`](LICENSES/LGPL-3.0.txt) and
+  [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt). The modules PINNStudio uses are all available under the LGPL;
+  no GPL-only Qt module (for example Qt Charts or Qt Data Visualization) is used.
+- **DeepXDE (LGPL-2.1)** is used the same way: unchanged, as a separately installed package, and attributed
+  (README, *Acknowledgment* and *References*).
+- **The BSD, MIT, Apache-2.0 and PSF-style licenses** of the other packages ask for their notices to be kept with
+  copies of those packages, which their own packages do.
+- **The scripts PINNStudio writes** import DeepXDE, PyTorch, NumPy and Matplotlib, not PySide6. They contain code
+  from PINNStudio's own templates, which PINNStudio's copyright holder allows to be used under any terms (README,
+  *License*); the libraries they import keep their own licenses.
 
 ### If PINNStudio is ever distributed as a bundled application
 
-PINNStudio is distributed today as source code and as a Python package (PyPI), with every dependency installed
-separately. A self-contained bundle (for example a PyInstaller build or an installer that ships Python with the
-libraries) would redistribute the libraries above, which brings obligations that do not arise today:
+PINNStudio is distributed today as source code and as a Python package (PyPI) that contains no third-party
+libraries; every dependency is installed separately. A self-contained bundle (for example a PyInstaller build or an
+installer that ships Python with the libraries) would redistribute the libraries above, which brings obligations
+that do not arise today:
 
-- include the full license text and copyright notices of every bundled library (GPL-3.0, LGPL-3.0 and LGPL-2.1
-  texts, the BSD/MIT/Apache notices, PyTorch's `NOTICE`, NVIDIA's license for the CUDA libraries);
-- provide, or offer in writing, the complete corresponding source code of PINNStudio and of the GPL/LGPL libraries
-  in the bundle (PyQt6, Qt, DeepXDE);
-- keep the LGPL libraries (Qt, DeepXDE) replaceable by the user, e.g. as separate, dynamically loaded files, as
-  PyInstaller does by default;
-- check whether NVIDIA's CUDA libraries may be bundled together with a GPL program under the terms in force at the
-  time (the GPL's system-library exception does not obviously cover libraries shipped inside the bundle).
+- include the license texts and copyright notices of every bundled library (the LGPL-3.0 with the GPL-3.0 text it
+  refers to, the LGPL-2.1, the BSD/MIT/Apache notices, PyTorch's `NOTICE`, NVIDIA's license for the CUDA
+  libraries), and state that PySide6, shiboken6 and Qt are used under the LGPL-3.0;
+- give the Qt and PySide6 libraries' corresponding source code, or a written offer valid for three years, or a
+  link to the exact source release used (for example `code.qt.io`, tag `v<version>`), and the same for DeepXDE;
+- keep the LGPL libraries replaceable by the user: ship them as separate, dynamically loaded files (as
+  PyInstaller does by default), unmodified, and say in the bundle's notice how to replace them;
+- not restrict reverse engineering for debugging such modifications (LGPL-3.0 section 4) in the bundle's terms;
+- check NVIDIA's terms for redistributing the CUDA libraries at the time.
+
+A notice template for such a bundle is in `notes/licensing-proposal/drafts/LGPL-NOTICE.txt`.
 
 ---
 

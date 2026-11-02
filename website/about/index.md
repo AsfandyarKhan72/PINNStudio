@@ -6,7 +6,7 @@ under the supervision of Prof. Mahmood Mamivand.
 - [Citing PINNStudio](cite.md): how to cite the software and, once published, the paper.
 - [Scientific references](references.md): the methods and benchmark problems PINNStudio builds on.
 - [Dependencies and attribution](dependencies.md): the libraries PINNStudio uses and their licenses.
-- [License](license.md): the license of each release.
+- [License](license.md): the MIT License, generated scripts and your results.
 - [Release history](changelog.md): what changed in each version.
 
 ## Acknowledgment
