@@ -104,11 +104,28 @@ test_line_slice_and_sketch_bcs, test_workspace_layout, test_form_alignment: 11 p
 
 ## Open
 
-- One heap-corruption abort in 11 full PySide6 GUI walkthroughs (example loading; the other 10, including 6 identical
-  repeats, completed with the same 84/90 checks as PyQt6); none in PyQt6 runs. Suspected widget/layout-item lifetime difference (other `takeAt` + `deleteLater` sites remain).
+- The heap-corruption crash: found and fixed, see the section below.
 - Windows (the PyQt6 6.6.1 DLL pin), macOS and real high-DPI displays untested.
 - GUI construction 20-50 % slower (training unaffected: separate process).
 - CI workflows, README/CONTRIBUTING/CHANGELOG and license wording not changed.
 
 - tests/test_portable_paths.py: PyQt6 crashed (segfault) in pytest's final garbage collection after all 8 tests passed;
   fixed on audit/v1.6.0 (5dc6559, windows deleted explicitly). Under PySide6 the file passes 3 of 3 runs, rc 0.
+
+## The heap-corruption crash (root cause and fix, 2026-11-01)
+
+- **Rate** (load Heat 3D <-> Allen-Cahn 1D, visit every page): PySide6 6.12.0 12 crashes in 150 rounds,
+  PySide6 6.11.3 4 in 40, PyQt6 0 in 150. After the fix: PySide6 0 in 150 (and 0 in 150 + 150 with the first part
+  of the fix alone).
+- **Cause:** PySide6 keeps the wrapper of every `QLayoutItem` that `QLayout.itemAt()` returns (PyQt6 keeps none).
+  Qt deletes those items itself when a row widget or layout is destroyed and PySide6 is not told; when the widgets
+  are destroyed, `Shiboken::Object::destroy` writes into a 32-byte block it freed earlier in the same call
+  (valgrind, `pyside6-notes/valgrind_invalid_write.txt`). `workspace.align_forms` walked every row with `itemAt()`
+  on each page switch: ~1200 such wrappers after a few example loads.
+- **Standalone reproducer:** `pyside6-notes/pyside_layoutitem_repro.py` crashes PySide6 in < 400 iterations;
+  without `itemAt()` it runs clean (valgrind: 0 errors vs 2046); the PyQt6 version runs clean.
+- **Fix:** no `QLayout.itemAt`/`takeAt` in `pinnstudio/ui` (`workspace.layout_widgets`, `layout_sublayouts`,
+  `_row_slots`: QObject tree + `indexOf`). Pages render pixel-identical; generated scripts identical.
+- **Tests:** `tests/test_layout_item_wrappers.py` (fails on the old code: 843 wrappers), `tests/test_gui_stress.py`
+  (`PINNSTUDIO_STRESS=1`), `tools/gui_stress.py`.
+- Upstream report drafted (`pyside6-notes/UPSTREAM_REPORT.md`), not filed.

@@ -1,0 +1,30 @@
+#0  __pthread_kill_implementation (no_tid=0, signo=6, threadid=<optimized out>) at ./nptl/pthread_kill.c:44
+#1  __pthread_kill_internal (signo=6, threadid=<optimized out>) at ./nptl/pthread_kill.c:78
+#2  __GI___pthread_kill (threadid=<optimized out>, signo=signo@entry=6) at ./nptl/pthread_kill.c:89
+#3  0x00007ffff7c4527e in __GI_raise (sig=sig@entry=6) at ../sysdeps/posix/raise.c:26
+#4  0x00007ffff7c288ff in __GI_abort () at ./stdlib/abort.c:79
+#5  0x00007ffff7c297b6 in __libc_message_impl (fmt=fmt@entry=0x7ffff7dcf8f0 "%s\n") at ../sysdeps/posix/libc_fatal.c:134
+#6  0x00007ffff7ca90d5 in malloc_printerr (str=str@entry=0x7ffff7dd28c0 "malloc_consolidate(): unaligned fastbin chunk detected") at ./malloc/malloc.c:5775
+#7  0x00007ffff7ca9e2c in malloc_consolidate (av=av@entry=0x7ffff7e04ac0 <main_arena>) at ./malloc/malloc.c:4846
+#8  0x00007ffff7cabb70 in _int_malloc (av=av@entry=0x7ffff7e04ac0 <main_arena>, bytes=bytes@entry=1048) at ./malloc/malloc.c:4041
+#9  0x00007ffff7cad7f4 in __GI___libc_malloc (bytes=1048) at ./malloc/malloc.c:3336
+#10 0x00007ffff72bb904 in operator new(unsigned long) () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#11 0x00007ffff2357cca in QRasterPaintEngine::createState(QPainterState*) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#12 0x00007ffff2382af2 in QPainter::begin(QPaintDevice*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#13 0x00007ffff2df23b6 in QWidgetPrivate::drawWidget(QPaintDevice*, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRepaintManager*) () from /home/claude/venv_
+#14 0x00007ffff2df2ea8 in QWidgetPrivate::paintSiblingsRecursive(QPaintDevice*, QList<QObject*> const&, int, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRe
+#15 0x00007ffff2df14de in QWidgetPrivate::drawWidget(QPaintDevice*, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRepaintManager*) () from /home/claude/venv_
+#16 0x00007ffff2df2ea8 in QWidgetPrivate::paintSiblingsRecursive(QPaintDevice*, QList<QObject*> const&, int, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRe
+#17 0x00007ffff2df14de in QWidgetPrivate::drawWidget(QPaintDevice*, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRepaintManager*) () from /home/claude/venv_
+#18 0x00007ffff2df2ea8 in QWidgetPrivate::paintSiblingsRecursive(QPaintDevice*, QList<QObject*> const&, int, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRe
+#19 0x00007ffff2df14de in QWidgetPrivate::drawWidget(QPaintDevice*, QRegion const&, QPoint const&, QFlags<QWidgetPrivate::DrawWidgetFlag>, QPainter*, QWidgetRepaintManager*) () from /home/claude/venv_
+#20 0x00007ffff2e05b8d in QWidgetRepaintManager::paintAndFlush() () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#21 0x00007ffff2dfa40b in QWidget::event(QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#22 0x00007ffff2e4c006 in QFrame::event(QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#23 0x00007ffff365276a in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#24 0x00007ffff2d9694b in QApplicationPrivate::notify_helper(QObject*, QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#25 0x00007ffff383badf in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#26 0x00007ffff638fe20 in QCoreApplication::notifyInternal2(QObject*, QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Core.so.6
+#27 0x00007ffff6393b04 in QCoreApplicationPrivate::sendPostedEvents(QObject*, int, QThreadData*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Core.so.6
+#28 0x00007ffff66b1d87 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Core.so.6
+#29 0x00007ffff5d14635 in ?? () from /lib/x86_64-linux-gnu/libglib-2.0.so.0
