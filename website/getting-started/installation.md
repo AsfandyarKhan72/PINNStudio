@@ -24,10 +24,10 @@ restore the model) run on GitHub Actions on these systems:
 | **Linux** | Ubuntu 22.04 and 24.04 (x64), Ubuntu 24.04 (ARM) |
 | **Windows** | Windows Server 2022 and 2025 (x64), Windows 11 on ARM |
 | **macOS** | macOS 14 and 15 (Apple silicon), macOS 15 (Intel) |
-| **Python** | 3.9 to 3.14 |
+| **Python** | 3.11 to 3.14 |
 | **One-command installer** | Ubuntu 22.04 and 24.04, Windows Server 2022, Windows 11 on ARM, macOS 15 (Intel) |
 
-The package itself requires Python 3.9 or newer. Training on an NVIDIA GPU is tested on Linux (RTX 4090,
+The package itself requires Python 3.11 or newer (3.9 and 3.10 have reached their end of life). Training on an NVIDIA GPU is tested on Linux (RTX 4090,
 CUDA 12.4); the test machines above train on the CPU. Other versions of these systems may work but are not tested.
 
 Two platforms have restrictions that come from PyTorch:
@@ -50,7 +50,7 @@ Every way of installing starts with a command typed in a terminal:
   **Applications › Utilities › Terminal**).
 - **Linux:** open your terminal application (often Ctrl+Alt+T, or search for "Terminal" in the application menu).
 
-For a `pip` or source installation, check Python (3.9 or newer) and, for a source installation, git:
+For a `pip` or source installation, check Python (3.11 or newer) and, for a source installation, git:
 
 ```bash
 git --version
@@ -207,7 +207,7 @@ DeepXDE configuration does not affect PINNStudio. TensorFlow, JAX or PaddlePaddl
 ## Development version (from source)
 
 The development version, which will be released as v1.6.0, is installed from the
-[GitHub repository](https://github.com/AsfandyarKhan72/PINNStudio). You need git and Python 3.9 or newer.
+[GitHub repository](https://github.com/AsfandyarKhan72/PINNStudio). You need git and Python 3.11 or newer.
 
 !!! note "Which branch"
     The commands below clone the repository's default branch. If the development version you want is on another
@@ -317,10 +317,10 @@ not on your PATH. The install output names it, in a line such as
 (for example in `~/.zshrc` or `~/.bashrc`), open a new terminal, or install into a virtual environment instead.
 After the one-command installer, open a new terminal window: the PATH change applies to new terminals.
 
-**Python missing, or older than 3.9** (source or `pip` installation). Install Python from
+**Python missing, or older than 3.11** (source or `pip` installation). Install Python from
 [python.org](https://www.python.org/downloads/). On Windows, tick *Add python.exe to PATH* in the installer, then
 open a new terminal. `install.bat` stops with
-`Could not create the virtual environment. Is Python 3.9 or newer installed and on PATH?` when it cannot find
+`Could not create the virtual environment. Is Python 3.11 or newer installed and on PATH?` when it cannot find
 Python.
 
 **`git` missing** (source installation). Install it from [git-scm.com](https://git-scm.com/downloads). On macOS,

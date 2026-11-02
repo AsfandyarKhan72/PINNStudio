@@ -14,7 +14,7 @@ setup(
     project_urls={"Source": "https://github.com/AsfandyarKhan72/PINNStudio", "Issues": "https://github.com/AsfandyarKhan72/PINNStudio/issues"},
     license="GPL-3.0-only",
     license_files=["LICENSE", "THIRD_PARTY_LICENSES.md", "LICENSES/*"],
-    classifiers=["License :: OSI Approved :: GNU General Public License v3 (GPLv3)", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
+    classifiers=["License :: OSI Approved :: GNU General Public License v3 (GPLv3)", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),
     include_package_data=True,
     package_data={"pinnstudio": ["resources/*"]},
@@ -27,7 +27,7 @@ setup(
         # 6.11 and 6.12 install and run on the Windows CI runners.
         # PySide6 6.12.0 loses a reference to None on every QTimer.singleShot
         # and to True on every signal emit(); harmless from Python 3.12 on
-        # (immortal objects), fatal on 3.10/3.11 ("deallocating None").
+        # (immortal objects), fatal on 3.11 ("deallocating None").
         # tests/test_binding_refcounts.py checks the installed binding.
         "PySide6-Essentials>=6.5,<6.12; python_version < '3.12'",
         "PySide6-Essentials>=6.5; python_version >= '3.12'",
@@ -50,5 +50,5 @@ setup(
             "pinnstudio=pinnstudio.main:main",
         ],
     },
-    python_requires=">=3.9",
+    python_requires=">=3.11",
 )

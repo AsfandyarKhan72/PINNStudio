@@ -27,8 +27,8 @@ sudo apt-get install libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-curs
 window cannot open; train there with an [exported script](../getting-started/save-and-export.md#exporting-the-script)
 instead.
 
-**Python 3.10 or 3.11: `Fatal Python error: none_dealloc: deallocating None` (or `bool_dealloc`).** PySide6
-6.12.0 has a reference-counting defect that ends the program on these Python versions; PINNStudio therefore
+**Python 3.11: `Fatal Python error: none_dealloc: deallocating None` (or `bool_dealloc`).** PySide6
+6.12.0 has a reference-counting defect that ends the program on Python 3.11; PINNStudio therefore
 requires PySide6 below 6.12 there. If a manual upgrade installed 6.12.0, put an earlier version back (or use
 Python 3.12 or newer, where the defect is harmless):
 

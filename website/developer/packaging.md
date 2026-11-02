@@ -6,14 +6,14 @@ PINNStudio is a setuptools package. `pyproject.toml` only declares the build sys
 the metadata is in `setup.py`:
 
 - `name="pinnstudio"`, `version` (the version of the latest release; see [Releases](releases.md)),
-  `python_requires=">=3.9"`;
+  `python_requires=">=3.11"`;
 - `packages=find_packages()`, which finds `pinnstudio` and its subpackages and `reference_data` (it has an
   `__init__.py`), with `include_package_data=True` and `package_data={"pinnstudio": ["resources/*"]}`;
 - the console script `pinnstudio=pinnstudio.main:main`;
-- `install_requires`: `deepxde>=1.10.0`, `torch>=2.0`, `PySide6-Essentials>=6.5` (below 6.12 on Python 3.10/3.11), `matplotlib`, `pandas`, `scipy`, and
+- `install_requires`: `deepxde>=1.10.0`, `torch>=2.0`, `PySide6-Essentials>=6.5` (below 6.12 on Python 3.11), `matplotlib`, `pandas`, `scipy`, and
   NumPy limits: below 2.5 (DeepXDE's 2D polygon geometry uses a NumPy call removed in 2.5), and below 2 on
   Intel Macs (PyTorch's last Intel-Mac build needs NumPy 1). PySide6 6.12.0 loses references to `None` and `True`
-  (fatal on Python 3.10/3.11, harmless from 3.12 on), hence its limit there; `tests/test_binding_refcounts.py`
+  (fatal on Python 3.11, harmless from 3.12 on), hence its limit there; `tests/test_binding_refcounts.py`
   checks the installed version.
 
 `requirements.txt` lists the dependencies for a plain `pip install -r requirements.txt` development setup.

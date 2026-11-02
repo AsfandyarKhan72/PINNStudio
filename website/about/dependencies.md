@@ -20,7 +20,7 @@ version you use.
 |---|---|---|---|
 | [DeepXDE](https://github.com/lululxvi/deepxde) | 1.10.0 or newer | Defining and training the physics-informed neural networks; every script PINNStudio writes runs on it | LGPL-2.1 |
 | [PyTorch](https://pytorch.org) | 2.0 or newer | The computational backend (CPU, CUDA) | BSD-3-Clause for PyTorch itself; its package also contains components under Apache-2.0, BSD-2-Clause, BSL-1.0 and MIT |
-| [PySide6-Essentials](https://doc.qt.io/qtforpython-6/) (Qt for Python) | 6.5 or newer; below 6.12 on Python 3.10/3.11 | The graphical interface | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only, or a commercial license from The Qt Company |
+| [PySide6-Essentials](https://doc.qt.io/qtforpython-6/) (Qt for Python) | 6.5 or newer; below 6.12 on Python 3.11 | The graphical interface | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only, or a commercial license from The Qt Company |
 | Qt 6 libraries | installed with PySide6-Essentials | The Qt libraries PySide6 binds to (PINNStudio uses Qt Core, GUI, Widgets and SVG; none of the Addons) | LGPL-3.0 (some Qt modules are GPL-3.0) |
 | shiboken6 | installed with PySide6-Essentials | PySide6's binding support | LGPL-3.0-only, GPL-2.0-only or GPL-3.0-only |
 | [NumPy](https://numpy.org) | below 2.5; below 2 on Intel Macs | Arrays | BSD-3-Clause |
@@ -32,7 +32,7 @@ version you use.
 
 Why some versions are restricted:
 
-- **PySide6 below 6.12 on Python 3.10/3.11.** PySide6 6.12.0 loses references to `None` and `True`, which ends
+- **PySide6 below 6.12 on Python 3.11.** PySide6 6.12.0 loses references to `None` and `True`, which ends
   the program on these Python versions (harmless from Python 3.12 on).
 - **NumPy below 2.5.** DeepXDE 1.15's 2D `Polygon` and `Triangle` geometries call `np.cross` on two-component
   vectors, which NumPy deprecated in 2.0 and removed in 2.5.

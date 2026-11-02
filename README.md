@@ -85,7 +85,7 @@ the latest release from PyPI; features listed under *Unreleased* in the
 [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md) come with the next release, or
 now with a source install.
 
-To install into a Python environment you already have (Python 3.9 or newer), use `pip install pinnstudio`. The
+To install into a Python environment you already have (Python 3.11 or newer), use `pip install pinnstudio`. The
 [installation guide](https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/) covers pip in a
 virtual or conda environment, choosing a CUDA build of PyTorch, the source install for development, the systems
 PINNStudio is tested on, Intel Macs and Windows on ARM, updating and uninstalling, and common installation

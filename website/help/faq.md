@@ -41,7 +41,7 @@ the terms of the residuals have comparable size; this also helps training.
 ## Installation and hardware
 
 **Which systems and Python versions are supported?**
-Linux, Windows and macOS with Python 3.9 to 3.14; the tested versions are listed under
+Linux, Windows and macOS with Python 3.11 to 3.14; the tested versions are listed under
 [Supported systems](../getting-started/installation.md#supported-systems).
 
 **Do I need a GPU?**
