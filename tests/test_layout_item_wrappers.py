@@ -83,14 +83,16 @@ def test_align_forms_is_idempotent_and_aligns_labels():
 
 
 def test_no_layout_itemat_or_takeat_in_the_interface():
-    """QLayout.itemAt/takeAt create the layout-item wrappers PySide6 keeps (see above); the interface finds
+    """QLayout.itemAt/takeAt create the layout-item wrappers PySide6 keeps (see above); the package finds
     a layout's widgets through the QObject tree instead (workspace.layout_widgets / layout_sublayouts)."""
     import re
-    ui = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pinnstudio", "ui")
+    pkg = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pinnstudio")
     bad = []
-    for name in sorted(os.listdir(ui)):
-        if name.endswith(".py"):
-            for n, line in enumerate(open(os.path.join(ui, name), encoding="utf-8"), 1):
+    files = [os.path.join(d, f) for d, _s, fs in os.walk(pkg) for f in fs if f.endswith(".py")]
+    for path in sorted(files):
+        name = os.path.relpath(path, pkg)
+        if True:
+            for n, line in enumerate(open(path, encoding="utf-8"), 1):
                 code = line.split("#", 1)[0]
                 if re.search(r"\.(itemAt|takeAt)\(", code) and "tree.itemAt" not in code:
                     bad.append(f"{name}:{n}: {line.strip()}")
