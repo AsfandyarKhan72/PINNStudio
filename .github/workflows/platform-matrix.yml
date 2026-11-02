@@ -61,7 +61,7 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ] || [ "$RUNNER_ARCH" = "ARM64" -a "$RUNNER_OS" = "Linux" ]; then python -m pip install torch; \
           else python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
           python -m pip install -e . pytest pytest-xdist
-          python -c "import sys, torch, PySide6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.qVersion(), '| PySide6', __import__("PySide6").__version__, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
+          python -c "import sys, torch, PySide6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.qVersion(), '| PySide6', __import__('PySide6').__version__, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
 
       - name: Install failed
         if: failure() && steps.install.outcome == 'failure'
@@ -130,3 +130,12 @@ jobs:
           else PY="$TOOLDIR/pinnstudio/bin/python"; EXE="$("$UV" tool dir --bin)/pinnstudio"; fi
           "$PY" tools/launch_check.py "$EXE"
           cd "$RUNNER_TEMP" && "$PY" "$GITHUB_WORKSPACE/tools/smoke_gui.py" --installed
+
+      - name: Installed app closes cleanly (exit code 0 after the window is closed)
+        if: always()
+        shell: bash
+        run: |
+          UV="$HOME/.local/bin/uv"
+          TOOLDIR="$("$UV" tool dir)"
+          if [ "$RUNNER_OS" = "Windows" ]; then PY="$TOOLDIR/pinnstudio/Scripts/python.exe"; else PY="$TOOLDIR/pinnstudio/bin/python"; fi
+          cd "$RUNNER_TEMP" && "$PY" "$GITHUB_WORKSPACE/tools/quit_check.py" 8

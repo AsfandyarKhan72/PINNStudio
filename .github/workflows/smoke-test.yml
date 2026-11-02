@@ -24,7 +24,7 @@ jobs:
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xfixes0
 
       - name: Install Python dependencies
-        run: pip install PySide6-Essentials numpy matplotlib pandas
+        run: pip install "PySide6-Essentials>=6.5,<6.12" numpy matplotlib pandas   # Python 3.11: see setup.py
 
       - name: Boot the GUI offscreen
         env:
@@ -47,6 +47,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
+          python tests/test_binding_refcounts.py
           python tests/test_templates.py
           python tests/test_config_options.py
           python tests/test_export_parity.py

@@ -26,7 +26,12 @@ setup(
         # with 6.12 on Linux only. The PyQt6 Windows pin (6.6.1, "DLL load
         # failed" with newer PyQt6-Qt6 builds) has no PySide6 counterpart yet:
         # whether one is needed must be tested on Windows.
-        "PySide6-Essentials>=6.5",
+        # PySide6 6.12.0 loses a reference to None on every QTimer.singleShot
+        # and to True on every signal emit(); harmless from Python 3.12 on
+        # (immortal objects), fatal on 3.10/3.11 ("deallocating None").
+        # tests/test_binding_refcounts.py checks the installed binding.
+        "PySide6-Essentials>=6.5,<6.12; python_version < '3.12'",
+        "PySide6-Essentials>=6.5; python_version >= '3.12'",
         # DeepXDE 1.15's 2D Polygon/Triangle geometry calls np.cross on
         # 2-element vectors, which NumPy deprecated in 2.0 and removed in
         # 2.5 (it now raises ValueError) -- keep NumPy below 2.5 until a
