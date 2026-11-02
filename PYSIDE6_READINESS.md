@@ -100,7 +100,7 @@ pixel differences are temporary folder names in path fields).
 
 | Check | PySide6 (final) | PyQt6 (audited) |
 |---|---|---|
-| Full test suite, file by file | 136 files: 383 passed, 6 skipped, 0 failed | running (earlier today: 377 passed, 0 failed) |
+| Full test suite, file by file | 136 files: 383 passed, 6 skipped, 0 failed | 134 files: 380 passed, 5 skipped, 0 failed |
 | Crash stress loop (Heat 3D ↔ Allen–Cahn 1D, every page and view) | 150 rounds, 0 crashes | 150 rounds, 0 crashes |
 | All 9 walkthrough examples, every page and view, 30 rounds (270 loads) | 0 crashes; widgets constant (1 978); RSS 298 → 380 MB | 0 crashes; widgets constant; RSS 256 → 320 MB |
 | 40 separate launches (load an example, open pages, close normally) | 40 clean exits | 40 clean exits |
