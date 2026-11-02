@@ -867,8 +867,19 @@ class MainWindow(QMainWindow):
         Returns widget, so this can be chained inline where a plain
         .setStyleSheet(...) call used to sit."""
         self._styled_widgets.append((widget, category, style_fn))
+        # Rows (boundary conditions, phases, ...) are rebuilt on every example
+        # load; their entries would stay in the list (with their style lambdas)
+        # until the next Display Settings change. Drop the deleted ones once
+        # the list has doubled since the last pass.
+        if len(self._styled_widgets) > 2 * getattr(self, "_styled_widgets_pruned_at", 256):
+            self._prune_styled_widgets()
         self._restyle_one(widget, category, style_fn)
         return widget
+
+    def _prune_styled_widgets(self):
+        import shiboken6
+        self._styled_widgets = [e for e in self._styled_widgets if shiboken6.isValid(e[0])]
+        self._styled_widgets_pruned_at = max(256, len(self._styled_widgets))
 
     def _restyle_one(self, widget, category, style_fn):
         try:

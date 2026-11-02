@@ -134,3 +134,22 @@ def test_closing_the_window_releases_all_its_widgets():
     gc.collect()
     _settle(0.2)
     assert len(app.allWidgets()) <= before, len(app.allWidgets()) - before
+
+
+def test_example_loads_do_not_accumulate_styled_widget_entries():
+    """Every example load rebuilds the condition rows; their entries in the Display Settings registry
+    (with a style lambda each) used to stay until the next Display Settings change (about 50 per load)."""
+    w = MainWindow()
+    w._maybe_save_changes = lambda: True
+    w.show()
+    _settle(0.3)
+    sizes = []
+    for _ in range(12):
+        for name in ("Heat 3D", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)"):
+            w.quick_examples_combo.setCurrentIndex(w.quick_examples_combo.findText(name))
+            _settle(0.3)
+        sizes.append(len(w._styled_widgets))
+    w.close()
+    w.deleteLater()
+    _settle(0.3)
+    assert max(sizes[4:]) <= 2 * max(256, sizes[3]), sizes
