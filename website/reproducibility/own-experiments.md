@@ -15,8 +15,8 @@ described in [Benchmark collection](benchmarks.md).
 
 ### Software versions
 
-- **PINNStudio version.** PINNStudio has no *About* dialog. `pip show pinnstudio` (or `uv tool list` for the
-  one-command installer) gives the version, and every saved `.pinn.json` file records it as
+- **PINNStudio version.** **Help › About PINNStudio** shows it; `pip show pinnstudio` (or `uv tool list` for the
+  one-command installer) gives it too, and every saved `.pinn.json` file records it as
   `saved_with_pinnstudio_version`. For a source installation, record the commit as well, with
   `git rev-parse --short HEAD` in the `PINNStudio` folder (and `git status` to note local changes).
 - **Python, PyTorch, DeepXDE.** PINNStudio does not write these into the run folder. Record them yourself, with the
@@ -43,8 +43,8 @@ described in [Benchmark collection](benchmarks.md).
   measured-data file (**Inverse problem** page), reference file (**Error Analysis**), initial-condition file, Point
   Set file and extra-points file the problem uses. Files inside PINNStudio's own `reference_data` folder are saved
   relative to it.
-- **The exported script.** **Problem › Export as DeepXDE Script...** writes a standalone script that trains the same
-  model ([Export equivalence](export-equivalence.md)). The script Solve runs is a temporary file and is not kept in
+- **The exported script.** **Problem › Export as DeepXDE Script...** writes a standalone script designed to train the
+  same model as Solve (checked for the built-in examples: [Export equivalence](export-equivalence.md)). The script Solve runs is a temporary file and is not kept in
   the run folder, so export the script if you want the code itself on record. It contains the full paths of the
   results folder and data files of the computer that exported it.
 

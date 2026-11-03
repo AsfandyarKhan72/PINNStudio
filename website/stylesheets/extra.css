@@ -46,3 +46,32 @@
 .md-typeset span.arithmatex > mjx-container.ps-wide {
   display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle;
 }
+
+/* A short command that should not break inside a narrow table cell (installation page, "How to install") */
+.md-typeset a.nowrap, .md-typeset a.nowrap code { white-space: nowrap; }
+
+/* Home page, "A first look": six result animations in cards; 3 columns on wide screens, 2 on tablets, 1 on phones */
+.md-typeset .first-look {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0 1.4rem;
+}
+@media screen and (max-width: 76.1875em) { .md-typeset .first-look { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media screen and (max-width: 44.9375em) { .md-typeset .first-look { grid-template-columns: minmax(0, 1fr); } }
+.md-typeset .first-look .fl-card {
+  display: flex; flex-direction: column; margin: 0; padding: .55rem .6rem .6rem;
+  border: 1px solid var(--md-default-fg-color--lightest); border-radius: 8px;
+  background: var(--md-default-bg-color);
+}
+.md-typeset .first-look .fl-card > p { margin: 0; }
+/* the animations are drawn on white: keep that background in dark mode too, framed by the card */
+.md-typeset .first-look .fl-card img {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain;
+  background: #fff; border-radius: 4px;
+}
+.md-typeset .first-look .fl-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .5rem 0 .25rem; }
+.md-typeset .first-look .fl-tags span {
+  font-size: .6rem; line-height: 1.5; padding: 0 .45em; border-radius: 1em;
+  border: 1px solid var(--md-default-fg-color--lighter); color: var(--md-default-fg-color--light);
+}
+.md-typeset .first-look .fl-title { font-weight: 600; font-size: .8rem; }
+.md-typeset .first-look .fl-text { font-size: .68rem; color: var(--md-default-fg-color--light); margin-top: .15rem; }
+[data-md-color-scheme="slate"] .md-typeset .first-look .fl-card { border-color: #3a4260; }

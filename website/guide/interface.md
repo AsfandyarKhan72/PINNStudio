@@ -31,6 +31,7 @@ From left to right:
 | | **Solve** / **Stop** | Ctrl+Enter or F5 / Shift+F5 | Same as the toolbar buttons |
 | **Settings** | **L-BFGS Options**, **Float Precision...**, **Optimizer Settings...**, **GPU / Hardware...**, **Random Seed...**, **Plot Settings...**, **Display Settings...** | | See [Settings menu](settings.md) |
 | **View** | **Reset Layout** | | Put the column widths back to their defaults |
+| **Help** | **Documentation**, **About PINNStudio**, **About Qt** | | Open this website; show PINNStudio's version, license and the libraries it is built on; show Qt's version and license notice (on macOS the two *About* items are in the application menu) |
 
 When you start a new problem, open another one or close the window with unsaved changes, PINNStudio
 asks whether to save them first.

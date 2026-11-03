@@ -25,12 +25,7 @@ def main():
     ap.add_argument("--spacetime", default="")
     ap.add_argument("--json", default="")
     a = ap.parse_args()
-    for slug, vs in json.load(open(a.primary, encoding="utf-8")).items():
-        for variant, runs in vs.items():
-            for r in runs:
-                mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
-                if r.get("outs"):
-                    mb.OUTS[(slug, variant, str(r["seed"]))] = dict(r["outs"])
+    mb.load_primary(a.primary)          # several files, comma-separated, as in make_benchmarks_readme.py
     rows = mtp._load(a.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([x for x in a.papers.split(",") if x]) if a.papers else []

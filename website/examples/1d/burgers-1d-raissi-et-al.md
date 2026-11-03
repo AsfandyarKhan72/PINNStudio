@@ -120,6 +120,27 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
     | 1 | Adam | 15,000 | 0.001 | none |
     | 2 | L-BFGS | 30,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 40 |
+| Inverse: parameters found (true) | – | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** (worst error 0.099%) | 119 |
+
+<figure markdown="span">
+  ![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png){ loading=lazy }
+  <figcaption>Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-burgers).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Burgers 1D – Raissi et al.** › **Default** or **Tuned**, then **Solve**.

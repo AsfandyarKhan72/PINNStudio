@@ -35,7 +35,7 @@ several times with one setting changed and collects the results.
    for **Burgers 1D – Raissi et al.** the tuned settings are the paper's own.
 5. To compare the two, run **Solve** once with each and compare the errors in the two run folders
    (`error_analysis/error_metrics.txt`). The Tuned settings are the most accurate settings found in PINNStudio's
-   benchmarks, preferring the faster one when two are about equally accurate; they take longer to train than
+   benchmarks, preferring the faster one when two are about equally accurate; they often take longer to train than
    Default. See [Benchmark collection](../reproducibility/benchmarks.md).
 
 In our test we checked the settings each choice loads (as listed above); we did not train both versions of this

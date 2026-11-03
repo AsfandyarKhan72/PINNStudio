@@ -71,6 +71,21 @@ du_t - du_xx + exp(-t)*(sin(pi*x) - pi**2*sin(pi*x))
     | 1 | Adam | 2,000 | 0.001 | none |
     | 2 | L-BFGS | 15,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** | 12 |
+
+<figure markdown="span">
+  ![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_equation_with_resampling/lbfgs_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — L-BFGS phase added — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-equation-with-resampling).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Diffusion 1D – resampling** › **Default** or **Tuned**, then **Solve**.

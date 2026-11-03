@@ -165,7 +165,7 @@ PANELS = [("ac1d", "(a)"), ("ch1d", "(b)"), ("ac2d_mg", "(c)"), ("ch2d_mg", "(d)
 
 # the confirmation reruns (benchmarks/plans/fig7_confirm.json): within each problem every setup has the plain
 # PINN's network, points, learning rate, seed and steps; time windows share those steps out over the windows
-RERUN = os.path.join(ROOT, "benchmarks", "figures", "fig7_v2.json")          # the common protocol (plans/fig7_v2.json)
+RERUN = os.path.join(ROOT, "benchmarks", "figures", "fig7_corrected", "fig7_corrected.json")  # plans/fig7_v2.json, with reruns 1 and 3 (fig7_corrected/README.md)
 RERUN_OLD = os.path.join(ROOT, "benchmarks", "figures", "fig7_rerun.json")   # matched per problem (plans/fig7_confirm.json)
 PREFIX = {RERUN: "f7v2", RERUN_OLD: "f7"}
 RERUN_ID = {"ac1d": "ac1d", "ch1d": "ch1d", "ac2d_mg": "ac2dmg", "ch2d_mg": "ch2dmg"}

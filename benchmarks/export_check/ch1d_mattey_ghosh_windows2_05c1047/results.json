@@ -1,0 +1,35 @@
+{
+ "_meta": {
+  "python": "3.11.5",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "adam": 200,
+  "lbfgs": 50,
+  "device": "cpu",
+  "commit": "05c1047d604738b04cd02064021a4669ee84b2bb",
+  "torch": "2.5.1+cu121",
+  "deepxde": "1.15.0",
+  "numpy": "2.4.6"
+ },
+ "1D Cahn-Hilliard (Mattey & Ghosh) | forward": {
+  "solve_rc": 0,
+  "export_rc": 0,
+  "lines": 494,
+  "seconds": [
+   1384.9,
+   1306.2
+  ],
+  "train_calls": 76,
+  "bitwise": true,
+  "params_solve": {},
+  "params_export": {},
+  "status": "identical",
+  "name": "Cahn-Hilliard 1D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ },
+ "1D Cahn-Hilliard (Mattey & Ghosh) | inverse": {
+  "status": "skipped",
+  "note": "no such problem: unknown template '1D Cahn-Hilliard (Mattey & Ghosh)' (Inverse list)",
+  "name": "Cahn-Hilliard 1D – Mattey & Ghosh",
+  "source": "PINNStudio"
+ }
+}

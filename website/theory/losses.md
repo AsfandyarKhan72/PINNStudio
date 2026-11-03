@@ -96,8 +96,8 @@ weights unless **Use same weights for all phases** is ticked. The weights can al
 Weight decay (**Weight decay (L2):** in **Settings › Optimizer Settings...**) is passed to the optimizer as its
 `weight_decay` parameter, which adds \(\alpha\,\theta\) to the gradient of the network weights (an \(L_2\)
 penalty \(\tfrac{\alpha}{2}\lVert\theta\rVert^2\) for Adam; decoupled decay for AdamW). It does not act on the unknowns
-of an inverse problem, cannot be combined with L-BFGS or NNCG (DeepXDE refuses it), and is not applied
-when **Network type:** is PFNN, MsFFN or STMsFFN (the generated network has no regularization argument there).
+of an inverse problem, cannot be combined with L-BFGS or NNCG (DeepXDE refuses it), and is refused
+when **Network type:** is PFNN, MsFFN or STMsFFN (DeepXDE's networks of those types have no regularization argument).
 
 ## What the Training Log reports
 

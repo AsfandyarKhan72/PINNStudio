@@ -26,6 +26,7 @@
     "ta_backward_weight": 100.0,
     "ta_backward_times": 10,
     "ta_backward_points": 2000,
+    "ta_backward_seed": -1,
     "ta_icgl_fraction": 0.0,
     "parametric_study": false,
     "parametric_param": "none",
@@ -60,11 +61,10 @@
     "bc_right_type": "Dirichlet",
     "layers": [
       2,
-      256,
-      256,
-      256,
-      256,
-      256,
+      128,
+      128,
+      128,
+      128,
       2
     ],
     "activation": "tanh",

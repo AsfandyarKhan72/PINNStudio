@@ -1,0 +1,4 @@
+45490a4 Rerun branch: the benchmark code (5d7c821) plus only the resampled-window-model fix (63de1b4)
+OK  Template: 1D Cahn-Hilliard                         paper_wz s2026    1071s loss=0.0081606 maxL2=1.013e-01 
+OK  Template: 1D Cahn-Hilliard                         paper_wz s1    1043s loss=0.00010614 maxL2=7.806e-02 
+OK  Template: 1D Cahn-Hilliard                         paper_wz s2    1075s loss=0.0011037 maxL2=8.309e-02 

@@ -63,7 +63,7 @@ without a gradient:
 
 with **Decay γ:** (default 0.999) and **Step η:** (default 0.01). The maximum is taken per equation over all
 training points, including the sampled boundary and initial points (DeepXDE evaluates the residual there too, then
-leaves those rows out of the PDE loss); the same rows count in the mean used by **Keep the mean weight at 1**. A point whose normalised residual stays at \(a \in [0, 1]\) approaches
+leaves those rows out of the PDE loss); the same rows count in the mean used by SA-PINN's **Keep the mean weight at 1**. A point whose normalised residual stays at \(a \in [0, 1]\) approaches
 \(\lambda = \eta a / (1-\gamma)\), so with the defaults the weights lie between about 0 and 10.
 
 ### Self-adaptive weights (SA-PINN)

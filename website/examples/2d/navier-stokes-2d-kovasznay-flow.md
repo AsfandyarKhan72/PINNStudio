@@ -97,6 +97,27 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
     | 1 | Adam | 90,000 | 0.001 | none |
     | 2 | L-BFGS | 45,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup>** | 213 |
+| Inverse: parameters found (true) | – | **Re = 19.9995 (20)** (worst error 0.0045%) | 924 |
+
+<figure markdown="span">
+  ![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (also PINNStudio best) — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_u.png){ loading=lazy }
+  <figcaption>DeepXDE's settings (also PINNStudio best) — u — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — u — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-kovasznay-flow).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Navier-Stokes 2D – Kovasznay flow** › **Default**, then **Solve**.

@@ -73,6 +73,21 @@ Measured data (**Inverse** page, measured-data files):
 
 No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **kf = 0.0991842 (0.1); D = 1.9933 (2)** (worst error 0.82%) | 747 |
+
+<figure markdown="span">
+  ![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png){ loading=lazy }
+  <figcaption>PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-reaction-system).
+
 ## Loading it in PINNStudio
 
 - Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Diffusion-reaction 1D – unknown k_f, D** › **Default**, then **Solve**.

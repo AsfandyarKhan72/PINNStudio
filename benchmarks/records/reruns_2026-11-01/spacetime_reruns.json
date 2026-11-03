@@ -1,0 +1,14 @@
+{
+ "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026": 0.006851568,
+ "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026": 0.03141489,
+ "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026": 0.04819036,
+ "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026": 0.02993366,
+ "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026": 0.03166476,
+ "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026": 0.1557846,
+ "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1": 0.1515694,
+ "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2": 0.1382866,
+ "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026": 0.02172303,
+ "Template_1D_Cahn_Hilliard/paper_wz_s2026": 0.04819933,
+ "Template_1D_Cahn_Hilliard/paper_wz_s1": 0.0364699,
+ "Template_1D_Cahn_Hilliard/paper_wz_s2": 0.03844177
+}

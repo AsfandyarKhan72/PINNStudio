@@ -158,8 +158,8 @@ cannot represent.
 
 - Exact initial condition: needs a time-dependent PDE, cannot be combined with time-adaptive
   training, needs the condition as a formula in `x`, `y`, `z`, not from a file or as
-  `np.`/`x[...]` code, and cannot be combined with your own output-transform formula
- ; write the condition into the formula yourself instead.
+  `np.`/`x[...]` code, and cannot be combined with your own output-transform formula;
+  write the condition into the formula yourself instead.
 - Exact periodicity: needs a periodic boundary condition on a spatial axis, makes
   **every** output periodic, so every output needs a periodic condition on that axis, and cannot
   be combined with the Network page's input transform.
@@ -225,8 +225,8 @@ Errors made in one window are passed on to the next through its starting conditi
 **Limitations in PINNStudio.**
 
 - Offered for time-dependent forward problems only (not stationary problems, ODEs or inverse problems).
-- **Growing time range** and **Backward compatibility** need **Enable transfer learning**
- ; bc-PINN needs at least one stored time and point.
+- **Growing time range** and **Backward compatibility** need **Enable transfer learning**;
+  bc-PINN needs at least one stored time and point.
 - Resampling rounds need sensible counts and are refused with per-point weights.
 - Refused with an exact initial condition, with **Scale by initial losses** and for
   `frac(...)` problems; the IC-guided learning fraction must be from 0 to below 1.

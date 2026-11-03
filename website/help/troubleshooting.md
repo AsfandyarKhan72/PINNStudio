@@ -460,8 +460,9 @@ reference times inside the model's time range.
 - **The script runs on a different device than expected**: the GPU settings of **Settings › GPU / Hardware...** are
   written into the script. To force the CPU, set `CUDA_VISIBLE_DEVICES=-1` in the environment, or export the script
   with **Train on: CPU**.
-- **Different results from Solve**: on the same device and with the same seed, the export trains the same model as
-  **Solve** for the built-in examples ([Export equivalence](../reproducibility/export-equivalence.md)). Small
+- **Different results from Solve**: on the CPU and with the same seed, the export trained the same model as
+  **Solve** for every built-in example in the project's check (Tuned settings, shortened training; see
+  [Export equivalence](../reproducibility/export-equivalence.md)). Small
   differences between runs on a GPU, or between CPU and GPU, are normal floating-point nondeterminism. A large
   difference is a bug: please [report it](../getting-started/reporting-bugs.md) with the `.pinn.json` file and the
   script.

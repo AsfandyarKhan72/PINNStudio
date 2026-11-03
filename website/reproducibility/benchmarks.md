@@ -25,9 +25,19 @@ error of each learned parameter. Papers that report one error over all times are
 ## Seeds and selection
 
 Runs use seed 2026 unless a study states more; repeated runs use seeds 1, 2 and 2026, and their median is reported.
-The tuning study selects the most accurate configuration, and among configurations within 25 % of the lowest error the
-fastest one, keeping the starting configuration when it is within that margin and not much slower; the rule is
-written out in [`tuning_study.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning_study.md). Both the starting and the selected configuration
+Two selection rules are used, for two different purposes:
+
+- **The Tuned presets** (what **Settings › Tuned** loads, and the filled markers of the benchmark summary) use, for
+  each example, the run with the lowest error at the last reference time (for Cahn–Hilliard problems the worse of
+  the main output and μ; for inverse problems the median over seeds of each seed's largest parameter error), and of
+  the runs within 25 % of that error the one that trains fastest; the starting settings are kept when they are
+  within that margin and within 10 % of the fastest time. Candidates come from the tuning study, the
+  training-methods best setups and the published-method runs. The rule is written out in
+  [`benchmarks/README.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md).
+- **The tuning-study page's "Chosen" column**
+  ([`tuning_study.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning_study.md)) is the
+  variant with the lowest final *training loss*, a choice that does not use the reference solution. It is not
+  always the Tuned preset, and its problem files are labelled accordingly. Both the starting and the selected configuration
 of each example are recorded, so the effect of the selection can be separated from that of the problem.
 
 ## Known limitations of the comparisons

@@ -1,0 +1,6 @@
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+identical 1D Cahn-Hilliard (Mattey & Ghosh) | forward                            
+skipped   1D Cahn-Hilliard (Mattey & Ghosh) | inverse                            no such problem: unknown template '1D Cahn-Hilliard (Mattey & Ghosh)' (Inverse list)
+summary: {'identical': 1, 'differs': 0, 'error': 0, 'skipped': 1, 'bitwise': 1}

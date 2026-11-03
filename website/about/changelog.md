@@ -6,8 +6,8 @@ A readable summary of PINNStudio's releases, newest first. Every change, with it
 
 ## Versions
 
-Releases are numbered versions with a git tag (`v1.5.0`), published on PyPI. Between releases, the code in the
-GitHub repository can be identified by its git commit.
+Releases from v1.0.0 on are numbered versions with a git tag (`v1.5.0`) and a GitHub release; PyPI has every
+release from 1.1.0 on. Between releases, the code in the GitHub repository can be identified by its git commit.
 
 | Version | Date |
 |---|---|
@@ -18,9 +18,14 @@ GitHub repository can be identified by its git commit.
 | v1.2.2 | 2026-09-07 |
 | v1.2.1 | 2026-09-07 |
 | v1.2.0 | 2026-09-07 |
-| v0.1.0 | 2026-08-27 |
+| v1.1.2 | 2026-09-01 |
+| v1.1.1 | 2026-09-01 |
+| v1.1.0 | 2026-08-29 |
+| v1.0.0 | 2026-08-28 |
+| 0.1.0 | 2026-08-27 |
 
-The dates are those of the release headings in `CHANGELOG.md`. How a release is made is described in
+The dates are those of the release headings in `CHANGELOG.md`; for v1.0.0 to v1.1.2, which have no CHANGELOG
+entries, the dates of their GitHub releases. 0.1.0 was not tagged or published on PyPI. How a release is made is described in
 [Releases](../developer/releases.md).
 
 ## v1.6.0
@@ -140,4 +145,5 @@ The first public release: 1D and 2D forward and inverse problems, a free-form eq
 Dirichlet, Neumann and periodic boundary conditions, Adam and L-BFGS training phases, IC-guided pre-training, RAR and
 time-adaptive training, error analysis against reference data, plotting and model restore, with seven templates.
 
-The CHANGELOG has no entries for versions between 0.1.0 and 1.2.0.
+The CHANGELOG has no entries for v1.0.0, v1.1.0, v1.1.1 and v1.1.2; their notes are on the repository's
+[GitHub releases page](https://github.com/AsfandyarKhan72/PINNStudio/releases).

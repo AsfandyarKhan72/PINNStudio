@@ -100,6 +100,27 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | 219 |
+| Inverse: parameters found (true) | – | **a = 2 (2); d = 1.06 (1.06)** (worst error 0%) | 242 |
+
+<figure markdown="span">
+  ![Lotka-Volterra ODE: DeepXDE's settings (also PINNStudio best) — r — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png){ loading=lazy }
+  <figcaption>DeepXDE's settings (also PINNStudio best) — r — PINN against the reference along a line, at the reference times</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better) — r — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png){ loading=lazy }
+  <figcaption>PINNStudio best — the example's own settings (no change did better) — r — PINN against the reference along a line, at the reference times</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── ODE ──** heading, **Lotka-Volterra ODE** › **Default**, then **Solve**.

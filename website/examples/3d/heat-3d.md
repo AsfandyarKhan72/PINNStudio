@@ -115,6 +115,22 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
     | 1 | Adam | 20,000 | 0.001 | none |
     | 2 | L-BFGS | 20,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | 323 |
+| Inverse: parameters found (true) | – | **α = 0.39911 (0.4)** (worst error 0.22%) | 694 |
+
+<figure markdown="span">
+  ![Heat 3D: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Heat/base_surface_comparison.png){ loading=lazy }
+  <figcaption>The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-heat).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 3D ──** heading, **Heat 3D** › **Default**, then **Solve**.

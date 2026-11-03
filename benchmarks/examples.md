@@ -48,8 +48,8 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) | – | – |
 | 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) | – | – |
 | 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 3.0 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** |
-| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 8.1 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** |
-| 24 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** |
+| 23 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 1.1 × 10<sup>-2</sup> | **5.2 × 10<sup>-4</sup>** |
+| 24 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 7.5 × 10<sup>-3</sup> | **6.3 × 10<sup>-3</sup>** |
 | 25 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) | – | – |
 | 26 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** |
 | 27 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** |
@@ -81,8 +81,8 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 52 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) | – | **0.21%** (parameters) |
 | 53 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.4 × 10<sup>-3</sup> | **5.9 × 10<sup>-5</sup>** |
 | 54 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.5 × 10<sup>-3</sup> | **1.3 × 10<sup>-4</sup>** |
-| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
-| 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** |
+| 55 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) | 2.3 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** |
+| 56 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) | 2.4 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** |
 | 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://doi.org/10.1007/978-3-031-21689-3_28) | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** |
 | 58 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — | 6.1 × 10<sup>-3</sup> | **6.1 × 10<sup>-3</sup>** |
 |  | **3D** |  |  |  |  |  |  |  |  |
@@ -95,12 +95,12 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 
 <!-- examples-summary:start (generated) -->
 
-**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 53 forward problems: median relative L₂ error 1.1 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 25 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 21, by a median factor of 15.7 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 30 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](README.md).
+**L₂ columns:** the relative L₂ error of the main output at the last reference time with the *Default* and the *Tuned* settings (PINNStudio's best), on one RTX 4090; for an inverse-only example the worst error of the learned parameters. **All 64 examples.** 53 forward problems: median relative L₂ error 1.1 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 25 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 21, by a median factor of 19.6 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 30 below 1%. Details, every setting tried and the errors the papers report: [benchmarks](README.md).
 
 <details>
 <summary>📈 <em>Every example in one figure: Default and PINNStudio best</em></summary>
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse](figures/benchmarks_summary.png?v=490c9ec0)
+![Every example: the reference settings and PINNStudio's best, forward and inverse](figures/benchmarks_summary.png?v=b73c3a41)
 
 *Circles: forward problems (relative L₂ at the last reference time); diamonds: inverse problems (error of each learned parameter). Open: the Default settings (DeepXDE's, or the paper's method run in PINNStudio); filled: PINNStudio's best; a ring: the two are the same. ⭐: the error the paper reports, for the templates taken from a paper.*
 
@@ -1466,7 +1466,7 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 8.1 × 10<sup>-3</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
+| Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -1537,7 +1537,7 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | 2864 |
+| Forward: relative L₂ at the last reference time | 7.5 × 10<sup>-3</sup> | **6.3 × 10<sup>-3</sup>** | 1684 |
 
 <details>
 <summary>⚙️ <em>Settings</em></summary>
@@ -1546,13 +1546,15 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 *Forward problem*
 
-- **Network:** FNN 6 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
-- **Points:** 10,000 domain, 128 initial, 20 boundary
-- **Training:** Adam 10,000 → L-BFGS 50,000
-- **Loss weights:** equations 1; boundary 1; initial 64
-- **Methods:** time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
+- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 5,000 → L-BFGS 5,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features); SA-PINN per-point weights; time-adaptive training: 38 time windows, a network per window, each starting from the previous one
 
 *Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) · [training methods study: 1D Cahn-Hilliard (Mattey & Ghosh)](training_methods.md#1d-cahn-hilliard-mattey--ghosh)
 
 **Default (*Settings: Default*)** — what loads first; in short:
 
@@ -1565,23 +1567,23 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Forward problem — Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+*Forward problem — 2× time windows:*
 
 <sub>h — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — h — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_h.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — 2× time windows — h — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_surface_comparison_h.png)
 
 <sub>μ — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — μ — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_surface_comparison_mu.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — 2× time windows — μ — PINN, reference and error over space and time](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_surface_comparison_mu.png)
 
 <sub>h — PINN against the reference along a line, at the reference times</sub>
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — h — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_line_comparison_h.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — 2× time windows — h — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_line_comparison_h.png)
 
 <sub>μ — PINN against the reference along a line, at the reference times</sub>
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio (also PINNStudio best) — μ — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_line_comparison_mu.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — 2× time windows — μ — PINN against the reference along a line, at the reference times](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_line_comparison_mu.png)
 
 </details>
 
@@ -3652,7 +3654,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.2 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
+| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
 | Inverse: parameters found (true) | – | **ε² = 0.00251029 (0.0025)** (worst error 0.41%) | 3793 |
 
 <details>
@@ -3745,7 +3747,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 
 | | Default | PINNStudio best | Training time of the best (s) |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.0 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | 1964 |
+| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | 1964 |
 | Inverse: parameters found (true) | – | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** (worst error 0.96%) | 5306 |
 
 <details>

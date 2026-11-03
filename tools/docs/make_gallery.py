@@ -67,6 +67,8 @@ from make_source_links import mkdocs_extra   # noqa: E402  (extra.repo_blob and 
 _BLOB, SOURCE_REF = mkdocs_extra(REPO / "mkdocs.yml")
 GH_BLOB = f"{_BLOB}{SOURCE_REF}/"                     # links to files: one base, set in mkdocs.yml
 GH_TREE = GH_BLOB.replace("/blob/", "/tree/", 1)      # links to folders
+# the files themselves (images shown on a page from where they are kept in the repository, not copied)
+GH_RAW = GH_BLOB.replace("https://github.com/", "https://raw.githubusercontent.com/", 1).replace("/blob/", "/", 1)
 REFERENCES = WEB / "about" / "references.md"
 
 # Which script writes each reference-data folder (checked in _ref_generator: the script exists and names the
@@ -285,6 +287,84 @@ def _readme_sections():
             else:
                 buf.append(line)
     return out
+
+
+def _results_sections():
+    """{anchor: (results lines, [(figure path relative to benchmarks/, alt text)])} from each example's section of
+    benchmarks/examples.md: the "Results" paragraph and table (Default and PINNStudio best, from the benchmark
+    records) and the figures of its "Results -- PINNStudio best" block. Nothing is computed here."""
+    out, cur, depth, table, figs, in_best, done_table = {}, None, 0, [], [], False, False
+    for line in SRC["path"].read_text(encoding="utf-8").splitlines():
+        m = re.match(r'<details id="([^"]+)">', line)
+        if m and depth == 0:
+            cur, depth, table, figs, in_best, done_table = m.group(1), 1, [], [], False, False
+            continue
+        if cur is None:
+            continue
+        if line.startswith("<details"):
+            depth += 1
+        elif line.startswith("</details>"):
+            depth -= 1
+            in_best = False
+            if depth == 0:
+                out[cur] = (table, figs)
+                cur = None
+            continue
+        if depth == 1 and not done_table:
+            if line.startswith("**Results"):
+                table.append(line)
+            elif table and (line.startswith("|") or (not line.strip() and len(table) == 1)):
+                table.append(line)
+            elif table and len(table) > 1:
+                done_table = True
+        if "<summary>" in line and "Results" in line and "PINNStudio best" in line:
+            in_best = True
+        if in_best:
+            fm = re.match(r"!\[([^\]]*)\]\((figures/[^)]+)\)", line.strip())
+            if fm:
+                figs.append((fm.group(2), fm.group(1)))
+    return out
+
+
+def _results_block(rec, root_rel):
+    """The page's "Results" section, or [] when the benchmark records have none for the example."""
+    b = rec.get("bench")
+    res = RESULTS.get(b["anchor"]) if b else None
+    if not res or not res[0]:
+        return []
+    table, figs = res
+    L = ["## Results", "", "From the benchmark records: one RTX 4090; relative L₂ error of the main output at the "
+         "last reference time, and for an inverse problem the parameters it found (true value in brackets). "
+         "*PINNStudio best* is what **Settings: Tuned** loads.", ""]
+    L += [ln for ln in table[1:] if ln.strip()] + [""]
+    # shown from the repository (benchmarks/figures/), as the benchmark pages show them, not copied: the main
+    # output's figure of each mode (the surface or line comparison of the first output, and an
+    # inverse problem's parameter plot), at most two
+    chosen, seen = [], set()
+    for path, alt in figs:
+        base = os.path.basename(path)
+        kind = ("param" if "param" in base else "other")
+        mode = "inv" if "_inv/" in path else "fwd"
+        if (mode, kind) in seen or re.search(r"_(mu|v|w|p|q|phi_y)\.png$", base):
+            continue
+        seen.add((mode, kind))
+        chosen.append((path, alt))
+        if len(chosen) == 2:
+            break
+    for path, alt in chosen:
+        if not (REPO / "benchmarks" / path).exists():
+            raise SystemExit(f"{rec['entry'].name}: benchmarks/{path} (named in examples.md) does not exist")
+        cap = alt.split(": ", 1)[-1] if ": " in alt else alt
+        L += ['<figure markdown="span">',
+              f"  ![{alt}]({GH_RAW}benchmarks/{path}){{ loading=lazy }}",
+              f"  <figcaption>{cap}</figcaption>",
+              "</figure>", ""]
+    L += [f"Every setting tried, the papers' reported errors and all figures: "
+          f"[the benchmark records]({GH_BLOB}benchmarks/examples.md#{b['anchor']}).", ""]
+    return L
+
+
+RESULTS = {}
 
 
 def _readme_problem_column():
@@ -618,7 +698,7 @@ def _record(entry, tcache, readme, bench_index, tuned_files, bc_labels):
         d_cfg, _ = es.settings_for(cfg, entry.key, gui_inverse, es.DEFAULT)
         has_t = es.has_tuned(entry.key, gui_inverse)
         t_cfg, t_msg = (es.settings_for(cfg, entry.key, gui_inverse, es.TUNED) if has_t else (None, ""))
-        t_msg = re.sub(r"\s*\(benchmarks: [^)]*\)", "", t_msg or "")
+        t_msg = re.sub(r"\s*\(benchmarks: (?:[^()]|\([^()]*\))*\)", "", t_msg or "")   # one level of nested (μ ...) too
         paper_default = (not gui_inverse and entry.key in ps.TEMPLATE_PAPER
                          and (entry.key, ps.TEMPLATE_PAPER[entry.key]) in ps.PAPER)
         tt = es.tuned_table().get(entry.key, {})
@@ -1045,6 +1125,8 @@ def _page(rec, images, root_rel):
             L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example "
                   "(its Default settings are PINNStudio's best).", ""]
 
+    L += _results_block(rec, root_rel)
+
     # load
     L += ["## Loading it in PINNStudio", ""]
     for inv in sorted(modes):
@@ -1193,6 +1275,7 @@ def main():
     tcache = _template_configs(entries, Path(args.cache), args.refresh)
     print(f"example sections from {_use_examples_source(args.examples)}")
     readme = _readme_sections()
+    RESULTS.update(_results_sections())
     bench_index = {b["name"]: b for b in json.loads((REPO / "benchmarks/problems/index.json").read_text())}
     tuned_files = _tuned_file_map([e.name for e in entries])
     bc_labels = {k: lbl for lbl, k in MainWindow.CUSTOM_BC_TYPES}

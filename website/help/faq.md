@@ -26,7 +26,7 @@ category, which also offers inverse versions of many forward examples. See the [
 
 **What is the difference between Default and Tuned settings?**
 *Default* loads an example as its source solves it: a DeepXDE example with DeepXDE's settings, an example from a
-paper with the paper's method. *Tuned* loads the settings that gave the lowest error in PINNStudio's benchmarks (and of
+paper with the paper's method (forward mode; in inverse mode, the template's own settings). *Tuned* loads the settings that gave the lowest error in PINNStudio's benchmarks (and of
 those about as accurate, the fastest). See
 [First run](../getting-started/first-run.md#load-an-example).
 
@@ -65,8 +65,8 @@ the update banner shows the right command for your installation. For a source in
 source installer again. See [Installation](../getting-started/installation.md).
 
 **Which version do I have?**
-See [Reporting a problem](../getting-started/reporting-bugs.md#what-to-include-in-a-bug-report): PINNStudio has no
-*About* dialog, but `pip show pinnstudio` and every saved `.pinn.json` file give the version.
+**Help › About PINNStudio** shows it; `pip show pinnstudio` and every saved `.pinn.json` file give it too. See
+[Reporting a problem](../getting-started/reporting-bugs.md#what-to-include-in-a-bug-report).
 
 ## Working with problems and results
 

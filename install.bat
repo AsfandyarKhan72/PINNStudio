@@ -36,7 +36,7 @@ if not errorlevel 1 (
 if "!_TORCH_OK!"=="0" (
     if not "!TORCH_TAG!"=="cpu" (
         echo Installed PyTorch build doesn't match the requested CUDA version - falling back to CPU...
-        echo ^(You can retry GPU setup later - see 'Troubleshooting' under Installation in the README.^)
+        echo ^(You can retry GPU setup later - see 'Common installation problems' in the installation guide.^)
     )
     venv\Scripts\pip.exe install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall --quiet
 )

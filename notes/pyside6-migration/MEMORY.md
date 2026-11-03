@@ -37,6 +37,16 @@ examples, with both bindings, and no widget or Qt wrapper accumulates.
 3. **Unattributed: Python allocator, about 50 % of the rest** (heaptrack shows it only as the interpreter's own
    allocations).
 
+## Check of item 2 (2026-11-03)
+
+Caching each drawn equation (bytes of the image, keyed by equation, colour and size, so that no matplotlib figure
+is drawn again) does **not** remove the growth: 3000 `render()` calls of 6 equations in 2 colours grew the
+resident memory from 127 to 202 MB with the cache and without it, and 9000 calls from 127 to 332 / 333 MB
+(PySide6 6.11.3, Python 3.11, offscreen; current RSS from `/proc/self/statm`). So the retained memory comes from
+creating the `QImage`/`QPixmap` each time, not from matplotlib redrawing; the cache was not kept. A fix would
+have to reuse the pixmap objects themselves, which ties Qt objects to a module-level cache (a risk at shutdown);
+left as a known issue.
+
 ## Size in practice
 
 About 0.4-0.6 MB per example switch: some 0.5 GB after 1000 switches in one session. Closing and reopening

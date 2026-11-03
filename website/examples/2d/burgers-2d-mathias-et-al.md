@@ -121,6 +121,27 @@ From the benchmark records: same template, switched to **Inverse**, recovering t
     | 1 | Adam | 15,000 | 0.001 | none |
     | 2 | L-BFGS | 10,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** | 3998 |
+| Inverse: parameters found (true) | – | **ν = 0.00318823 (0.0031831)** (worst error 0.16%) | 4080 |
+
+<figure markdown="span">
+  ![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — u — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Burgers 2D – Mathias et al.: PINNStudio best — Measured data at every reference time — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_u.png){ loading=lazy }
+  <figcaption>PINNStudio best — Measured data at every reference time — u — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Burgers 2D – Mathias et al.** › **Default** or **Tuned**, then **Solve**.
