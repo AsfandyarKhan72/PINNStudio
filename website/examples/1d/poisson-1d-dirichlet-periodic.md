@@ -63,6 +63,21 @@ As typed in PINNStudio's **Equations** page (each expression is a residual, set 
     | 1 | Adam | 30,000 | 0.001 | none |
     | 2 | L-BFGS | 15,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup>** | 67 |
+
+<figure markdown="span">
+  ![Poisson 1D – Dirichlet/Periodic: PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Poisson_1D_Dirichlet_Periodic/all_line_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN against the reference along a line, at the reference times</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-poisson-1d-dirichlet-periodic).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Poisson 1D – Dirichlet/Periodic** › **Default** or **Tuned**, then **Solve**.

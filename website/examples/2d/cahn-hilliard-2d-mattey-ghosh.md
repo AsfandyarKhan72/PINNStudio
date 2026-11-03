@@ -127,6 +127,27 @@ From the benchmark records: same template, switched to **Inverse**, recovering \
     | 1 | Adam | 20,000 | 0.001 | none |
     | 2 | L-BFGS | 20,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | 1964 |
+| Inverse: parameters found (true) | – | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** (worst error 0.96%) | 5306 |
+
+<figure markdown="span">
+  ![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — 3× iterations — h — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/iters_surface_comparison_h.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — h — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — h — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_h.png){ loading=lazy }
+  <figcaption>PINNStudio best — Measured data at every reference time — h — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-cahn-hilliard-mattey--ghosh).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Cahn-Hilliard 2D – Mattey & Ghosh** › **Default** or **Tuned**, then **Solve**.

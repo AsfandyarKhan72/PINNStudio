@@ -65,6 +65,21 @@ Constants: `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
 No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | 654 |
+
+<figure markdown="span">
+  ![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (also PINNStudio best) — σₓₓ — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_sxx.png){ loading=lazy }
+  <figcaption>DeepXDE's settings (also PINNStudio best) — σₓₓ — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-linear-elastostatic-plate-soft-bcs).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Linear elasticity 2D – plate, soft BCs** › **Default**, then **Solve**.

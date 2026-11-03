@@ -126,6 +126,27 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
     | 1 | Adam | 20,000 | 0.001 | none |
     | 2 | L-BFGS | 20,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **1.3 × 10<sup>-4</sup>** | 632 |
+| Inverse: parameters found (true) | – | **c₁² = 0.000103879 (0.0001); c₂ = 1.00192 (1)** (worst error 3.9%) | 1473 |
+
+<figure markdown="span">
+  ![Allen-Cahn 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh/paper_mg_surface_comparison.png){ loading=lazy }
+  <figcaption>Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — Best whole-interval setup — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/setup_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — Best whole-interval setup — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-mattey--ghosh).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Allen-Cahn 2D – Mattey & Ghosh** › **Default** or **Tuned**, then **Solve**.

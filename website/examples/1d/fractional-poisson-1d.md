@@ -65,6 +65,21 @@ Constants: `alpha = 1.5`
     |---|---|---|---|---|
     | 1 | Adam | 10,000 | 0.001 | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** | 21 |
+
+<figure markdown="span">
+  ![Fractional Poisson 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Fractional_Poisson_equation_1D/net_line_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-fractional-poisson-equation-1d).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Fractional Poisson 1D** › **Default** or **Tuned**, then **Solve**.

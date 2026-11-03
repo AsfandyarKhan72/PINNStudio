@@ -114,6 +114,27 @@ Measured data (**Inverse** page, measured-data files):
     | 1 | Adam | 30,000 | 0.001 | inverse time (2000, 0.9) |
     | 2 | L-BFGS | 45,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** | 645 |
+| Inverse: parameters found (true) | – | **C = 10 (10)** (worst error 0%) | 4354 |
+
+<figure markdown="span">
+  ![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Wave 1D – space-time multi-scale Fourier features** › **Default** or **Tuned**, then **Solve**.

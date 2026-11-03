@@ -98,6 +98,27 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
     | 1 | Adam | 5,000 | 0.001 | none |
     | 2 | L-BFGS | 45,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup>** | 26 |
+| Inverse: parameters found (true) | – | **k₀ = 12.5664 (12.5664)** (worst error 0.00023%) | 64 |
+
+<figure markdown="span">
+  ![Helmholtz 2D – Dirichlet: DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Helmholtz_2D_Dirichlet/base_surface_comparison.png){ loading=lazy }
+  <figcaption>DeepXDE's settings (also PINNStudio best) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Helmholtz 2D – Dirichlet: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-dirichlet).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Helmholtz 2D – Dirichlet** › **Default**, then **Solve**.

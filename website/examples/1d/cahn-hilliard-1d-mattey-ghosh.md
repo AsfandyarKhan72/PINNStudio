@@ -79,6 +79,21 @@ mu - 1.0*(h**3 - h) + 0.02*dh_xx
     | 1 | Adam | 5,000 | 0.001 | none |
     | 2 | L-BFGS | 5,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 7.5 × 10<sup>-3</sup> | **6.3 × 10<sup>-3</sup>** | 1684 |
+
+<figure markdown="span">
+  ![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — 2× time windows — h — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_surface_comparison_h.png){ loading=lazy }
+  <figcaption>PINNStudio best — 2× time windows — h — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-cahn-hilliard-mattey--ghosh).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Cahn-Hilliard 1D – Mattey & Ghosh** › **Default** or **Tuned**, then **Solve**.

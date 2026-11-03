@@ -120,6 +120,27 @@ Measured data (**Inverse** page, measured-data files):
     | 1 | Adam | 60,000 | 0.001 | inverse time (3000, 0.9) |
     | 2 | L-BFGS | 45,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | 151 |
+| Inverse: parameters found (true) | – | **γ = 1.00912 (1)** (worst error 0.91%) | 1259 |
+
+<figure markdown="span">
+  ![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Klein_Gordon_equation/net_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Klein-Gordon 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-klein-gordon-equation).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Klein-Gordon 1D** › **Default** or **Tuned**, then **Solve**.

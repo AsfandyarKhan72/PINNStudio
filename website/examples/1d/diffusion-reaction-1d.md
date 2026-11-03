@@ -118,6 +118,27 @@ Measured data (**Inverse** page, measured-data files):
     | 1 | Adam | 60,000 | 0.001 | none |
     | 2 | L-BFGS | 45,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | 290 |
+| Inverse: parameters found (true) | – | **D = 0.99988 (1)** (worst error 0.012%) | 334 |
+
+<figure markdown="span">
+  ![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Diffusion-reaction 1D: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-reaction-equation).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Diffusion-reaction 1D** › **Default** or **Tuned**, then **Solve**.

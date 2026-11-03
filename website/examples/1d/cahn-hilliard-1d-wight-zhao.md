@@ -79,6 +79,21 @@ du_t - dmu_xx
     | 1 | Adam | 20,000 | 0.001 | none |
     | 2 | L-BFGS | 20,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
+
+<figure markdown="span">
+  ![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_u.png){ loading=lazy }
+  <figcaption>PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-cahn-hilliard).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Cahn-Hilliard 1D – Wight & Zhao** › **Default** or **Tuned**, then **Solve**.

@@ -74,6 +74,26 @@ Measured data (**Inverse** page, measured-data files):
     |---|---|---|---|---|
     | 1 | Adam | 90,000 | 0.001 | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001)** (worst error 15%) | 234 |
+
+<figure markdown="span">
+  ![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — the learned parameters during training</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-brinkman-forchheimer-model).
+
 ## Loading it in PINNStudio
 
 - Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Brinkman-Forchheimer 1D – unknown ν_e, K** › **Default** or **Tuned**, then **Solve**.

@@ -141,6 +141,27 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
     | 1 | Adam | 20,000 | 0.001 | none |
     | 2 | L-BFGS | 30,000 | — | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-3</sup> | **5.9 × 10<sup>-5</sup>** | 1596 |
+| Inverse: parameters found (true) | – | **λ = 10.0536 (10); λε² = 0.00628417 (0.00625)** (worst error 0.55%) | 1939 |
+
+<figure markdown="span">
+  ![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the best setup as it is — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — the best setup as it is — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-wight--zhao).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Allen-Cahn 2D – Wight & Zhao** › **Default** or **Tuned**, then **Solve**.

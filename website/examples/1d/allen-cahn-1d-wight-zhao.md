@@ -116,6 +116,27 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 
 No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 359 |
+| Inverse: parameters found (true) | – | **γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99768 (5)** (worst error 0.77%) | 253 |
+
+<figure markdown="span">
+  ![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/net_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Allen-Cahn 1D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — the example's own settings (no change did better) — PINN, reference and error over space and time</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-allen-cahn).
+
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 1D ──** heading, **Allen-Cahn 1D – Wight & Zhao** › **Default** or **Tuned**, then **Solve**.

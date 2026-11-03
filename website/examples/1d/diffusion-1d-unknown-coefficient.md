@@ -78,6 +78,26 @@ Measured data (**Inverse** page, measured-data files):
     |---|---|---|---|---|
     | 1 | Adam | 150,000 | 0.001 | none |
 
+## Results
+
+From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+
+| | Default | PINNStudio best | Training time of the best (s) |
+|---|---|---|---|
+| Inverse: parameters found (true) | – | **C = 1.00004 (1)** (worst error 0.004%) | 311 |
+
+<figure markdown="span">
+  ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — PINN, reference and error over space and time</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png){ loading=lazy }
+  <figcaption>PINNStudio best — 3× iterations — the learned parameters during training</figcaption>
+</figure>
+
+Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-equation).
+
 ## Loading it in PINNStudio
 
 - Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Diffusion 1D – unknown coefficient** › **Default** or **Tuned**, then **Solve**.
