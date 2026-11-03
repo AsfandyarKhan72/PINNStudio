@@ -11,6 +11,8 @@ repo_name: AsfandyarKhan72/PINNStudio
 # "Edit this page" / "View source of this page": the branch the website/ sources are edited on.
 edit_uri: edit/main/website/
 docs_dir: website
+hooks:
+  - tools/docs/mkdocs_hooks.py
 # build files that sit in docs_dir but are not pages or assets
 # (_snippets/: text included into pages with --8<--, e.g. the generated source-code links)
 exclude_docs: |
@@ -72,8 +74,7 @@ theme:
     - content.code.copy
     - content.tabs.link
     - content.tooltips
-    - content.action.edit
-    - content.action.view
+    - content.action.edit       # "Edit this page" (none on generated pages: tools/docs/mkdocs_hooks.py)
 
 extra:
   generator: false
