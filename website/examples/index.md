@@ -4,9 +4,6 @@ PINNStudio ships **64 examples**: 15 PINNStudio templates and 49 examples reprod
 
 Every example is loaded from the toolbar's **Examples:** list: choose **Forward** or **Inverse**, pick the example under its **ODE**, **1D**, **2D** or **3D** heading, and choose **Default** or **Tuned** settings. *Default* is DeepXDE's own settings for a DeepXDE example, the paper's method for a template taken from a paper, and the template's own settings otherwise; *Tuned* is PINNStudio's best setting from the tuning study, where one exists.
 
-!!! note "Development version"
-    This gallery describes the development version that will become v1.6.0. The Examples list of the released v1.5.0 may differ.
-
 !!! warning "Scope"
     An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in [Reproducibility](../reproducibility/benchmarks.md).
 
@@ -159,7 +156,7 @@ Two space dimensions. 18 examples.
 | [Cahn-Hilliard 2D – Wight & Zhao](2d/cahn-hilliard-2d-wight-zhao.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](2d/cahn-hilliard-2d-mattey-ghosh.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Burgers 2D – Mathias et al.](2d/burgers-2d-mathias-et-al.md) | 2D | Time-dependent | Forward / Inverse | yes |
-| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | — |
+| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | yes |
 
 ## 3D PDEs { #3d-pdes }
 
@@ -171,7 +168,7 @@ Three space dimensions. 6 examples.
 | [Poisson 3D – cube with spherical cut-out](3d/poisson-3d-cube-with-spherical-cut-out.md) | 3D | Steady | Forward | yes |
 | [Poisson 3D – sphere](3d/poisson-3d-sphere.md) | 3D | Steady | Forward / Inverse | — |
 | [Allen-Cahn 3D – Wight & Zhao](3d/allen-cahn-3d-wight-zhao.md) | 3D | Time-dependent | Forward / Inverse | yes |
-| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | — |
+| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | yes |
 | [Navier-Stokes 3D – Beltrami flow](3d/navier-stokes-3d-beltrami-flow.md) | 3D | Time-dependent | Forward / Inverse | yes |
 
 ## Coupled systems { #coupled-systems }
@@ -251,12 +248,12 @@ Listed under **Forward** in the Examples list. 54 examples.
 | [Cahn-Hilliard 2D – Wight & Zhao](2d/cahn-hilliard-2d-wight-zhao.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](2d/cahn-hilliard-2d-mattey-ghosh.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Burgers 2D – Mathias et al.](2d/burgers-2d-mathias-et-al.md) | 2D | Time-dependent | Forward / Inverse | yes |
-| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | — |
+| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Fractional Poisson 3D – sphere](3d/fractional-poisson-3d-sphere.md) | 3D | Steady | Forward | — |
 | [Poisson 3D – cube with spherical cut-out](3d/poisson-3d-cube-with-spherical-cut-out.md) | 3D | Steady | Forward | yes |
 | [Poisson 3D – sphere](3d/poisson-3d-sphere.md) | 3D | Steady | Forward / Inverse | — |
 | [Allen-Cahn 3D – Wight & Zhao](3d/allen-cahn-3d-wight-zhao.md) | 3D | Time-dependent | Forward / Inverse | yes |
-| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | — |
+| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | yes |
 | [Navier-Stokes 3D – Beltrami flow](3d/navier-stokes-3d-beltrami-flow.md) | 3D | Time-dependent | Forward / Inverse | yes |
 
 ## Inverse problems { #inverse }
@@ -296,10 +293,10 @@ Listed under **Inverse**: DeepXDE's inverse examples and every example with an I
 | [Cahn-Hilliard 2D – Wight & Zhao](2d/cahn-hilliard-2d-wight-zhao.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](2d/cahn-hilliard-2d-mattey-ghosh.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Burgers 2D – Mathias et al.](2d/burgers-2d-mathias-et-al.md) | 2D | Time-dependent | Forward / Inverse | yes |
-| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | — |
+| [Heat 2D](2d/heat-2d.md) | 2D | Time-dependent | Forward / Inverse | yes |
 | [Poisson 3D – sphere](3d/poisson-3d-sphere.md) | 3D | Steady | Forward / Inverse | — |
 | [Allen-Cahn 3D – Wight & Zhao](3d/allen-cahn-3d-wight-zhao.md) | 3D | Time-dependent | Forward / Inverse | yes |
-| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | — |
+| [Heat 3D](3d/heat-3d.md) | 3D | Time-dependent | Forward / Inverse | yes |
 | [Navier-Stokes 3D – Beltrami flow](3d/navier-stokes-3d-beltrami-flow.md) | 3D | Time-dependent | Forward / Inverse | yes |
 
 ## Phase-field { #phase-field }

@@ -13,7 +13,7 @@ search:
 | **Regime** | Time-dependent |
 | **Geometry** | Rectangle |
 | **Outputs** | `u` |
-| **Settings** | Default (no separate Tuned preset) |
+| **Settings** | Default, Tuned |
 
 ## Governing equations
 
@@ -95,12 +95,23 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 | 1 | Adam | 20,000 | 0.001 | none |
 | 2 | L-BFGS | 10,000 | — | none |
 
-No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
+??? note "Settings: Tuned"
+
+    The Training Log reports: *Tuned settings: measured data at every reference time after t = 0.* The change is applied to the example's own settings.
+
+    - **Network:** FNN, hidden layers 4 × 64, inputs (x, y, t), 1 output; activation tanh, initializer Glorot uniform
+    - **Points:** 10,000 domain, 400 boundary, 400 initial, 1,000 test
+    - **Loss weights:** `1.0,1.0,100.0,1.0,1.0,100.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
+
+    | Phase | Optimizer | Iterations | Learning rate | Decay |
+    |---|---|---|---|---|
+    | 1 | Adam | 20,000 | 0.001 | none |
+    | 2 | L-BFGS | 10,000 | — | none |
 
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 2D ──** heading, **Heat 2D** › **Default**, then **Solve**.
-- Inverse: toolbar **Examples:** › **Inverse** › under the **── 2D ──** heading, **Heat 2D** › **Default**, then **Solve**.
+- Inverse: toolbar **Examples:** › **Inverse** › under the **── 2D ──** heading, **Heat 2D** › **Default** or **Tuned**, then **Solve**.
 
 Loading an example fills in every setting; anything you change before **Solve** is listed in the Training Log. Your save folder, GPU, random-seed and plot-style settings are kept.
 
@@ -112,6 +123,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - **Definition:** template "2D Heat" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
     - Inverse mode: `MainWindow.INVERSE_AUTO_VARS["2D Heat"]` (unknowns) and `INVERSE_AUTO_OBS["2D Heat"]` (measured data), same file
+    - Settings: Tuned: entry "2D Heat" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** [`reference_data/2D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/heat), no generator script in the repository (checked against an independent solution by [`benchmarks/reference_regeneration/check_other_references.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration/check_other_references.py))
 - **Measured data** (Inverse): [`reference_data/2D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/heat), no generator script in the repository (checked against an independent solution by [`benchmarks/reference_regeneration/check_other_references.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration/check_other_references.py))

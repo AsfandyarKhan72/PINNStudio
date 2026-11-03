@@ -13,7 +13,7 @@ search:
 | **Regime** | Time-dependent |
 | **Geometry** | Cuboid |
 | **Outputs** | `u` |
-| **Settings** | Default (no separate Tuned preset) |
+| **Settings** | Default, Tuned |
 
 <figure markdown="span">
   ![Animated 3D voxel plot of the heat-equation PINN solution in the unit cube](../../assets/images/examples/heat-3d.gif){ loading=lazy }
@@ -102,12 +102,23 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 | 1 | Adam | 20,000 | 0.001 | none |
 | 2 | L-BFGS | 20,000 | — | none |
 
-No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
+??? note "Settings: Tuned"
+
+    The Training Log reports: *Tuned settings: 10× the weight of the measured data.* The change is applied to the example's own settings.
+
+    - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, z, t), 1 output; activation tanh, initializer Glorot uniform
+    - **Points:** 15,000 domain, 1,000 boundary, 1,000 initial, 10,000 test
+    - **Loss weights:** `1.0,1.0,100.0,1.0,1.0,1.0,1.0,100.0,100.0` (equations, then boundary-condition rows, then initial conditions, then measured data)
+
+    | Phase | Optimizer | Iterations | Learning rate | Decay |
+    |---|---|---|---|---|
+    | 1 | Adam | 20,000 | 0.001 | none |
+    | 2 | L-BFGS | 20,000 | — | none |
 
 ## Loading it in PINNStudio
 
 - Forward: toolbar **Examples:** › **Forward** › under the **── 3D ──** heading, **Heat 3D** › **Default**, then **Solve**.
-- Inverse: toolbar **Examples:** › **Inverse** › under the **── 3D ──** heading, **Heat 3D** › **Default**, then **Solve**.
+- Inverse: toolbar **Examples:** › **Inverse** › under the **── 3D ──** heading, **Heat 3D** › **Default** or **Tuned**, then **Solve**.
 
 Loading an example fills in every setting; anything you change before **Solve** is listed in the Training Log. Your save folder, GPU, random-seed and plot-style settings are kept.
 
@@ -119,6 +130,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 - **Definition:** template "3D Heat" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
     - Inverse mode: `MainWindow.INVERSE_AUTO_VARS["3D Heat"]` (unknowns) and `INVERSE_AUTO_OBS["3D Heat"]` (measured data), same file
+    - Settings: Tuned: entry "3D Heat" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** [`reference_data/3D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/3D/heat), no generator script in the repository (checked against an independent solution by [`benchmarks/reference_regeneration/check_other_references.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration/check_other_references.py))
 - **Measured data** (Inverse): [`reference_data/3D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/3D/heat), no generator script in the repository (checked against an independent solution by [`benchmarks/reference_regeneration/check_other_references.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration/check_other_references.py))

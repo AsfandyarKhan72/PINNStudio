@@ -87,7 +87,7 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 
 ??? note "Settings: Tuned"
 
-    The Training Log reports: *Tuned settings: exact IC, exact periodicity, the whole time interval, SA-PINN weights.* The change is applied to the template's own settings (not the paper's method that Default loads).
+    The Training Log reports: *Tuned settings: exact IC, exact periodicity, the whole time interval, SA-PINN weights; 3× the iterations of every training phase.* The change is applied to the template's own settings (not the paper's method that Default loads).
 
     - **Network:** FNN, hidden layers 4 × 128, inputs (x, y, t), 1 output; activation tanh, initializer Glorot uniform
     - **Points:** 10,000 domain, 400 boundary, 512 initial, 1,000 test
@@ -96,8 +96,8 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
-    | 1 | Adam | 20,000 | 0.001 | none |
-    | 2 | L-BFGS | 10,000 | — | none |
+    | 1 | Adam | 60,000 | 0.001 | none |
+    | 2 | L-BFGS | 30,000 | — | none |
 
 ### Inverse mode
 
@@ -148,7 +148,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Measured data** (Inverse): [`reference_data/2D/allen_cahn_mattey/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/2D/allen_cahn_mattey), no generator script in the repository (checked against an independent solution by [`benchmarks/reference_regeneration/check_other_references.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration/check_other_references.py))
 - **Benchmark records:** [`benchmarks/problems/allen-cahn-2d-mattey-ghosh.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/allen-cahn-2d-mattey-ghosh.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-mattey--ghosh), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
 - **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json), [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%202D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
-- **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [IC pre-training and guided learning](../../reference/pretraining.md), [RBA and SA-PINN](../../reference/point-weights.md), [Networks and Fourier features](../../reference/networks.md), [Exact constraints](../../reference/exact-constraints.md)
+- **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [IC pre-training and guided learning](../../reference/pretraining.md), [RBA and SA-PINN](../../reference/point-weights.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Mattey & Ghosh 2022](../../about/references.md#mattey2022)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
