@@ -67,17 +67,17 @@ mu - 1.0*(h**3 - h) + 0.02*dh_xx
 
 ??? note "Settings: Tuned"
 
-    The Training Log reports: *Tuned settings: Mattey & Ghosh's bc-PINN.* The change is applied to the template's own settings (not the paper's method that Default loads).
+    The Training Log reports: *Tuned settings: IC as a loss term, exact periodicity, time windows, SA-PINN weights; twice as many time windows.* The change is applied to the template's own settings (not the paper's method that Default loads).
 
-    - **Network:** FNN, hidden layers 6 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
-    - **Points:** 10,000 domain, 20 boundary, 128 initial, 1,000 test
-    - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,64.0` (equations, then boundary-condition rows, then initial conditions)
-    - **Methods:** [time windows (10 windows, transfer learning)](../../reference/time-windows.md); [backward-compatible PINN (bc-PINN) across the windows](../../reference/time-windows.md); [initial-condition guided learning](../../reference/pretraining.md)
+    - **Network:** FNN, hidden layers 4 × 128, inputs (x, t), 2 outputs; activation tanh, initializer Glorot uniform
+    - **Points:** 10,000 domain, 200 boundary, 512 initial, 1,000 test
+    - **Loss weights:** `1.0,1.0,1.0,1.0,1.0,1.0,100.0` (equations, then boundary-condition rows, then initial conditions)
+    - **Methods:** [time windows (38 windows, transfer learning)](../../reference/time-windows.md); [SA-PINN point weights](../../reference/point-weights.md); [exact periodicity (periodic input features)](../../reference/exact-constraints.md)
 
     | Phase | Optimizer | Iterations | Learning rate | Decay |
     |---|---|---|---|---|
-    | 1 | Adam | 10,000 | 0.001 | none |
-    | 2 | L-BFGS | 50,000 | — | none |
+    | 1 | Adam | 5,000 | 0.001 | none |
+    | 2 | L-BFGS | 5,000 | — | none |
 
 ## Loading it in PINNStudio
 
@@ -103,7 +103,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Measured data** (Inverse): [`reference_data/1D/cahn_hilliard_mattey/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/cahn_hilliard_mattey), written by [`tools/make_phase_field_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_phase_field_reference_data.py)
 - **Benchmark records:** [`benchmarks/problems/cahn-hilliard-1d-mattey-ghosh.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/cahn-hilliard-1d-mattey-ghosh.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-cahn-hilliard-mattey--ghosh), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
 - **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Mattey%20%26%20Ghosh%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json)
-- **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [IC pre-training and guided learning](../../reference/pretraining.md)
+- **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [IC pre-training and guided learning](../../reference/pretraining.md), [RBA and SA-PINN](../../reference/point-weights.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Mattey & Ghosh 2022](../../about/references.md#mattey2022)
 
 Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.

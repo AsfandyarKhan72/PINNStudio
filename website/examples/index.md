@@ -346,7 +346,7 @@ Default or Tuned settings that use time windows, RAR, causal training, RBA or SA
 | [Poisson 1D – multi-scale Fourier features](1d/poisson-1d-multi-scale-fourier-features.md) | 1D | Steady | Forward | — | Fourier features |
 | [Allen-Cahn 1D – Wight & Zhao](1d/allen-cahn-1d-wight-zhao.md) | 1D | Time-dependent | Forward / Inverse | yes | Fourier features, RAR, causal training |
 | [Cahn-Hilliard 1D – Wight & Zhao](1d/cahn-hilliard-1d-wight-zhao.md) | 1D | Time-dependent | Forward | yes | SA-PINN, time windows |
-| [Cahn-Hilliard 1D – Mattey & Ghosh](1d/cahn-hilliard-1d-mattey-ghosh.md) | 1D | Time-dependent | Forward | yes | time windows |
+| [Cahn-Hilliard 1D – Mattey & Ghosh](1d/cahn-hilliard-1d-mattey-ghosh.md) | 1D | Time-dependent | Forward | yes | SA-PINN, time windows |
 | [Burgers 1D – RAR](1d/burgers-1d-rar.md) | 1D | Time-dependent | Forward | — | RAR |
 | [Wave 1D – space-time multi-scale Fourier features](1d/wave-1d-space-time-multi-scale-fourier-features.md) | 1D | Time-dependent | Forward / Inverse | yes | Fourier features |
 | [Allen-Cahn 2D – Wight & Zhao](2d/allen-cahn-2d-wight-zhao.md) | 2D | Time-dependent | Forward / Inverse | yes | RBA, time windows |

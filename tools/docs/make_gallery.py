@@ -618,7 +618,7 @@ def _record(entry, tcache, readme, bench_index, tuned_files, bc_labels):
         d_cfg, _ = es.settings_for(cfg, entry.key, gui_inverse, es.DEFAULT)
         has_t = es.has_tuned(entry.key, gui_inverse)
         t_cfg, t_msg = (es.settings_for(cfg, entry.key, gui_inverse, es.TUNED) if has_t else (None, ""))
-        t_msg = re.sub(r"\s*\(benchmarks: [^)]*\)", "", t_msg or "")
+        t_msg = re.sub(r"\s*\(benchmarks: (?:[^()]|\([^()]*\))*\)", "", t_msg or "")   # one level of nested (μ ...) too
         paper_default = (not gui_inverse and entry.key in ps.TEMPLATE_PAPER
                          and (entry.key, ps.TEMPLATE_PAPER[entry.key]) in ps.PAPER)
         tt = es.tuned_table().get(entry.key, {})
