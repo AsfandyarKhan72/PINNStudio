@@ -1,0 +1,71 @@
+{
+ "example": "Cahn-Hilliard 1D \u2013 Wight & Zhao",
+ "setup": "Time-adaptive",
+ "name": "f7v2_ch1d_windows",
+ "phases": [
+  [
+   "adam",
+   20000,
+   "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+  ],
+  [
+   "lbfgs",
+   10000,
+   "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+  ]
+ ],
+ "extra": {
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "activation": "tanh",
+  "learning_rate": 0.001,
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "ta_grid_size": 512,
+  "ta_transfer_optimizer": "lbfgs",
+  "ta_backward_weight": 100.0,
+  "ta_backward_times": 10,
+  "ta_backward_points": 2000,
+  "random_seed": 2026
+ },
+ "seed": 2026,
+ "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+ "match": "f7v2_ch1d_plain",
+ "layers": [
+  2,
+  128,
+  128,
+  128,
+  128,
+  2
+ ],
+ "adapt": "Time Adaptive",
+ "rar": [
+  3,
+  500,
+  20000,
+  10000
+ ],
+ "growing": false,
+ "msffn": "FNN",
+ "num_domain": 10000,
+ "num_boundary": 200,
+ "num_initial": 512,
+ "lr": 0.001,
+ "ic_hard": "False,False",
+ "ic_active": "True,False",
+ "periodic": true,
+ "ta": true,
+ "backward": false,
+ "point_weights": "None",
+ "causal": false,
+ "net": "FNN",
+ "validate": []
+}

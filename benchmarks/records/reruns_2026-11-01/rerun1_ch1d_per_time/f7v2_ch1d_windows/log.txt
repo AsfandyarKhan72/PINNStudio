@@ -1,0 +1,403 @@
+Set the default float type to float32
+✅ GPU: NVIDIA GeForce RTX 4090
+   Total memory: 25.4 GB
+   Available:    24.3 GB
+   TF32:         False
+   Float type:   float32
+   cuDNN bench:  False
+Model config saved to: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/solution_results/model_config.json
+  PDE weights: [1.0, 1.0]
+  BC weights (4 rows from the Boundary Conditions panel): [1.0, 1.0, 1.0, 1.0]
+  IC weights: [100.0]
+Loss weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 100.0] (7 terms for 5 constraints)
+Warning: 1000 points required, but 1035 points sampled.
+Compiling model...
+'compile' took 0.514757 s
+
+
+=== Starting Time-Adaptive Training ===
+  Total time steps: 4 from 1 group(s)
+
+--- Time step 1/4: t = 0.0000 to 0.2500 ---
+Warning: 1000 points required, but 1080 points sampled.
+  === Scheduler Phase 1: adam 20000 iters ===
+Compiling model...
+'compile' took 0.000080 s
+
+Training model...
+
+Step      Train loss                                                                Test loss                                                                 Test metric
+0         [2.13e-03, 2.37e-01, 2.06e-14, 7.92e-19, 5.90e-14, 2.22e-18, 5.99e+01]    [2.11e-03, 2.43e-01, 1.10e-14, 7.93e-19, 2.19e-14, 9.56e-19, 5.99e+01]    []  
+1000      [1.73e-03, 2.88e-02, 5.84e-14, 1.88e-18, 5.31e-12, 2.29e-17, 7.77e-03]    [1.77e-03, 2.88e-02, 2.03e-14, 1.15e-18, 4.95e-12, 1.67e-17, 7.77e-03]    []  
+2000      [2.11e-03, 2.72e-02, 4.51e-14, 1.67e-18, 4.65e-12, 2.69e-17, 4.05e-03]    [2.22e-03, 2.71e-02, 1.77e-14, 1.69e-18, 4.51e-12, 1.86e-17, 4.05e-03]    []  
+3000      [2.24e-03, 2.54e-02, 4.25e-14, 1.74e-18, 4.09e-12, 3.81e-17, 1.07e-02]    [2.41e-03, 2.55e-02, 1.41e-14, 2.10e-18, 3.82e-12, 2.74e-17, 1.07e-02]    []  
+4000      [2.32e-03, 2.09e-02, 2.35e-14, 2.22e-18, 2.35e-12, 1.17e-16, 4.51e-04]    [2.57e-03, 2.12e-02, 1.33e-14, 2.12e-18, 2.43e-12, 1.05e-16, 4.51e-04]    []  
+5000      [1.52e-03, 1.16e-02, 2.71e-14, 3.50e-18, 1.25e-12, 4.29e-16, 8.04e-04]    [1.76e-03, 1.20e-02, 1.06e-14, 2.96e-18, 1.38e-12, 4.17e-16, 8.04e-04]    []  
+6000      [1.20e-03, 4.85e-03, 2.77e-14, 6.04e-18, 1.27e-12, 8.37e-16, 3.21e-04]    [1.30e-03, 5.20e-03, 1.60e-14, 3.58e-18, 1.49e-12, 7.65e-16, 3.21e-04]    []  
+7000      [6.02e-04, 2.75e-03, 2.18e-14, 7.44e-18, 1.66e-12, 9.43e-16, 1.51e-04]    [6.53e-04, 3.04e-03, 1.98e-14, 4.19e-18, 1.88e-12, 8.33e-16, 1.51e-04]    []  
+8000      [3.69e-04, 2.14e-03, 1.78e-14, 7.07e-18, 2.57e-12, 8.58e-16, 5.85e-04]    [3.99e-04, 2.40e-03, 1.66e-14, 5.45e-18, 2.49e-12, 8.29e-16, 5.85e-04]    []  
+9000      [2.63e-04, 1.84e-03, 2.31e-14, 6.05e-18, 1.93e-12, 8.32e-16, 1.39e-04]    [2.89e-04, 2.08e-03, 1.59e-14, 5.40e-18, 1.90e-12, 8.16e-16, 1.39e-04]    []  
+10000     [1.91e-04, 1.61e-03, 1.67e-14, 7.84e-18, 2.11e-12, 8.08e-16, 1.36e-04]    [2.09e-04, 1.83e-03, 1.51e-14, 7.30e-18, 2.00e-12, 8.88e-16, 1.36e-04]    []  
+11000     [1.83e-04, 1.55e-03, 1.93e-14, 7.17e-18, 2.25e-12, 8.44e-16, 6.07e-03]    [1.96e-04, 1.75e-03, 1.28e-14, 5.56e-18, 2.14e-12, 7.35e-16, 6.07e-03]    []  
+12000     [1.35e-04, 1.37e-03, 2.73e-14, 4.87e-18, 2.27e-12, 8.46e-16, 1.49e-03]    [1.46e-04, 1.58e-03, 1.51e-14, 4.28e-18, 2.06e-12, 7.59e-16, 1.49e-03]    []  
+13000     [1.76e-04, 1.51e-03, 2.15e-14, 6.21e-18, 2.36e-12, 6.59e-16, 2.38e-02]    [1.84e-04, 1.70e-03, 1.41e-14, 5.65e-18, 2.37e-12, 7.01e-16, 2.38e-02]    []  
+14000     [1.96e-04, 1.35e-03, 2.28e-14, 6.83e-18, 2.32e-12, 7.28e-16, 2.90e-02]    [2.01e-04, 1.52e-03, 1.54e-14, 6.10e-18, 2.13e-12, 8.00e-16, 2.90e-02]    []  
+15000     [1.76e-04, 1.24e-03, 1.55e-14, 6.14e-18, 2.52e-12, 7.86e-16, 8.25e-03]    [1.82e-04, 1.43e-03, 1.25e-14, 5.57e-18, 2.40e-12, 6.83e-16, 8.25e-03]    []  
+16000     [6.32e-05, 9.73e-04, 1.92e-14, 4.43e-18, 2.45e-12, 8.24e-16, 3.02e-04]    [6.94e-05, 1.15e-03, 8.08e-15, 5.18e-18, 2.32e-12, 7.44e-16, 3.02e-04]    []  
+17000     [5.66e-05, 8.86e-04, 2.16e-14, 5.32e-18, 2.60e-12, 6.96e-16, 8.66e-05]    [6.25e-05, 1.05e-03, 1.12e-14, 5.13e-18, 2.62e-12, 7.61e-16, 8.66e-05]    []  
+18000     [6.24e-05, 8.49e-04, 2.06e-14, 6.12e-18, 2.53e-12, 7.61e-16, 2.59e-04]    [6.84e-05, 1.01e-03, 1.19e-14, 4.71e-18, 2.65e-12, 6.11e-16, 2.59e-04]    []  
+19000     [5.87e-05, 7.62e-04, 1.72e-14, 4.74e-18, 2.65e-12, 5.98e-16, 2.97e-03]    [6.55e-05, 9.05e-04, 1.38e-14, 3.30e-18, 2.76e-12, 5.53e-16, 2.97e-03]    []  
+20000     [4.47e-05, 6.87e-04, 1.81e-14, 4.94e-18, 2.58e-12, 6.77e-16, 1.75e-05]    [5.10e-05, 8.25e-04, 1.21e-14, 3.79e-18, 2.77e-12, 6.51e-16, 1.75e-05]    []  
+
+Best model at step 20000:
+  train loss: 7.49e-04
+  test loss: 8.93e-04
+  test metric: []
+
+'train' took 128.000510 s
+
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_001_t0.0000_to_t0.2500/model_adam-phase1.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000077 s
+
+Training model...
+
+Step      Train loss                                                                Test loss                                                                 Test metric
+20000     [4.47e-05, 6.87e-04, 1.81e-14, 4.94e-18, 2.58e-12, 6.77e-16, 1.75e-05]    [5.10e-05, 8.25e-04, 1.21e-14, 3.79e-18, 2.77e-12, 6.51e-16, 1.75e-05]    []  
+21000     [4.40e-05, 2.47e-04, 3.30e-14, 4.81e-18, 2.81e-12, 7.51e-16, 8.33e-06]    [5.28e-05, 2.96e-04, 1.69e-14, 4.69e-18, 2.76e-12, 7.14e-16, 8.33e-06]    []  
+22000     [2.75e-05, 1.51e-04, 3.30e-14, 4.37e-18, 2.99e-12, 6.97e-16, 4.12e-06]    [3.29e-05, 1.81e-04, 2.41e-14, 4.15e-18, 2.76e-12, 6.60e-16, 4.12e-06]    []  
+23000     [2.37e-05, 8.71e-05, 4.05e-14, 3.51e-18, 3.03e-12, 8.05e-16, 3.63e-06]    [2.98e-05, 1.04e-04, 3.63e-14, 4.14e-18, 3.29e-12, 8.43e-16, 3.63e-06]    []  
+24000     [1.68e-05, 5.89e-05, 4.79e-14, 4.25e-18, 3.04e-12, 6.92e-16, 2.99e-06]    [2.10e-05, 6.68e-05, 5.04e-14, 3.10e-18, 2.89e-12, 6.63e-16, 2.99e-06]    []  
+25000     [1.30e-05, 4.14e-05, 5.82e-14, 4.34e-18, 3.51e-12, 7.80e-16, 2.56e-06]    [1.78e-05, 4.44e-05, 4.21e-14, 4.48e-18, 3.58e-12, 6.81e-16, 2.56e-06]    []  
+26000     [9.76e-06, 2.82e-05, 6.06e-14, 3.54e-18, 3.90e-12, 8.63e-16, 2.18e-06]    [1.43e-05, 2.87e-05, 6.18e-14, 5.49e-18, 3.31e-12, 7.86e-16, 2.18e-06]    []  
+27000     [7.47e-06, 1.97e-05, 5.60e-14, 4.25e-18, 3.37e-12, 7.25e-16, 1.33e-06]    [1.03e-05, 2.03e-05, 5.12e-14, 3.44e-18, 3.83e-12, 7.68e-16, 1.33e-06]    []  
+28000     [6.13e-06, 1.54e-05, 5.47e-14, 5.30e-18, 3.77e-12, 7.92e-16, 9.00e-07]    [8.33e-06, 1.70e-05, 5.77e-14, 5.75e-18, 3.95e-12, 7.41e-16, 9.00e-07]    []  
+29000     [4.29e-06, 1.35e-05, 6.02e-14, 3.74e-18, 3.28e-12, 6.77e-16, 6.27e-07]    [5.94e-06, 1.51e-05, 8.10e-14, 3.60e-18, 3.95e-12, 7.05e-16, 6.27e-07]    []  
+30000     [3.44e-06, 1.20e-05, 7.29e-14, 4.44e-18, 3.99e-12, 7.92e-16, 4.22e-07]    [4.85e-06, 1.42e-05, 5.16e-14, 4.80e-18, 3.89e-12, 7.51e-16, 4.22e-07]    []  
+
+Best model at step 30000:
+  train loss: 1.58e-05
+  test loss: 1.95e-05
+  test metric: []
+
+'train' took 119.216677 s
+
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_001_t0.0000_to_t0.2500/model_lbfgs-phase2.pt
+Step 1 done. Final train loss: 1.5850e-05
+  Step 1: 2 reference file(s) in t=[0.0000, 0.2500]
+Step surface plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_001_t0.0000_to_t0.2500/step_001_t0.0000_to_t0.2500_surface.png
+Step line plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_001_t0.0000_to_t0.2500/step_001_t0.0000_to_t0.2500_line.png
+  Transfer learning source (lbfgs): model_lbfgs-phase2-30000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_001_t0.0000_to_t0.2500/step_config.json
+
+--- Time step 2/4: t = 0.2500 to 0.5000 ---
+Warning: 1000 points required, but 1080 points sampled.
+  ✅ Transfer learning: 10 weight/bias tensors transferred from step 1
+  === Scheduler Phase 1: adam 20000 iters ===
+Compiling model...
+'compile' took 0.000064 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [2.91e-01, 1.63e-02, 5.36e-14, 4.05e-18, 1.26e-12, 1.29e-16, 1.98e-11, 9.04e-18]    [3.64e-01, 1.94e-02, 6.35e-14, 2.97e-18, 1.35e-12, 1.66e-16, 1.05e-11, 6.40e-18]    []  
+1000      [4.60e-04, 1.74e-03, 4.85e-14, 5.20e-18, 1.13e-12, 1.52e-16, 3.09e-04, 1.40e-07]    [5.20e-04, 1.88e-03, 6.48e-14, 4.70e-18, 1.21e-12, 1.59e-16, 3.09e-04, 1.40e-07]    []  
+2000      [2.51e-04, 1.11e-03, 6.45e-14, 4.41e-18, 1.01e-12, 1.55e-16, 1.57e-03, 1.11e-07]    [2.64e-04, 1.08e-03, 6.68e-14, 3.60e-18, 9.71e-13, 1.90e-16, 1.57e-03, 1.11e-07]    []  
+3000      [4.42e-04, 9.60e-04, 5.37e-14, 4.40e-18, 1.18e-12, 1.97e-16, 1.25e-02, 1.13e-07]    [4.09e-04, 8.80e-04, 5.61e-14, 3.04e-18, 1.19e-12, 1.67e-16, 1.25e-02, 1.13e-07]    []  
+4000      [1.59e-04, 7.60e-04, 5.36e-14, 5.35e-18, 1.60e-12, 2.34e-16, 1.16e-03, 1.10e-07]    [1.51e-04, 6.75e-04, 6.55e-14, 4.55e-18, 1.40e-12, 2.06e-16, 1.16e-03, 1.10e-07]    []  
+5000      [1.65e-04, 6.55e-04, 5.28e-14, 5.93e-18, 1.04e-12, 1.83e-16, 2.05e-03, 1.02e-07]    [1.72e-04, 5.88e-04, 7.11e-14, 3.85e-18, 1.13e-12, 2.14e-16, 2.05e-03, 1.02e-07]    []  
+6000      [1.00e-04, 5.68e-04, 5.22e-14, 4.75e-18, 1.15e-12, 2.09e-16, 3.20e-05, 9.46e-08]    [9.93e-05, 5.04e-04, 5.71e-14, 3.84e-18, 1.25e-12, 1.64e-16, 3.20e-05, 9.46e-08]    []  
+7000      [2.79e-04, 5.73e-04, 4.49e-14, 4.74e-18, 1.04e-12, 1.47e-16, 1.02e-02, 9.18e-08]    [2.34e-04, 4.92e-04, 5.61e-14, 4.40e-18, 1.00e-12, 1.32e-16, 1.02e-02, 9.18e-08]    []  
+8000      [1.85e-04, 4.86e-04, 4.53e-14, 5.10e-18, 1.55e-12, 1.63e-16, 1.16e-02, 9.12e-08]    [1.91e-04, 4.81e-04, 5.51e-14, 3.46e-18, 1.36e-12, 1.82e-16, 1.16e-02, 9.12e-08]    []  
+9000      [1.13e-04, 4.47e-04, 3.93e-14, 6.21e-18, 1.10e-12, 1.19e-16, 2.43e-03, 8.51e-08]    [1.07e-04, 4.10e-04, 4.47e-14, 5.24e-18, 1.03e-12, 1.44e-16, 2.43e-03, 8.51e-08]    []  
+10000     [1.43e-04, 3.83e-04, 3.84e-14, 5.30e-18, 1.47e-12, 1.80e-16, 5.62e-03, 7.85e-08]    [1.47e-04, 3.60e-04, 3.31e-14, 3.46e-18, 1.34e-12, 1.60e-16, 5.62e-03, 7.85e-08]    []  
+11000     [2.20e-04, 3.73e-04, 6.09e-14, 6.10e-18, 1.42e-12, 1.82e-16, 1.04e-02, 7.53e-08]    [2.14e-04, 3.51e-04, 4.01e-14, 3.38e-18, 1.47e-12, 1.73e-16, 1.04e-02, 7.53e-08]    []  
+12000     [1.68e-04, 4.28e-04, 3.36e-14, 5.55e-18, 1.25e-12, 1.58e-16, 2.00e-02, 6.82e-08]    [1.59e-04, 4.06e-04, 5.09e-14, 3.52e-18, 1.24e-12, 1.60e-16, 2.00e-02, 6.82e-08]    []  
+13000     [1.46e-04, 3.32e-04, 3.06e-14, 4.52e-18, 1.16e-12, 1.55e-16, 4.38e-03, 6.53e-08]    [1.50e-04, 2.99e-04, 5.01e-14, 3.63e-18, 1.12e-12, 1.62e-16, 4.38e-03, 6.53e-08]    []  
+14000     [1.24e-04, 2.44e-04, 3.81e-14, 6.02e-18, 1.24e-12, 1.57e-16, 7.75e-04, 5.83e-08]    [1.29e-04, 2.13e-04, 3.76e-14, 3.10e-18, 1.16e-12, 1.25e-16, 7.75e-04, 5.83e-08]    []  
+15000     [3.00e-04, 2.36e-04, 3.64e-14, 6.81e-18, 1.15e-12, 1.14e-16, 1.59e-02, 5.92e-08]    [3.21e-04, 2.18e-04, 3.89e-14, 2.92e-18, 1.25e-12, 1.23e-16, 1.59e-02, 5.92e-08]    []  
+16000     [6.11e-05, 1.93e-04, 3.40e-14, 6.62e-18, 1.01e-12, 1.38e-16, 1.82e-04, 4.89e-08]    [5.52e-05, 1.70e-04, 4.49e-14, 3.44e-18, 9.44e-13, 1.25e-16, 1.82e-04, 4.89e-08]    []  
+17000     [4.31e-05, 1.75e-04, 3.58e-14, 5.61e-18, 1.17e-12, 1.26e-16, 2.19e-04, 4.46e-08]    [3.57e-05, 1.57e-04, 3.01e-14, 2.86e-18, 1.11e-12, 1.09e-16, 2.19e-04, 4.46e-08]    []  
+18000     [1.41e-04, 1.71e-04, 2.66e-14, 5.21e-18, 9.57e-13, 1.38e-16, 1.37e-03, 4.42e-08]    [1.31e-04, 1.53e-04, 3.34e-14, 2.83e-18, 9.74e-13, 1.26e-16, 1.37e-03, 4.42e-08]    []  
+19000     [4.18e-05, 1.41e-04, 2.82e-14, 6.11e-18, 9.72e-13, 1.21e-16, 2.79e-04, 3.82e-08]    [3.27e-05, 1.27e-04, 3.67e-14, 3.03e-18, 1.09e-12, 1.29e-16, 2.79e-04, 3.82e-08]    []  
+20000     [1.44e-04, 1.93e-04, 3.37e-14, 4.50e-18, 7.95e-13, 1.14e-16, 4.83e-03, 3.76e-08]    [1.35e-04, 1.82e-04, 3.82e-14, 2.65e-18, 9.37e-13, 9.74e-17, 4.83e-03, 3.76e-08]    []  
+
+Best model at step 16000:
+  train loss: 4.36e-04
+  test loss: 4.07e-04
+  test metric: []
+
+'train' took 140.150586 s
+
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_002_t0.2500_to_t0.5000/model_adam-phase1.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000068 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+20000     [1.44e-04, 1.93e-04, 3.37e-14, 4.50e-18, 7.95e-13, 1.14e-16, 4.83e-03, 3.76e-08]    [1.35e-04, 1.82e-04, 3.82e-14, 2.65e-18, 9.37e-13, 9.74e-17, 4.83e-03, 3.76e-08]    []  
+21000     [1.21e-05, 4.30e-05, 3.81e-14, 5.10e-18, 1.06e-12, 1.28e-16, 3.10e-06, 1.66e-08]    [1.19e-05, 3.54e-05, 3.38e-14, 2.63e-18, 8.56e-13, 1.14e-16, 3.10e-06, 1.66e-08]    []  
+22000     [6.09e-06, 2.66e-05, 5.16e-14, 4.39e-18, 1.04e-12, 1.40e-16, 1.38e-06, 1.09e-08]    [6.80e-06, 2.22e-05, 4.01e-14, 2.60e-18, 1.12e-12, 1.20e-16, 1.38e-06, 1.09e-08]    []  
+23000     [3.76e-06, 1.99e-05, 4.07e-14, 4.17e-18, 1.09e-12, 1.34e-16, 7.05e-07, 8.88e-09]    [4.00e-06, 1.56e-05, 3.08e-14, 2.60e-18, 1.19e-12, 1.27e-16, 7.06e-07, 8.88e-09]    []  
+24000     [2.75e-06, 1.64e-05, 4.16e-14, 4.27e-18, 9.34e-13, 1.04e-16, 5.98e-07, 7.62e-09]    [2.92e-06, 1.23e-05, 3.59e-14, 2.30e-18, 1.01e-12, 1.16e-16, 5.97e-07, 7.62e-09]    []  
+25000     [2.03e-06, 1.37e-05, 3.80e-14, 3.48e-18, 8.49e-13, 1.33e-16, 6.21e-07, 6.77e-09]    [2.08e-06, 9.74e-06, 3.40e-14, 2.74e-18, 9.24e-13, 1.39e-16, 6.21e-07, 6.77e-09]    []  
+26000     [1.83e-06, 1.18e-05, 4.86e-14, 4.58e-18, 8.34e-13, 1.18e-16, 5.36e-07, 6.20e-09]    [1.89e-06, 8.04e-06, 3.15e-14, 2.38e-18, 8.91e-13, 1.06e-16, 5.36e-07, 6.20e-09]    []  
+26959     [1.51e-06, 1.03e-05, 4.55e-14, 2.98e-18, 8.48e-13, 1.19e-16, 5.12e-07, 5.70e-09]    [1.52e-06, 6.79e-06, 3.05e-14, 3.06e-18, 1.05e-12, 1.27e-16, 5.12e-07, 5.70e-09]    []  
+
+Best model at step 26959:
+  train loss: 1.24e-05
+  test loss: 8.82e-06
+  test metric: []
+
+'train' took 86.420624 s
+
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_002_t0.2500_to_t0.5000/model_lbfgs-phase2.pt
+Step 2 done. Final train loss: 1.2356e-05
+  Step 2: 2 reference file(s) in t=[0.2500, 0.5000]
+Step surface plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_002_t0.2500_to_t0.5000/step_002_t0.2500_to_t0.5000_surface.png
+Step line plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_002_t0.2500_to_t0.5000/step_002_t0.2500_to_t0.5000_line.png
+  Transfer learning source (lbfgs): model_lbfgs-phase2-26959.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_002_t0.2500_to_t0.5000/step_config.json
+
+--- Time step 3/4: t = 0.5000 to 0.7500 ---
+Warning: 1000 points required, but 1080 points sampled.
+  ✅ Transfer learning: 10 weight/bias tensors transferred from step 2
+  === Scheduler Phase 1: adam 20000 iters ===
+Compiling model...
+'compile' took 0.000064 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [2.45e-03, 2.39e-04, 4.62e-14, 2.63e-18, 5.48e-13, 4.25e-17, 2.54e-11, 5.81e-18]    [2.91e-03, 2.75e-04, 2.82e-14, 2.84e-18, 5.66e-13, 3.26e-17, 1.27e-11, 4.15e-18]    []  
+1000      [7.31e-05, 8.54e-05, 5.50e-14, 3.20e-18, 5.25e-13, 3.92e-17, 2.97e-03, 4.48e-09]    [8.22e-05, 8.63e-05, 3.79e-14, 2.62e-18, 4.63e-13, 2.78e-17, 2.97e-03, 4.48e-09]    []  
+2000      [3.45e-05, 5.15e-05, 4.05e-14, 3.34e-18, 5.62e-13, 3.23e-17, 4.98e-05, 5.62e-09]    [3.50e-05, 5.41e-05, 3.36e-14, 1.76e-18, 4.53e-13, 3.73e-17, 4.98e-05, 5.62e-09]    []  
+3000      [2.49e-04, 3.86e-04, 3.79e-14, 4.34e-18, 4.68e-13, 3.68e-17, 3.67e-02, 8.49e-09]    [2.69e-04, 3.98e-04, 3.25e-14, 1.71e-18, 4.42e-13, 3.38e-17, 3.67e-02, 8.49e-09]    []  
+4000      [4.18e-05, 6.33e-05, 4.31e-14, 2.92e-18, 4.07e-13, 3.90e-17, 2.35e-04, 7.06e-09]    [4.35e-05, 6.70e-05, 2.90e-14, 1.92e-18, 4.56e-13, 3.85e-17, 2.35e-04, 7.06e-09]    []  
+5000      [1.01e-04, 8.58e-05, 4.46e-14, 3.57e-18, 4.19e-13, 2.82e-17, 4.09e-03, 7.54e-09]    [1.18e-04, 8.20e-05, 2.51e-14, 2.05e-18, 4.33e-13, 2.92e-17, 4.09e-03, 7.54e-09]    []  
+6000      [2.49e-05, 6.19e-05, 3.27e-14, 3.75e-18, 4.47e-13, 3.35e-17, 2.42e-04, 7.03e-09]    [2.99e-05, 5.84e-05, 2.58e-14, 2.14e-18, 4.80e-13, 3.87e-17, 2.42e-04, 7.03e-09]    []  
+7000      [3.94e-05, 5.97e-05, 3.26e-14, 3.88e-18, 4.94e-13, 3.27e-17, 1.62e-04, 6.99e-09]    [3.54e-05, 5.50e-05, 1.96e-14, 1.88e-18, 4.67e-13, 2.65e-17, 1.62e-04, 6.99e-09]    []  
+8000      [3.66e-04, 1.28e-04, 3.47e-14, 3.37e-18, 4.52e-13, 2.70e-17, 1.13e-02, 8.32e-09]    [3.16e-04, 1.44e-04, 1.92e-14, 2.05e-18, 4.14e-13, 3.16e-17, 1.13e-02, 8.32e-09]    []  
+9000      [3.56e-04, 7.22e-05, 3.29e-14, 3.66e-18, 3.52e-13, 2.76e-17, 2.48e-03, 7.12e-09]    [4.04e-04, 6.94e-05, 2.60e-14, 1.94e-18, 3.08e-13, 2.29e-17, 2.48e-03, 7.12e-09]    []  
+10000     [1.75e-03, 1.26e-04, 2.74e-14, 3.59e-18, 5.41e-13, 2.80e-17, 1.67e-02, 9.66e-09]    [2.01e-03, 1.55e-04, 2.26e-14, 1.91e-18, 4.03e-13, 2.64e-17, 1.67e-02, 9.66e-09]    []  
+11000     [4.64e-04, 8.29e-05, 2.67e-14, 3.84e-18, 3.99e-13, 2.96e-17, 5.20e-04, 8.22e-09]    [4.06e-04, 8.66e-05, 2.57e-14, 1.97e-18, 4.80e-13, 2.78e-17, 5.20e-04, 8.22e-09]    []  
+12000     [2.29e-04, 1.61e-04, 2.68e-14, 3.31e-18, 4.76e-13, 2.66e-17, 8.75e-03, 8.85e-09]    [2.61e-04, 1.77e-04, 2.68e-14, 1.85e-18, 4.45e-13, 2.46e-17, 8.75e-03, 8.85e-09]    []  
+13000     [8.50e-05, 6.08e-05, 3.36e-14, 3.38e-18, 3.65e-13, 2.68e-17, 2.31e-03, 4.94e-09]    [8.77e-05, 6.14e-05, 2.28e-14, 1.40e-18, 3.84e-13, 2.91e-17, 2.31e-03, 4.94e-09]    []  
+14000     [2.79e-04, 1.30e-04, 2.40e-14, 3.49e-18, 4.82e-13, 3.55e-17, 1.34e-02, 5.84e-09]    [2.57e-04, 1.35e-04, 2.47e-14, 1.97e-18, 4.09e-13, 2.85e-17, 1.34e-02, 5.84e-09]    []  
+15000     [6.79e-05, 5.75e-05, 2.76e-14, 3.18e-18, 3.96e-13, 2.53e-17, 1.57e-03, 4.80e-09]    [6.83e-05, 6.45e-05, 1.75e-14, 1.88e-18, 3.92e-13, 2.69e-17, 1.57e-03, 4.80e-09]    []  
+16000     [1.47e-04, 9.45e-05, 2.41e-14, 2.27e-18, 4.38e-13, 3.05e-17, 6.78e-03, 4.96e-09]    [1.36e-04, 1.04e-04, 1.71e-14, 1.44e-18, 4.29e-13, 3.27e-17, 6.78e-03, 4.96e-09]    []  
+17000     [4.27e-05, 3.13e-05, 2.71e-14, 2.34e-18, 3.92e-13, 3.07e-17, 2.07e-04, 4.14e-09]    [4.23e-05, 3.45e-05, 1.47e-14, 1.91e-18, 3.91e-13, 2.57e-17, 2.07e-04, 4.14e-09]    []  
+18000     [3.56e-05, 3.05e-05, 2.68e-14, 3.15e-18, 3.73e-13, 3.06e-17, 1.43e-04, 3.67e-09]    [3.82e-05, 3.41e-05, 1.61e-14, 1.54e-18, 3.25e-13, 2.77e-17, 1.43e-04, 3.67e-09]    []  
+19000     [1.57e-04, 1.12e-04, 2.86e-14, 2.46e-18, 3.97e-13, 2.92e-17, 9.53e-03, 5.02e-09]    [1.80e-04, 1.29e-04, 2.02e-14, 9.33e-19, 3.84e-13, 2.69e-17, 9.53e-03, 5.02e-09]    []  
+20000     [6.11e-05, 3.29e-05, 2.22e-14, 2.52e-18, 3.87e-13, 3.09e-17, 2.43e-04, 4.08e-09]    [6.94e-05, 3.46e-05, 2.01e-14, 1.35e-18, 3.11e-13, 2.49e-17, 2.43e-04, 4.08e-09]    []  
+
+Best model at step 2000:
+  train loss: 1.36e-04
+  test loss: 1.39e-04
+  test metric: []
+
+'train' took 143.115996 s
+
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_003_t0.5000_to_t0.7500/model_adam-phase1.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000084 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+20000     [6.11e-05, 3.29e-05, 2.22e-14, 2.52e-18, 3.87e-13, 3.09e-17, 2.43e-04, 4.08e-09]    [6.94e-05, 3.46e-05, 2.01e-14, 1.35e-18, 3.11e-13, 2.49e-17, 2.43e-04, 4.08e-09]    []  
+21000     [5.38e-06, 6.49e-06, 3.08e-14, 2.93e-18, 2.80e-13, 3.00e-17, 1.84e-06, 1.11e-09]    [5.90e-06, 5.91e-06, 1.91e-14, 1.33e-18, 3.42e-13, 3.23e-17, 1.84e-06, 1.11e-09]    []  
+22000     [2.53e-06, 3.58e-06, 2.61e-14, 2.86e-18, 2.90e-13, 3.78e-17, 1.10e-06, 5.91e-10]    [2.36e-06, 2.87e-06, 2.30e-14, 1.50e-18, 2.83e-13, 3.60e-17, 1.10e-06, 5.91e-10]    []  
+23000     [1.44e-06, 2.35e-06, 3.02e-14, 3.10e-18, 3.23e-13, 4.05e-17, 7.05e-07, 4.52e-10]    [1.39e-06, 2.04e-06, 2.38e-14, 1.74e-18, 3.33e-13, 4.28e-17, 7.05e-07, 4.52e-10]    []  
+23315     [1.20e-06, 2.11e-06, 2.07e-14, 2.51e-18, 3.03e-13, 4.29e-17, 6.61e-07, 4.45e-10]    [1.25e-06, 1.79e-06, 2.14e-14, 1.62e-18, 3.33e-13, 4.24e-17, 6.61e-07, 4.45e-10]    []  
+
+Best model at step 23315:
+  train loss: 3.97e-06
+  test loss: 3.70e-06
+  test metric: []
+
+'train' took 40.294258 s
+
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_003_t0.5000_to_t0.7500/model_lbfgs-phase2.pt
+Step 3 done. Final train loss: 3.9680e-06
+  Step 3: 2 reference file(s) in t=[0.5000, 0.7500]
+Step surface plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_003_t0.5000_to_t0.7500/step_003_t0.5000_to_t0.7500_surface.png
+Step line plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_003_t0.5000_to_t0.7500/step_003_t0.5000_to_t0.7500_line.png
+  Transfer learning source (lbfgs): model_lbfgs-phase2-23315.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_003_t0.5000_to_t0.7500/step_config.json
+
+--- Time step 4/4: t = 0.7500 to 1.0000 ---
+Warning: 1000 points required, but 1080 points sampled.
+  ✅ Transfer learning: 10 weight/bias tensors transferred from step 3
+  === Scheduler Phase 1: adam 20000 iters ===
+Compiling model...
+'compile' took 0.000069 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [3.67e-04, 1.24e-04, 2.49e-14, 2.81e-18, 1.77e-13, 1.40e-17, 2.09e-11, 4.14e-18]    [4.93e-04, 1.45e-04, 1.92e-14, 1.77e-18, 1.81e-13, 1.61e-17, 1.11e-11, 3.06e-18]    []  
+1000      [1.23e-05, 1.53e-05, 3.09e-14, 2.41e-18, 1.50e-13, 1.59e-17, 1.65e-05, 8.08e-10]    [1.29e-05, 1.72e-05, 2.08e-14, 1.58e-18, 1.73e-13, 1.49e-17, 1.65e-05, 8.08e-10]    []  
+2000      [7.36e-05, 6.67e-05, 2.31e-14, 2.84e-18, 1.08e-13, 1.27e-17, 5.44e-03, 1.78e-09]    [7.28e-05, 7.08e-05, 1.93e-14, 1.30e-18, 1.16e-13, 8.55e-18, 5.44e-03, 1.78e-09]    []  
+3000      [1.31e-05, 1.01e-05, 2.73e-14, 2.12e-18, 1.15e-13, 1.27e-17, 4.10e-05, 9.13e-10]    [1.19e-05, 1.11e-05, 1.66e-14, 1.27e-18, 1.24e-13, 1.17e-17, 4.10e-05, 9.13e-10]    []  
+4000      [3.08e-05, 5.65e-05, 2.89e-14, 1.88e-18, 1.26e-13, 1.64e-17, 5.48e-03, 9.02e-10]    [3.58e-05, 5.94e-05, 1.41e-14, 9.06e-19, 1.06e-13, 1.31e-17, 5.48e-03, 9.02e-10]    []  
+5000      [4.86e-05, 2.83e-05, 2.62e-14, 1.73e-18, 9.49e-14, 1.29e-17, 1.53e-03, 1.19e-09]    [3.86e-05, 2.87e-05, 1.79e-14, 1.12e-18, 8.28e-14, 1.21e-17, 1.53e-03, 1.19e-09]    []  
+6000      [1.24e-05, 9.72e-06, 2.46e-14, 1.82e-18, 9.20e-14, 1.16e-17, 2.47e-05, 7.18e-10]    [9.90e-06, 1.09e-05, 1.92e-14, 1.30e-18, 6.92e-14, 9.64e-18, 2.47e-05, 7.18e-10]    []  
+7000      [2.16e-04, 2.10e-04, 2.00e-14, 1.67e-18, 9.04e-14, 1.12e-17, 2.02e-02, 9.46e-10]    [2.35e-04, 2.07e-04, 1.07e-14, 1.26e-18, 8.02e-14, 8.70e-18, 2.02e-02, 9.46e-10]    []  
+8000      [5.23e-04, 2.08e-05, 1.94e-14, 2.32e-18, 6.63e-14, 1.12e-17, 6.69e-04, 1.15e-09]    [4.97e-04, 2.93e-05, 1.49e-14, 8.17e-19, 7.04e-14, 1.07e-17, 6.69e-04, 1.15e-09]    []  
+9000      [1.53e-04, 3.61e-05, 2.16e-14, 1.28e-18, 6.17e-14, 9.80e-18, 3.46e-03, 7.62e-10]    [1.74e-04, 3.74e-05, 1.03e-14, 8.95e-19, 8.85e-14, 9.49e-18, 3.46e-03, 7.62e-10]    []  
+10000     [3.22e-05, 1.61e-05, 2.02e-14, 1.69e-18, 7.71e-14, 1.04e-17, 4.13e-04, 1.15e-09]    [3.30e-05, 1.80e-05, 1.36e-14, 9.32e-19, 6.69e-14, 8.50e-18, 4.13e-04, 1.15e-09]    []  
+11000     [3.88e-05, 2.64e-05, 1.83e-14, 1.31e-18, 8.17e-14, 1.33e-17, 5.46e-04, 9.92e-10]    [3.98e-05, 2.80e-05, 9.69e-15, 1.15e-18, 7.80e-14, 1.01e-17, 5.46e-04, 9.92e-10]    []  
+12000     [1.05e-04, 3.85e-05, 1.99e-14, 1.38e-18, 8.52e-14, 9.85e-18, 2.24e-03, 7.50e-10]    [1.29e-04, 3.79e-05, 8.57e-15, 8.30e-19, 7.31e-14, 1.10e-17, 2.24e-03, 7.50e-10]    []  
+13000     [6.40e-05, 1.95e-05, 2.08e-14, 1.74e-18, 7.07e-14, 1.03e-17, 1.28e-03, 1.33e-09]    [5.63e-05, 2.00e-05, 1.38e-14, 1.25e-18, 7.79e-14, 1.04e-17, 1.28e-03, 1.33e-09]    []  
+14000     [1.09e-05, 8.55e-06, 1.38e-14, 1.64e-18, 7.60e-14, 9.90e-18, 1.25e-04, 7.54e-10]    [1.11e-05, 9.35e-06, 1.31e-14, 1.21e-18, 7.64e-14, 1.00e-17, 1.25e-04, 7.54e-10]    []  
+15000     [5.31e-05, 6.73e-05, 1.72e-14, 1.78e-18, 9.31e-14, 1.17e-17, 5.05e-03, 7.42e-10]    [4.79e-05, 7.01e-05, 8.69e-15, 1.20e-18, 7.91e-14, 8.99e-18, 5.05e-03, 7.42e-10]    []  
+16000     [5.67e-05, 1.66e-05, 1.88e-14, 1.39e-18, 8.05e-14, 7.74e-18, 7.15e-04, 1.24e-09]    [4.76e-05, 1.65e-05, 1.52e-14, 7.81e-19, 8.00e-14, 9.26e-18, 7.15e-04, 1.24e-09]    []  
+17000     [2.03e-05, 1.28e-05, 1.61e-14, 1.43e-18, 9.02e-14, 9.73e-18, 1.05e-03, 8.31e-10]    [2.19e-05, 1.46e-05, 9.77e-15, 7.32e-19, 6.54e-14, 8.23e-18, 1.05e-03, 8.31e-10]    []  
+18000     [6.61e-06, 7.67e-06, 2.16e-14, 1.72e-18, 7.76e-14, 1.11e-17, 1.57e-05, 8.47e-10]    [5.93e-06, 8.83e-06, 1.14e-14, 7.45e-19, 6.29e-14, 7.63e-18, 1.57e-05, 8.47e-10]    []  
+19000     [2.35e-04, 1.46e-05, 2.04e-14, 1.43e-18, 6.14e-14, 9.80e-18, 1.97e-04, 1.55e-09]    [2.51e-04, 1.44e-05, 1.19e-14, 5.26e-19, 7.54e-14, 8.48e-18, 1.97e-04, 1.55e-09]    []  
+20000     [2.35e-05, 9.86e-06, 1.20e-14, 1.43e-18, 7.76e-14, 8.31e-18, 6.02e-05, 1.02e-09]    [1.20e-05, 1.13e-05, 9.85e-15, 1.00e-18, 6.85e-14, 7.70e-18, 6.02e-05, 1.02e-09]    []  
+
+Best model at step 18000:
+  train loss: 2.99e-05
+  test loss: 3.04e-05
+  test metric: []
+
+'train' took 143.901233 s
+
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_004_t0.7500_to_t1.0000/model_adam-phase1.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000071 s
+
+Training model...
+
+Step      Train loss                                                                          Test loss                                                                           Test metric
+20000     [2.35e-05, 9.86e-06, 1.20e-14, 1.43e-18, 7.76e-14, 8.31e-18, 6.02e-05, 1.02e-09]    [1.20e-05, 1.13e-05, 9.85e-15, 1.00e-18, 6.85e-14, 7.70e-18, 6.02e-05, 1.02e-09]    []  
+21000     [3.23e-06, 4.20e-06, 1.50e-14, 1.48e-18, 1.12e-13, 8.71e-18, 1.58e-06, 5.38e-10]    [3.44e-06, 3.39e-06, 1.04e-14, 7.23e-19, 9.03e-14, 8.76e-18, 1.58e-06, 5.38e-10]    []  
+21925     [1.74e-06, 3.04e-06, 1.68e-14, 1.35e-18, 9.45e-14, 8.36e-18, 8.74e-07, 3.84e-10]    [1.71e-06, 2.72e-06, 1.24e-14, 6.99e-19, 9.95e-14, 7.31e-18, 8.74e-07, 3.84e-10]    []  
+
+Best model at step 21925:
+  train loss: 5.66e-06
+  test loss: 5.31e-06
+  test metric: []
+
+'train' took 23.747895 s
+
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_004_t0.7500_to_t1.0000/model_lbfgs-phase2.pt
+Step 4 done. Final train loss: 5.6603e-06
+  Step 4: 4 reference file(s) in t=[0.7500, 1.0000]
+Step surface plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_004_t0.7500_to_t1.0000/step_004_t0.7500_to_t1.0000_surface.png
+Step line plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_004_t0.7500_to_t1.0000/step_004_t0.7500_to_t1.0000_line.png
+  Transfer learning source (lbfgs): model_lbfgs-phase2-21925.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/time_adaptive_steps/step_004_t0.7500_to_t1.0000/step_config.json
+
+=== Time-Adaptive Training Complete ===
+Final loss: 5.6603e-06
+Final loss (unweighted): 4.7952e-06
+
+=== Running Time-Adaptive Error Analysis ===
+  Filtering to t=[0.0, 1.0]: 10 files
+  ── Output group: mu (5 files) ──
+  Loaded ground truth t=0.0000: 1000 pts from t_0_mu.txt
+  Loaded ground truth t=0.2500: 1000 pts from t_0.25_mu.txt
+  Loaded ground truth t=0.5000: 1000 pts from t_0.5_mu.txt
+  Loaded ground truth t=0.7500: 1000 pts from t_0.75_mu.txt
+  Loaded ground truth t=1.0000: 1000 pts from t_1_mu.txt
+  Found 4 time-adaptive step models
+  Step 1 [0.0000→0.2500]: t = [0.0, 0.25]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000064 s
+
+    Restored: model_lbfgs-phase2-30000.pt
+    Predicted at t=0.0000: 1000 points
+    Predicted at t=0.2500: 1000 points
+  Step 2 [0.2500→0.5000]: t = [0.5]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000060 s
+
+    Restored: model_lbfgs-phase2-26959.pt
+    Predicted at t=0.5000: 1000 points
+  Step 3 [0.5000→0.7500]: t = [0.75]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000067 s
+
+    Restored: model_lbfgs-phase2-23315.pt
+    Predicted at t=0.7500: 1000 points
+  Step 4 [0.7500→1.0000]: t = [1.0]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000067 s
+
+    Restored: model_lbfgs-phase2-21925.pt
+    Predicted at t=1.0000: 1000 points
+  t=0.0000 — L2=1.9461e-02, MeanAbs=4.0823e-05
+  t=0.2500 — L2=4.3897e-02, MeanAbs=6.4447e-05
+  t=0.5000 — L2=1.2015e-02, MeanAbs=1.9192e-05
+  t=0.7500 — L2=1.0715e-02, MeanAbs=1.7030e-05
+  t=1.0000 — L2=1.0135e-02, MeanAbs=1.3935e-05
+  Metrics saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/error_metrics_mu.txt
+  All 5 reference times together: L₂=2.6885e-02
+  Line comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/line_comparison_mu.png
+  Surface comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/surface_comparison_mu.png
+  Group 'mu' analysis complete
+  ── Output group: u (5 files) ──
+  Loaded ground truth t=0.0000: 1000 pts from t_0_u.txt
+  Loaded ground truth t=0.2500: 1000 pts from t_0.25_u.txt
+  Loaded ground truth t=0.5000: 1000 pts from t_0.5_u.txt
+  Loaded ground truth t=0.7500: 1000 pts from t_0.75_u.txt
+  Loaded ground truth t=1.0000: 1000 pts from t_1_u.txt
+  Found 4 time-adaptive step models
+  Step 1 [0.0000→0.2500]: t = [0.0, 0.25]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000072 s
+
+    Restored: model_lbfgs-phase2-30000.pt
+    Predicted at t=0.0000: 1000 points
+    Predicted at t=0.2500: 1000 points
+  Step 2 [0.2500→0.5000]: t = [0.5]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000055 s
+
+    Restored: model_lbfgs-phase2-26959.pt
+    Predicted at t=0.5000: 1000 points
+  Step 3 [0.5000→0.7500]: t = [0.75]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000054 s
+
+    Restored: model_lbfgs-phase2-23315.pt
+    Predicted at t=0.7500: 1000 points
+  Step 4 [0.7500→1.0000]: t = [1.0]
+Warning: 100 points required, but 116 points sampled.
+Compiling model...
+'compile' took 0.000053 s
+
+    Restored: model_lbfgs-phase2-21925.pt
+    Predicted at t=1.0000: 1000 points
+  t=0.0000 — L2=9.1876e-05, MeanAbs=5.1287e-05
+  t=0.2500 — L2=2.7201e-02, MeanAbs=1.0644e-02
+  t=0.5000 — L2=7.8167e-03, MeanAbs=2.8137e-03
+  t=0.7500 — L2=5.2651e-03, MeanAbs=1.9004e-03
+  t=1.0000 — L2=3.9383e-03, MeanAbs=1.5826e-03
+  Metrics saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/error_metrics_u.txt
+  All 5 reference times together: L₂=1.2415e-02
+  Line comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/line_comparison_u.png
+  Surface comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/zzzzzp1_ch_f7_1d/out/f7v2_ch1d_windows/error_analysis/surface_comparison_u.png
+  Group 'u' analysis complete
+=== Time-Adaptive Error Analysis Complete ===
+DONE
+
+--- stderr ---
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.

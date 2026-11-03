@@ -1,0 +1,38 @@
+f7v2_ch1d_windows        u   t=1  figure 0.00393831  record 0.00394  (reruns README, rerun 1)  OK
+f7v2_ch1d_windows        u   t=1  figure 0.00393831  record 0.0039383  (rerun-1 result.json)  OK
+f7v2_ch1d_windows        mu  t=1  figure 0.0101353  record 0.010135  (rerun-1 result.json)  OK
+f7v2_ch1d_bcpinn         u   t=1  figure 0.0045399  record 0.00454  (reruns README, rerun 1)  OK
+f7v2_ch1d_bcpinn         u   t=1  figure 0.0045399  record 0.0045399  (rerun-1 result.json)  OK
+f7v2_ch1d_bcpinn         mu  t=1  figure 0.017196  record 0.017196  (rerun-1 result.json)  OK
+f7v2_ch1d_windowsEq      u   t=1  figure 0.0048131  record 0.00481  (reruns README, rerun 1)  OK
+f7v2_ch1d_windowsEq      u   t=1  figure 0.0048131  record 0.0048131  (rerun-1 result.json)  OK
+f7v2_ch1d_windowsEq      mu  t=1  figure 0.0113564  record 0.011356  (rerun-1 result.json)  OK
+f7v2_ch1d_bcpinnEq       u   t=1  figure 0.00986796  record 0.00987  (reruns README, rerun 1)  OK
+f7v2_ch1d_bcpinnEq       u   t=1  figure 0.00986796  record 0.009868  (rerun-1 result.json)  OK
+f7v2_ch1d_bcpinnEq       mu  t=1  figure 0.0446274  record 0.044627  (rerun-1 result.json)  OK
+f7v2_ch2dmg_windows      h   t=1  figure 0.013309  record 0.01331  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_windows      mu  t=1  figure 0.097417  record 0.0974  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_bcpinn       h   t=1  figure 0.019713  record 0.01971  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_bcpinn       mu  t=1  figure 0.27689  record 0.277  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_windowsEq    h   t=1  figure 0.053088  record 0.0531  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_windowsEq    mu  t=1  figure 0.71778  record 0.718  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_bcpinnEq     h   t=1  figure 0.1277  record 0.128  (reruns README, rerun 3)  OK
+f7v2_ch2dmg_bcpinnEq     mu  t=1  figure 1.0883  record 1.088  (reruns README, rerun 3)  OK
+f7v2_ac2dmg_bcpinnEq     u   t=1  figure 0.0040001  record 0.00400009  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_bcpinn       u   t=1  figure 0.00090957  record 0.00090957  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_causal       u   t=1  figure 0.00039185  record 0.000391852  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_causalmsffn  u   t=1  figure 0.00093464  record 0.000934635  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_exact        u   t=1  figure 0.00031132  record 0.000311318  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_growing      u   t=1  figure 0.00081682  record 0.000816819  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_plain        u   t=1  figure 0.0045407  record 0.00454066  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_rar          u   t=1  figure 0.00038586  record 0.000385861  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_rarfull      u   t=1  figure 0.00038714  record 0.000387143  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_rba          u   t=1  figure 0.000362  record 0.000362001  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_sa           u   t=1  figure 0.00011434  record 0.000114344  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_windowsEq    u   t=1  figure 0.0023931  record 0.00239314  (f7_ac2dmg_reeval.json (new reference))  OK
+f7v2_ac2dmg_windows      u   t=1  figure 0.00069617  record 0.000696168  (f7_ac2dmg_reeval.json (new reference))  OK
+
+runs identical to benchmarks/figures/fig7_v2.json: 44 of 52
+runs replaced from the rerun records: f7v2_ch1d_bcpinn, f7v2_ch1d_bcpinnEq, f7v2_ch1d_windows, f7v2_ch1d_windowsEq, f7v2_ch2dmg_bcpinn, f7v2_ch2dmg_bcpinnEq, f7v2_ch2dmg_windows, f7v2_ch2dmg_windowsEq
+
+RESULT: all final-time values agree with the records

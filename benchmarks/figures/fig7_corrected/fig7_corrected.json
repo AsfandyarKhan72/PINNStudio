@@ -1,0 +1,3899 @@
+{
+ "f7v2_ac1d_bcpinn": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1087,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00062653
+    ],
+    [
+     0.25,
+     0.00080766
+    ],
+    [
+     0.5,
+     0.0016076
+    ],
+    [
+     0.75,
+     0.0032494
+    ],
+    [
+     1.0,
+     0.0078989
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_bcpinnEq": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 607,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00075398
+    ],
+    [
+     0.25,
+     0.00073452
+    ],
+    [
+     0.5,
+     0.0017238
+    ],
+    [
+     0.75,
+     0.0031367
+    ],
+    [
+     1.0,
+     0.0054495
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_causal": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   6,
+   200,
+   5000,
+   5000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 317,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00057447
+    ],
+    [
+     0.5,
+     0.0010356
+    ],
+    [
+     0.75,
+     0.0017038
+    ],
+    [
+     1.0,
+     0.003739
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_causalmsffn": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal + MsFFN",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   6,
+   200,
+   5000,
+   5000
+  ],
+  "growing": false,
+  "msffn": "MsFFN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 421,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00040355
+    ],
+    [
+     0.5,
+     0.0004331
+    ],
+    [
+     0.75,
+     0.00060748
+    ],
+    [
+     1.0,
+     0.0013941
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_exact": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 242,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00073546
+    ],
+    [
+     0.5,
+     0.0017137
+    ],
+    [
+     0.75,
+     0.0040754
+    ],
+    [
+     1.0,
+     0.010668
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_growing": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "setup": "Time-adaptive + growing",
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   6,
+   200,
+   5000,
+   5000
+  ],
+  "growing": true,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1125,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00062653
+    ],
+    [
+     0.25,
+     0.00080766
+    ],
+    [
+     0.5,
+     0.0018878
+    ],
+    [
+     0.75,
+     0.0073854
+    ],
+    [
+     1.0,
+     0.038894
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_plain": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Plain",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   6,
+   200,
+   5000,
+   5000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 457,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00049014
+    ],
+    [
+     0.25,
+     0.006933
+    ],
+    [
+     0.5,
+     0.018986
+    ],
+    [
+     0.75,
+     0.043999
+    ],
+    [
+     1.0,
+     0.10018
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_rar": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    8000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    4000,
+    "1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + RAR",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   4000,
+   2000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 505,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00069277
+    ],
+    [
+     0.5,
+     0.001171
+    ],
+    [
+     0.75,
+     0.0018873
+    ],
+    [
+     1.0,
+     0.0043908
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_rarfull": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + RAR",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   10000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "rc": 0,
+  "seconds": 696,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00053411
+    ],
+    [
+     0.5,
+     0.00066539
+    ],
+    [
+     0.75,
+     0.00080901
+    ],
+    [
+     1.0,
+     0.0015126
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_rba": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 377,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00050209
+    ],
+    [
+     0.5,
+     0.00081636
+    ],
+    [
+     0.75,
+     0.0015426
+    ],
+    [
+     1.0,
+     0.0026702
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_sa": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 434,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     9.7965e-08
+    ],
+    [
+     0.25,
+     0.00044218
+    ],
+    [
+     0.5,
+     0.00051998
+    ],
+    [
+     0.75,
+     0.00074767
+    ],
+    [
+     1.0,
+     0.0013815
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_windows": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 793,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00062653
+    ],
+    [
+     0.25,
+     0.00080766
+    ],
+    [
+     0.5,
+     0.0015031
+    ],
+    [
+     0.75,
+     0.0027522
+    ],
+    [
+     1.0,
+     0.0065155
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac1d_windowsEq": {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 570,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00075398
+    ],
+    [
+     0.25,
+     0.00073452
+    ],
+    [
+     0.5,
+     0.0014334
+    ],
+    [
+     0.75,
+     0.00236
+    ],
+    [
+     1.0,
+     0.0041403
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_bcpinn": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 9540,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00017254
+    ],
+    [
+     0.25,
+     0.00042443
+    ],
+    [
+     0.5,
+     0.00061278
+    ],
+    [
+     0.75,
+     0.00077457
+    ],
+    [
+     1.0,
+     0.00090957
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_bcpinnEq": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 3567,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00061215
+    ],
+    [
+     0.25,
+     0.0015414
+    ],
+    [
+     0.5,
+     0.0025558
+    ],
+    [
+     0.75,
+     0.003402
+    ],
+    [
+     1.0,
+     0.0040001
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_causal": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 503,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.00021805
+    ],
+    [
+     0.5,
+     0.00034465
+    ],
+    [
+     0.75,
+     0.0003559
+    ],
+    [
+     1.0,
+     0.00039185
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_causalmsffn": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal + MsFFN",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "MsFFN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 938,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.00024481
+    ],
+    [
+     0.5,
+     0.00037903
+    ],
+    [
+     0.75,
+     0.00054451
+    ],
+    [
+     1.0,
+     0.00093464
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_exact": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 841,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.00018999
+    ],
+    [
+     0.5,
+     0.00030026
+    ],
+    [
+     0.75,
+     0.00031243
+    ],
+    [
+     1.0,
+     0.00031132
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_growing": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "setup": "Time-adaptive + growing",
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": true,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 5893,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00017254
+    ],
+    [
+     0.25,
+     0.00042443
+    ],
+    [
+     0.5,
+     0.00061072
+    ],
+    [
+     0.75,
+     0.00083683
+    ],
+    [
+     1.0,
+     0.00081682
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_plain": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Plain",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1139,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.0006812
+    ],
+    [
+     0.25,
+     0.0017452
+    ],
+    [
+     0.5,
+     0.0029061
+    ],
+    [
+     0.75,
+     0.0037351
+    ],
+    [
+     1.0,
+     0.0045407
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_rar": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    8000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    4000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + RAR",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   1000,
+   4000,
+   2000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 922,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.00023296
+    ],
+    [
+     0.5,
+     0.00036384
+    ],
+    [
+     0.75,
+     0.00039003
+    ],
+    [
+     1.0,
+     0.00038586
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_rarfull": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + RAR",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "rar": [
+   3,
+   1000,
+   10000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "rc": 0,
+  "seconds": 1854,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.00023623
+    ],
+    [
+     0.5,
+     0.00035989
+    ],
+    [
+     0.75,
+     0.00038677
+    ],
+    [
+     1.0,
+     0.00038714
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_rba": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + RBA",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 873,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     0.0001989
+    ],
+    [
+     0.5,
+     0.00031885
+    ],
+    [
+     0.75,
+     0.00035344
+    ],
+    [
+     1.0,
+     0.000362
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_sa": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + SA-PINN",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1651,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     5.021e-11
+    ],
+    [
+     0.25,
+     7.5478e-05
+    ],
+    [
+     0.5,
+     0.00011012
+    ],
+    [
+     0.75,
+     0.00010719
+    ],
+    [
+     1.0,
+     0.00011434
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_windows": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 5597,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00017254
+    ],
+    [
+     0.25,
+     0.00042443
+    ],
+    [
+     0.5,
+     0.00055532
+    ],
+    [
+     0.75,
+     0.00063912
+    ],
+    [
+     1.0,
+     0.00069617
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ac2dmg_windowsEq": {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   1
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2422,
+  "l2": {
+   "u": [
+    [
+     0.0,
+     0.00061215
+    ],
+    [
+     0.25,
+     0.0015414
+    ],
+    [
+     0.5,
+     0.0019439
+    ],
+    [
+     0.75,
+     0.0022071
+    ],
+    [
+     1.0,
+     0.0023931
+    ]
+   ]
+  },
+  "reference": "regenerated (tools/make_allen_cahn_mattey_reference_data.py); re-scored from the saved networks",
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_bcpinn": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1540,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.01946112
+    ],
+    [
+     0.25,
+     0.04389727
+    ],
+    [
+     0.5,
+     0.01823722
+    ],
+    [
+     0.75,
+     0.01465676
+    ],
+    [
+     1.0,
+     0.01719599
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     9.187647e-05
+    ],
+    [
+     0.25,
+     0.02720107
+    ],
+    [
+     0.5,
+     0.007247766
+    ],
+    [
+     0.75,
+     0.005452224
+    ],
+    [
+     1.0,
+     0.004539896
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun1_ch1d_per_time/f7v2_ch1d_bcpinn/error_metrics_{u,mu}.txt (rerun 1, job zzzzzp1_ch_f7_1d, audit/v1.6.0 79edd5d)"
+ },
+ "f7v2_ch1d_bcpinnEq": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 492,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.06943167
+    ],
+    [
+     0.25,
+     0.09690254
+    ],
+    [
+     0.5,
+     0.1026346
+    ],
+    [
+     0.75,
+     0.06025248
+    ],
+    [
+     1.0,
+     0.04462741
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     0.000345416
+    ],
+    [
+     0.25,
+     0.1382083
+    ],
+    [
+     0.5,
+     0.01987723
+    ],
+    [
+     0.75,
+     0.012306
+    ],
+    [
+     1.0,
+     0.009867964
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun1_ch1d_per_time/f7v2_ch1d_bcpinnEq/error_metrics_{u,mu}.txt (rerun 1, job zzzzzp1_ch_f7_1d, audit/v1.6.0 79edd5d)"
+ },
+ "f7v2_ch1d_causal": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 542,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.0067902
+    ],
+    [
+     0.25,
+     0.0063169
+    ],
+    [
+     0.5,
+     0.0023918
+    ],
+    [
+     0.75,
+     0.0018067
+    ],
+    [
+     1.0,
+     0.00374
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.0054296
+    ],
+    [
+     0.5,
+     0.0014024
+    ],
+    [
+     0.75,
+     0.00089198
+    ],
+    [
+     1.0,
+     0.00090627
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_causalmsffn": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal + MsFFN",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "MsFFN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 505,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.0031013
+    ],
+    [
+     0.25,
+     0.012043
+    ],
+    [
+     0.5,
+     0.0064721
+    ],
+    [
+     0.75,
+     0.0050818
+    ],
+    [
+     1.0,
+     0.0046672
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.010215
+    ],
+    [
+     0.5,
+     0.0041407
+    ],
+    [
+     0.75,
+     0.0027549
+    ],
+    [
+     1.0,
+     0.002134
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_exact": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 526,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.00759
+    ],
+    [
+     0.25,
+     0.0093445
+    ],
+    [
+     0.5,
+     0.0044501
+    ],
+    [
+     0.75,
+     0.003656
+    ],
+    [
+     1.0,
+     0.0036379
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.008304
+    ],
+    [
+     0.5,
+     0.0027867
+    ],
+    [
+     0.75,
+     0.0019846
+    ],
+    [
+     1.0,
+     0.001556
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_growing": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "setup": "Time-adaptive + growing",
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": true,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 3471,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.019461
+    ],
+    [
+     0.25,
+     0.043897
+    ],
+    [
+     0.5,
+     0.009785
+    ],
+    [
+     0.75,
+     0.01033
+    ],
+    [
+     1.0,
+     0.0076998
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     9.1876e-05
+    ],
+    [
+     0.25,
+     0.027201
+    ],
+    [
+     0.5,
+     0.0045265
+    ],
+    [
+     0.75,
+     0.0021524
+    ],
+    [
+     1.0,
+     0.0020104
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_plain": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Plain",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 567,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.034967
+    ],
+    [
+     0.25,
+     0.041348
+    ],
+    [
+     0.5,
+     0.019104
+    ],
+    [
+     0.75,
+     0.015056
+    ],
+    [
+     1.0,
+     0.021884
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     0.00011773
+    ],
+    [
+     0.25,
+     0.042241
+    ],
+    [
+     0.5,
+     0.011279
+    ],
+    [
+     0.75,
+     0.0076805
+    ],
+    [
+     1.0,
+     0.006117
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_rar": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "phases": [
+   [
+    "adam",
+    8000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    4000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + RAR",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   4000,
+   2000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 653,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.011354
+    ],
+    [
+     0.25,
+     0.012745
+    ],
+    [
+     0.5,
+     0.0086801
+    ],
+    [
+     0.75,
+     0.005848
+    ],
+    [
+     1.0,
+     0.0073957
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.011142
+    ],
+    [
+     0.5,
+     0.0052933
+    ],
+    [
+     0.75,
+     0.0034229
+    ],
+    [
+     1.0,
+     0.0028703
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_rarfull": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + RAR",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   10000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "rc": 0,
+  "seconds": 1290,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.0068017
+    ],
+    [
+     0.25,
+     0.0082657
+    ],
+    [
+     0.5,
+     0.0050771
+    ],
+    [
+     0.75,
+     0.004513
+    ],
+    [
+     1.0,
+     0.0044704
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.0071974
+    ],
+    [
+     0.5,
+     0.0032175
+    ],
+    [
+     0.75,
+     0.0023932
+    ],
+    [
+     1.0,
+     0.0018455
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_rba": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 577,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.0048459
+    ],
+    [
+     0.25,
+     0.0068973
+    ],
+    [
+     0.5,
+     0.0041921
+    ],
+    [
+     0.75,
+     0.0038397
+    ],
+    [
+     1.0,
+     0.0032772
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.0060088
+    ],
+    [
+     0.5,
+     0.002739
+    ],
+    [
+     0.75,
+     0.0019156
+    ],
+    [
+     1.0,
+     0.0012459
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_sa": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 643,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.0025723
+    ],
+    [
+     0.25,
+     0.0041194
+    ],
+    [
+     0.5,
+     0.0020235
+    ],
+    [
+     0.75,
+     0.0017186
+    ],
+    [
+     1.0,
+     0.0024172
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     1.5926e-07
+    ],
+    [
+     0.25,
+     0.0032244
+    ],
+    [
+     0.5,
+     0.0013318
+    ],
+    [
+     0.75,
+     0.0009278
+    ],
+    [
+     1.0,
+     0.00073563
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch1d_windows": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 835,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.01946112
+    ],
+    [
+     0.25,
+     0.04389727
+    ],
+    [
+     0.5,
+     0.01201545
+    ],
+    [
+     0.75,
+     0.01071491
+    ],
+    [
+     1.0,
+     0.0101353
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     9.187647e-05
+    ],
+    [
+     0.25,
+     0.02720107
+    ],
+    [
+     0.5,
+     0.007816698
+    ],
+    [
+     0.75,
+     0.005265128
+    ],
+    [
+     1.0,
+     0.00393831
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun1_ch1d_per_time/f7v2_ch1d_windows/error_metrics_{u,mu}.txt (rerun 1, job zzzzzp1_ch_f7_1d, audit/v1.6.0 79edd5d)"
+ },
+ "f7v2_ch1d_windowsEq": {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   2,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 10000,
+  "num_boundary": 200,
+  "num_initial": 512,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 279,
+  "l2": {
+   "mu": [
+    [
+     0.0,
+     0.06943167
+    ],
+    [
+     0.25,
+     0.09690254
+    ],
+    [
+     0.5,
+     0.05064253
+    ],
+    [
+     0.75,
+     0.0214027
+    ],
+    [
+     1.0,
+     0.01135638
+    ]
+   ],
+   "u": [
+    [
+     0.0,
+     0.000345416
+    ],
+    [
+     0.25,
+     0.1382083
+    ],
+    [
+     0.5,
+     0.01358461
+    ],
+    [
+     0.75,
+     0.007148921
+    ],
+    [
+     1.0,
+     0.004813099
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun1_ch1d_per_time/f7v2_ch1d_windowsEq/error_metrics_{u,mu}.txt (rerun 1, job zzzzzp1_ch_f7_1d, audit/v1.6.0 79edd5d)"
+ },
+ "f7v2_ch2dmg_bcpinn": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 16528,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.00093802
+    ],
+    [
+     0.2,
+     0.054427
+    ],
+    [
+     0.4,
+     0.060203
+    ],
+    [
+     0.6,
+     0.032013
+    ],
+    [
+     0.8,
+     0.025335
+    ],
+    [
+     1.0,
+     0.019713
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.01895
+    ],
+    [
+     0.2,
+     0.030932
+    ],
+    [
+     0.4,
+     0.034202
+    ],
+    [
+     0.6,
+     0.052758
+    ],
+    [
+     0.8,
+     0.082964
+    ],
+    [
+     1.0,
+     0.27689
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun3_per_time_bcpinn.json (rerun 3)"
+ },
+ "f7v2_ch2dmg_bcpinnEq": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": true,
+  "causal": false,
+  "rc": 0,
+  "seconds": 4273,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.0012207
+    ],
+    [
+     0.2,
+     0.14789
+    ],
+    [
+     0.4,
+     0.27123
+    ],
+    [
+     0.6,
+     0.23474
+    ],
+    [
+     0.8,
+     0.15983
+    ],
+    [
+     1.0,
+     0.1277
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.052352
+    ],
+    [
+     0.2,
+     0.13272
+    ],
+    [
+     0.4,
+     0.16602
+    ],
+    [
+     0.6,
+     0.30499
+    ],
+    [
+     0.8,
+     0.41861
+    ],
+    [
+     1.0,
+     1.0883
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun3_per_time_bcpinnEq.json (rerun 3)"
+ },
+ "f7v2_ch2dmg_causal": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 3200,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.0059574
+    ],
+    [
+     0.4,
+     0.0051617
+    ],
+    [
+     0.6,
+     0.0039917
+    ],
+    [
+     0.8,
+     0.0025668
+    ],
+    [
+     1.0,
+     0.0019756
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0065307
+    ],
+    [
+     0.2,
+     0.0049543
+    ],
+    [
+     0.4,
+     0.0059271
+    ],
+    [
+     0.6,
+     0.0049648
+    ],
+    [
+     0.8,
+     0.0081846
+    ],
+    [
+     1.0,
+     0.054849
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_causalmsffn": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + causal + MsFFN",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "MsFFN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": true,
+  "rc": 0,
+  "seconds": 3370,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.013055
+    ],
+    [
+     0.4,
+     0.011393
+    ],
+    [
+     0.6,
+     0.0062528
+    ],
+    [
+     0.8,
+     0.0051087
+    ],
+    [
+     1.0,
+     0.0040035
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0067973
+    ],
+    [
+     0.2,
+     0.010129
+    ],
+    [
+     0.4,
+     0.011115
+    ],
+    [
+     0.6,
+     0.0068015
+    ],
+    [
+     0.8,
+     0.011451
+    ],
+    [
+     1.0,
+     0.060784
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_exact": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Exact",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2384,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.0054317
+    ],
+    [
+     0.4,
+     0.0056522
+    ],
+    [
+     0.6,
+     0.0039523
+    ],
+    [
+     0.8,
+     0.0025013
+    ],
+    [
+     1.0,
+     0.0018937
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0063706
+    ],
+    [
+     0.2,
+     0.0050623
+    ],
+    [
+     0.4,
+     0.0058637
+    ],
+    [
+     0.6,
+     0.0051466
+    ],
+    [
+     0.8,
+     0.008031
+    ],
+    [
+     1.0,
+     0.05241
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_growing": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "setup": "Time-adaptive + growing",
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": true,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 7222,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.00093802
+    ],
+    [
+     0.2,
+     0.054427
+    ],
+    [
+     0.4,
+     0.047122
+    ],
+    [
+     0.6,
+     0.025928
+    ],
+    [
+     0.8,
+     0.019126
+    ],
+    [
+     1.0,
+     0.017741
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.01895
+    ],
+    [
+     0.2,
+     0.030932
+    ],
+    [
+     0.4,
+     0.026341
+    ],
+    [
+     0.6,
+     0.04844
+    ],
+    [
+     0.8,
+     0.027288
+    ],
+    [
+     1.0,
+     0.15386
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_plain": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Plain",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   500,
+   20000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2401,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.0031035
+    ],
+    [
+     0.2,
+     0.4005
+    ],
+    [
+     0.4,
+     0.64019
+    ],
+    [
+     0.6,
+     0.66722
+    ],
+    [
+     0.8,
+     0.60802
+    ],
+    [
+     1.0,
+     0.5239
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.26423
+    ],
+    [
+     0.2,
+     0.7633
+    ],
+    [
+     0.4,
+     0.69269
+    ],
+    [
+     0.6,
+     0.52875
+    ],
+    [
+     0.8,
+     1.2022
+    ],
+    [
+     1.0,
+     4.7249
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_rar": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "phases": [
+   [
+    "adam",
+    8000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    4000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "setup": "Exact + RAR",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   1000,
+   4000,
+   2000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2381,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.027354
+    ],
+    [
+     0.4,
+     0.047991
+    ],
+    [
+     0.6,
+     0.03474
+    ],
+    [
+     0.8,
+     0.024275
+    ],
+    [
+     1.0,
+     0.020679
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.01726
+    ],
+    [
+     0.2,
+     0.030998
+    ],
+    [
+     0.4,
+     0.03544
+    ],
+    [
+     0.6,
+     0.052442
+    ],
+    [
+     0.8,
+     0.034961
+    ],
+    [
+     1.0,
+     0.11475
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_rarfull": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Exact + RAR",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "rar": [
+   3,
+   1000,
+   10000,
+   10000
+  ],
+  "growing": false,
+  "msffn": "FNN",
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "rc": 0,
+  "seconds": 4931,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.0050657
+    ],
+    [
+     0.4,
+     0.0049176
+    ],
+    [
+     0.6,
+     0.0038482
+    ],
+    [
+     0.8,
+     0.0024538
+    ],
+    [
+     1.0,
+     0.0017257
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0063414
+    ],
+    [
+     0.2,
+     0.0043781
+    ],
+    [
+     0.4,
+     0.0050289
+    ],
+    [
+     0.6,
+     0.0045228
+    ],
+    [
+     0.8,
+     0.007634
+    ],
+    [
+     1.0,
+     0.038284
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_rba": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Exact + RBA",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2407,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.0093627
+    ],
+    [
+     0.4,
+     0.0097681
+    ],
+    [
+     0.6,
+     0.0068715
+    ],
+    [
+     0.8,
+     0.0050519
+    ],
+    [
+     1.0,
+     0.0041088
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0091802
+    ],
+    [
+     0.2,
+     0.009157
+    ],
+    [
+     0.4,
+     0.0079197
+    ],
+    [
+     0.6,
+     0.0074674
+    ],
+    [
+     0.8,
+     0.012684
+    ],
+    [
+     1.0,
+     0.05889
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_sa": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Exact + SA-PINN",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0"
+   ]
+  ],
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "windows": null,
+  "causal": false,
+  "rc": 0,
+  "seconds": 2417,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     8.5169e-07
+    ],
+    [
+     0.2,
+     0.0048525
+    ],
+    [
+     0.4,
+     0.0042357
+    ],
+    [
+     0.6,
+     0.0034923
+    ],
+    [
+     0.8,
+     0.0021431
+    ],
+    [
+     1.0,
+     0.0017456
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.0070146
+    ],
+    [
+     0.2,
+     0.0045297
+    ],
+    [
+     0.4,
+     0.0044575
+    ],
+    [
+     0.6,
+     0.0042602
+    ],
+    [
+     0.8,
+     0.0077623
+    ],
+    [
+     1.0,
+     0.04876
+    ]
+   ]
+  },
+  "source": "benchmarks/figures/fig7_v2.json (unchanged)"
+ },
+ "f7v2_ch2dmg_windows": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    20000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    10000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 5364,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.00093802
+    ],
+    [
+     0.2,
+     0.054427
+    ],
+    [
+     0.4,
+     0.04401
+    ],
+    [
+     0.6,
+     0.021511
+    ],
+    [
+     0.8,
+     0.01618
+    ],
+    [
+     1.0,
+     0.013309
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.01895
+    ],
+    [
+     0.2,
+     0.030932
+    ],
+    [
+     0.4,
+     0.027414
+    ],
+    [
+     0.6,
+     0.024064
+    ],
+    [
+     0.8,
+     0.028339
+    ],
+    [
+     1.0,
+     0.097417
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun3_per_time_windows.json (rerun 3)"
+ },
+ "f7v2_ch2dmg_windowsEq": {
+  "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "phases": [
+   [
+    "adam",
+    5000,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ],
+   [
+    "lbfgs",
+    2500,
+    "1.0,1.0,1.0,1.0,1.0,1.0,100.0"
+   ]
+  ],
+  "windows": "[{\"t_start\": 0.0, \"t_end\": 1.0, \"steps\": 4}]",
+  "layers": [
+   3,
+   128,
+   128,
+   128,
+   128,
+   128,
+   128,
+   2
+  ],
+  "num_domain": 20000,
+  "num_boundary": 1600,
+  "num_initial": 4096,
+  "backward": false,
+  "causal": false,
+  "rc": 0,
+  "seconds": 1499,
+  "l2": {
+   "h": [
+    [
+     0.0,
+     0.0012207
+    ],
+    [
+     0.2,
+     0.14789
+    ],
+    [
+     0.4,
+     0.23531
+    ],
+    [
+     0.6,
+     0.16627
+    ],
+    [
+     0.8,
+     0.087253
+    ],
+    [
+     1.0,
+     0.053088
+    ]
+   ],
+   "mu": [
+    [
+     0.0,
+     0.052352
+    ],
+    [
+     0.2,
+     0.13272
+    ],
+    [
+     0.4,
+     0.15073
+    ],
+    [
+     0.6,
+     0.17511
+    ],
+    [
+     0.8,
+     0.25756
+    ],
+    [
+     1.0,
+     0.71778
+    ]
+   ]
+  },
+  "source": "benchmarks/records/reruns_2026-11-01/rerun3_per_time_windowsEq.json (rerun 3)"
+ }
+}
