@@ -29,6 +29,12 @@ saying so): these configurations are identical by construction, and the check sh
 runs on its own and reproduces Solve's training. The records of the check say which configurations are of this
 kind.
 
+**Latest result** (v1.6.0 code, commit 2ea54c3; Python 3.11.5, PyTorch 2.5.1 on the CPU, DeepXDE 1.15.0): of 93
+example-mode configurations, 4 were skipped and **all 89 others were bitwise identical**. 88 of them compare two
+independently generated scripts; 1 (1D Cahn-Hilliard of Mattey & Ghosh with the bc-PINN windows) is identical by
+construction. No configuration differed or failed. A separate check of that example's current Tuned setting (38 time
+windows with SA-PINN weights), which the exporter writes with its own generator, was also bitwise identical.
+
 **What the check covers.** Each example's Tuned settings, training shortened as described above, CPU only, one
 machine. The parameter-sweep example and the inverse mode of templates that have none are skipped. Default settings,
 GPU runs, full-length training and problems of your own are not covered. The latest record is
