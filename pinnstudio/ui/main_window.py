@@ -1321,7 +1321,8 @@ class MainWindow(QMainWindow):
 
     def _show_about(self):
         box = QMessageBox(self)
-        box.setWindowTitle("About PINNStudio")
+        box.setObjectName("aboutPINNStudio")
+        box.setWindowTitle("About PINNStudio")      # (macOS shows no title on message boxes)
         box.setTextFormat(Qt.TextFormat.RichText)
         box.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
         box.setText(self._about_text())

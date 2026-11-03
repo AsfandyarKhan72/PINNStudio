@@ -40,11 +40,11 @@ def test_help_menu_and_about_text():
         def _close():
             for top in QApplication.topLevelWidgets():
                 if isinstance(top, QMessageBox) and top.isVisible():
-                    seen.append(top.windowTitle())
+                    seen.append(top.objectName())       # not the title: macOS shows none on message boxes
                     top.accept()
         QTimer.singleShot(300, _close)
         w._show_about()
-        assert seen == ["About PINNStudio"], seen
+        assert seen == ["aboutPINNStudio"], seen
     finally:
         w.close()
         w.deleteLater()

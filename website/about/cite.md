@@ -14,8 +14,8 @@ repository** button formats it for you. It gives the version number and no DOI.
 }
 ```
 
-Add the number of the version you used, for example `version = {1.6.0}`. You can see the installed version
-with `pip show pinnstudio`.
+Add the number of the version you used, for example `version = {1.6.0}`. You can see the version in PINNStudio
+under **Help › About PINNStudio**, or with `pip show pinnstudio`.
 
 ## The paper
 
