@@ -1,0 +1,12 @@
+79edd5d Initial condition with t: t means t_min
+['f7v2_ch1d_plain', 'f7v2_ch1d_windows', 'f7v2_ch1d_bcpinn', 'f7v2_ch1d_windowsEq', 'f7v2_ch1d_bcpinnEq']
+== f7v2_ch1d_plain: Plain | [('adam', 20000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0'), ('lbfgs', 10000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0')] ta=False ic_hard=False,False per=False validate=[]
+== f7v2_ch1d_windows: Time-adaptive | [('adam', 20000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0'), ('lbfgs', 10000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0')] ta=True ic_hard=False,False per=True validate=[]
+== f7v2_ch1d_bcpinn: Time-adaptive + backward | [('adam', 20000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0'), ('lbfgs', 10000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0')] ta=True ic_hard=False,False per=True validate=[]
+== f7v2_ch1d_windowsEq: Time-adaptive | [('adam', 5000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0'), ('lbfgs', 2500, '1.0,1.0,1.0,1.0,1.0,1.0,100.0')] ta=True ic_hard=False,False per=True validate=[]
+== f7v2_ch1d_bcpinnEq: Time-adaptive + backward | [('adam', 5000, '1.0,1.0,1.0,1.0,1.0,1.0,100.0'), ('lbfgs', 2500, '1.0,1.0,1.0,1.0,1.0,1.0,100.0')] ta=True ic_hard=False,False per=True validate=[]
+== scripts built (rc=0); 4 to run, 1 already done
+-- f7v2_ch1d_windows rc=0 835 s  t=0:9.19e-05  t=0.25:2.72e-02  t=0.5:7.82e-03  t=0.75:5.27e-03  t=1:3.94e-03
+-- f7v2_ch1d_bcpinn rc=0 1540 s  t=0:9.19e-05  t=0.25:2.72e-02  t=0.5:7.25e-03  t=0.75:5.45e-03  t=1:4.54e-03
+-- f7v2_ch1d_windowsEq rc=0 279 s  t=0:3.45e-04  t=0.25:1.38e-01  t=0.5:1.36e-02  t=0.75:7.15e-03  t=1:4.81e-03
+-- f7v2_ch1d_bcpinnEq rc=0 492 s  t=0:3.45e-04  t=0.25:1.38e-01  t=0.5:1.99e-02  t=0.75:1.23e-02  t=1:9.87e-03
