@@ -47,13 +47,13 @@ def test_ch1d_mattey_ghosh_selects_windows2(recs):
     assert r["paper_runs"]["paper_mg"]["judged"] > 10 * judged["windows2"]
 
 
-def test_tuned_settings_file_matches_the_selection(recs):
+def test_tuned_settings_file_matches_the_selection(recs, tmp_path):
     """pinnstudio/resources/tuned_settings.json is what write_tuned() writes from these records."""
     mb, rs = recs
     shipped = json.load(open(mb.TUNED_JSON, encoding="utf-8"))
     path = mb.TUNED_JSON
     try:
-        mb.TUNED_JSON = os.path.join(os.environ.get("PYTEST_TMP", "/tmp"), "tuned_check.json")
+        mb.TUNED_JSON = str(tmp_path / "tuned_check.json")
         mb.write_tuned(rs)
         built = json.load(open(mb.TUNED_JSON, encoding="utf-8"))
     finally:
