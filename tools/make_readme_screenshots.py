@@ -5,7 +5,8 @@ Burgers 1D – Raissi et al. is loaded from the Examples list (Settings: Default
   assets/screenshots/interface.png       the Equations page and Results → Overview, after the run
   assets/screenshots/error_analysis.png  Results → Error analysis after the run (the results pane only)
 
-    QT_QPA_PLATFORM=offscreen python tools/make_readme_screenshots.py           (full training: use a GPU)
+    QT_QPA_PLATFORM=offscreen PINNSTUDIO_DOCS_HOME=/home/researcher python tools/make_readme_screenshots.py
+                                          (full training; the neutral home keeps build-machine paths out)
     QT_QPA_PLATFORM=offscreen python tools/make_readme_screenshots.py --quick   (short training, to check this
                                                                                   script; writes to a temp folder)
 """
@@ -18,6 +19,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import pinnstudio.main  # noqa: F401,E402  (loads PyTorch before PySide6 on Windows)
+sys.path.insert(0, os.path.join(ROOT, "tools", "docs"))
+if os.environ.get("PINNSTUDIO_DOCS_HOME"):                # a new, neutral home folder (tools/docs/_docs_home.py)
+    from _docs_home import private_home  # noqa: E402
+    private_home()
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
 
 QUICK = "--quick" in sys.argv
@@ -44,7 +49,11 @@ def main():
     w.resize(*SIZE)
     w.show()
     pump(1.0)
-    save = tempfile.mkdtemp(prefix="PINNStudio_Results_")
+    # with PINNSTUDIO_DOCS_HOME (e.g. /home/researcher, as for the documentation's screenshots) the results go
+    # to that neutral home, so no build-machine path shows in the images; otherwise a private temp folder
+    save = (os.path.join(os.environ["HOME"], "PINNStudio_Results") if os.environ.get("PINNSTUDIO_DOCS_HOME")
+            else tempfile.mkdtemp(prefix="PINNStudio_Results_"))
+    os.makedirs(save, exist_ok=True)
     w.save_dir_input.setText(save)
     w.quick_examples_category_combo.setCurrentText("Forward")
     pump(0.3)
