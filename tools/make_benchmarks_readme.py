@@ -469,9 +469,38 @@ def _judged(r):
     """The error a forward run is judged by: its main output's L2 at the last reference time, or for a
     Cahn-Hilliard problem the worse of that and the chemical potential mu's (a solution with mu far off is
     not solved, however good h is)."""
+    key = (ts._slug(r["example"]) + ("_inv" if r["inverse"] else ""), r["variant"], str(r["seed"]))
+    _require_summary(r, key)
     l2 = mtp._maxl2(r)
-    mu = (OUTS.get((ts._slug(r["example"]) + ("_inv" if r["inverse"] else ""), r["variant"], str(r["seed"]))) or {}).get("mu")
+    mu = (OUTS.get(key) or {}).get("mu")
     return max(l2, mu) if (l2 is not None and mu is not None) else l2
+
+
+class MissingSummary(RuntimeError):
+    """A finished run that the selection needs has no primary record (see _require_summary)."""
+
+
+def _require_summary(r, key):
+    """Without its primary entry a run would be judged by the worst error it printed (any output, any time;
+    mtp._maxl2's fallback), and a Cahn-Hilliard run without mu, by its main output alone: a different metric from
+    the other runs it is compared with. Once primary records are loaded, a finished run of a problem that has
+    primary records must have its own entry, and a Cahn-Hilliard run must have mu; otherwise the build stops."""
+    if not mtp.PRIMARY or r.get("rc") not in (0, None) or not r.get("l2"):
+        return
+    if not any(k[0] == key[0] for k in mtp.PRIMARY):
+        return                                   # a problem the primary records do not cover: the logged errors are its metric
+    if key not in mtp.PRIMARY:
+        raise MissingSummary(f"{key}: finished run without a primary record (its main-output error at the last "
+                             "reference time); add it with tools/build_rerun_summaries.py")
+    if "Cahn-Hilliard" in r["example"] and "mu" not in (OUTS.get(key) or {}):
+        raise MissingSummary(f"{key}: Cahn-Hilliard run without the chemical potential's error in its primary record")
+    # the record must belong to this run: its values are among the errors the run itself printed (a primary entry
+    # left over from an earlier run of the same variant and seed, e.g. before a rerun, is not)
+    vals = [mtp.PRIMARY[key]] + list((OUTS.get(key) or {}).get(k) for k in ("mu",) if (OUTS.get(key) or {}).get(k))
+    for v in vals:
+        if not any(abs(v - x) <= 5e-4 * abs(v) for x in r["l2"]):
+            raise MissingSummary(f"{key}: primary record {v:.5g} is not among the errors this run printed "
+                                 f"({len(r['l2'])} values); the record is from another run")
 
 
 def _pick(s, inverse):
@@ -2433,11 +2462,25 @@ def split_paper(md):
 
 
 def load_primary(path):
-    """The runs' main-output errors (mtp.PRIMARY) and every output's error (OUTS) from primary.json."""
+    """The runs' main-output errors (mtp.PRIMARY) and every output's error (OUTS) from primary.json.
+
+    `path` may list several files, comma-separated; a later file's entry replaces an earlier one for the same run
+    (run folder, variant, seed), and an entry with "l2": null removes it (a rerun that left no result: the older
+    value must not be used; see tools/build_rerun_summaries.py)."""
+    for p in [x for x in path.split(",") if x]:
+        _load_primary_file(p)
+
+
+def _load_primary_file(path):
     for slug, vs in json.load(open(path, encoding="utf-8")).items():
         for variant, runs in vs.items():
             for r in runs:
-                mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
+                key = (slug, variant, str(r["seed"]))
+                if r.get("l2") is None:
+                    mtp.PRIMARY.pop(key, None)
+                    OUTS.pop(key, None)
+                    continue
+                mtp.PRIMARY[key] = r["l2"]
                 if r.get("outs"):
                     o = dict(r["outs"])
                     # μ of the Cahn-Hilliard templates decays to almost zero, so its relative L2 looks large:

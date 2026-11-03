@@ -652,11 +652,17 @@ def main():
     ap.add_argument("--primary", default="", help="primary.json: each run's main-output error at the last time, "
                                                   "read from the run logs")
     args = ap.parse_args()
-    if args.primary:
-        for slug, vs in json.load(open(args.primary, encoding="utf-8")).items():
+    # several primary files, comma-separated: a later file's entry replaces an earlier one, and "l2": null removes it
+    # (a rerun that left no result; see tools/build_rerun_summaries.py)
+    for path in [x for x in args.primary.split(",") if x]:
+        for slug, vs in json.load(open(path, encoding="utf-8")).items():
             for variant, runs in vs.items():
                 for r in runs:
-                    PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
+                    key = (slug, variant, str(r["seed"]))
+                    if r.get("l2") is None:
+                        PRIMARY.pop(key, None)
+                    else:
+                        PRIMARY[key] = r["l2"]
     rows = _load(args.results)
     summ = summarize(rows)
     # examples left out of PINNStudio's lists (e.g. DeepXDE's Allen-Cahn 1D) are left out here too
