@@ -18,16 +18,17 @@
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/help/faq/">FAQ</a></strong>
 </p>
 
-PINNStudio is a desktop application for solving ordinary and partial differential equations with
-physics-informed neural networks (PINNs). You set up a problem in one window: the equations, the domain, the
-boundary and initial conditions, the network and how it is trained. PINNStudio writes a DeepXDE/PyTorch script
-from these settings, trains it while showing the loss, and compares the solution with reference data or an exact
-formula. The same script can be exported, so every run can be read, rerun and shared outside the program.
+PINNStudio is an open-source desktop application for building, training, and evaluating physics-informed neural
+networks (PINNs) through a graphical interface. It supports forward and inverse problems involving ordinary and
+partial differential equations, including coupled systems in up to three spatial dimensions. Users can define
+governing equations, computational domains, initial and boundary conditions, neural network architectures, and
+training strategies without writing problem-specific Python code.
 
-It is meant for researchers and students in science and engineering who want to use PINNs without writing a new
-script for every problem, including people who are new to scientific machine learning. It handles forward
-problems, where the equation is known and the solution is wanted, and inverse problems, where unknown coefficients
-or fields are learned from measured data.
+Built on DeepXDE and PyTorch, PINNStudio generates executable Python scripts from the configured problem, runs
+training with live monitoring, and provides solution visualization, reference-based error analysis, and model
+restoration. The generated scripts can also be exported for independent execution and further customization.
+PINNStudio is intended for researchers, engineers, and students who want to apply PINNs while retaining access to
+the underlying numerical implementation.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
@@ -189,7 +190,7 @@ The examples that reproduce published benchmarks follow the problem setups of th
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 
-The authors appreciate the support of the National Science Foundation grant 2602175. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
+The authors acknowledge support from the National Science Foundation under Award No. 2602175. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
 
 ## Contributing
 

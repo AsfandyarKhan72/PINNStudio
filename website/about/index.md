@@ -16,7 +16,7 @@ and Qt for Python (PySide6). DeepXDE is the physics-informed learning library th
 documented examples are included among PINNStudio's examples, each linked to its original script. PINNStudio is an
 independent project and is not affiliated with or endorsed by the DeepXDE developers.
 
-The authors appreciate the support of the National Science Foundation grant DMR-2142935, and acknowledge the
+The authors acknowledge support from the National Science Foundation under Award No. 2602175, and acknowledge the
 high-performance computing support of the Borah compute cluster (DOI: [10.18122/oit/3/boisestate](https://doi.org/10.18122/oit/3/boisestate))
 provided by Boise State University's Research Computing Department.
 
