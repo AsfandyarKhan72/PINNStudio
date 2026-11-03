@@ -189,7 +189,7 @@ The examples that reproduce published benchmarks follow the problem setups of th
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 
-The authors appreciate the support of the National Science Foundation grant DMR-2142935. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
+The authors appreciate the support of the National Science Foundation grant 2602175. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
 
 ## Contributing
 
