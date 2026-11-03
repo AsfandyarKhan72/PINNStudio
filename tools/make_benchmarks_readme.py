@@ -2110,16 +2110,30 @@ def write_tuned(recs):
     """Examples -> Settings: Tuned: each example's PINNStudio best as the changes to its own settings
     (pinnstudio/core/example_settings.py)."""
     out = {}
+
+    def mu_of(rows, v):
+        # a Cahn-Hilliard run is selected by the worse of h and mu (_judged), so its message gives mu as well
+        m = _outs(rows or [], v).get("mu")
+        return f" (\u03bc {m:.1e})" if m is not None else ""
+
     for r in recs:
         e, ent = r["entry"], {}
         fs = r.get("f_best_s")
         if r.get("f_best_paper"):
-            ent["forward"] = dict(switches=None, variant=r["f_best_paper"], error=f"L2 {r['f_best']:.1e}")
+            v = r["f_best_paper"]
+            ent["forward"] = dict(switches=None, variant=v,
+                                  error=f"L2 {r['f_best']:.1e}" + mu_of(r["_paper_rows"].get(v), v))
         elif fs and (fs["chosen"] != "base" or r.get("f_best_is_setup")):
+            ref_rows = ((r.get("f_plain_s") or {}).get("variants") or {}).get("base")
+            best_mu, ref_mu = mu_of(fs["variants"][fs["chosen"]], fs["chosen"]), mu_of(ref_rows, "base")
+            # the comparison only when both numbers are the same measure (a Cahn-Hilliard reference without mu,
+            # such as a value from benchmarks/tuning/readme_results.json, is not)
+            same = bool(best_mu) == bool(ref_mu)
             ent["forward"] = dict(switches=ts.BEST_FORWARD.get(e.key) if r.get("f_best_is_setup") else None,
                                   variant=fs["chosen"],
-                                  error=f"L2 {r['f_best']:.1e}" + (f" vs {r['f_ref']:.1e} with its own settings"
-                                                                  if r.get("f_ref") else ""))
+                                  error=f"L2 {r['f_best']:.1e}" + best_mu
+                                  + (f" vs {r['f_ref']:.1e}{ref_mu} with its own settings"
+                                     if r.get("f_ref") and same else ""))
         iv = r.get("i_s")
         if iv and iv["chosen"] != "base":
             v = iv["chosen"]
