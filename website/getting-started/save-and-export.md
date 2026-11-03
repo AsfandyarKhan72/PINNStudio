@@ -57,13 +57,11 @@ those of PINNStudio's configuration (`PINNConfig`, see [Configuration schema](..
 
 A saved problem does **not** contain trained models, results or the data files themselves: measured data and
 reference files are stored as paths. Keep them where they are, or open the problem and point it at their new place.
-
-!!! info "New in v1.6.0 (in development)"
-    Paths to files in PINNStudio's own `reference_data` folder (the reference and measured data of the examples) are
-    saved as `@REF/...`, relative to that folder, and opening a problem points them at the `reference_data` folder
-    of the installation that opens it. A problem saved from an example therefore finds its data on another
-    computer, and a file saved by an earlier version with a full path into another computer's `reference_data` is
-    repaired when it is opened. Paths to your own files are saved as they are.
+Paths to your own files are saved as they are. Paths to files in PINNStudio's own `reference_data` folder (the
+reference and measured data of the examples) are saved as `@REF/...`, relative to that folder, and opening a problem
+points them at the `reference_data` folder of the installation that opens it. A problem saved from an example
+therefore finds its data on another computer, and a full path into another computer's `reference_data` folder is
+repaired when the file is opened.
 
 ## Opening a saved problem
 
@@ -107,12 +105,11 @@ What to keep in mind:
   (measured data, reference data, initial conditions or points from files). On another computer, edit these paths
   near the top of the script, or copy the files to the same places.
 - The script is meant to train the same model as **Solve**. The project checks that both scripts train the same
-  model for the built-in examples (see [Export equivalence](../reproducibility/export-equivalence.md)). In the
-  development version (v1.6.0), with the new time-window options (growing time range, backward compatibility,
-  initial-condition guided learning, resampling in each window) the export is the script **Solve** itself runs,
-  with a note at the top.
-- **Export solution data** (on the **Results** page) is written only by a run from the window. In the development
-  version, the exported script says so in its header when that option is on.
+  model for the built-in examples (see [Export equivalence](../reproducibility/export-equivalence.md)). With the
+  time-window options growing time range, backward compatibility, initial-condition guided learning or resampling
+  in each window, the export is the script **Solve** itself runs, with a note at the top.
+- **Export solution data** (on the **Results** page) is written only by a run from the window. The exported script
+  says so in its header when that option is on.
 
 For the terms under which generated scripts can be used and shared, see [License](../about/license.md); the libraries
 a script imports keep their own licenses ([Dependencies and attribution](../about/dependencies.md)).

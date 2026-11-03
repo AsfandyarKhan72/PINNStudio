@@ -6,9 +6,6 @@ refuses, and a shipped example that uses it. The [User guide](../guide/index.md)
 by page; the [Tutorials](../tutorials/index.md) walk through complete problems; the
 [Theory](../theory/index.md) section gives the background.
 
-These pages describe the development version that will become **v1.6.0**. Behaviour that exists only in
-that version is marked with a "New in v1.6.0 (in development)" box. The released version on PyPI is
-v1.5.0.
 
 !!! note "Scope"
     PINNStudio helps you set up, train and evaluate physics-informed neural networks. It does not

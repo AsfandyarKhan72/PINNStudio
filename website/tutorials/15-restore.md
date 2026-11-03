@@ -77,7 +77,6 @@ settings were saved and reloaded consistently.
 !!! note "Error Analysis with a formula after restoring"
     When the run compared with an **Exact solution formula**, Restore uses the reference files that run wrote
     (its `reference_from_formula/` folder, next to `solution_results/`), so keep that folder with the model.
-    New in v1.6.0: earlier versions looked for them in the wrong folder and skipped the comparison.
 
 ## Troubleshooting
 

@@ -35,10 +35,6 @@ The solution over the whole interval is the piecewise function \(u(\mathbf{x}, t
 \(t \in [t_k, t_{k+1}]\). Each window's models are saved in its own folder, and Error Analysis evaluates each
 reference time with the network of its window.
 
-!!! info "Weights of later windows: changed in v1.6.0 (in development)"
-    In v1.5.0 every loss weight was replaced by 1 from the second window on; the development version maps the
-    weights as described above.
-
 ### Transfer learning
 
 Without transfer learning every window starts from a freshly initialised network. With
@@ -49,14 +45,10 @@ window ended.
 
 ## One network through all windows
 
-!!! info "New in v1.6.0 (in development)"
-    The growing time range, backward compatibility (bc-PINN), initial-condition guided learning and resampling
-    in each window are new in the development version. With any of them on, **Export as DeepXDE Script...**
-    writes the full script that Solve runs.
-
 The growing time range and backward compatibility need transfer learning (the configuration is refused
 otherwise), so that one network is trained through all windows; IC-guided learning and resampling also work
-without it.
+without it. With any of these four options on, **Export as DeepXDE Script...** writes the full script that Solve
+runs.
 
 ### Growing time range
 

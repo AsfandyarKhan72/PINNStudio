@@ -105,11 +105,6 @@ Refused by `validate()`:
 The page warns (without refusing) when causal training is also on: both reweight the same residuals and
 together did worse than either alone in PINNStudio's benchmarks.
 
-!!! info "New in v1.6.0 (in development)"
-    Per-point weights with a point resampler (the Point Resampling callback, or a batched Point Set
-    condition) are refused; the weights used to start over at every resampling, which silently turned the
-    method off.
-
 ## Common mistakes and troubleshooting
 
 - **The loss grows without bound with SA-PINN**: tick **Keep the mean weight at 1**, or lower the weights'

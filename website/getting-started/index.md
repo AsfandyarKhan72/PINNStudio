@@ -29,8 +29,8 @@ documentation for newcomers, for experienced PINN users and for developers.
 
 ## The path through this section
 
-1. **[Installation](installation.md).** Install the current release with one command or with `pip`, or install
-   the development version from source. The page also covers CPU-only and NVIDIA GPU installations of PyTorch.
+1. **[Installation](installation.md).** Install PINNStudio with one command, with `pip`, or from source. The page
+   also covers CPU-only and NVIDIA GPU installations of PyTorch.
 2. **[First run](first-run.md).** Start PINNStudio, load an example from the **Examples** list, press **Solve**
    and follow the run in the **Training Log** and the **Results** tab.
 3. **[Save, reopen and export](save-and-export.md).** Save the problem as a `.pinn.json` file, open it again later,
@@ -41,10 +41,6 @@ After this section, the [User guide](../guide/index.md) explains every page of t
 [Tutorials](../tutorials/index.md) work through complete problems, from a first ODE to inverse problems and
 adaptive training. If something goes wrong on the way, see [Troubleshooting](../help/troubleshooting.md).
 
-!!! info "Versions"
-    The current release on PyPI is **v1.5.0**. This documentation describes the development version that will
-    become **v1.6.0**. Features and fixes that exist only in the development version are marked
-    *New in v1.6.0 (in development)*. The [Installation](installation.md) page explains how to install either.
 
 ## Demo video
 

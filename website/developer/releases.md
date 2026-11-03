@@ -6,22 +6,20 @@
     the procedure as it is recorded in the repository (its files, workflows and history); it is not a promise
     of a schedule.
 
-The latest release is **v1.5.0** (git tag `v1.5.0`, on PyPI). The development version described on this site
-will become **v1.6.0**. The difference between releases and the development source, and the list of releases, is
-on [Release history](../about/changelog.md#versions).
+The list of releases is on [Release history](../about/changelog.md#versions).
 
 ## Version numbers
 
 Versions are `MAJOR.MINOR.PATCH` and tags are `v` plus the version (`v1.4.0`, `v1.5.0`, ...). The version appears
 in:
 
-- `setup.py` (`version=...`): the number of the latest release, changed to the new number when it is published;
-- `CITATION.cff`: in the development source it carries no version or release date; both are added for a release;
+- `pinnstudio/__init__.py` (`__version__ = ...`): the one place the version number is set; `setup.py` and the
+  window's *About PINNStudio* read it;
+- `CITATION.cff`: `version` and `date-released`, set for a release;
 - `CHANGELOG.md`: one heading per released version.
 
-The running application reads its own version from the installed package metadata
-(`importlib.metadata.version("pinnstudio")`), and the "newer version available" notice compares it with the
-latest version on PyPI.
+The running application reports `pinnstudio.__version__` (Help › About PINNStudio, and the version saved in problem
+files), and the "newer version available" notice compares it with the latest version on PyPI.
 
 ## Changelog
 
@@ -41,7 +39,7 @@ the commits leading to the `v1.5.0` tag):
 2. **Checks of the examples and results**, as the change requires: `tools/check_export_equivalence.py`,
    `tools/run_deepxde_examples.py`, and the benchmark pages and figures regenerated from the recorded runs
    (`tools/make_benchmarks_readme.py`, `tools/check_benchmarks_figures.py`).
-3. **Version commit.** One commit sets the version in `setup.py` and `CITATION.cff` and moves the changelog
+3. **Version commit.** One commit sets the version in `pinnstudio/__init__.py` and `CITATION.cff` and moves the changelog
    entries under the new version heading.
 4. **Merge into `main`.** The development branch is merged into `main` (for 1.5.0: "Merge branch 'cleanup' into
    main (release 1.5.0)").
@@ -58,16 +56,12 @@ the commits leading to the `v1.5.0` tag):
 
 Before the version commit:
 
-- [ ] **Version banner.** In `mkdocs.yml`, set `extra.released_version` to the new version and change
-      `extra.version_label` (for example to `"v1.6.0"`). Every page's banner and the "new in" notes read these.
 - [ ] **Source-code links.** After the tag `vX.Y.Z` exists, set `extra.source_ref` in `mkdocs.yml` from `main` to
       the tag (this one value is the base of every source-code link: `extra.repo_blob` + `extra.source_ref` + path),
       then run `python tools/docs/make_source_links.py` and `python tools/docs/make_gallery.py` and commit the
       changed snippets and gallery pages. Do not set it to a tag that does not exist yet.
 - [ ] **Edit links.** `edit_uri` in `mkdocs.yml` points to `main` (`edit/main/website/`) once the documentation
       branch has been merged, so **Edit this page** and **View source of this page** open the merged files.
-- [ ] **"New in" notes.** Notes such as `!!! info "New in v1.6.0"` stay; they tell readers of the released
-      version what changed. Remove the "in development" wording from them.
 - [ ] **Installation page.** The version installed by `pip install pinnstudio` and the installers.
 - [ ] **Changelog page.** `website/about/changelog.md` follows `CHANGELOG.md`.
 - [ ] **Generated pages.** `python tools/docs/make_gallery.py` (example gallery),
@@ -77,13 +71,13 @@ Before the version commit:
       committed.
 - [ ] **Screenshots.** If the interface changed, regenerate them with the three commands in
       `tools/docs/README.md` and look through the changed images before committing.
-- [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version; remove
-  the README's *Development version* note (the README is also the PyPI description).
+- [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version (the
+  README is also the PyPI description).
 - [ ] **Strict build and link check pass** on the pull request (the `docs.yml` workflow).
 - [ ] **Deploy** after the release is tagged (`tools/docs/DEPLOY.md`, step 5) and check the live site.
 
 ## After a release
 
-The development source continues under a new *Unreleased* section of the changelog. Problems saved by the
+Further changes are recorded under a new *Unreleased* section of the changelog. Problems saved by the
 released version must keep opening in later versions: a configuration field that is renamed or removed needs a
 fallback when a saved problem is loaded (see the legacy fields in [Configuration schema](config.md)).

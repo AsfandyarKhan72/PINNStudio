@@ -47,21 +47,18 @@ the comparison figures. The status bar shows the mean relative L₂ error too.
 
 The run folder's `error_analysis/` folder holds the figures (`line_comparison.png`,
 `surface_comparison.png`) and the numbers (`error_metrics.txt`, one file per output when there are several).
+Error Analysis also gives the relative L₂ error over all reference times together (every reference point at every
+time), in the Training Log and in `error_spacetime.txt`. A 3D problem on a box also gets a 3D view,
+`view3d_comparison.png`: the PINN's surface where the field has a given value, and the error on the box with a
+corner cut away. The value is set in **Plot settings**, **Surface** tab, **3D view surface level** (blank: the
+middle of the reference's range).
 
 The tab's table shows the relative L₂ and mean absolute error only; **MSE** and **Max Error**, when ticked,
 are in the `error_metrics` files and the Training Log. The table has no output column: with several outputs (an
 ODE system, for example) it lists each output's rows one after the other, in output order, and its summary line
 counts each output's row as a reference time. `error_spacetime.txt` is written for time-dependent PDEs only.
-
-!!! info "New in v1.6.0 (in development)"
-    - Error Analysis also gives the relative L₂ error over all reference times together (every
-      reference point at every time), in the Training Log and in `error_spacetime.txt`.
-    - A 3D problem on a box also gets a 3D view, `view3d_comparison.png`: the PINN's surface where the
-      field has a given value, and the error on the box with a corner cut away. The value is set in
-      **Plot settings**, **Surface** tab, **3D view surface level** (blank: the middle of the reference's
-      range).
-    - With a reference file that names no output (`t_<time>.txt`) on a problem with several outputs, the
-      log names the field it compares (the one the Results page plots).
+With a reference file that names no output (`t_<time>.txt`) on a problem with several outputs, the log names the
+field it compares (the one the Results page plots).
 
 ## How Error Analysis connects to other features
 

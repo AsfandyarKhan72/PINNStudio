@@ -3,16 +3,16 @@
 PINNStudio is a Python package. It runs on Linux, Windows and macOS, trains on the CPU or on an NVIDIA GPU, and
 needs an internet connection while it is installed (to download PyTorch, DeepXDE, PySide6 and the other packages).
 
-There are two versions you can install:
+There are three ways to install it:
 
-| Version | What it is | How to install |
+| Way | What it installs | How to install |
 |---|---|---|
-| **Current release, v1.5.0** | The latest version on [PyPI](https://pypi.org/project/pinnstudio/) | [One-command installer](#one-command-installer-recommended) or [`pip install pinnstudio`](#with-pip) |
-| **Development version, v1.6.0 (in development)** | The version this documentation describes; not released yet | [From source](#development-version-from-source) |
+| **One-command installer** | The latest PINNStudio release from [PyPI](https://pypi.org/project/pinnstudio/), with its own Python | [One-command installer](#one-command-installer-recommended) |
+| **pip** | The latest PINNStudio release from PyPI, into a Python environment of your own | [`pip install pinnstudio`](#with-pip) |
+| **From source** | The code in the GitHub repository | [From source](#development-version-from-source) |
 
-Features marked *New in v1.6.0 (in development)* on this site are only in the development version. If you install
-the release, the [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md) (section
-*Unreleased*) lists what it does not have yet.
+These pages describe PINNStudio 1.6.0. Until 1.6.0 is published on PyPI, install it from source (see below);
+`pip install pinnstudio` and the one-command installer install the latest published release.
 
 ## Supported systems
 
@@ -63,7 +63,7 @@ and open a new one, so that it finds them.
 
 ## One-command installer (recommended)
 
-The installer needs neither Python nor git. It installs the current release (v1.5.0) from PyPI.
+The installer needs neither Python nor git. It installs the latest PINNStudio release from PyPI.
 
 === "Linux / macOS"
 
@@ -91,7 +91,7 @@ What the installer does (`get-pinnstudio.sh`, `get-pinnstudio.ps1`):
    `uv tool dir` shows where it is.
 3. Puts the `pinnstudio` command on the PATH and adds a PINNStudio icon: Start menu and desktop on Windows,
    `~/Applications` on macOS (found by Spotlight and Launchpad), the application menu on Linux.
-4. Prints the installed version (for example `PINNStudio 1.5.0 installed.`) and where training will run, for
+4. Prints the installed version (`PINNStudio <version> installed.`) and where training will run, for
    example `PyTorch will train on the GPU: <name of the GPU>`, or
    `No NVIDIA GPU found: PINNStudio will train on the CPU.`
 5. If another PINNStudio (an older `pip`, venv or conda installation) comes first on the PATH, it says where that
@@ -118,7 +118,7 @@ Your results in `PINNStudio_Results` are not deleted.
 
 ## With pip
 
-To install the current release into a Python environment of your own:
+To install the latest PINNStudio release from PyPI into a Python environment of your own:
 
 ```bash
 pip install pinnstudio
@@ -204,14 +204,14 @@ DeepXDE supports several backends; PINNStudio uses **PyTorch** only. Every scrip
 script, sets `DDE_BACKEND` to `pytorch` before importing DeepXDE, so a different default backend in your own
 DeepXDE configuration does not affect PINNStudio. TensorFlow, JAX or PaddlePaddle do not need to be installed.
 
-## Development version (from source)
+## From source {#development-version-from-source}
 
-The development version, which will be released as v1.6.0, is installed from the
+A source installation installs the code of the
 [GitHub repository](https://github.com/AsfandyarKhan72/PINNStudio). You need git and Python 3.11 or newer.
 
 !!! note "Which branch"
-    The commands below clone the repository's default branch. If the development version you want is on another
-    branch, switch to it with `git checkout <branch>` after cloning, before installing.
+    The commands below clone the repository's default branch. To install the code of another branch, switch to it
+    with `git checkout <branch>` after cloning, before installing.
 
 ```bash
 git clone https://github.com/AsfandyarKhan72/PINNStudio.git
@@ -265,10 +265,8 @@ The one-command installer can also install from a local checkout: set the enviro
 `get-pinnstudio.ps1` from the checkout. It then installs that code, with its own Python, the matching PyTorch build
 and the desktop icon, in place of the release.
 
-!!! warning "Version number of a source installation"
-    Until v1.6.0 is released, the package metadata of the development version still says `1.5.0`. `pip show
-    pinnstudio` therefore cannot tell a source installation from the release. When you report a problem with the
-    development version, give the commit instead: `git rev-parse --short HEAD` in the `PINNStudio` folder.
+When you report a problem with a source installation, give the commit as well as the version:
+`git rev-parse --short HEAD` in the `PINNStudio` folder.
 
 ## Starting PINNStudio
 
@@ -277,7 +275,7 @@ and the desktop icon, in place of the release.
 | One-command installer | The PINNStudio icon (Start menu or desktop, Applications, application menu), or `pinnstudio` in a terminal |
 | `pip` | `pinnstudio` in the activated environment (`pinnstudio --create-shortcut` adds an icon) |
 | `install.sh` / `install.bat` | `./venv/bin/pinnstudio` or `.\venv\Scripts\pinnstudio.exe` in the `PINNStudio` folder |
-| Development, without installing | `python -m pinnstudio.main` in the `PINNStudio` folder |
+| From source, without installing | `python -m pinnstudio.main` in the `PINNStudio` folder |
 
 The `pinnstudio` command is the package's entry point (`pinnstudio.main:main`); `python -m pinnstudio` does the
 same and is what the desktop icon runs. PINNStudio defines no command-line options besides `--create-shortcut` and

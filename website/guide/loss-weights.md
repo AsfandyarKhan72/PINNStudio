@@ -74,21 +74,15 @@ PINNStudio's benchmarks.
 **Scale by initial losses: wᵢ = c / Lᵢ(0), c =** evaluates every loss term once before training and sets
 its weight to c divided by its initial value, so all terms start at the same size. The manual weights
 above are then greyed out and ignored, in every phase. It is not available with time-adaptive training.
-
-!!! info "New in v1.6.0 (in development)"
-    *Scale by initial losses* measures the initial losses with the first training phase's loss function
-    (it used MSE), and with IC pre-training it measures them after pre-training in both the Solve and the
-    exported script.
+The initial losses are measured with the first training phase's loss function, and with IC pre-training they
+are measured after pre-training, in both the Solve and the exported script.
 
 ## Weights and time windows
 
 With time-adaptive training, the first window has the terms above. From the second window on, each
 output's initial condition is replaced by a term that holds it to the previous window's solution.
-
-!!! info "New in v1.6.0 (in development)"
-    From the second time window on, the equation and boundary weights are used as set, and each output's
-    previous-solution term takes that output's initial-condition weight (1 for an output without an
-    initial condition). Before, every weight was replaced by 1 from the second window on.
+The equation and boundary weights are used as set in every window, and each output's previous-solution term
+takes that output's initial-condition weight (1 for an output without an initial condition).
 
 ## Settings on this page
 

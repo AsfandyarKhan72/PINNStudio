@@ -31,8 +31,7 @@ whole interval follows poorly.
 
 **Training** → **Adaptive training** page → **Method:** **Time Adaptive Training** (greyed out for a
 stationary problem and removed for an inverse problem). For an ODE the choice is offered but refused when you
-solve (an ODE is solved as a problem in \( t \) without a separate time axis); before v1.6.0 it was switched off
-silently. **About time-adaptive training** opens a description.
+solve (an ODE is solved as a problem in \( t \) without a separate time axis). **About time-adaptive training** opens a description.
 
 ## Settings
 
@@ -86,7 +85,8 @@ For window \( [t_0, t_1] \) (from the step groups):
 8. The window's prediction at \( t_1 \) on the grid becomes the next window's starting condition.
 
 Each window saves its models under `time_adaptive_steps/step_NNN_t…_to_t…/` (and its `step_config.json`),
-which Restore & visualize and Error Analysis read.
+which Restore & visualize and Error Analysis read. With resampling rounds, the window's network after the rounds
+is saved as `model_resampled-….pt`, and Error Analysis and Restore use it.
 
 ## Defaults and limitations
 
@@ -95,23 +95,8 @@ which Restore & visualize and Error Analysis read.
 - In 3D the IC grid is cubed: 101 per axis is over a million points per window; the page warns from 51 up
   and switches 201, 101 or 51 to 21 when the dimension changes to 3D.
 - Time windows are not available for inverse problems.
-
-!!! info "New in v1.6.0 (in development)"
-    - Growing time range, backward compatibility (bc-PINN), IC-guided learning and resampling rounds are new.
-    - Loss weights are mapped onto the later windows' terms (every weight used to become 1 from the second
-      window on; this changes the Cahn-Hilliard time-window results).
-    - Transfer learning keeps the network in memory (*Adam*: after the last Adam phase; *L-BFGS*: as the
-      window ended); before, it depended on whether a save folder was set.
-    - Only grid points inside a non-box domain carry the solution.
-    - bc-PINN's stored points follow the run's seed (they used a fixed seed 1234).
-    - IC-guided learning uses the first Adam phase's learning rate (with the mean squared error); resampling uses
-      the optimizer, learning rate and loss function of the last first-order phase.
-    - With resampling rounds, each window's network after the rounds is saved (`model_resampled-….pt`) and Error
-      Analysis and Restore use it; before, they used the network saved before the rounds.
-    - With resampling rounds and Transfer optimizer *Adam*, the next window starts from the network after the
-      rounds; before, it started from the one before them while its initial condition came from the one after
-      them (an error in the development version only; the recorded runs already transferred the network after the rounds).
-    - With these options, the exported script is Solve's own script (see [Generated scripts](scripts.md)).
+- With a growing time range, backward compatibility, IC-guided learning or resampling rounds, the exported
+  script is Solve's own script (see [Generated scripts](scripts.md)).
 
 ## Supported problem types
 

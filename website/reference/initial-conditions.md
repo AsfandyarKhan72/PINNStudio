@@ -83,10 +83,6 @@ used as given (no interpolation), as a `PointSetBC` on output 0.
 - With [time windows](time-windows.md) the initial condition applies to the first window; later windows
   start from the previous window's solution.
 
-!!! info "New in v1.6.0 (in development)"
-    An initial condition written with `t` (for example an exact solution pasted into the box) used to stop
-    both scripts with `NameError: t`; `t` now means \( t_{\min} \) there.
-
 ## Supported problem types
 
 Time-dependent 1D, 2D and 3D problems (formula and file), ODEs (formula), forward and inverse.

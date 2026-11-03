@@ -80,13 +80,6 @@ IC pre-training, the initial losses are those of the pre-trained network.
 - A loss weight can be swept only while **Use same weights for all phases** is on (see
   [Sweeps](sweeps.md)).
 
-!!! info "New in v1.6.0 (in development)"
-    - **Scale by initial losses** measures the initial losses with the first phase's loss function (it used
-      MSE), and after IC pre-training in both scripts.
-    - Time windows keep the user's weights from the second window on (every weight, including the
-      backward-compatibility weight, used to be replaced by 1). This changes the results of the time-window
-      runs of the Cahn-Hilliard problems.
-
 ## Supported problem types
 
 All. **Scale by initial losses** is not available with time windows.

@@ -53,9 +53,6 @@ The top of the settings column names the page and says in one line what it is fo
 at its top right opens the page of this user guide that describes it (a boundary-condition row opens
 [Boundary conditions](boundary-conditions.md)). Each box on a page can be folded with the arrow at its top right.
 
-!!! info "New in v1.6.0 (in development)"
-    In v1.5.0 the **?** button opened a section of the README on GitHub.
-
 Many boxes have small toggles with an information icon, such as **Derivative syntax**,
 **About boundary conditions** or **About automatic weighting**. Clicking one shows or hides a short
 explanation inside the page.

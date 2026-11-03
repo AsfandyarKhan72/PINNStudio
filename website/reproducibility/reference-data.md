@@ -19,11 +19,3 @@ at one time (`t_<time>.txt`, or `<output>_t_<time>.txt` for problems with severa
 Numerical references are checked for convergence by refining the grid and the time step, and selected references are
 checked against independent calculations. The regeneration records, with these checks, are kept in
 [`benchmarks/reference_regeneration/`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration).
-
-!!! info "v1.6.0 (in development)"
-    In the development version the reference data of 2D Burgers (Mathias et al.) and of the three Poisson templates
-    (disk, L-shape, ball) are produced by the scripts above; earlier releases used solutions computed with COMSOL
-    Multiphysics for these four templates. The comparison of the two is in
-    [`benchmarks/reference_regeneration/`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/reference_regeneration).
-    The 2D and 3D heat and 2D Allen–Cahn files have been checked against independent solutions. The final files and
-    their provenance notes will be part of v1.6.0; results computed against earlier files are superseded.

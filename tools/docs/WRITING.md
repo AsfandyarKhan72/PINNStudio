@@ -16,7 +16,7 @@ Build: `mkdocs build --strict -d /tmp/site_check` (must finish with no WARNING).
    already uses — and preferably not at all outside that section ("expected results" in tutorials describe
    what the user sees qualitatively, or numbers you obtained yourself by running the workflow, stated as
    such: "on a laptop CPU this run reached L2 ≈ … in our test").
-3. **Versions.** The pages describe the current version of PINNStudio (the one in `setup.py`) as it is,
+3. **Versions.** The pages describe the current version of PINNStudio (`pinnstudio/__init__.py`, `__version__`) as it is,
    without comparisons with earlier versions; what changed between versions belongs in `CHANGELOG.md` and
    the changelog page. Never claim that a version is on PyPI before it is: `pip install pinnstudio`
    installs the latest published release.

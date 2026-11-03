@@ -58,11 +58,6 @@ Right-clicking **Training** in the tree also offers **Add training phase**.
 - **Per-point weights** (RBA, SA-PINN) act during the Adam phases; **During L-BFGS** chooses whether
   L-BFGS keeps them.
 
-!!! info "New in v1.6.0 (in development)"
-    RAR rounds, time-window guided learning and resampling, and *Scale by initial losses* now use the
-    Training phases' optimizers, learning rates, loss functions and weights. Before, they used a hidden
-    single-optimizer setting (MSE, the Loss weights page's flat weights, a fixed learning rate).
-
 ## Weight decay, AdamW and NNCG
 
 Weight decay (L2 regularization) is set in **Settings › Optimizer Settings...** and applies to the whole
@@ -92,12 +87,9 @@ phases start; this can help a time-dependent problem start well. Choose:
 
 The box is hidden for a stationary problem. Pre-training needs a time-dependent PDE: for an ODE
 (whose initial values are conditions at the start of the time interval, not initial-condition loss
-terms) **Solve** refuses it with an explanation.
-
-!!! info "New in v1.6.0 (in development)"
-    Pre-training fits the initial conditions given as loss terms. When every initial condition is exact
-    (built into the network) there is nothing to fit, and **Solve** now refuses with an explanation, as it
-    does for pre-training on an ODE or stationary problem.
+terms) **Solve** refuses it with an explanation. Pre-training fits the initial conditions given as loss terms:
+when every initial condition is exact (built into the network) there is nothing to fit, and **Solve** refuses
+it too.
 
 ## Callbacks
 
@@ -114,12 +106,7 @@ the training steps of RAR rounds, not during IC pre-training:
 
 Training monitors only record values (shown afterwards on the Results Overview); they never change
 training. Point resampling cannot be combined with per-point weights (RBA, SA-PINN), which belong to
-fixed points.
-
-!!! info "New in v1.6.0 (in development)"
-    The exported script no longer stops with `NameError: _sol_dir` when **Model Checkpoint** is on, and
-    per-point weights together with a point resampler are refused with an explanation (the resampling
-    used to reset the weights, silently turning the method off).
+fixed points; **Solve** refuses the combination with an explanation.
 
 ## Settings on this page
 

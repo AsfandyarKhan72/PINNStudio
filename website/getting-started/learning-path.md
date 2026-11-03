@@ -8,7 +8,7 @@ They are suggestions, not prerequisites: every page can be read on its own.
 Work through these in order. The first four are the basis for everything else; the rest can be picked up as you
 need them.
 
-1. [Installation](installation.md): install the release with one command, or the development version from source.
+1. [Installation](installation.md): install PINNStudio with one command, with `pip`, or from source.
 2. [First run](first-run.md): load an example, press **Solve**, follow the Training Log and the Results tab.
 3. [Tutorial 1: a first forward ODE](../tutorials/01-ode.md): outputs, equations, initial conditions, training
    phases, and the error against an exact solution.

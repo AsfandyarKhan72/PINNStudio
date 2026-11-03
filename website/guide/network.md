@@ -49,11 +49,8 @@ He normal or zeros.
 For MsFFN and STMsFFN the first hidden layer needs an even number of neurons (at least 2). Large σ
 lets the network represent fast oscillations. Weight decay (**Settings › Optimizer Settings...**) can only
 be used with an FNN: PFNN and PINNStudio's MsFFN/STMsFFN take no regularization argument, and **Solve** refuses the
-combination.
-
-!!! info "New in v1.6.0 (in development)"
-    STMsFFN takes the network's last input as time. With an input-feature formula that does not end
-    with `t`, **Solve** now refuses with an explanation.
+combination. STMsFFN takes the network's last input as time; with an input-feature formula that does not end
+with `t`, **Solve** refuses with an explanation.
 
 ## Rescale or transform the inputs
 

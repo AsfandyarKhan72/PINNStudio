@@ -109,10 +109,6 @@ What uses GPU memory, roughly in order:
 memory PyTorch may use. Lower it to leave memory for other programs on the same GPU; it does not make a run need less
 memory. If nothing helps, **Train on: CPU** uses the computer's main memory instead (slower).
 
-!!! info "New in v1.6.0 (in development)"
-    In v1.5.0 a run that ran out of GPU memory ended with the tip to check the PDE syntax. v1.6.0 recognizes the
-    out-of-memory error and prints the tip above.
-
 ## Solve does not start: settings to fix
 
 Before every run, PINNStudio checks the settings. While you edit, the model tree marks the pages with a setting that
@@ -132,7 +128,7 @@ On the **Equations** page, each equation is typeset as you type it. A name PINNS
 - a derivative not written in the form `d<output>_<variables>` (for example `du_xx` or `dv_t`), or one that
   PINNStudio does not build, such as `du_xxy`. The second is refused with
   `Equations: du_xxy is not available (see Derivative syntax on the Equations page) -- write the equation with the
-  derivatives PINNStudio provides, e.g. a third derivative as a new output.` (new in v1.6.0; see
+  derivatives PINNStudio provides, e.g. a third derivative as a new output.` (see
   [Equations, outputs and constants](../guide/equations.md#write-the-equations)).
 
 Output names must be usable in the equations. These messages come from the check:
@@ -145,11 +141,6 @@ Output names must be usable in the equations. These messages come from the check
 - For an ODE: `ODE problems use t as the variable (and x internally), so an output can't be named 'x' -- rename it
   (e.g. y1, y2).`
 - For inverse problems: `Trainable variable "my var" can't be used as a name in the equations: ...`
-
-!!! info "New in v1.6.0 (in development)"
-    The output-name check is new. In v1.5.0 an output called `y` (natural in an ODE) silently trained a different
-    problem in **Solve** and crashed the exported script; names such as `np`, `sin`, `lambda` or a name with a
-    space crashed the scripts.
 
 If a run fails with a Python error from the equations (`SyntaxError`, `NameError`), the run ends with
 `❌ Error during training. Check log above.` and the tip `💡 Tip: Check PDE/IC syntax — use * for multiplication
@@ -183,8 +174,7 @@ including the ones that are allowed, are on [Compatibility of methods](../refere
 
 Optimizer settings are checked when you press **Solve**: a nonzero weight decay
 (**Settings › Optimizer Settings...**) cannot be used with an L-BFGS or NNCG phase, and an AdamW phase needs a
-nonzero weight decay. Several of these checks are new in v1.6.0; the [Release history](../about/changelog.md) lists
-them.
+nonzero weight decay.
 
 ### Other messages
 
@@ -205,18 +195,16 @@ weight. Training then goes on without it, and an L-BFGS phase stops inside PyTor
 `IndexError`. Typical causes are a side name such as `left` on a disk or another curved shape (which has no flat
 sides), for example after changing an example's domain, or a condition on an edge that no longer exists.
 
-!!! info "New in v1.6.0 (in development)"
-    Before training, both scripts now print which conditions are empty:
+Before training, both scripts print which conditions are empty:
 
-    ```text
-    ⚠️ Condition(s) [2] (in loss order: Boundary Conditions rows, then initial conditions, then measured data)
-    select no training point, so their loss is NaN -- check their 'Where' (e.g. a side such as 'left' on a disk or
-    other curved shape). Change or remove them.
-    ```
+```text
+⚠️ Condition(s) [2] (in loss order: Boundary Conditions rows, then initial conditions, then measured data)
+select no training point, so their loss is NaN -- check their 'Where' (e.g. a side such as 'left' on a disk or
+other curved shape). Change or remove them.
+```
 
-    The numbers count the rows of the **Boundary conditions** page first, then the initial conditions, then the
-    measured data. In v1.5.0 there is no such message; look for a loss column that is `nan` in the loss table of the
-    Training Log.
+The numbers count the rows of the **Boundary conditions** page first, then the initial conditions, then the
+measured data.
 
 For a sketched or combined domain, a condition whose last edge was removed is refused before training:
 `BC 2 picks no part of the boundary (its last edge was taken out): pick its edges in the Geometry view, or delete the
@@ -442,10 +430,9 @@ data.
 files were not found in the installation's `reference_data` folder: reinstall PINNStudio. (Releases before 1.2.0
 shipped without `reference_data`.)
 
-**A problem saved on another computer.** A saved problem stores data files as paths. In v1.6.0, files inside
+**A problem saved on another computer.** A saved problem stores data files as paths. Files inside
 PINNStudio's `reference_data` folder are saved relative to it and are found on any installation; your own files must
-be at the same path, or chosen again in the **Error Analysis** dialog (**Results** page). In v1.5.0, open the dialog
-and choose the files again.
+be at the same path, or chosen again in the **Error Analysis** dialog (**Results** page).
 
 **Your own reference files.** In the **Error Analysis** dialog, **Reference files** expects one plain-text file per
 time, with one row per point and the columns of the problem: the coordinates (x, then y and z), the time (not for a
@@ -478,11 +465,6 @@ reference times inside the model's time range.
   differences between runs on a GPU, or between CPU and GPU, are normal floating-point nondeterminism. A large
   difference is a bug: please [report it](../getting-started/reporting-bugs.md) with the `.pinn.json` file and the
   script.
-
-!!! info "New in v1.6.0 (in development)"
-    Several export problems of v1.5.0 are fixed in the development version, among them `NameError: _sol_dir` when
-    Model Checkpoint was on, and the exported script ignoring the GPU index and memory fraction. See the
-    [Release history](../about/changelog.md).
 
 ## A checkpoint cannot be restored
 
@@ -529,7 +511,7 @@ See [Restore & visualize](../guide/restore.md) and [Checkpoints and restoring](.
   *Automatic*.
 - **CPU or GPU.** A GPU pays off for larger problems (a few thousand points and more). A small problem, such as a 1D
   problem or an ODE with a few hundred points, is often faster on the CPU: **Train on: CPU**. PINNStudio prints a
-  tip in the Training Log when a small 1D problem trains on the GPU (new in v1.6.0).
+  tip in the Training Log when a small 1D problem trains on the GPU.
 - **Precision.** float32 (the default) is faster than float64.
 - **Problem size.** Training time grows with the number of points, the size of the network, the order of the
   derivatives and the number of outputs and equations. Start with fewer points and iterations, and increase them once

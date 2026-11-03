@@ -79,11 +79,9 @@ field appears on the Equations page for `integral(...)` terms.
       train the unknown parameters).
 
 For a PINNStudio template, switching to **Inverse** also writes the parameter names into the
-equations in place of the known values, and fills in the template's measured data.
-
-!!! info "New in v1.6.0 (in development)"
-    An example loaded with **Default** or **Tuned** settings and not changed since is loaded again
-    with that mode's own settings when you switch between **Forward** and **Inverse**.
+equations in place of the known values, and fills in the template's measured data. An example loaded with
+**Default** or **Tuned** settings and not changed since is loaded again with that mode's own settings when you
+switch between **Forward** and **Inverse**.
 
 ## Settings on this page
 

@@ -7,8 +7,7 @@ this page only summarizes it.
 | Version | License |
 |---|---|
 | Releases up to and including **v1.5.0** (PyPI and tag `v1.5.0`) | MIT License, as stated in those releases' own `LICENSE` file |
-| **Development source** in the repository (what these pages describe as v1.6.0 in development) | MIT License |
-| **v1.6.0** | Not released yet |
+| **v1.6.0**, the version these pages describe (the source in the repository) | MIT License |
 
 ## Generated scripts
 

@@ -66,13 +66,11 @@ allows:
 | Constants | every named constant of the Equations page | the problem has named constants |
 
 A swept constant changes every expression that uses it (equations, conditions, transforms, the
-exact-solution reference), and constants defined from it follow.
+exact-solution reference), and constants defined from it follow. Constants can be swept in grid and Bayesian
+sweeps.
 
-!!! info "New in v1.6.0 (in development)"
-    - The **Constants** category: every named constant is a sweep parameter (grid and Bayesian sweeps).
-    - The Training, Training Methods and **Architecture** entries, and **Measured data: times**.
-    - Every run's settings are checked before it trains, as Solve does; a combination that cannot run is
-      skipped with the reason in the Training Log and marked "invalid" in the summary.
+Every run's settings are checked before it trains, as Solve does; a combination that cannot run is skipped with
+the reason in the Training Log and marked "invalid" in the summary.
 
 ## Formulation
 

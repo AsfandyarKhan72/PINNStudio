@@ -82,9 +82,6 @@ The Training Log prints the same numbers (the relative L2 error is written L₂ 
 writes the error of every run, and for inverse problems each parameter's error in percent, to
 `sweep_summary.csv`.
 
-!!! info "New in v1.6.0 (in development)"
-    The relative L2 error over all reference times together (`error_spacetime.txt`).
-
 ## Defaults and limitations
 
 - The metrics are evaluated at the reference points only; there is no integration over the domain.

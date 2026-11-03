@@ -37,11 +37,7 @@ Before training, the log may say:
 During training it shows what the script prints: the settings it uses, each phase's start, DeepXDE's
 loss table every **Record every** iterations (**Plot settings**, **Loss** tab; default 1000), and, for time-adaptive training and
 RAR, each window or round. Before training starts, the script also reports a boundary condition that
-selects no training point.
-
-!!! info "New in v1.6.0 (in development)"
-    A boundary condition that matches no training point is now reported before training, with its
-    name and the reason, instead of giving a NaN loss term.
+selects no training point, with its name and the reason.
 
 At the end it says *Training complete!* and where the results were saved, or, when the run failed, the
 error and a tip (for example that the GPU ran out of memory). The log keeps the last 20,000 lines.

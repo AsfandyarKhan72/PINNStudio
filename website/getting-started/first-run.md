@@ -50,9 +50,6 @@ version of the example.
 Leave the category on **Forward** and the settings on **Default**, and choose **Burgers 1D – Raissi et al.** from
 the example list.
 
-!!! info "New in v1.6.0 (in development)"
-    The **Default** / **Tuned** settings list is new in the development version. The current release (v1.5.0) loads
-    each example with one set of settings.
 
 Every setting fills in: the equation, the domain, the initial and boundary conditions, the network and the
 training. The model tree now has one node per boundary condition (**BC 1 · Dirichlet, u** and

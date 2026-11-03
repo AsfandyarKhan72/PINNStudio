@@ -31,9 +31,11 @@ several rows for finer windows where the solution changes fastest, for example 0
 For every window the [training phases](training.md) run in full, and the window's model is saved in
 `time_adaptive_steps/step_NNN_…` in the run folder. The first window starts from the initial conditions;
 each later window starts from the previous window's solution, sampled on a grid of
-**IC grid resolution:** points per axis (squared in 2D, cubed in 3D; pick a preset or type a number). In
+**IC grid resolution:** points per axis (squared in 2D, cubed in 3D; pick a preset or type a number). On a
+disk, polygon or custom shape, only the grid points inside the domain carry the solution. In
 3D a resolution of 51 or more is over 100,000 points per window and can exhaust GPU memory; the page
-warns about it.
+warns about it. The later windows use the loss weights as set (see
+[Loss weights](loss-weights.md#weights-and-time-windows)).
 
 ### Carry the network from window to window
 
@@ -56,18 +58,12 @@ Both need transfer learning; **Solve** says so if it is off.
 
 - **IC-guided learning:** — before each window's training, fit the window's starting profile, held
   constant over the window, for this fraction of the first Adam (or AdamW) phase's iterations
-  (0 = off, at most 0.9).
+  (0 = off, at most 0.9). The fit uses that phase's learning rate and the mean squared error.
 - **Resampling rounds:** — after the window's training, draw **Candidates per round:** random points in
   the window (default 10,000; at least as many as the points per round), add the **Points per round:**
   of them with the largest residual to its collocation points and train **Adam iterations per round:**
-  more Adam iterations; repeat this many times (0 = off).
-
-!!! info "New in v1.6.0 (in development)"
-    Growing time range, backward compatibility, IC-guided learning and resampling rounds are new. The
-    later windows now use the loss weights as set (see [Loss weights](loss-weights.md#weights-and-time-windows)),
-    IC-guided learning uses the first Adam phase's learning rate (with the mean squared error), resampling the
-    optimizer, learning rate and loss function of the last first-order phase, and on a
-    disk, polygon or custom shape only grid points inside the domain carry the solution between windows.
+  more Adam iterations; repeat this many times (0 = off). The rounds use the optimizer, learning rate and loss
+  function of the last first-order training phase.
 
 ### When it is not available
 
@@ -95,10 +91,6 @@ Each round's first-order step uses the optimizer, learning rate, loss function a
 training phase that is not L-BFGS or NNCG (without its learning-rate decay), and its L-BFGS step the last
 L-BFGS phase's loss function and weights (the first-order phase's when there is no L-BFGS phase). With a save folder, each round's model and a
 picture of the collocation points are saved in the run folder.
-
-!!! info "New in v1.6.0 (in development)"
-    RAR rounds now train with the loss functions and weights of the Training phases (before: MSE and the
-    flat weights), and an NNCG last phase no longer stops a round.
 
 RAR works for stationary and inverse problems too. It cannot be used with `frac(...)` equations.
 

@@ -56,7 +56,8 @@ The site's sources are in `website/` (MkDocs with the Material theme); the confi
 - if the README and the code disagree, the code wins, and the contradiction is reported;
 - no invented capabilities, examples or numbers; results and timings only from the benchmark records, or measured
   by you and stated as such;
-- features that exist only in the development version are marked `!!! info "New in v1.6.0 (in development)"`;
+- pages describe the current behaviour, without version notes; what changed between versions belongs in the
+  [Release history](../about/changelog.md) and the CHANGELOG;
 - the scope statement: PINNStudio does not guarantee convergence, physical validity or accuracy.
 
 Style: task-oriented, plain and precise; headings in sentence case; equations in MathJax (`\( ... \)`,

@@ -57,9 +57,6 @@ reference point at every time,
 in the Training Log and in `error_analysis/error_spacetime.txt`. This is the single number most papers report
 for a time-dependent problem. It is not the mean of the per-time errors: times where \(u\) is large weigh more.
 
-!!! info "New in v1.6.0 (in development)"
-    The error over all reference times together (`error_spacetime.txt`) is added in the development version.
-
 ## What other parts of PINNStudio report
 
 - **Results › Error analysis table.** The per-time relative \(L_2\) error and mean absolute error, with a summary

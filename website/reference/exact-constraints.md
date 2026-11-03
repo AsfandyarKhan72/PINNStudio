@@ -116,10 +116,6 @@ with every initial condition exact is refused (nothing to pre-train). Both const
 per-point weights, causal training and MsFFN; with STMsFFN the generated feature list ends with `t`, as
 STMsFFN requires.
 
-!!! info "New in v1.6.0 (in development)"
-    Exact periodicity with an output that has no periodic boundary condition on that axis is refused (the
-    output was silently made periodic before).
-
 ## Common mistakes and troubleshooting
 
 - **The solution is periodic although only one output should be**: exact periodicity cannot be limited to

@@ -10,10 +10,6 @@ they finish in minutes on a CPU. Your numbers will differ with hardware, random 
 PINNStudio helps you set up, train and evaluate PINNs; it does not guarantee convergence or accuracy for an
 arbitrary problem (see [Scope and limitations](../theory/limitations.md)).
 
-!!! info "New in v1.6.0 (in development)"
-    The tutorials describe the development version that will become v1.6.0. Labels and defaults may
-    differ in the released v1.5.0 (`pip install pinnstudio`).
-
 ## Where to start
 
 If you are new to PINNStudio, do tutorials 1 and 2 first. They introduce the model tree, the editors,

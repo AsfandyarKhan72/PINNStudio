@@ -19,11 +19,11 @@ Background: [Seeds, precision and hardware](../reproducibility/environment.md).
 - **GPU device index:** — which GPU, when there is more than one.
 - **Max GPU memory to reserve (%):** — the share of that GPU's memory the run reserves.
 
+**Train on: CPU** also works on Windows with an NVIDIA GPU. The exported script applies the GPU device index and
+the memory share.
+
 ![The GPU / Hardware dialog on a computer without a CUDA GPU: the message that training will run on the CPU, Train on GPU when there is one, CPU threads Automatic, GPU device index 0, Max GPU memory to reserve 95 %](../assets/screenshots/guide_dialog_gpu.png){ .screenshot loading=lazy }
 
-!!! info "New in v1.6.0 (in development)"
-    **Train on: CPU** now works on Windows with an NVIDIA GPU (the GPU is hidden in a way every platform
-    understands), and the exported script now applies the GPU device index and memory share.
 
 ## Float Precision
 

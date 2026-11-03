@@ -54,7 +54,8 @@ After the training phases, round \( r = 1, \dots, R \):
    with the loss function and weights of the last L-BFGS phase.
 
 The training callbacks, the inverse unknowns, causal training and the training monitors are carried into
-the rounds. Each round saves diagnostics under `solution_results/rar_rounds/round_NN/` (a solution
+the rounds. With causal training, only the training points are causally weighted, so the candidates are ranked
+by their plain residual. Each round saves diagnostics under `solution_results/rar_rounds/round_NN/` (a solution
 snapshot, a plot of the collocation points with the new ones marked, and — with Error Analysis reference
 data — a comparison and its relative L2 error), and the models of its Adam and L-BFGS steps.
 
@@ -66,12 +67,6 @@ data — a comparison and its relative L2 error), and the models of its Adam and
   (NNCG takes no learning rate), with that phase's optimizer.
 - The candidates are sampled uniformly; there is no probability-weighted sampling (RAR-D).
 - With L-BFGS iterations > 0 the run uses L-BFGS, so weight decay must be 0.
-
-!!! info "New in v1.6.0 (in development)"
-    RAR rounds train with the loss function and loss weights of the Training Phases (they used the hidden
-    single-optimizer setting, MSE, and the Loss Weights panel's weights), in both scripts. With causal
-    training, only the training points are causally weighted, so the candidates are ranked by their plain
-    residual.
 
 ## Supported problem types
 

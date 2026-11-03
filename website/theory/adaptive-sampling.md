@@ -61,9 +61,6 @@ residual ([Adaptive loss weighting](loss-weighting.md)).
 
 ## Resampling in each time window
 
-!!! info "New in v1.6.0 (in development)"
-    Resampling rounds inside time windows are new in the development version.
-
 With **Time Adaptive Training** ([Time-dependent training](time-dependent.md)), **Resampling rounds:**
 \(> 0\) applies the same idea inside each window, after the window's own training, following the
 "approach I with resampling" of [Wight & Zhao (2021)](../about/references.md#wight2021). In every round:

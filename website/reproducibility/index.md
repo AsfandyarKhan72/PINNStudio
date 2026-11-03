@@ -12,17 +12,12 @@ from, how runs are made reproducible, and how to repeat the studies reported in 
 - [Reporting your own experiment](own-experiments.md): what to keep from your own runs so that they can be
   reported and repeated, as a checklist.
 
-!!! warning "Numerical results are being finalized for v1.6.0"
-    The pre-release audit of v1.6.0 corrected code-generation and training behaviour (see the
-    [release history](../about/changelog.md)) and regenerated the reference data of some templates. The affected
-    benchmark runs are being repeated with the corrected code. Until that is complete, these pages describe the
-    protocols and records but quote no numbers; the benchmark records in the repository are the source of the
-    results, and the verified values will be added here with the v1.6.0 release.
+These pages describe the protocols and records but quote no numbers; the benchmark records in the repository are the
+source of the results.
 
 ## Versions
 
 | | What it is | Used for |
 |---|---|---|
-| **v1.5.0** | The current public release (PyPI, tag `v1.5.0`) | Installing and using PINNStudio today |
-| **Development code** | The repository source used for the benchmark runs; every record names the commit or branch it ran on | The benchmark collection and the paper's results |
-| **v1.6.0** | The next release, being prepared from the audited development code | The published software version of the paper's results |
+| **PINNStudio 1.6.0** | The software these pages describe ([Installation](../getting-started/installation.md)) | Using PINNStudio; the published software version of the paper's results |
+| **Repository commit** | The source a benchmark run used; every record names the commit or branch it ran on | Repeating a recorded run exactly |

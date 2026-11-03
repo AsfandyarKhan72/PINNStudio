@@ -3,8 +3,7 @@
 If PINNStudio is useful in your work, please cite the software. The repository's
 [`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff) has the same authors and
 repository address, with the title `PINNStudio` and the subtitle below as its abstract, and GitHub's **Cite this
-repository** button formats it for you. In the development source it carries no version and no release date (both
-are added for a release), and it gives no DOI.
+repository** button formats it for you. It gives the version number and no DOI.
 
 ```bibtex
 @software{khan2026pinnstudio,
@@ -15,7 +14,7 @@ are added for a release), and it gives no DOI.
 }
 ```
 
-If you used a released version, add its number, for example `version = {1.5.0}`. You can see the installed version
+Add the number of the version you used, for example `version = {1.6.0}`. You can see the installed version
 with `pip show pinnstudio`.
 
 ## The paper

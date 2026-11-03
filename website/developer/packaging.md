@@ -44,9 +44,8 @@ from PyPI; a CUDA build matching the machine is chosen by the installers below.
 | `select_torch_index.py` | prints the PyTorch wheel tag (`cu126`, ..., or `cpu`) for this machine's driver; the table is in `pinnstudio/core/torch_index.py` |
 | `pinnstudio/shortcut.py` | `python -m pinnstudio --create-shortcut` / `--remove-shortcut`: desktop and menu shortcuts |
 
-The installers install from PyPI by default, that is the latest release (v1.5.0), not the development version.
-To try the development version, install from a checkout (`pip install -e .`, `install.sh`, or
-`PINNSTUDIO_SOURCE=$PWD sh get-pinnstudio.sh`).
+The installers install the latest release from PyPI by default. To install the code of a checkout, use
+`pip install -e .`, `install.sh`, or `PINNSTUDIO_SOURCE=$PWD sh get-pinnstudio.sh`.
 
 ## Checks of a build
 

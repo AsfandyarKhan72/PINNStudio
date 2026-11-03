@@ -23,8 +23,7 @@ Where to look when something does not work, or when you have a question the othe
 If the answer is not here:
 
 1. Look through the [User guide](../guide/index.md) page of the setting concerned. The settings pages in PINNStudio
-   also have a **?** button next to its title, which opens the matching page of the user guide (in v1.5.0, a
-   section of the README on GitHub).
+   also have a **?** button next to its title, which opens the matching page of the user guide.
 2. Search the [GitHub issues](https://github.com/AsfandyarKhan72/PINNStudio/issues): someone may have had the same
    problem.
 3. Open a new issue. [Reporting a problem](../getting-started/reporting-bugs.md) lists what to include so that the

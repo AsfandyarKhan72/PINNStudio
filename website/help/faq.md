@@ -27,7 +27,7 @@ category, which also offers inverse versions of many forward examples. See the [
 **What is the difference between Default and Tuned settings?**
 *Default* loads an example as its source solves it: a DeepXDE example with DeepXDE's settings, an example from a
 paper with the paper's method. *Tuned* loads the settings that gave the lowest error in PINNStudio's benchmarks (and of
-those about as accurate, the fastest). The list is new in v1.6.0 (in development). See
+those about as accurate, the fastest). See
 [First run](../getting-started/first-run.md#load-an-example).
 
 **Can I solve my own equation, not only the examples?**
@@ -61,7 +61,7 @@ is one, shows a banner with the command that updates your copy; without a connec
 
 **How do I update PINNStudio?**
 Run the one-command installer again, or `pip install --upgrade pinnstudio` in the environment you installed it in;
-in the development version (v1.6.0), the update banner shows the right command for your installation. For a source installation, `git pull` and run the
+the update banner shows the right command for your installation. For a source installation, `git pull` and run the
 source installer again. See [Installation](../getting-started/installation.md).
 
 **Which version do I have?**

@@ -140,12 +140,9 @@ phases." Per-point weights cannot be combined with the Point Resampling callback
 
 RAR rounds, time-window resampling rounds and IC-guided learning take their optimizer and learning rate
 from the phases (the last Adam/AdamW phase for rounds, the first Adam/AdamW phase for IC-guided learning)
-and train with a **constant** learning rate (no decay).
-
-!!! info "New in v1.6.0 (in development)"
-    A problem opened from a file keeps each phase's own loss function (it used to train every phase with
-    MSE). RAR and resampling rounds use the phases' loss function and weights, and skip an NNCG phase when
-    choosing their optimizer.
+and train with a **constant** learning rate (no decay). RAR and resampling rounds also use that phase's loss
+function and weights; an NNCG phase is skipped when they choose their optimizer. A problem opened from a file
+keeps each phase's own loss function.
 
 ## Common mistakes and troubleshooting
 

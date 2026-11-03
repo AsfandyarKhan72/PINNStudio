@@ -61,9 +61,6 @@ x, t, u, written by `tools/make_exact_reference_data.py`; refining its grid chan
 \( 3 \times 10^{-7} \)). In a source installation the folder is inside the `PINNStudio` folder; in an installed
 copy, `reference_data` sits next to the installed `pinnstudio` package.
 
-!!! info "New in v1.6.0 (in development)"
-    The Fisher-KPP reference files come with the development version; v1.5.0 does not have them.
-
 8. On **Results** click **Error Analysis**, keep **Reference:** **Reference files**, **Browse** to `t_0.txt`
    in that folder, and add the other four files with **➕ Add another file**. The time of each file is read from
    it and shown next to it.
@@ -85,7 +82,7 @@ Diffusion spreads the bump and lowers its peak, while the logistic term lifts th
 maximum of the reference solution is about 0.76, and \( u \) at the two ends has grown from almost 0 to about 0.04.
 The PINN curves lie on the reference curves at all five times.
 
-In a run of exactly these steps with the v1.6.0 development code (seed 2026, CPU, 2 threads, about 6 minutes),
+In a run of exactly these steps with the PINNStudio 1.6.0 code (seed 2026, CPU, 2 threads, about 6 minutes),
 the relative L2 error grew from \( 2.7 \times 10^{-4} \) at \( t = 0 \) to \( 1.6 \times 10^{-3} \) at \( t = 1 \).
 Your numbers will differ with hardware, seed and PINNStudio version.
 

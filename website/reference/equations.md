@@ -86,14 +86,8 @@ stationary 1D problem in \( x = t \): `du_t` becomes `du_x`, `du_tt` becomes `du
 **Output *n* name:** must be a Python name, unique, and not a name that already means something in the
 scripts: a coordinate, the array `y` the outputs are read from, `np`, `dde`, `torch`, a math function
 (`sin`, `pi`, …), a Python keyword (`lambda`), a side name, or a derivative-like name (`du_x`). In an ODE
-an output cannot be called `x` or `t`; with `integral(...)` terms it cannot be called `s`.
-
-!!! info "New in v1.6.0 (in development)"
-    Output names are checked before Solve. An output named `y`, `np`, `sin`, `lambda`, a name with a
-    space, or one name for two outputs used to crash a script or (with `y`) silently train a different
-    problem.
-    Derivative names outside the table above (e.g. `du_xxy`) are refused before Solve; they used to stop
-    both scripts with `NameError` at the first training step.
+an output cannot be called `x` or `t`; with `integral(...)` terms it cannot be called `s`. A name that breaks
+these rules is refused before Solve.
 
 ### Integral terms `integral(...)`
 

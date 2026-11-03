@@ -99,10 +99,8 @@ with a periodic row enters the network as \( \cos(2\pi x/L) \), \( \sin(2\pi x/L
 periodic rows can stay; their loss is then about zero. This replaces the input transform of the
 Neural network page, which must stay off.
 
-!!! info "New in v1.6.0 (in development)"
-    Exact periodicity makes **every** output periodic along the periodic axis. If an output has no
-    periodic row on that axis, **Solve** now refuses with an explanation instead of silently making it
-    periodic too.
+Exact periodicity makes **every** output periodic along the periodic axis. If an output has no
+periodic row on that axis, **Solve** refuses with an explanation.
 
 ## Conditions built into the network instead
 
@@ -115,11 +113,10 @@ the page then says so.
 
 ## Check that each row picks points
 
-!!! info "New in v1.6.0 (in development)"
-    A boundary condition that selects no training point (for example **Left side** after an example's
-    domain was changed to a disk, which has no flat sides) used to give a NaN loss term. Both the
-    Solve script and the exported script now print which condition is empty and why, before training.
-    The settings check also flags a row whose last sketched edge was taken out.
+A boundary condition that selects no training point (for example **Left side** after an example's
+domain was changed to a disk, which has no flat sides) would give a NaN loss term. Both the Solve script
+and the exported script print which condition is empty and why, before training. The settings check also
+flags a row whose last sketched edge was taken out.
 
 Changing the dimension by hand removes every row (see [Problem](problem.md#choose-the-dimension)).
 

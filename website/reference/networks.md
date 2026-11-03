@@ -118,12 +118,10 @@ Refused by `validate()` or before Solve:
 
 > A Training Phase is set to use AdamW, which requires a nonzero weight decay.
 
+The weight-decay checks look only at the optimizers of the Training Phases (and RAR's L-BFGS step).
+
 Exact periodicity replaces the input transform, and an exact initial condition cannot be combined with an
 output **Formula** (see [Exact constraints](exact-constraints.md)).
-
-!!! info "New in v1.6.0 (in development)"
-    The STMsFFN check of an input-feature formula, and a weight-decay check that looks only at the Training
-    Phases (a hidden optimizer left over from older problems no longer blocks an AdamW-only run).
 
 ## Common mistakes and troubleshooting
 

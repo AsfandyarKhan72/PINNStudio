@@ -97,14 +97,6 @@ window's solution. With a growing time range the profile is the initial conditio
   model saved by the training phases (see [Checkpoints](checkpoints.md)).
 - The exported script fits only the outputs whose initial condition is active, as Solve's does.
 
-!!! info "New in v1.6.0 (in development)"
-    - ICGL takes its iterations and learning rate from the first Adam **or AdamW** phase (an AdamW phase
-      was ignored), and fits only the outputs that have an initial condition (an output without one, such
-      as Cahn-Hilliard's \( \mu \), was pulled towards a placeholder; an IC file was ignored).
-    - IC pre-training with no initial condition as a loss term is refused (it trained on an identically
-      zero loss). With time windows, Solve's script pre-trains only the outputs whose IC is on, as the
-      exported script does.
-
 ## Supported problem types
 
 IC pre-training: time-dependent 1D, 2D and 3D problems (the option is hidden for a stationary problem),

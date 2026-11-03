@@ -66,12 +66,6 @@ current ε, the smallest weight and how far in time the weights have settled (al
 - With a fixed ε, the right value depends on the size of the residuals (the tool tip notes that on 1D
   Allen-Cahn a fixed ε = 1 left the weights near 0.98, so causal training barely acted).
 
-!!! info "New in v1.6.0 (in development)"
-    Only the training points are causally weighted. Before, the residuals of a point set at least as large
-    as the training set (RAR or resampling candidates) became the stored causal weights, and with time
-    windows a later window with fewer training points never stored its weights; the ε schedule also started
-    over at every Adam training call. It now starts over only for a new time window.
-
 ## Supported problem types
 
 Time-dependent 1D, 2D and 3D PDEs, forward and inverse; with RAR (script generated in the tests) and with time

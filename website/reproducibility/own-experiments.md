@@ -15,11 +15,10 @@ described in [Benchmark collection](benchmarks.md).
 
 ### Software versions
 
-- **PINNStudio version.** PINNStudio has no *About* dialog. For a release, `pip show pinnstudio` (or
-  `uv tool list` for the one-command installer) gives the version, and every saved `.pinn.json` file records it as
-  `saved_with_pinnstudio_version`. A source installation of the development version still reports `1.5.0` until
-  v1.6.0 is released; record the commit instead, with `git rev-parse --short HEAD` in the `PINNStudio` folder (and
-  `git status` to note local changes).
+- **PINNStudio version.** PINNStudio has no *About* dialog. `pip show pinnstudio` (or `uv tool list` for the
+  one-command installer) gives the version, and every saved `.pinn.json` file records it as
+  `saved_with_pinnstudio_version`. For a source installation, record the commit as well, with
+  `git rev-parse --short HEAD` in the `PINNStudio` folder (and `git status` to note local changes).
 - **Python, PyTorch, DeepXDE.** PINNStudio does not write these into the run folder. Record them yourself, with the
   same Python PINNStudio runs in:
 

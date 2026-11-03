@@ -26,6 +26,4 @@ listed with the reason.
 python tools/check_export_equivalence.py --out equivalence_results --device cpu
 ```
 
-!!! warning "Result for v1.6.0 pending"
-    The v1.6.0 audit changed both generators. The check will be repeated on the final v1.6.0 release candidate, and its
-    result is reported here only then.
+The command writes the records and the comparison of every configuration to the `--out` folder.

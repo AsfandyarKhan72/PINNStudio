@@ -63,20 +63,14 @@ off otherwise.
 | Time Adaptive | Each step group's steps, IC grid resolution, when time-adaptive training is on |
 | Input Transform, Output Transform | Each scale, when the transform is on |
 
-Each is offered only where the window itself allows it.
-
-!!! info "New in v1.6.0 (in development)"
-    - Named constants can be swept (category **Constants**); constants defined from a swept one follow
-      it, and every expression that uses it gets the swept value.
-    - New sweep parameters: Random seed, L-BFGS phase at the end, Per-point weights, Causal training,
-      Architecture, Exact periodicity, Exact initial condition, Time-adaptive training, and
-      Measured data: times.
-    - Every run's settings are checked before it trains, as Solve does: a combination that cannot run is
-      skipped with the reason in the Training Log and marked *invalid* in the summary.
+Each is offered only where the window itself allows it. Constants defined from a swept constant follow it, and
+every expression that uses it gets the swept value.
 
 ## Run it and read the results
 
-**Run Sweep** first checks the base settings like **Solve**. The runs are then trained one after another.
+**Run Sweep** first checks the base settings like **Solve**. The runs are then trained one after another. Every
+run's settings are checked before it trains, as Solve does: a combination that cannot run is skipped with the
+reason in the Training Log and marked *invalid* in the summary.
 The Training Log says where the sweep is saved, then for each run *Run i/n: …*, its output (prefixed
 *[Sweep i/n]*), and its final loss and relative L₂ error. **Stop** ends the sweep. At the end the Overview
 shows the last finished run's figures.

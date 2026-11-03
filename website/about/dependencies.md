@@ -39,9 +39,6 @@ Why some versions are restricted:
 - **NumPy below 2 on Intel Macs.** PyTorch's last Intel-Mac release (2.2.2) was built against NumPy 1 and cannot
   use NumPy 2.
 
-!!! info "New in v1.6.0 (in development)"
-    SciPy is a declared dependency. PINNStudio and its scripts import `scipy.interpolate`, `scipy.spatial` and
-    `scipy.special` directly; in v1.5.0 SciPy was installed only because DeepXDE depends on it.
 
 The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download [uv](https://docs.astral.sh/uv/)
 (MIT or Apache-2.0) from Astral, and uv downloads a Python build. Neither is part of PINNStudio.

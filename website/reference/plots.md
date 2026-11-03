@@ -85,11 +85,7 @@ equations.
 - Solution data export is for forward problems and is written by Solve only; the exported script prints a
   note saying so.
 - The export grid covers the bounding box of a non-box shape; the points outside the domain are written
-  as `nan` (they used to carry the network's extrapolation without a mark).
-
-!!! info "New in v1.6.0 (in development)"
-    Exported solution data of a non-box shape is `nan` outside the domain, and an ODE's file names its
-    variable `t` in the header (it said `x`).
+  as `nan`.
 - The **Export Solution Data** dialog's note shows the column order of 1D and 2D files; 3D files are
   `x, y, z, t, …` and every file has one column per output.
 

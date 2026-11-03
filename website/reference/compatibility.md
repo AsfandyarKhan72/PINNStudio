@@ -7,8 +7,7 @@ search:
 
 Most training methods and network options in PINNStudio can be switched on independently, so many combinations
 are possible. This page records, for each combination, what is known about it: whether a shipped example or a
-test uses it, whether PINNStudio refuses it, or whether nothing has been checked. It describes the development
-version that will become v1.6.0.
+test uses it, whether PINNStudio refuses it, or whether nothing has been checked.
 
 The status of a combination is one of
 
@@ -64,8 +63,7 @@ Stationary: the window disables **Time Adaptive Training**, and `validate()` ref
 both ("Time-adaptive training needs a time-dependent problem"). Inverse: the window removes the choice in
 **Inverse** mode, and `validate()` refuses it ("Time-adaptive training is available for forward problems only").
 ODE: the window still offers the choice, and `validate()` refuses it (an ODE is solved as a problem in \( t \)
-without a separate time axis, so there are no windows to step through). Before v1.6.0 the scripts switched time
-windows off silently in the stationary and ODE cases.
+without a separate time axis, so there are no windows to step through).
 
 **Causal training.** Examples: [Allen-Cahn 1D – Wight & Zhao](../examples/1d/allen-cahn-1d-wight-zhao.md)
 (Settings: Tuned, and Inverse mode). Refused for a stationary problem ("Causal training needs a time-dependent

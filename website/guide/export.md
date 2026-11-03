@@ -40,14 +40,9 @@ compares them.
 | **Export Solution** enabled | The short script, with a note that only Solve writes the solution data files |
 | A parameter sweep enabled | One run with the settings in the window; the sweep itself is not part of the script |
 
-!!! info "New in v1.6.0 (in development)"
-    - For the time-window options above, the export is now the Solve script (the short script left them
-      out and trained a different model).
-    - With time windows the exported script starts the first window from the same random weights as
-      Solve.
-    - The exported script now sets the **GPU device index** and **Max GPU memory to reserve** of
-      **Settings › GPU / Hardware...** when they differ from the defaults.
-    - The exported script no longer stops with `NameError: _sol_dir` when **Model Checkpoint** is on.
+With time windows the exported script starts the first window from the same random weights as Solve. The
+exported script sets the **GPU device index** and **Max GPU memory to reserve** of
+**Settings › GPU / Hardware...** when they differ from the defaults.
 
 ## Export the solution as data
 

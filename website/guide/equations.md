@@ -44,12 +44,10 @@ own weight.
 Each output's name is how you refer to it in equations, conditions, transforms, plots and Error
 Analysis. Use a short Python-style name: letters, digits and `_`, not starting with a digit.
 
-!!! info "New in v1.6.0 (in development)"
-    Output names are checked. A name that is not a valid identifier, a Python word (`lambda`), a
-    coordinate, the array the outputs are read from (`y`), a module name (`np`, `dde`), a math function
-    (`sin`, `pi`), a side name (`left`, …) or a name used for two outputs is refused, with the message on
-    the Equations page. Before, such names could crash a script or silently train a different problem.
-    In an ODE, outputs cannot be called `x` or `t`, and with `integral(...)` terms not `s`.
+Output names are checked. A name that is not a valid identifier, a Python word (`lambda`), a
+coordinate, the array the outputs are read from (`y`), a module name (`np`, `dde`), a math function
+(`sin`, `pi`), a side name (`left`, …) or a name used for two outputs is refused, with the message on
+the Equations page. In an ODE, outputs cannot be called `x` or `t`, and with `integral(...)` terms not `s`.
 
 ## Write the equations
 
@@ -68,10 +66,6 @@ only for a time-dependent problem), `du_xxx` in 1D, and fourth derivatives of th
 `du_xxyy`, `du_xxtt`. Any other name, for example `du_xxy` or `du_xyz`, is refused when you press
 **Solve** (*… is not available (see Derivative syntax on the Equations page)*); write a higher derivative
 with an extra output instead (for example `v` with the equation `v - du_xx`).
-
-!!! info "New in v1.6.0 (in development)"
-    Unsupported derivative names are refused by the settings check. Before, they passed the check and
-    stopped both scripts with `NameError` at the first training step.
 
 The coordinates (`x`, `y`, `z`, `t` as the dimension has them), the output names, the named constants,
 the unknown parameters of an inverse problem and the functions `sin`, `cos`, `exp`, `log`, `sqrt`,
@@ -107,11 +101,8 @@ To keep equations readable, define constants with **Add constant**: a name and a
 `Re = 20` and `nu = 1/Re`. A value can be a number or an expression in math functions and the constants
 defined above it. The computed value is shown next to it (or a warning sign if it cannot be evaluated).
 Constants can be used in the equations, boundary and initial conditions, transforms and the
-exact-solution formula of Error Analysis.
-
-!!! info "New in v1.6.0 (in development)"
-    Every named constant is a parameter of the [parameter sweep](sweeps.md) (category **Constants**).
-    Constants defined from a swept constant follow it.
+exact-solution formula of Error Analysis. Every named constant is also a parameter of the
+[parameter sweep](sweeps.md) (category **Constants**); constants defined from a swept constant follow it.
 
 ## Inverse problems
 

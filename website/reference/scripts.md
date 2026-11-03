@@ -70,7 +70,8 @@ the generated script may be used.
 
 Both generators read the same configuration, after the same preparation step (named constants
 substituted, exact constraints turned into transforms, an ODE turned into a stationary 1D problem in
-\( x = t \), a non-box shape's bounding box used as the domain box). A check script,
+\( x = t \), a non-box shape's bounding box used as the domain box). With time windows, the exported script
+draws the same random numbers before the windows as Solve's script, so the two train the same model. A check script,
 `tools/check_export_equivalence.py`, loads each example, shortens its training, runs both scripts with the
 same seed on the same device and compares the printed loss history line by line (and the identified
 parameters of inverse problems), with a full-precision record of every `model.train()` call; see
@@ -82,14 +83,6 @@ parameters of inverse problems), with a full-precision record of every `model.tr
 - The exported script does not write the solution data files.
 - GPU runs are not bit-for-bit reproducible (cuDNN determinism is not forced), so two runs can differ
   slightly even with the same seed.
-
-!!! info "New in v1.6.0 (in development)"
-    - The exported script sets the GPU index and memory fraction of **Settings › GPU / Hardware...**, and
-      notes when solution data export is on.
-    - With bc-PINN, a growing time range, IC-guided learning or resampling rounds, the export is Solve's own
-      script; with time windows the export draws the same random numbers before the windows as Solve's
-      script, so the two train the same model.
-    - Fixed: `NameError: _sol_dir` in the exported script with Model Checkpoint on.
 
 ## Supported problem types
 

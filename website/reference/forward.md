@@ -83,10 +83,6 @@ Extra training points are refused with time windows:
 - **Test points** only affect the test loss shown in the log and the loss plot; they are not used for
   training.
 
-!!! info "New in v1.6.0 (in development)"
-    A boundary condition that selects no training point is reported before training, instead of
-    training on without it (and L-BFGS stopping with an `IndexError`).
-
 ## Example
 
 **Heat 2D** and **Burgers 1D – Raissi et al.** in **Examples** (Forward). See

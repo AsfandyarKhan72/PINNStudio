@@ -141,10 +141,6 @@ Refused by `validate()` with per-point weights:
 - **Periodic row on a disk or a custom shape** is refused; use an Operator row that compares the two sides
   by hand, or a box domain.
 
-!!! info "New in v1.6.0 (in development)"
-    A condition that selects no training point is reported before training. Per-point weights together
-    with a batched Point Set condition are refused (the weights silently restarted at every resampling).
-
 ## Example
 
 **Poisson 1D – Dirichlet/Neumann**, **Poisson 1D – Dirichlet/Robin**, **Poisson 1D – Dirichlet/Periodic**

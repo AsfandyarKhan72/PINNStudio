@@ -84,9 +84,6 @@ predicts on the plot grids.
 - Without a save folder, no model is saved (plots go to a temporary folder).
 - A model's config must match it: restoring with another network size fails in `model.restore`.
 
-!!! info "New in v1.6.0 (in development)"
-    The exported script no longer stops with `NameError: _sol_dir` when Model Checkpoint is on.
-
 ## Supported problem types
 
 All; time-window runs are restored window by window (or combined).

@@ -89,10 +89,6 @@ Error Analysis grid.
 - Sampling on some DeepXDE shapes returns float64 arrays in a float32 run; the scripts wrap these shapes
   so every sampled array has the run's precision.
 
-!!! info "New in v1.6.0 (in development)"
-    Time windows on a disk, polygon or custom shape use only the grid points inside the domain (earlier
-    the whole bounding box was used, so points outside the domain were trained on).
-
 ## Supported problem types
 
 Every shape for forward and inverse, stationary and time-dependent problems of its dimension.

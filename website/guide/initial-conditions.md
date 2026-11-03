@@ -14,11 +14,8 @@ Background: [Initial conditions and imported data](../reference/initial-conditio
 Type the initial value as an expression of the space coordinates (`x`; `x, y`; `x, y, z`), using the
 same functions as the equations, for example `-sin(pi*x)`, `exp(-(x**2+y**2))` or `0`. Named constants
 can be used. In an ODE problem the initial value is usually a number. Click **Initial-condition syntax**
-for examples for the current dimension.
-
-!!! info "New in v1.6.0 (in development)"
-    An initial condition written with `t` (for example an exact solution copied into the box) is
-    evaluated with `t` equal to `t_min`. Before, both scripts stopped with `NameError: t`.
+for examples for the current dimension. An initial condition written with `t` (for example an exact solution
+copied into the box) is evaluated with `t` equal to `t_min`.
 
 Each ticked **IC for …** is one loss term, **IC N** on the [Loss weights](loss-weights.md) page, with a
 default weight of 100.

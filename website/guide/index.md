@@ -11,10 +11,6 @@ its default, and the field of the saved problem (the `PINNConfig` field, see
 The mathematics behind each feature is in the [Feature reference](../reference/index.md); worked
 problems are in the [Tutorials](../tutorials/index.md).
 
-!!! note "Version"
-    These pages describe the development version that will become **v1.6.0**. The released version on
-    PyPI is v1.5.0. Behaviour that is new or fixed in the development version is marked
-    *New in v1.6.0 (in development)*.
 
 !!! warning "Scope"
     PINNStudio helps you set up, train and evaluate physics-informed neural networks. It does not

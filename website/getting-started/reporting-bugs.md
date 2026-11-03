@@ -23,13 +23,11 @@ these ways:
     or `pip show pinnstudio` for a `pip` installation, or `uv tool list` for a copy installed with the one-command
     installer.
 - In a saved problem: the entry `saved_with_pinnstudio_version` of any `.pinn.json` file you saved.
-- The one-command installer prints it at the end (`PINNStudio 1.5.0 installed.`).
+- The one-command installer prints it at the end (`PINNStudio <version> installed.`).
 
 Say also how you installed it: one-command installer, `pip`, or from source.
 
-!!! warning "Development version"
-    A source installation of the development version still reports `1.5.0` until v1.6.0 is released. For the
-    development version, give the commit instead: run `git rev-parse --short HEAD` in the `PINNStudio` folder.
+For a source installation, give the commit as well: run `git rev-parse --short HEAD` in the `PINNStudio` folder.
 
 **2. Your system.** Operating system and version, Python version, and the versions of PyTorch, DeepXDE and PySide6:
 
