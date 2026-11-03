@@ -142,6 +142,7 @@ def run():
     sp.set_tool("Rectangle")
     sp.new_d0.setValue(0)
     sp.new_d1.setValue(0.5)
+    _settle()     # pending layout/resize events first, so the points below map with the canvas's final geometry
 
     def at(x, y):
         return c.to_screen(QPointF(x, y)).toPoint()
