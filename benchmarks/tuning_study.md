@@ -81,6 +81,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.0 × 10<sup>-3</sup> | none | net | – | 872 → 1995 |
 | [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 9.9 × 10<sup>-3</sup> | 8.3 × 10<sup>-3</sup> | none | iters | – | 1662 → 3998 |
 | [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
+| [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 4.4 × 10<sup>-3</sup> | 4.4 × 10<sup>-3</sup> | none | base | – | 897 → 897 |
 | [Poisson 3D – sphere (PINNStudio template), inverse mode](#tune-poisson-3d-sphere-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> | none | base | 0.005% → 0.005% | 83 → 83 |
 | [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
 | [Heat 2D (PINNStudio template)](#tune-heat-2d-pinnstudio-template) | 6.1 × 10<sup>-3</sup> | 6.1 × 10<sup>-3</sup> | none | base | – | 98 → 98 |
@@ -127,7 +128,6 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template) | 5.2 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 350 → 719 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 2.1 × 10<sup>-4</sup> | 5.1 × 10<sup>-4</sup> | worse (2× higher) | net | – | 283 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.5 × 10<sup>-3</sup> | 9.2 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
-| [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
 
 ## Problems
 
@@ -162,7 +162,7 @@ Over seeds: own settings 9.6 × 10<sup>-3</sup> [7.9 × 10<sup>-4</sup> – 1.2 
 ![Line comparison, tuned (all)](figures/tuning/Poisson_1D_Dirichlet_Periodic/tuned_line_comparison.png)
 
 
-Tuned settings: [`Poisson 1D – Dirichlet - Periodic (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Periodic%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – Dirichlet - Periodic (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Periodic%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -195,7 +195,7 @@ Over seeds: own settings 8.8 × 10<sup>-2</sup> [4.7 × 10<sup>-2</sup> – 1.1 
 ![Surface comparison, tuned (all)](figures/tuning/Diffusion_reaction_equation/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Diffusion-reaction 1D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion-reaction 1D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -259,7 +259,7 @@ Over seeds: own settings 6.7 × 10<sup>-2</sup> [4.9 × 10<sup>-2</sup> – 1.1 
 ![Surface comparison, uy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_uy.png)
 
 
-Tuned settings: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -294,7 +294,7 @@ Adding L-BFGS reaches almost the lowest training loss but a worse error (0.16), 
 ![Surface comparison, tuned (all)](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -337,7 +337,7 @@ PINNStudio's own inverse mode: a and b of u'' - a u' + b u = 5t from u at 30 tim
 ![Parameter convergence, tuned (net)](figures/tuning/Second_order_ODE_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -379,7 +379,7 @@ Over seeds: own settings 6.2 × 10<sup>-3</sup> [2.9 × 10<sup>-3</sup> – 1.1 
 ![Parameter convergence, tuned (all)](figures/tuning/Inverse_diffusion_equation/tuned_param_plot.png)
 
 
-Tuned settings: [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](tuning/Diffusion%201D%20–%20unknown%20coefficient%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](tuning/Diffusion%201D%20–%20unknown%20coefficient%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -413,7 +413,7 @@ The wider network alone is the best and steadiest change; with all the changes t
 ![Surface comparison, tuned (net)](figures/tuning/Klein_Gordon_equation/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Klein-Gordon 1D (tuned).pinn.json`](tuning/Klein-Gordon%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Klein-Gordon 1D (tuned).pinn.json`](tuning/Klein-Gordon%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -456,7 +456,7 @@ PINNStudio's own inverse mode: the bending stiffness EI from the deflection at 2
 ![Parameter convergence, tuned (all)](figures/tuning/Euler_beam_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%20beam%201D,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%20beam%201D,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -491,7 +491,7 @@ An L-BFGS phase after Adam is all it needs: about 15 times lower error for 7 sec
 ![Surface comparison, tuned (lbfgs)](figures/tuning/Helmholtz_2D_with_a_hole/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Helmholtz 2D – square with hole (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20square%20with%20hole%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Helmholtz 2D – square with hole (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20square%20with%20hole%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -524,7 +524,7 @@ Over seeds: own settings 2.3 × 10<sup>-2</sup> [3.5 × 10<sup>-3</sup> – 3.0 
 ![Surface comparison, tuned (all)](figures/tuning/Diffusion_equation/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Diffusion 1D (tuned).pinn.json`](tuning/Diffusion%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion 1D (tuned).pinn.json`](tuning/Diffusion%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -546,7 +546,7 @@ Tuned settings: [`Diffusion 1D (tuned).pinn.json`](tuning/Diffusion%201D%20(tune
 Over seeds: own settings 7.8 × 10<sup>-4</sup> (1 seeds), tuned 5.5 × 10<sup>-5</sup> [5.0 × 10<sup>-5</sup> – 6.4 × 10<sup>-5</sup>] (3 seeds).
  Learned parameters (tuned, median): lambda_1 = 0.999888 (true 1.0), lambda_2 = 0.00999801 (true 0.01).
 
-Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -579,7 +579,7 @@ Over seeds: own settings 3.5 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 8.4 
 ![Line comparison, tuned (all)](figures/tuning/Euler_beam/tuned_line_comparison.png)
 
 
-Tuned settings: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -613,7 +613,7 @@ Over seeds: own settings 4.0 × 10<sup>-3</sup> [3.9 × 10<sup>-3</sup> – 4.2 
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
 
 
-Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -648,7 +648,7 @@ Again L-BFGS alone gives most of the gain, at almost no extra time.
 ![Surface comparison, tuned (lbfgs)](figures/tuning/Diffusion_equation_with_resampling/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Diffusion 1D – resampling (tuned).pinn.json`](tuning/Diffusion%201D%20–%20resampling%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion 1D – resampling (tuned).pinn.json`](tuning/Diffusion%201D%20–%20resampling%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -691,7 +691,7 @@ PINNStudio's own inverse mode: the diffusivity D from u at four times.
 ![Parameter convergence, tuned (all)](figures/tuning/Diffusion_reaction_equation_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning/Diffusion-reaction%201D,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning/Diffusion-reaction%201D,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -732,7 +732,7 @@ Over seeds: own settings 4.5 × 10<sup>-3</sup> [2.8 × 10<sup>-3</sup> – 7.6 
 ![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_u.png)
 
 
-Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(batches)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(batches)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -773,7 +773,7 @@ Over seeds: own settings 5.1 × 10<sup>-3</sup> [2.6 × 10<sup>-3</sup> – 6.0 
 ![Parameter convergence, tuned (all)](figures/tuning/Heat_equation_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -797,7 +797,7 @@ Its own settings and results are on the examples page: [Klein-Gordon 1D](example
 Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 2.9 × 10<sup>-3</sup> [6.3 × 10<sup>-4</sup> – 5.9 × 10<sup>-3</sup>] (3 seeds).
  Learned parameters (tuned, median): gamma = 1.00912 (true 1.0).
 
-Tuned settings: [`Klein-Gordon 1D, inverse mode (tuned).pinn.json`](tuning/Klein-Gordon%201D,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Klein-Gordon 1D, inverse mode (tuned).pinn.json`](tuning/Klein-Gordon%201D,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -828,7 +828,7 @@ Over seeds: own settings 2.5 × 10<sup>-4</sup> (1 seeds), tuned 5.8 × 10<sup>-
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
 
 
-Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -860,7 +860,7 @@ Over seeds: own settings 1.4 × 10<sup>-2</sup> [6.1 × 10<sup>-3</sup> – 2.7 
 ![Surface comparison, tuned (all)](figures/tuning/Heat_equation_with_resampling/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20–%20resampling%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20–%20resampling%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -886,7 +886,7 @@ Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 8.7 × 10<sup>-
 
 PINNStudio's own inverse mode: the wavenumber k0 = 4π from u on a 31 × 31 grid. The source term is the known load and keeps the true wavenumber, so k0 is unknown only in the k0² u term (an earlier version also had k0 inside the source and failed). k0 is found to 0.01% with the example's settings and to 0.004% after tuning.
 
-Tuned settings: [`Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -929,7 +929,7 @@ Only |h| is measured, at one time, and with the example's own network c depends 
 ![Parameter convergence, tuned (net)](figures/tuning/Schr_dinger_equation_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -963,7 +963,7 @@ With one seed the wider network looked best (5.8e-3), but over three seeds it va
 ![Surface comparison, tuned (all)](figures/tuning/Heat_equation/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Heat 1D – Dirichlet (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 1D – Dirichlet (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -994,7 +994,7 @@ Causal training on the whole interval, then every change together, gives 5.2e-4 
 ![Surface comparison, tuned (all)](figures/tuning/Template_1D_Burgers_best_setup/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1024,7 +1024,7 @@ Over seeds: own settings 5.2 × 10<sup>-4</sup> [4.7 × 10<sup>-4</sup> – 5.3 
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Heat_inv/own_param_plot.png)
 
 
-Tuned settings: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1047,7 +1047,7 @@ Its own settings and results are on the examples page: [Wave 1D – space-time m
 Over seeds: own settings 5.5 × 10<sup>-5</sup> (1 seeds), tuned 2.0 × 10<sup>-5</sup> [1.6 × 10<sup>-5</sup> – 3.8 × 10<sup>-5</sup>] (3 seeds).
  Learned parameters (tuned, median): C = 10 (true 10.0).
 
-Tuned settings: [`Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1088,7 +1088,7 @@ Over seeds: own settings 5.4 × 10<sup>-4</sup> [1.3 × 10<sup>-4</sup> – 8.3 
 ![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_u.png)
 
 
-Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1109,7 +1109,7 @@ Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tunin
 Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 5.9 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): alpha = 0.000201912 (true 0.0002), kappa = 0.995857 (true 1.0).
 
-Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1128,7 +1128,7 @@ Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inv
 
 Over seeds: own settings 2.0 × 10<sup>-3</sup> (1 seeds), tuned 8.5 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1149,7 +1149,7 @@ Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tun
 
 Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 1.9 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20cube%20with%20spherical%20cut-out%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20cube%20with%20spherical%20cut-out%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1200,7 +1200,7 @@ PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, w
 ![Parameter convergence, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1233,7 +1233,7 @@ Over seeds: own settings 2.3 × 10<sup>-2</sup> [1.6 × 10<sup>-2</sup> – 3.7 
 ![Line comparison, tuned (all)](figures/tuning/Fractional_Poisson_equation_1D/tuned_line_comparison.png)
 
 
-Tuned settings: [`Fractional Poisson 1D (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional Poisson 1D (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1277,7 +1277,7 @@ The field improves, but the effective viscosity stays about 18% too high in ever
 ![Parameter convergence, tuned (all)](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_param_plot.png)
 
 
-Tuned settings: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`](tuning/Brinkman-Forchheimer%201D%20–%20unknown%20ν_e,%20K%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`](tuning/Brinkman-Forchheimer%201D%20–%20unknown%20ν_e,%20K%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1328,7 +1328,7 @@ PINNStudio's own inverse mode: w in y2' = -w y1 from y1 and y2 at 40 times. Alre
 ![Parameter convergence, tuned (all)](figures/tuning/ODE_system_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Linear%20ODE%20system,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Linear%20ODE%20system,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1386,7 +1386,7 @@ PINNStudio's own inverse mode: the viscosity from u, v and w at two times. The e
 ![Parameter convergence, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_param_plot.png)
 
 
-Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1420,7 +1420,7 @@ Training loss picks the wider network, but all the changes together give the low
 ![Surface comparison, tuned (net)](figures/tuning/Poisson_over_an_L_shaped_domain/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D%20–%20L-shape%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D%20–%20L-shape%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1440,7 +1440,7 @@ Tuned settings: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D
 
 Over seeds: own settings 1.4 × 10<sup>-3</sup> (1 seeds), tuned 9.4 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1473,7 +1473,7 @@ Over seeds: own settings 4.0 × 10<sup>-2</sup> [1.8 × 10<sup>-2</sup> – 4.1 
 ![Line comparison, tuned (all)](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/tuned_line_comparison.png)
 
 
-Tuned settings: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20rate%20field%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20rate%20field%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1511,7 +1511,7 @@ The worst error is at t = 0, where the initial field is close to zero and the re
 ![Surface comparison, u, tuned (net)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_u.png)
 
 
-Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1550,7 +1550,7 @@ None of the changes helps: every variant ends at about 1.8% (worst output and ti
 ![Surface comparison, v, tuned (iters)](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_v.png)
 
 
-Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1593,7 +1593,38 @@ No variant gets below about 7.7%, although the training loss falls about 800 tim
 ![Surface comparison, u_re, tuned (all)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_re.png)
 
 
-Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
+
+</details>
+
+<details id="tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup">
+<summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 2], Adam 5,000 → L-BFGS 5,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 5.43e-06 | 4.4 × 10<sup>-3</sup> | – | 897 |
+| iters | 4.59e-05 | 5.5 × 10<sup>-3</sup> | – | 2173 |
+| net | 3.84e-05 | 3.2 × 10<sup>-3</sup> | – | 2100 |
+| windows2 | 7.16e-06 | 6.3 × 10<sup>-3</sup> | – | 1684 |
+
+**Chosen: base** (the example's own settings): network [2, 128, 128, 128, 128, 2], Adam 5,000 → L-BFGS 5,000, 10,000 / 200 / 512 points.
+
+Over seeds: own settings 4.4 × 10<sup>-3</sup> (1 seeds), tuned 4.4 × 10<sup>-3</sup> (1 seeds).
+
+The study's best setup (time windows, exact periodicity, SA-PINN weights) gives 0.39% at t = 1, as in the training methods study. Every change makes it worse, and the wider network is a warning: its training loss is the lowest of all (1.5e-12) while the solution has collapsed to a nearly flat field (99% error). A tiny loss does not mean a right answer for this problem.
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_u.png)
+
+
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1613,7 +1644,7 @@ Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tun
 Over seeds: own settings 1.4 × 10<sup>-3</sup> (1 seeds), tuned 1.4 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): source_term = 1.00005 (true 1.0).
 
-Tuned settings: [`Poisson 3D – sphere (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 3D – sphere (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1634,7 +1665,7 @@ Tuned settings: [`Poisson 3D – sphere (PINNStudio template), inverse mode (tun
 Over seeds: own settings 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds), tuned 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds).
  Learned parameters (tuned, median): gamma_1 = 9.9233e-05 (true 0.0001), gamma_2 = 4.99768 (true 5.0).
 
-Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1651,7 +1682,7 @@ Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse 
 
 Over seeds: own settings 6.1 × 10<sup>-3</sup> [4.3 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>] (3 seeds), tuned 6.1 × 10<sup>-3</sup> [4.3 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>] (3 seeds).
 
-Tuned settings: [`Heat 2D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 2D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1668,7 +1699,7 @@ Tuned settings: [`Heat 2D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%
 
 Over seeds: own settings 2.6 × 10<sup>-3</sup> (1 seeds), tuned 2.6 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Heat 3D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 3D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1695,7 +1726,7 @@ Over seeds: own settings 7.6 × 10<sup>-5</sup> [6.4 × 10<sup>-5</sup> – 9.7 
 ![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
 
 
-Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1722,7 +1753,7 @@ The study's best setup (time windows with RBA weights, soft IC, exact periodicit
 ![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/own_surface_comparison.png)
 
 
-Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1761,7 +1792,7 @@ PINNStudio's own inverse mode: the prey growth rate a and the predator death rat
 ![Parameter convergence, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_param_plot.png)
 
 
-Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1784,7 +1815,7 @@ Over seeds: own settings 1.1 × 10<sup>-3</sup> [3.8 × 10<sup>-4</sup> – 1.9 
 
 PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. The body force is the known load and keeps the true values, so λ and μ are unknown only in the stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found to within 0.03%.
 
-Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1803,7 +1834,7 @@ Its own settings and results are on the examples page: [Integro-differential ODE
 
 Over seeds: own settings 6.5 × 10<sup>-5</sup> [5.7 × 10<sup>-5</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds), tuned 6.5 × 10<sup>-5</sup> [5.7 × 10<sup>-5</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds).
 
-Tuned settings: [`Integro-differential ODE (tuned).pinn.json`](tuning/Integro-differential%20ODE%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Integro-differential ODE (tuned).pinn.json`](tuning/Integro-differential%20ODE%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1822,7 +1853,7 @@ Its own settings and results are on the examples page: [Lotka-Volterra ODE](exam
 
 Over seeds: own settings 2.1 × 10<sup>-3</sup> [1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>] (3 seeds), tuned 2.1 × 10<sup>-3</sup> [1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>] (3 seeds).
 
-Tuned settings: [`Lotka-Volterra ODE (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Lotka-Volterra ODE (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1842,7 +1873,7 @@ Its own settings and results are on the examples page: [Lorenz ODE – unknown C
 Over seeds: own settings 1.0 × 10<sup>-4</sup> [9.5 × 10<sup>-5</sup> – 1.1 × 10<sup>-4</sup>] (3 seeds), tuned 1.0 × 10<sup>-4</sup> [9.5 × 10<sup>-5</sup> – 1.1 × 10<sup>-4</sup>] (3 seeds).
  Learned parameters (tuned, median): C1 = 10 (true 10.0), C2 = 14.9998 (true 15.0), C3 = 2.66664 (true 2.66667).
 
-Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1862,7 +1893,7 @@ Its own settings and results are on the examples page: [Fractional Poisson 1D �
 Over seeds: own settings 5.3 × 10<sup>-3</sup> [4.9 × 10<sup>-3</sup> – 6.7 × 10<sup>-3</sup>] (3 seeds), tuned 5.3 × 10<sup>-3</sup> [4.9 × 10<sup>-3</sup> – 6.7 × 10<sup>-3</sup>] (3 seeds).
  Learned parameters (tuned, median): alpha = 1.79135 (true 1.8).
 
-Tuned settings: [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20–%20unknown%20order%20α%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20–%20unknown%20order%20α%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1881,7 +1912,7 @@ Its own settings and results are on the examples page: [Black-Scholes 1D – Eur
 
 Over seeds: own settings 4.3 × 10<sup>-4</sup> [3.4 × 10<sup>-4</sup> – 6.3 × 10<sup>-4</sup>] (3 seeds), tuned 4.3 × 10<sup>-4</sup> [3.4 × 10<sup>-4</sup> – 6.3 × 10<sup>-4</sup>] (3 seeds).
 
-Tuned settings: [`Black-Scholes 1D – European call (tuned).pinn.json`](tuning/Black-Scholes%201D%20–%20European%20call%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Black-Scholes 1D – European call (tuned).pinn.json`](tuning/Black-Scholes%201D%20–%20European%20call%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1900,7 +1931,7 @@ Its own settings and results are on the examples page: [Schrödinger 1D](example
 
 Over seeds: own settings 1.8 × 10<sup>-3</sup> [1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>] (3 seeds), tuned 1.8 × 10<sup>-3</sup> [1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>] (3 seeds).
 
-Tuned settings: [`Schrödinger 1D (tuned).pinn.json`](tuning/Schrödinger%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Schrödinger 1D (tuned).pinn.json`](tuning/Schrödinger%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1919,7 +1950,7 @@ Its own settings and results are on the examples page: [Helmholtz 2D – Dirichl
 
 Over seeds: own settings 1.1 × 10<sup>-2</sup> [1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>] (3 seeds), tuned 1.1 × 10<sup>-2</sup> [1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>] (3 seeds).
 
-Tuned settings: [`Helmholtz 2D – Dirichlet (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Helmholtz 2D – Dirichlet (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1938,7 +1969,7 @@ Its own settings and results are on the examples page: [Navier-Stokes 2D – Kov
 
 Over seeds: own settings 2.0 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>] (3 seeds), tuned 2.0 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>] (3 seeds).
 
-Tuned settings: [`Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1957,7 +1988,7 @@ Its own settings and results are on the examples page: [Navier-Stokes 3D – Bel
 
 Over seeds: own settings 1.4 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>] (3 seeds), tuned 1.4 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>] (3 seeds).
 
-Tuned settings: [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1974,7 +2005,7 @@ Tuned settings: [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](tuning/
 
 Over seeds: own settings 2.8 × 10<sup>-4</sup> [2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>] (3 seeds), tuned 2.8 × 10<sup>-4</sup> [2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>] (3 seeds).
 
-Tuned settings: [`Poisson 2D – disk (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 2D – disk (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -1993,7 +2024,7 @@ Its own settings and results are on the examples page: [Integro-differential ODE
 
 Over seeds: own settings 2.5 × 10<sup>-3</sup> (1 seeds), tuned 2.5 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Integro-differential ODE – Volterra kernel (tuned).pinn.json`](tuning/Integro-differential%20ODE%20–%20Volterra%20kernel%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Integro-differential ODE – Volterra kernel (tuned).pinn.json`](tuning/Integro-differential%20ODE%20–%20Volterra%20kernel%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2012,7 +2043,7 @@ Its own settings and results are on the examples page: [Linear ODE system](examp
 
 Over seeds: own settings 3.6 × 10<sup>-3</sup> (1 seeds), tuned 3.6 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Linear ODE system (tuned).pinn.json`](tuning/Linear%20ODE%20system%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Linear ODE system (tuned).pinn.json`](tuning/Linear%20ODE%20system%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2031,7 +2062,7 @@ Its own settings and results are on the examples page: [Second-order ODE](exampl
 
 Over seeds: own settings 6.9 × 10<sup>-4</sup> (1 seeds), tuned 6.9 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Second-order ODE (tuned).pinn.json`](tuning/Second-order%20ODE%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Second-order ODE (tuned).pinn.json`](tuning/Second-order%20ODE%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2050,7 +2081,7 @@ Its own settings and results are on the examples page: [Poisson 1D – Dirichlet
 
 Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 3.7 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – Dirichlet (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – Dirichlet (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2069,7 +2100,7 @@ Its own settings and results are on the examples page: [Poisson 1D – Dirichlet
 
 Over seeds: own settings 2.3 × 10<sup>-4</sup> (1 seeds), tuned 2.3 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – Dirichlet - Neumann (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Neumann%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – Dirichlet - Neumann (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Neumann%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2088,7 +2119,7 @@ Its own settings and results are on the examples page: [Poisson 1D – Dirichlet
 
 Over seeds: own settings 2.6 × 10<sup>-5</sup> (1 seeds), tuned 2.6 × 10<sup>-5</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – Dirichlet - point-set operator (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20point-set%20operator%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – Dirichlet - point-set operator (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20point-set%20operator%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2107,7 +2138,7 @@ Its own settings and results are on the examples page: [Poisson 1D – Dirichlet
 
 Over seeds: own settings 2.4 × 10<sup>-4</sup> (1 seeds), tuned 2.4 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Robin%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Robin%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2126,7 +2157,7 @@ Its own settings and results are on the examples page: [Poisson 1D – hard BCs]
 
 Over seeds: own settings 2.2 × 10<sup>-6</sup> (1 seeds), tuned 2.2 × 10<sup>-6</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – hard BCs (tuned).pinn.json`](tuning/Poisson%201D%20–%20hard%20BCs%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – hard BCs (tuned).pinn.json`](tuning/Poisson%201D%20–%20hard%20BCs%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2145,7 +2176,7 @@ Its own settings and results are on the examples page: [Poisson 1D – multi-sca
 
 Over seeds: own settings 3.9 × 10<sup>-3</sup> (1 seeds), tuned 3.9 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Poisson 1D – multi-scale Fourier features (tuned).pinn.json`](tuning/Poisson%201D%20–%20multi-scale%20Fourier%20features%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 1D – multi-scale Fourier features (tuned).pinn.json`](tuning/Poisson%201D%20–%20multi-scale%20Fourier%20features%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2164,7 +2195,7 @@ Its own settings and results are on the examples page: [Burgers 1D – RAR](exam
 
 Over seeds: own settings 8.4 × 10<sup>-4</sup> (1 seeds), tuned 8.4 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Burgers 1D – RAR (tuned).pinn.json`](tuning/Burgers%201D%20–%20RAR%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Burgers 1D – RAR (tuned).pinn.json`](tuning/Burgers%201D%20–%20RAR%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2183,7 +2214,7 @@ Its own settings and results are on the examples page: [Diffusion 1D – hard IC
 
 Over seeds: own settings 2.8 × 10<sup>-3</sup> (1 seeds), tuned 2.8 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](tuning/Diffusion%201D%20–%20hard%20IC%20and%20BCs%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](tuning/Diffusion%201D%20–%20hard%20IC%20and%20BCs%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2202,7 +2233,7 @@ Its own settings and results are on the examples page: [Fractional diffusion 1D]
 
 Over seeds: own settings 3.3 × 10<sup>-3</sup> (1 seeds), tuned 3.3 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Fractional diffusion 1D (tuned).pinn.json`](tuning/Fractional%20diffusion%201D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional diffusion 1D (tuned).pinn.json`](tuning/Fractional%20diffusion%201D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2221,7 +2252,7 @@ Its own settings and results are on the examples page: [Fractional Poisson 2D �
 
 Over seeds: own settings 9.2 × 10<sup>-4</sup> (1 seeds), tuned 9.2 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Fractional Poisson 2D – disk (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20disk%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional Poisson 2D – disk (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20disk%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2240,7 +2271,7 @@ Its own settings and results are on the examples page: [Laplace 2D – disk](exa
 
 Over seeds: own settings 1.1 × 10<sup>-3</sup> (1 seeds), tuned 1.1 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Laplace 2D – disk (tuned).pinn.json`](tuning/Laplace%202D%20–%20disk%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Laplace 2D – disk (tuned).pinn.json`](tuning/Laplace%202D%20–%20disk%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2259,7 +2290,7 @@ Its own settings and results are on the examples page: [Linear elasticity 2D –
 
 Over seeds: own settings 4.9 × 10<sup>-4</sup> (1 seeds), tuned 4.9 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Linear elasticity 2D – plate, soft BCs (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20soft%20BCs%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Linear elasticity 2D – plate, soft BCs (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20soft%20BCs%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2278,7 +2309,7 @@ Its own settings and results are on the examples page: [Fractional Poisson 3D �
 
 Over seeds: own settings 7.2 × 10<sup>-3</sup> (1 seeds), tuned 7.2 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Fractional Poisson 3D – sphere (tuned).pinn.json`](tuning/Fractional%20Poisson%203D%20–%20sphere%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional Poisson 3D – sphere (tuned).pinn.json`](tuning/Fractional%20Poisson%203D%20–%20sphere%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2298,7 +2329,7 @@ Its own settings and results are on the examples page: [Lorenz ODE – unknown C
 Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): C1 = 9.97389 (true 10.0), C2 = 14.9961 (true 15.0), C3 = 2.66686 (true 2.66667).
 
-Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃,%20exogenous%20input%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃,%20exogenous%20input%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2318,7 +2349,7 @@ Its own settings and results are on the examples page: [Diffusion-reaction 1D �
 Over seeds: own settings 2.1 × 10<sup>-2</sup> (1 seeds), tuned 2.1 × 10<sup>-2</sup> (1 seeds).
  Learned parameters (tuned, median): kf = 0.0991842 (true 0.1), D = 1.9933 (true 2.0).
 
-Tuned settings: [`Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20k_f,%20D%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20k_f,%20D%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2338,7 +2369,7 @@ Its own settings and results are on the examples page: [Fractional Poisson 2D �
 Over seeds: own settings 3.4 × 10<sup>-3</sup> (1 seeds), tuned 3.4 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): alpha = 1.80386 (true 1.8).
 
-Tuned settings: [`Fractional Poisson 2D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20unknown%20order%20α%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Fractional Poisson 2D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20unknown%20order%20α%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2355,7 +2386,7 @@ Tuned settings: [`Fractional Poisson 2D – unknown order α (tuned).pinn.json`]
 
 Over seeds: own settings 1.5 × 10<sup>-3</sup> (1 seeds), tuned 1.5 × 10<sup>-3</sup> (1 seeds).
 
-Tuned settings: [`Poisson 3D – sphere (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 3D – sphere (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2384,7 +2415,7 @@ Over seeds: own settings 1.9 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 3.4 
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
 
 
-Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2414,7 +2445,7 @@ Over seeds: own settings 9.7 × 10<sup>-4</sup> (1 seeds), tuned 9.7 × 10<sup>-
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_param_plot.png)
 
 
-Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2443,7 +2474,7 @@ Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-
 ![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Heat_inv/own_param_plot.png)
 
 
-Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2462,7 +2493,7 @@ Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`
 
 Over seeds: own settings 2.7 × 10<sup>-4</sup> (1 seeds), tuned 2.8 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2495,7 +2526,7 @@ Over seeds: own settings 7.7 × 10<sup>-5</sup> [6.9 × 10<sup>-5</sup> – 7.9 
 ![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
 
 
-Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2515,7 +2546,7 @@ Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inver
 
 Over seeds: own settings 5.2 × 10<sup>-4</sup> [5.1 × 10<sup>-4</sup> – 6.0 × 10<sup>-4</sup>] (3 seeds), tuned 8.9 × 10<sup>-4</sup> (1 seeds).
 
-Tuned settings: [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2546,7 +2577,7 @@ Switching from the template's time windows to the study's best setup (exact peri
 ![Surface comparison, tuned (net)](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
 
@@ -2577,46 +2608,6 @@ The template's own settings are the best here; more iterations or a bigger netwo
 ![Surface comparison, tuned (iters)](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/tuned_surface_comparison.png)
 
 
-Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup">
-<summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)</strong></summary>
-
-**Own settings:** network [2, 128, 128, 128, 128, 2], Adam 5,000 → L-BFGS 5,000, 10,000 domain / 200 boundary / 512 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 2.85e-05 | 3.9 × 10<sup>-3</sup> | – | 1002 |
-| iters | 2.28e-04 | 6.1 × 10<sup>-2</sup> | – | 2165 |
-| **net** | 1.50e-12 | 9.9 × 10<sup>-1</sup> | – | 1893 |
-| all | 7.33e-11 | 9.9 × 10<sup>-1</sup> | – | 13959 |
-| windows2 | 3.50e-05 | 1.5 × 10<sup>-2</sup> | – | 1709 |
-
-**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 256, 256, 256, 256, 256, 2], Adam 5,000 → L-BFGS 5,000, 10,000 / 200 / 512 points.
-
-Over seeds: own settings 3.9 × 10<sup>-3</sup> (1 seeds), tuned 9.9 × 10<sup>-1</sup> (1 seeds).
-
-The study's best setup (time windows, exact periodicity, SA-PINN weights) gives 0.39% at t = 1, as in the training methods study. Every change makes it worse, and the wider network is a warning: its training loss is the lowest of all (1.5e-12) while the solution has collapsed to a nearly flat field (99% error). A tiny loss does not mean a right answer for this problem.
-
-*Surface comparison, mu, the example's own settings:*
-
-![Surface comparison, mu, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_mu.png)
-
-*Surface comparison, mu, tuned (net):*
-
-![Surface comparison, mu, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_mu.png)
-
-*Surface comparison, u, the example's own settings:*
-
-![Surface comparison, u, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_u.png)
-
-*Surface comparison, u, tuned (net):*
-
-![Surface comparison, u, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_u.png)
-
-
-Tuned settings: [`Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+Settings of the chosen (lowest-loss) variant: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json) (not always the example's **Tuned** preset, which is chosen by the reference error; see above)
 
 </details>
