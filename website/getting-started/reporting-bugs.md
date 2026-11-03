@@ -11,8 +11,8 @@ Before opening an issue, have a look at [Troubleshooting](../help/troubleshootin
 
 A problem can only be fixed when it can be reproduced. Please include as much of the following as applies.
 
-**1. The PINNStudio version and how you installed it.** PINNStudio has no *About* dialog; find the version in one of
-these ways:
+**1. The PINNStudio version and how you installed it.** **Help › About PINNStudio** shows the version. Without the
+window, find it in one of these ways:
 
 - In a terminal, in the Python PINNStudio runs in:
 

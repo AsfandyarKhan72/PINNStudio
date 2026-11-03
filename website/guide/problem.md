@@ -19,7 +19,7 @@ The quickest way to a working setup is an example that is close to your problem:
 2. Pick the example in the second list (or click its card on the **Start** tab).
 3. In the third list, choose **Default** or **Tuned**:
     - **Default** — a DeepXDE example with DeepXDE's own settings; a template taken from a paper with that
-      paper's network, points and training; PINNStudio's own templates as they are.
+      paper's network, points and training (forward mode; in inverse mode, the template's own settings); PINNStudio's own templates as they are.
     - **Tuned** — PINNStudio's best settings for that example from its benchmarks: the most accurate run,
       and among runs about as accurate, the fastest. The Training Log says what these settings change.
 

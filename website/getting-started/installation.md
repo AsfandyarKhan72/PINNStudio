@@ -8,7 +8,7 @@ There are three ways to install it:
 | Way | What it installs | How to install |
 |---|---|---|
 | **One-command installer** | The latest PINNStudio release from [PyPI](https://pypi.org/project/pinnstudio/), with its own Python | [One-command installer](#one-command-installer-recommended) |
-| **pip** | The latest PINNStudio release from PyPI, into a Python environment of your own | [`pip install pinnstudio`](#with-pip) |
+| **pip** | The latest PINNStudio release from PyPI, into a Python environment of your own | [`pip install pinnstudio`](#with-pip){ .nowrap } |
 | **From source** | The code in the GitHub repository | [From source](#development-version-from-source) |
 
 These pages describe PINNStudio 1.6.0. Until 1.6.0 is published on PyPI, install it from source (see below);
@@ -33,10 +33,11 @@ CUDA 12.4); the test machines above train on the CPU. Other versions of these sy
 Two platforms have restrictions that come from PyTorch:
 
 - **Intel Macs.** PyTorch's last release for Intel Macs is 2.2, which needs Python 3.12 or older and NumPy below 2.
-  The installer and `pip` choose these versions automatically (PINNStudio's dependencies require `numpy<2` on Intel
-  Macs).
+  The one-command installer uses Python 3.12 and picks these versions automatically. With `pip` or `install.sh`,
+  create the environment with Python 3.11 or 3.12 yourself (`pip` cannot choose the Python version); NumPy below 2
+  is then chosen automatically (PINNStudio's dependencies require `numpy<2` on Intel Macs).
 - **Windows on ARM** (for example Snapdragon PCs). PyTorch has no build for it. The one-command installer uses the
-  x64 Python, which Windows runs under emulation. With `pip`, install the x64 Python from python.org first.
+  x64 Python, which Windows runs under emulation. With `pip` or `install.bat`, install the x64 Python from python.org first.
 
 On a Mac, PINNStudio trains on the CPU. Apple's GPU (MPS) was not faster for PINNs in the project's tests on an
 M1 MacBook Air, and it has no float64.
@@ -80,6 +81,10 @@ The installer needs neither Python nor git. It installs the latest PINNStudio re
     ```powershell
     powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex"
     ```
+
+You can read the scripts before running them:
+[`get-pinnstudio.sh`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.sh) and
+[`get-pinnstudio.ps1`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.ps1).
 
 What the installer does (`get-pinnstudio.sh`, `get-pinnstudio.ps1`):
 
@@ -163,7 +168,8 @@ not interfere with other projects:
     PINNStudio is not packaged for conda; `pip` inside the conda environment installs it from PyPI.
 
 To add the desktop icon for a `pip` installation, run `pinnstudio --create-shortcut` (and
-`pinnstudio --remove-shortcut` to remove it).
+`pinnstudio --remove-shortcut` to remove it). To uninstall, run `pinnstudio --remove-shortcut` (if you added the
+icon), then `pip uninstall pinnstudio` in the same environment.
 
 ### CPU-only or NVIDIA GPU PyTorch
 
@@ -180,15 +186,14 @@ An NVIDIA GPU was detected, but PyTorch cannot use it (PINNStudio runs on the CP
 
 followed by the commands that install the PyTorch build matching your driver, in the Python PINNStudio runs in. For a
 `pip` installation they have this form (the CUDA tag, here `cu126`, is chosen from the CUDA version the driver
-reports):
+reports, and the path is that of the Python PINNStudio runs in):
 
 ```bash
-python -m pip install --upgrade pip
-pip uninstall -y torch
-pip install torch --index-url https://download.pytorch.org/whl/cu126
+"<path to python>" -m pip uninstall -y torch
+"<path to python>" -m pip install torch --index-url https://download.pytorch.org/whl/cu126
 ```
 
-Upgrading `pip` first matters: an old `pip` can fail on PyTorch's package index with a `flit_core` or
+Upgrade `pip` first (`"<path to python>" -m pip install --upgrade pip`): an old `pip` can fail on PyTorch's package index with a `flit_core` or
 "Could not find a version that satisfies" error. PINNStudio chooses `cu128` for drivers that report CUDA 12.8 or
 newer, `cu126` for CUDA 12.0 to 12.7, and `cu118` for CUDA 11.8 to 11.x; with an older driver it tells you to
 update the driver. For an installer copy, the message tells you to run the installer again instead.
@@ -294,7 +299,8 @@ the log file `~/.pinnstudio/pinnstudio.log` (in your home folder).
 3. Train a small example, as described in [First run](first-run.md). A run that finishes with
    `✅ Training complete!` in the Training Log shows that PyTorch, DeepXDE and the generated scripts work.
 
-`pinnstudio` has no command-line options (`pinnstudio --version` or `--help` simply opens the window). To see
+Apart from the two shortcut options (`--create-shortcut`, `--remove-shortcut`), `pinnstudio` has no command-line
+options (`pinnstudio --version` or `--help` simply opens the window); **Help › About PINNStudio** shows the version. To see
 the version, and to check the installed packages, run these in a terminal, in the Python PINNStudio runs in:
 
 ```bash
@@ -320,6 +326,9 @@ After the one-command installer, open a new terminal window: the PATH change app
 open a new terminal. `install.bat` stops with
 `Could not create the virtual environment. Is Python 3.11 or newer installed and on PATH?` when it cannot find
 Python.
+
+**`python3 -m venv` fails with "ensurepip is not available"** (Ubuntu and Debian). The `venv` module is a separate
+package there: `sudo apt install python3-venv`, then run the command again.
 
 **`git` missing** (source installation). Install it from [git-scm.com](https://git-scm.com/downloads). On macOS,
 the first `git --version` may offer to install Apple's Command Line Tools.

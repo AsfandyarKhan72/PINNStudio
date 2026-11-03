@@ -39,27 +39,28 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
 
 - **Forward and inverse problems.** Solve a known equation, or learn unknown coefficients or a whole unknown field
   from measured data while the solution is found. Learn more: [forward problems](https://asfandyarkhan72.github.io/PINNStudio/reference/forward/), [inverse problems](https://asfandyarkhan72.github.io/PINNStudio/reference/inverse/), [parameter-estimation tutorial](https://asfandyarkhan72.github.io/PINNStudio/tutorials/06-inverse/).
-- **ODEs and PDEs in 1D, 2D and 3D.** Steady or time-dependent equations and coupled systems, including
-  integro-differential and fractional equations, typed as residuals such as `du_t + u*du_x - 0.01/pi*du_xx`.
+- **ODEs and PDEs in 1D, 2D and 3D.** Steady or time-dependent equations and coupled systems, fractional
+  equations, and integro-differential ODEs (Volterra integrals), typed as residuals such as `du_t + u*du_x - 0.01/pi*du_xx`.
   Learn more: [equations](https://asfandyarkhan72.github.io/PINNStudio/reference/equations/), [coupled systems](https://asfandyarkhan72.github.io/PINNStudio/reference/coupled/).
-- **Domains and conditions.** Built-in shapes and combinations of them, or a domain drawn in the Sketch or imported
-  from a DXF or SVG drawing; Dirichlet, Neumann, Robin, periodic, point-data and operator conditions, or conditions
+- **Domains and conditions.** Built-in shapes and combinations of them, or a domain drawn in the Sketch (2D, or
+  boxes and spheres in 3D) or imported from a 2D DXF or SVG drawing; Dirichlet, Neumann, Robin, periodic, point-data and operator conditions, or conditions
   imposed exactly through the network output. Learn more: [geometry](https://asfandyarkhan72.github.io/PINNStudio/guide/geometry/), [boundary conditions](https://asfandyarkhan72.github.io/PINNStudio/reference/boundary-conditions/),
   [exact constraints](https://asfandyarkhan72.github.io/PINNStudio/reference/exact-constraints/).
 - **Training methods.** Multi-phase training (for example Adam, then L-BFGS), residual-based adaptive refinement,
   time windows and bc-PINN, causal training, RBA and SA-PINN point weights, and an exact initial condition or
   exact periodicity. Learn more: [choosing a training strategy](https://asfandyarkhan72.github.io/PINNStudio/guide/choosing-a-strategy/), [RAR](https://asfandyarkhan72.github.io/PINNStudio/reference/rar/),
   [RBA and SA-PINN](https://asfandyarkhan72.github.io/PINNStudio/reference/point-weights/), [causal training](https://asfandyarkhan72.github.io/PINNStudio/reference/causal/), [time windows](https://asfandyarkhan72.github.io/PINNStudio/reference/time-windows/).
-- **Parameter sweeps.** Vary almost any setting one at a time, in all combinations, as paired values or with a
+- **Parameter sweeps.** Vary network, sampling, training, loss-weight and equation-constant settings one at a time, in all combinations, as paired values or with a
   Bayesian search, and compare the runs on one plot. [Full guide](https://asfandyarkhan72.github.io/PINNStudio/reference/sweeps/).
 - **Error analysis and plots.** Relative L₂, MSE, maximum and mean absolute error against reference data or an
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
-- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script that trains the same model
-  as **Solve**, and a saved model can be reloaded and plotted again without retraining. Learn more:
+- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
+  model as **Solve** for the built-in examples (see Reproducibility), and a saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
-- **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D, covering DeepXDE's documented
-  examples and published PINN benchmarks, almost all with an exact solution or reference data.
+- **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
+  PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact
+  solution or reference data.
   [Example gallery](https://asfandyarkhan72.github.io/PINNStudio/examples/).
 
 ## Installation
@@ -86,6 +87,8 @@ curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex"
 ```
 
+You can read the scripts before running them: [`get-pinnstudio.sh`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.sh)
+and [`get-pinnstudio.ps1`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.ps1).
 The install takes a few minutes, and at the end it says which version was installed and whether training will run
 on the GPU. Running the same command again updates PINNStudio. Both `pip install pinnstudio` and the installer
 install the latest release from PyPI; the [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md)
@@ -111,8 +114,8 @@ problems from an empty window.
 ## Examples
 
 A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
-*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the most
-accurate run of the tuning study (the fastest of the runs within 25% of the lowest error).
+*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, PINNStudio's
+best run in its benchmarks: the fastest of the runs within 25% of the lowest error at the last reference time.
 
 | Example | Dimension | What it shows |
 |---|---|---|
@@ -195,7 +198,7 @@ Email: [asfandyarkhan@u.boisestate.edu](mailto:asfandyarkhan@u.boisestate.edu)
 
 ## License
 
-PINNStudio is released under the [MIT License](LICENSE). Copyright (c) 2026 Asfandyar Khan. Every release has
+PINNStudio is released under the [MIT License](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE). Copyright (c) 2026 Asfandyar Khan. Every release has
 been published under this license.
 
 **Generated scripts.** PINNStudio writes a Python script for each problem: the script *Export script* saves, and the
@@ -205,6 +208,6 @@ Matplotlib) keep their own licenses.
 
 **Your input and your results.** What you enter into PINNStudio (equations, constants, settings, geometry, data) and what you produce by running PINNStudio or a generated script (data files, figures, animations, trained model weights, logs) are not part of PINNStudio, and PINNStudio's copyright holder claims no rights in them.
 
-**Third-party software.** PINNStudio's interface is built on Qt for Python (PySide6-Essentials, with shiboken6 and the Qt 6 libraries), used under the GNU Lesser General Public License version 3 ([`LICENSES/LGPL-3.0.txt`](LICENSES/LGPL-3.0.txt), which refers to [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)). PINNStudio also runs on DeepXDE (LGPL-2.1), PyTorch (BSD-3-Clause), NumPy, SciPy, Matplotlib and pandas. All of these are installed as separate packages and keep their own licenses; some of the interface's icons are derived from Lucide (ISC) and Feather (MIT). PINNStudio is an independent project, not affiliated with or endorsed by the developers of these packages. See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
+**Third-party software.** PINNStudio's interface is built on Qt for Python (PySide6-Essentials, with shiboken6 and the Qt 6 libraries), used under the GNU Lesser General Public License version 3 ([`LICENSES/LGPL-3.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSES/LGPL-3.0.txt), which refers to [`LICENSES/GPL-3.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSES/GPL-3.0.txt)). PINNStudio also runs on DeepXDE (LGPL-2.1), PyTorch (BSD-3-Clause), NumPy, SciPy, Matplotlib and pandas. All of these are installed as separate packages and keep their own licenses; some of the interface's icons are derived from Lucide (ISC) and Feather (MIT). PINNStudio is an independent project, not affiliated with or endorsed by the developers of these packages. See [`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md).
 
-**Application icon and reference data.** The PINNStudio application icon was created for PINNStudio, with the assistance of Claude (Anthropic), and is part of PINNStudio under the same license. The reference solutions in [`reference_data/`](reference_data) were computed for PINNStudio by its author, with the scripts in [`tools/`](tools) (see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)); none were copied from DeepXDE or from published papers.
+**Application icon and reference data.** The PINNStudio application icon was created for PINNStudio, with the assistance of Claude (Anthropic), and is part of PINNStudio under the same license. The reference solutions in [`reference_data/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data) were computed for PINNStudio by its author, with the scripts in [`tools/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/tools) (see [`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md)); none were copied from DeepXDE or from published papers.

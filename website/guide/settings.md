@@ -14,8 +14,9 @@ Background: [Seeds, precision and hardware](../reproducibility/environment.md).
 - **Train on:** — **GPU when there is one** (default) or **CPU**. A small problem (1D, few points, a
   narrow network) often trains faster on the CPU, because each GPU step waits on Python more than it
   computes; the Training Log gives a tip when such a problem trains on the GPU.
-- **CPU threads:** — the threads PyTorch uses on the CPU. **Automatic** (0) uses about one per
-  performance core, at most 8; more threads than fast cores is usually slower.
+- **CPU threads:** — the threads PyTorch uses on the CPU. **Automatic** (0) uses half the
+  logical processors, at most 8 (about one per performance core on most processors); `OMP_NUM_THREADS`, when set,
+  decides instead. More threads than fast cores is usually slower.
 - **GPU device index:** — which GPU, when there is more than one.
 - **Max GPU memory to reserve (%):** — the share of that GPU's memory the run reserves.
 

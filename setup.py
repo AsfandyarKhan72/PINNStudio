@@ -10,7 +10,7 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 setup(
     name="pinnstudio",
     version=VERSION,
-    author="AsfandyarKhan72",
+    author="Asfandyar Khan",
     description="A graphical platform for forward and inverse physics-informed neural networks",
     long_description=long_description,
     long_description_content_type="text/markdown",
