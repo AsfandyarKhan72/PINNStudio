@@ -207,6 +207,25 @@ def load_tuned(app, w, key, inverse):
     return w._build_config()
 
 
+def load_saved(cfg_file):
+    """A configuration saved by an earlier run of this study (configs/<problem>.json), with only its reference-data
+    paths moved to this checkout: the settings are the ones that study ran, not what the Examples list loads now.
+    Fields added to PINNConfig since then keep their defaults (listed in the returned note)."""
+    from pinnstudio.core.config import PINNConfig
+    text = open(cfg_file, encoding="utf-8").read()
+    ref = os.path.join(ROOT, "reference_data").replace("\\", "/")
+    text = re.sub(r"(?:[A-Za-z]:)?[^\"'\s\[\](){},]*?/reference_data(?=/)", ref, text)
+    saved = json.loads(text)
+    fields = {f.name for f in dataclasses.fields(PINNConfig)}
+    default = dataclasses.asdict(PINNConfig())
+    for k, v in saved.items():         # lists the study wrote with str() (json.dump(default=str)), e.g. ea_files
+        if k in default and isinstance(default[k], (list, tuple)) and isinstance(v, str) and v[:1] in "[(":
+            import ast
+            saved[k] = ast.literal_eval(v)
+    cfg = PINNConfig(**{k: v for k, v in saved.items() if k in fields})
+    return cfg, dict(added_fields=sorted(fields - set(saved)), unknown_fields=sorted(set(saved) - fields))
+
+
 def run_script(text, workdir, device="auto", threads=None, sample=True):
     path = os.path.join(workdir, "run.py")
     with open(path, "w", encoding="utf-8") as f:
@@ -280,7 +299,12 @@ def overhead(a):
     for label, key, inverse in PROBLEMS:
         if a.only and a.only.lower() not in label.lower():
             continue
-        cfg0 = load_tuned(app, w, key, inverse)
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_")
+        if a.configs:                         # rerun an earlier study with exactly its settings
+            cfg0, note = load_saved(os.path.join(a.configs, slug + ".json"))
+            print(f"{label}: settings from {a.configs}/{slug}.json {note}", flush=True)
+        else:
+            cfg0 = load_tuned(app, w, key, inverse)
         with open(os.path.join(cfg_dir, re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_") + ".json"), "w") as f:
             json.dump(dataclasses.asdict(cfg0), f, indent=1, default=str)
         for k, seed in enumerate(seeds):
@@ -396,7 +420,7 @@ def _rng(xs):
 
 
 def tables(a):
-    out_dir = os.path.join(ROOT, "benchmarks", "performance")
+    out_dir = a.out_dir
     os.makedirs(out_dir, exist_ok=True)
     md = []
     ov = _done(os.path.join(a.folder, "overhead.jsonl"))
@@ -472,6 +496,8 @@ def main():
     p.add_argument("--only", default="")
     p.add_argument("--offscreen", action="store_true")
     p.add_argument("--scale", type=float, default=1.0, help="multiply every phase's steps (a quick check only)")
+    p.add_argument("--configs", default="", help="run the configurations saved by an earlier study (a configs/ "
+                   "folder) instead of loading each example with Settings: Tuned")
     p = sub.add_parser("throughput")
     p.add_argument("out")
     p.add_argument("--repeat", type=int, default=3)
@@ -489,6 +515,8 @@ def main():
     p.add_argument("--adam", type=int)
     p = sub.add_parser("tables")
     p.add_argument("folder")
+    p.add_argument("--out-dir", default=os.path.join(ROOT, "benchmarks", "performance"),
+                   help="where tables.md and runs.csv are written")
     a = ap.parse_args()
     {"overhead": overhead, "throughput": throughput, "threads": threads, "_thread_worker": _thread_worker,
      "tables": tables}[a.cmd](a)
