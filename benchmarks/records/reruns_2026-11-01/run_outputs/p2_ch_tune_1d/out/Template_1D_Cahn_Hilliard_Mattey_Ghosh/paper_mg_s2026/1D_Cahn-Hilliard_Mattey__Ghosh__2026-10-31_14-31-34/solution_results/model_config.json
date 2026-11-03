@@ -1,0 +1,72 @@
+{
+  "layers": [
+    2,
+    128,
+    128,
+    128,
+    128,
+    128,
+    128,
+    2
+  ],
+  "activation": "tanh",
+  "network_type": "FNN",
+  "msffn_sigmas": "1, 10",
+  "msffn_sigmas_t": "1, 10",
+  "num_outputs": 2,
+  "output_names": "h,mu",
+  "x_min": -1.0,
+  "x_max": 1.0,
+  "y_min": 0.0,
+  "y_max": 1.0,
+  "z_min": 0.0,
+  "z_max": 1.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "line_slice_y_auto": true,
+  "line_slice_y": 0.0,
+  "line_slice_z_auto": true,
+  "line_slice_z": 0.0,
+  "problem_dim": "1D",
+  "ode": false,
+  "steady_state": false,
+  "geometry_type": "Interval",
+  "geom_center_x": 0.5,
+  "geom_center_y": 0.5,
+  "geom_center_z": 0.5,
+  "geom_radius": 0.5,
+  "geom_semi_major": 0.5,
+  "geom_semi_minor": 0.3,
+  "geom_angle": 0.0,
+  "geom_triangle_vertices": "0,0;1,0;0,1",
+  "geom_polygon_vertices": "0,0;1,0;1,0.6;0.5,1;0,0.6",
+  "geom_custom_shapes_json": "[]",
+  "pde_expressions": "dh_t - dmu_xx|mu - 1.0*(h**3 - h) + 0.02*dh_xx",
+  "optimizer": "adam",
+  "optimizer2": "lbfgs",
+  "loss_type": "MSE",
+  "problem_type": "Forward",
+  "inverse_variables": [],
+  "input_transform_enabled": false,
+  "input_transform_mode": "scale",
+  "input_transform_scale": [
+    1.0,
+    1.0
+  ],
+  "input_transform_shift": [
+    0.0,
+    0.0
+  ],
+  "input_feature_formula": "",
+  "output_transform_enabled": false,
+  "output_transform_mode": "scale",
+  "output_transform_scale": [
+    1.0,
+    1.0
+  ],
+  "output_transform_shift": [
+    0.0,
+    0.0
+  ],
+  "output_transform_formula": "|"
+}

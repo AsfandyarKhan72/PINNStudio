@@ -1,0 +1,455 @@
+{
+ "runs": [
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh)",
+   "variant": "paper_mg",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.007523791,
+    "mu": 1.073544
+   },
+   "all_times": {
+    "h": 0.006851568,
+    "mu": 0.1961481
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_14-31-34/error_analysis/error_metrics_h.txt": "eef51b9b1e94810c155b6b84752072946e735544fbb5f68f4f9ddb001922dd23",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_14-31-34/error_analysis/error_spacetime_h.txt": "b6d27845076b552633156f777ac557b4302f6b6ee64057014e2d0934013c2f72",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_14-31-34/error_analysis/error_metrics_mu.txt": "7603a6330315c48a853b4b576442ac185eb5963af61a4b388d41a6bca6e02de4",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_14-31-34/error_analysis/error_spacetime_mu.txt": "bc2f42797d7e496db6d123e841b75d3cb7648de4ea4c1aabb896bcb8176b472a"
+   },
+   "log_sha256": "2b65b627d28ef47a7d8f89e67caf9c479ed6ac70e347d4c4d8a8ab20849869ab",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup",
+   "variant": "base",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.004371015,
+    "mu": 0.1240521
+   },
+   "all_times": {
+    "h": 0.03141489,
+    "mu": 0.6821908
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-29-13/error_analysis/error_metrics_h.txt": "c2cc05be85bf83875022b6ac258530846a91bef11ab7380050ba6db82f76992c",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-29-13/error_analysis/error_spacetime_h.txt": "1f7533cab38dd3f6545cc02f9dddc35f6fd0c6567234efb07400ffb61f5b1e05",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-29-13/error_analysis/error_metrics_mu.txt": "ef51fb1b37b5fbea552fc445e2c01153e1cd4f88ab9d5cea74f56471586cc1e4",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-29-13/error_analysis/error_spacetime_mu.txt": "d234d31ceb13f40b67b9aeee7d9b323938ce1bc2201a02a6f195d51305ecab5f"
+   },
+   "log_sha256": "bd678a80f201d207c46ef3029ee5a4a2239a003f65253a02c8d7b718cdc189ed",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup",
+   "variant": "iters",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.005514206,
+    "mu": 0.2382966
+   },
+   "all_times": {
+    "h": 0.04819036,
+    "mu": 0.7646552
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-44-10/error_analysis/error_metrics_h.txt": "a882b364649da7faa5ebde12e8520c19331064c770e3133729809b5e5cdb68e4",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-44-10/error_analysis/error_spacetime_h.txt": "2cb9beec262f8c220cf5545caa5dfa653ba53b5ea51bed7255124a022380eaf3",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-44-10/error_analysis/error_metrics_mu.txt": "936c6e9146452c10df89e5d3e0d6b7403570994432f48df35e4998c83cf31fa3",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/iters_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_15-44-10/error_analysis/error_spacetime_mu.txt": "548538ee46e0ce89dab78194fa4def6cb2c50dec2c5b2d285aabb2b2aa8ce288"
+   },
+   "log_sha256": "4e1a9f4711ea20eac8de2b5d291dae8a6ab99255d33dcc276d1b2cd486e4a4c8",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup",
+   "variant": "net",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.003184226,
+    "mu": 0.3750134
+   },
+   "all_times": {
+    "h": 0.02993366,
+    "mu": 0.6669393
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-20-23/error_analysis/error_metrics_h.txt": "b8b37014897ac5bd832ff7266de3582e68dcd7ac66bbfe60afd16cf56f535dee",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-20-23/error_analysis/error_spacetime_h.txt": "113e3213907deb08616111ec367ad244c183b15df5304111bf436559b8cc5e80",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-20-23/error_analysis/error_metrics_mu.txt": "9acebcb9f1cc9e8725ec10a57019fcb0699de75b3b4d4f2fcdb04e68e42d7a5d",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/net_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-20-23/error_analysis/error_spacetime_mu.txt": "422936b8e3bdea73ae9bf004380b3a442c4c559653a051cff05e93baa4892369"
+   },
+   "log_sha256": "986ab873a97e72f7d22fff4902223c9f31523f8bd80ab0c2dc1a774d829d8afa",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup",
+   "variant": "windows2",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.006257031,
+    "mu": 0.06220309
+   },
+   "all_times": {
+    "h": 0.03166476,
+    "mu": 0.6799802
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-55-23/error_analysis/error_metrics_h.txt": "c3765985bdc6d8391315279bb8b2fc65a4c3294dd64f7eba8ec61ba75f821c79",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-55-23/error_analysis/error_spacetime_h.txt": "3bfa5532a82f324ba89c7b614b45bfa6efb054036f9aec258117b75a8d1c66c4",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-55-23/error_analysis/error_metrics_mu.txt": "ca8f3fac60c4faeda3cde26141550c2d16837b2a538d8ebfcf4ad0e25d1a2e3e",
+    "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-55-23/error_analysis/error_spacetime_mu.txt": "5c05df0fc466952b92fb2ca0769c316761b21821f42e4c4540875fa425f7833d"
+   },
+   "log_sha256": "39a9b177eedd740339c68a175e4a7772080454f0d746db7190e732d80bb40be7",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/all_s2026",
+   "example": "Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup",
+   "variant": "all",
+   "seed": 2026,
+   "rc": "timeout",
+   "status": "no result"
+  },
+  {
+   "run": "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026",
+   "example": "Template: 2D Cahn-Hilliard (Wight & Zhao)",
+   "variant": "paper_wz",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "phi",
+   "fields": [
+    "mu",
+    "phi"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.470541,
+    "phi": 0.2480408
+   },
+   "all_times": {
+    "mu": 0.7289082,
+    "phi": 0.1557846
+   },
+   "files": {
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_metrics_mu.txt": "45d1181063a99d5efd5e17c4387c660410a44f61e898871751671441113c6987",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_spacetime_mu.txt": "f082c003a1649e2cdd242dea3fad563d96d053ccc09165eb260bd32e00ddc860",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_metrics_phi.txt": "ef464b7516d0bbc495d2eb64a1076269faf95728bc69c0ac34421810e5c65782",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_spacetime_phi.txt": "574fbed0beb67be9a057ac2aba44c7e550d32c97b27d60981becf65cef33687b"
+   },
+   "log_sha256": "2dc0dc8e383da09148a570d47ac856dc571f4468188c3460f5faa5a706de7b94",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1",
+   "example": "Template: 2D Cahn-Hilliard (Wight & Zhao)",
+   "variant": "paper_wz",
+   "seed": 1,
+   "rc": 0,
+   "status": "ok",
+   "main": "phi",
+   "fields": [
+    "mu",
+    "phi"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.3223268,
+    "phi": 0.2346237
+   },
+   "all_times": {
+    "mu": 0.7139811,
+    "phi": 0.1515694
+   },
+   "files": {
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_05-40-17/error_analysis/error_metrics_mu.txt": "ce119d9e974fb5fb20d4ed2a6d8d92a6be755ca4bbabe3f7768fe01fc9407fa8",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_05-40-17/error_analysis/error_spacetime_mu.txt": "d6c0a998b44ee9ffe4e58f512d51cc8e3e225d12bc85e661c86c4e5c87e5a1e6",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_05-40-17/error_analysis/error_metrics_phi.txt": "8ca2d4436d1e59fb6dcdee7a729d7098965c1e9f209ddd9aa6bebcb1146c3d6e",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s1/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_05-40-17/error_analysis/error_spacetime_phi.txt": "1c6dd6ccd233ef721010c66bd68f0e368672a180c2138746001698dc879ef1ba"
+   },
+   "log_sha256": "57cba338d623f7e348051d71d13d2b75394b3e9e7a5bfe6d4e7757c68dbd1f17",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2",
+   "example": "Template: 2D Cahn-Hilliard (Wight & Zhao)",
+   "variant": "paper_wz",
+   "seed": 2,
+   "rc": 0,
+   "status": "ok",
+   "main": "phi",
+   "fields": [
+    "mu",
+    "phi"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.2855962,
+    "phi": 0.2184383
+   },
+   "all_times": {
+    "mu": 0.6937272,
+    "phi": 0.1382866
+   },
+   "files": {
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_07-18-00/error_analysis/error_metrics_mu.txt": "f2444082f643b901a01dfe9a24b150abbe0fb98f335deb820773ad6ad401146b",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_07-18-00/error_analysis/error_spacetime_mu.txt": "e01718ae904ee2d5a32839b0d49da9b9db85927ddaae8dade7bbf2abca3253b8",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_07-18-00/error_analysis/error_metrics_phi.txt": "8166645af31409cd9176cc9097df37a0936e965ec295694e737f0f93f7e1a92a",
+    "Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_07-18-00/error_analysis/error_spacetime_phi.txt": "dd317f649d50ca947b3e3d1faeba99e6b3baaac9915db990450b6832e45c2b6a"
+   },
+   "log_sha256": "f5fa41390c2370dc72b8a0e084e2fa94559fc6bf787048714cfddfe8173234e6",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026",
+   "example": "Template: 2D Cahn-Hilliard (Mattey & Ghosh)",
+   "variant": "paper_mg",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "h",
+   "fields": [
+    "h",
+    "mu"
+   ],
+   "times": [
+    0.0,
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+   ],
+   "final_time": {
+    "h": 0.02415114,
+    "mu": 0.4207429
+   },
+   "all_times": {
+    "h": 0.02172303,
+    "mu": 0.04709812
+   },
+   "files": {
+    "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/2D_Cahn-Hilliard_Mattey__Ghosh__2026-11-01_08-55-45/error_analysis/error_metrics_h.txt": "7a90d043ee759600f25aa0c0d6cb07f87e95c585767f35c62cd187e9ad5650fc",
+    "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/2D_Cahn-Hilliard_Mattey__Ghosh__2026-11-01_08-55-45/error_analysis/error_spacetime_h.txt": "85e58f4a6f186f7a01ef3fb9088c95bb6da4ea082a53bb7d48255308d3ba1b2e",
+    "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/2D_Cahn-Hilliard_Mattey__Ghosh__2026-11-01_08-55-45/error_analysis/error_metrics_mu.txt": "72516519fa4bac8857afc8e7199c82e6b22ba1b64169ddf49f99c9f461a18e38",
+    "Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/2D_Cahn-Hilliard_Mattey__Ghosh__2026-11-01_08-55-45/error_analysis/error_spacetime_mu.txt": "ce42855341cd21a9d5d04e9809c412de43e8be0ef338e5aa918052e54f82de5e"
+   },
+   "log_sha256": "5a8891b83af346ac8f46160df4152939880b65dc91e89c495ac1878026163fb2",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard/paper_wz_s2026",
+   "example": "Template: 1D Cahn-Hilliard",
+   "variant": "paper_wz",
+   "seed": 2026,
+   "rc": 0,
+   "status": "ok",
+   "main": "u",
+   "fields": [
+    "mu",
+    "u"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.03435015,
+    "u": 0.02394661
+   },
+   "all_times": {
+    "mu": 0.06491028,
+    "u": 0.04819933
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard/paper_wz_s2026/1D_Cahn-Hilliard__2026-11-01_17-18-11/error_analysis/error_metrics_mu.txt": "47679fbf81c2e431b13e0686ebe193b80f702bde35608c7ffc6c210124428dd5",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2026/1D_Cahn-Hilliard__2026-11-01_17-18-11/error_analysis/error_spacetime_mu.txt": "c5c158fb396d7e836f4303d8530d2f411cf3e8595c15f1ee843526104f806976",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2026/1D_Cahn-Hilliard__2026-11-01_17-18-11/error_analysis/error_metrics_u.txt": "9e707dfcec71381780cee8993a34fc967aa844188dfa6753c2446286e26cc5aa",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2026/1D_Cahn-Hilliard__2026-11-01_17-18-11/error_analysis/error_spacetime_u.txt": "5126e7d15b3aed94fe4222b1e6e5d3c6114236129523dc28197b0881f215633b"
+   },
+   "log_sha256": "61c86d2399ae276a3e790306698308c66339223b3cf42a6ffac236b60877d504",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard/paper_wz_s1",
+   "example": "Template: 1D Cahn-Hilliard",
+   "variant": "paper_wz",
+   "seed": 1,
+   "rc": 0,
+   "status": "ok",
+   "main": "u",
+   "fields": [
+    "mu",
+    "u"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.01889614,
+    "u": 0.01057181
+   },
+   "all_times": {
+    "mu": 0.0568743,
+    "u": 0.0364699
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard/paper_wz_s1/1D_Cahn-Hilliard__2026-11-01_17-36-02/error_analysis/error_metrics_mu.txt": "e048ed820e9925bdfdd8c9d629e15730ef5ac834a5b2316b64b91983fffd4192",
+    "Template_1D_Cahn_Hilliard/paper_wz_s1/1D_Cahn-Hilliard__2026-11-01_17-36-02/error_analysis/error_spacetime_mu.txt": "965b040b9b1b0495ef9f8ea5f25fe4ebe31f90c036c68aa764b7707a4dfee958",
+    "Template_1D_Cahn_Hilliard/paper_wz_s1/1D_Cahn-Hilliard__2026-11-01_17-36-02/error_analysis/error_metrics_u.txt": "b95ca18ac0dd0bf93353538c69cfbe316f5f178798687d48331c28a0a1462c2b",
+    "Template_1D_Cahn_Hilliard/paper_wz_s1/1D_Cahn-Hilliard__2026-11-01_17-36-02/error_analysis/error_spacetime_u.txt": "879221899fe1390b691f75dbec12a4522a8c7711dee6b1c78e6dae2574caa7a0"
+   },
+   "log_sha256": "3f9fc5baa2536c185e574c390722e051f95fe77218eb39af285c78850aceb7ea",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  },
+  {
+   "run": "Template_1D_Cahn_Hilliard/paper_wz_s2",
+   "example": "Template: 1D Cahn-Hilliard",
+   "variant": "paper_wz",
+   "seed": 2,
+   "rc": 0,
+   "status": "ok",
+   "main": "u",
+   "fields": [
+    "mu",
+    "u"
+   ],
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+   ],
+   "final_time": {
+    "mu": 0.02577104,
+    "u": 0.007082881
+   },
+   "all_times": {
+    "mu": 0.05987927,
+    "u": 0.03844177
+   },
+   "files": {
+    "Template_1D_Cahn_Hilliard/paper_wz_s2/1D_Cahn-Hilliard__2026-11-01_17-53-24/error_analysis/error_metrics_mu.txt": "24ca386be9566f2eb64aa3566d939c8e935145452bd5da8ccfc2976b35322962",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2/1D_Cahn-Hilliard__2026-11-01_17-53-24/error_analysis/error_spacetime_mu.txt": "b00415f6a7ffb103de3aeb092d9aaac968d0d7fa59e32307eb1bf33f1d111f84",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2/1D_Cahn-Hilliard__2026-11-01_17-53-24/error_analysis/error_metrics_u.txt": "d82d0cb7a4b5d0c6753aa81ee9f8d276e12e5aa828d8961698765cc983a8cd57",
+    "Template_1D_Cahn_Hilliard/paper_wz_s2/1D_Cahn-Hilliard__2026-11-01_17-53-24/error_analysis/error_spacetime_u.txt": "f5e294af0e0692c29a5cac13503509517e552c53c3c829f013af7bf9b87abeaa"
+   },
+   "log_sha256": "33af747b854057fb034c32c18ebd46db6c2449251f418540b6b707e82386bab2",
+   "checked": "every value found in log.txt (4 s.f.) and results.jsonl (5 s.f.)"
+  }
+ ],
+ "inputs": {
+  "p2_ch_tune_1d/results.jsonl": "835f22a0e2060657fe83938dd76e2d0b34cdfd2f0caa255d7cfb34d20ba446c9",
+  "p4_ch_tune_2d/results.jsonl": "9207bff93d1ce0e1fb4b0b138d81678686678aa2144a7f453fc0487f1caed8b2",
+  "p5_ch1d_wz_paper/results.jsonl": "e8d413cc1bd2b9c19201eae00a03ffcc32827189ca59d61a0f5f294257bc08c6"
+ }
+}

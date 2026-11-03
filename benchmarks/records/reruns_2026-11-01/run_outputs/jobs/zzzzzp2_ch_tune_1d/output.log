@@ -1,0 +1,7 @@
+5dad9b5 Exact periodicity: refuse an output without a periodic condition on that axis
+OK  Template: 1D Cahn-Hilliard (Mattey & Ghosh)        paper_mg s2026    3454s loss=4.5869e-05 maxL2=2.398e+00 
+OK  Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best base    s2026     897s loss=5.4294e-06 maxL2=7.471e-01 
+OK  Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best iters   s2026    2173s loss=4.5947e-05 maxL2=8.374e-01 
+OK  Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best net     s2026    2100s loss=3.8395e-05 maxL2=7.304e-01 
+OK  Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best windows2 s2026    1684s loss=7.1617e-06 maxL2=7.446e-01 
+ERR Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best all     s2026   14403s loss=None maxL2=nan 

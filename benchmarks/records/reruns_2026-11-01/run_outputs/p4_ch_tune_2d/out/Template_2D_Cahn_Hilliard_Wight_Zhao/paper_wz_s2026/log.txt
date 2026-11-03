@@ -1,0 +1,482 @@
+Using backend: pytorch
+Set the default float type to float32
+✅ GPU: NVIDIA GeForce RTX 4090
+   Total memory: 25.4 GB
+   Available:    24.3 GB
+   TF32:         False
+   Float type:   float32
+   cuDNN bench:  False
+Model config saved to: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/solution_results/model_config.json
+  PDE weights: [1.0, 1.0]
+  BC weights (4 rows from the Boundary Conditions panel): [1.0, 1.0, 1.0, 1.0]
+  IC weights: [1000.0]
+Loss weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1000.0] (7 terms for 5 constraints)
+Warning: 1000 points required, but 1024 points sampled.
+Compiling model...
+'compile' took 0.481729 s
+=== Starting Time-Adaptive Training ===
+  Total time steps: 5 from 1 group(s)
+--- Time step 1/5: t = 0.0000 to 0.2000 ---
+Warning: 142 points required, but 144 points sampled.
+Warning: 1000 points required, but 1152 points sampled.
+  === Scheduler Phase 1: adam 10000 iters ===
+Compiling model...
+'compile' took 0.000073 s
+Training model...
+Step      Train loss                                                                Test loss                                                                 Test metric
+0         [3.34e-02, 8.27e-03, 2.22e-02, 7.86e-03, 2.90e-03, 8.51e-02, 8.13e+02]    [3.38e-02, 7.38e-03, 2.22e-02, 7.86e-03, 2.90e-03, 8.51e-02, 8.13e+02]    []
+1000      [1.25e-02, 9.17e-03, 1.73e-04, 1.84e-04, 1.10e-04, 6.51e-05, 3.42e-01]    [1.11e-02, 1.00e-02, 1.73e-04, 1.84e-04, 1.10e-04, 6.51e-05, 3.42e-01]    []
+2000      [3.19e-03, 8.19e-03, 1.04e-04, 6.74e-05, 7.30e-06, 1.64e-05, 8.83e-02]    [3.33e-03, 7.38e-03, 1.04e-04, 6.74e-05, 7.30e-06, 1.64e-05, 8.83e-02]    []
+3000      [1.52e-03, 8.05e-03, 4.59e-05, 6.06e-05, 4.10e-06, 5.85e-06, 9.89e-02]    [1.65e-03, 6.64e-03, 4.59e-05, 6.06e-05, 4.10e-06, 5.85e-06, 9.89e-02]    []
+4000      [8.79e-04, 7.81e-03, 5.34e-05, 1.43e-05, 4.55e-06, 1.99e-06, 4.87e-02]    [9.01e-04, 6.00e-03, 5.34e-05, 1.43e-05, 4.55e-06, 1.99e-06, 4.87e-02]    []
+5000      [1.60e-03, 8.37e-03, 1.03e-03, 4.69e-05, 2.44e-05, 1.64e-06, 4.33e-01]    [1.91e-03, 6.53e-03, 1.03e-03, 4.69e-05, 2.44e-05, 1.64e-06, 4.33e-01]    []
+6000      [5.28e-04, 7.84e-03, 1.19e-04, 3.26e-05, 8.16e-07, 6.10e-07, 5.77e-02]    [4.65e-04, 6.03e-03, 1.19e-04, 3.26e-05, 8.16e-07, 6.10e-07, 5.77e-02]    []
+7000      [4.41e-04, 7.79e-03, 1.39e-04, 2.52e-05, 6.93e-07, 6.06e-07, 8.48e-02]    [4.17e-04, 5.99e-03, 1.39e-04, 2.52e-05, 6.93e-07, 6.06e-07, 8.48e-02]    []
+8000      [2.88e-04, 7.54e-03, 1.72e-05, 3.34e-05, 1.75e-06, 6.56e-07, 2.12e-02]    [3.10e-04, 5.73e-03, 1.72e-05, 3.34e-05, 1.75e-06, 6.56e-07, 2.12e-02]    []
+9000      [2.68e-04, 7.77e-03, 1.38e-05, 1.03e-03, 1.53e-06, 1.05e-06, 1.93e-01]    [2.86e-04, 5.95e-03, 1.38e-05, 1.03e-03, 1.53e-06, 1.05e-06, 1.93e-01]    []
+10000     [2.67e-04, 7.15e-03, 1.46e-05, 8.96e-06, 2.18e-06, 7.47e-07, 4.89e-03]    [2.83e-04, 5.41e-03, 1.46e-05, 8.96e-06, 2.18e-06, 7.47e-07, 4.89e-03]    []
+Best model at step 10000:
+  train loss: 1.23e-02
+  test loss: 1.06e-02
+  test metric: []
+'train' took 247.587277 s
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_001_t0.0000_to_t0.2000/model_adam-phase1-10000.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000109 s
+Training model...
+Step      Train loss                                                                Test loss                                                                 Test metric
+10000     [2.67e-04, 7.15e-03, 1.46e-05, 8.96e-06, 2.18e-06, 7.47e-07, 4.89e-03]    [2.83e-04, 5.41e-03, 1.46e-05, 8.96e-06, 2.18e-06, 7.47e-07, 4.89e-03]    []
+11000     [2.82e-04, 6.05e-03, 3.79e-06, 2.71e-06, 4.79e-07, 1.96e-06, 2.76e-04]    [2.86e-04, 4.57e-03, 3.79e-06, 2.71e-06, 4.79e-07, 1.96e-06, 2.76e-04]    []
+12000     [3.29e-04, 4.92e-03, 3.52e-06, 2.87e-06, 9.65e-07, 5.39e-07, 1.78e-04]    [3.76e-04, 3.54e-03, 3.52e-06, 2.87e-06, 9.65e-07, 5.39e-07, 1.78e-04]    []
+13000     [3.63e-04, 3.54e-03, 4.36e-06, 2.06e-06, 1.15e-06, 9.36e-07, 1.89e-04]    [3.96e-04, 2.33e-03, 4.36e-06, 2.06e-06, 1.15e-06, 9.36e-07, 1.89e-04]    []
+14000     [2.99e-04, 2.87e-03, 4.69e-06, 1.88e-06, 1.66e-06, 1.28e-06, 1.17e-04]    [3.96e-04, 1.78e-03, 4.69e-06, 1.88e-06, 1.66e-06, 1.28e-06, 1.17e-04]    []
+15000     [2.31e-04, 2.53e-03, 2.05e-06, 1.08e-06, 1.83e-06, 2.03e-06, 8.04e-05]    [2.87e-04, 1.53e-03, 2.05e-06, 1.08e-06, 1.83e-06, 2.03e-06, 8.04e-05]    []
+16000     [1.99e-04, 2.33e-03, 1.19e-06, 9.19e-07, 1.73e-06, 9.23e-07, 6.14e-05]    [2.46e-04, 1.39e-03, 1.19e-06, 9.19e-07, 1.73e-06, 9.23e-07, 6.14e-05]    []
+17000     [1.85e-04, 2.08e-03, 2.26e-06, 9.29e-07, 6.56e-07, 2.58e-06, 6.01e-05]    [2.50e-04, 1.20e-03, 2.26e-06, 9.29e-07, 6.56e-07, 2.58e-06, 6.01e-05]    []
+18000     [2.09e-04, 1.77e-03, 9.82e-07, 7.71e-07, 3.31e-06, 4.67e-06, 5.06e-05]    [2.56e-04, 9.55e-04, 9.82e-07, 7.71e-07, 3.31e-06, 4.67e-06, 5.06e-05]    []
+19000     [2.17e-04, 1.53e-03, 1.03e-06, 1.24e-06, 2.51e-06, 5.49e-06, 4.06e-05]    [2.95e-04, 7.81e-04, 1.03e-06, 1.24e-06, 2.51e-06, 5.49e-06, 4.06e-05]    []
+20000     [1.82e-04, 1.39e-03, 1.27e-06, 9.10e-07, 8.27e-07, 3.42e-06, 3.59e-05]    [2.23e-04, 6.95e-04, 1.27e-06, 9.10e-07, 8.27e-07, 3.42e-06, 3.59e-05]    []
+Best model at step 20000:
+  train loss: 1.61e-03
+  test loss: 9.60e-04
+  test metric: []
+'train' took 309.866320 s
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_001_t0.0000_to_t0.2000/model_lbfgs-phase2-20000.pt
+Step 1 done. Final train loss: 1.6118e-03
+  Step 1: 2 reference file(s) in t=[0.0000, 0.2000]
+Step plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_001_t0.0000_to_t0.2000/step_001_t0.0000_to_t0.2000.png
+  Transfer learning source (adam): model_adam-phase1-10000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_001_t0.0000_to_t0.2000/step_config.json
+--- Time step 2/5: t = 0.2000 to 0.4000 ---
+Warning: 142 points required, but 144 points sampled.
+Warning: 1000 points required, but 1152 points sampled.
+  === Scheduler Phase 1: adam 10000 iters ===
+Compiling model...
+'compile' took 0.000065 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [5.42e-02, 9.56e-03, 9.04e-02, 1.69e-01, 1.18e-05, 9.82e-02, 9.46e+02, 2.19e-02]    [5.15e-02, 9.14e-03, 9.04e-02, 1.69e-01, 1.18e-05, 9.82e-02, 9.46e+02, 2.19e-02]    []
+1000      [3.01e-02, 2.34e-02, 7.76e-04, 1.23e-04, 2.89e-04, 2.06e-04, 1.41e-01, 2.31e-02]    [3.84e-02, 2.00e-02, 7.76e-04, 1.23e-04, 2.89e-04, 2.06e-04, 1.41e-01, 2.31e-02]    []
+2000      [1.11e-02, 1.59e-02, 2.77e-04, 5.86e-05, 6.44e-05, 9.89e-05, 4.06e-02, 1.66e-02]    [1.44e-02, 1.28e-02, 2.77e-04, 5.86e-05, 6.44e-05, 9.89e-05, 4.06e-02, 1.66e-02]    []
+3000      [5.87e-03, 1.06e-02, 1.32e-04, 4.74e-05, 3.54e-05, 4.32e-05, 2.52e-02, 1.18e-02]    [7.40e-03, 8.58e-03, 1.32e-04, 4.74e-05, 3.54e-05, 4.32e-05, 2.52e-02, 1.18e-02]    []
+4000      [3.44e-03, 6.89e-03, 8.23e-05, 1.87e-05, 1.76e-05, 1.93e-05, 1.62e-02, 7.91e-03]    [3.97e-03, 5.67e-03, 8.23e-05, 1.87e-05, 1.76e-05, 1.93e-05, 1.62e-02, 7.91e-03]    []
+5000      [4.68e-03, 4.87e-03, 1.80e-03, 2.05e-05, 1.06e-04, 1.60e-05, 3.96e-01, 5.22e-03]    [5.79e-03, 4.03e-03, 1.80e-03, 2.05e-05, 1.06e-04, 1.60e-05, 3.96e-01, 5.22e-03]    []
+6000      [2.20e-03, 2.98e-03, 6.39e-05, 1.25e-05, 1.84e-05, 6.87e-06, 3.28e-02, 3.68e-03]    [2.40e-03, 2.49e-03, 6.39e-05, 1.25e-05, 1.84e-05, 6.87e-06, 3.28e-02, 3.68e-03]    []
+7000      [3.82e-03, 2.05e-03, 3.93e-05, 3.41e-05, 1.38e-05, 6.70e-06, 2.32e-02, 2.59e-03]    [4.25e-03, 1.75e-03, 3.93e-05, 3.41e-05, 1.38e-05, 6.70e-06, 2.32e-02, 2.59e-03]    []
+8000      [6.06e-02, 2.73e-03, 2.15e-05, 1.17e-05, 2.90e-05, 4.32e-05, 1.97e+00, 2.30e-03]    [7.20e-02, 2.36e-03, 2.15e-05, 1.17e-05, 2.90e-05, 4.32e-05, 1.97e+00, 2.30e-03]    []
+9000      [1.60e-03, 1.13e-03, 1.46e-05, 8.09e-06, 1.09e-05, 5.83e-06, 1.27e-02, 1.50e-03]    [2.05e-03, 1.09e-03, 1.46e-05, 8.09e-06, 1.09e-05, 5.83e-06, 1.27e-02, 1.50e-03]    []
+10000     [4.94e-02, 1.03e-03, 2.27e-05, 2.83e-04, 1.48e-05, 1.24e-04, 2.39e-01, 1.13e-03]    [9.57e-02, 9.17e-04, 2.27e-05, 2.83e-04, 1.48e-05, 1.24e-04, 2.39e-01, 1.13e-03]    []
+Best model at step 9000:
+  train loss: 1.70e-02
+  test loss: 1.74e-02
+  test metric: []
+'train' took 583.109004 s
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_002_t0.2000_to_t0.4000/model_adam-phase1-10000.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000081 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+10000     [4.94e-02, 1.03e-03, 2.27e-05, 2.83e-04, 1.48e-05, 1.24e-04, 2.39e-01, 1.13e-03]    [9.57e-02, 9.17e-04, 2.27e-05, 2.83e-04, 1.48e-05, 1.24e-04, 2.39e-01, 1.13e-03]    []
+11000     [3.48e-04, 3.55e-04, 6.32e-06, 7.66e-06, 1.99e-06, 3.11e-06, 3.40e-03, 1.22e-04]    [4.27e-04, 3.69e-04, 6.32e-06, 7.66e-06, 1.99e-06, 3.11e-06, 3.40e-03, 1.22e-04]    []
+12000     [9.69e-05, 3.53e-04, 4.12e-06, 9.78e-06, 6.13e-07, 2.47e-07, 8.17e-04, 1.26e-04]    [1.09e-04, 3.89e-04, 4.12e-06, 9.78e-06, 6.13e-07, 2.47e-07, 8.17e-04, 1.26e-04]    []
+13000     [4.81e-05, 3.55e-04, 5.23e-06, 8.88e-06, 1.14e-06, 4.01e-07, 4.12e-04, 1.07e-04]    [6.58e-05, 4.22e-04, 5.23e-06, 8.88e-06, 1.14e-06, 4.01e-07, 4.12e-04, 1.07e-04]    []
+14000     [3.37e-05, 3.49e-04, 3.82e-06, 6.53e-06, 1.08e-06, 2.64e-07, 2.32e-04, 1.05e-04]    [3.64e-05, 4.26e-04, 3.82e-06, 6.53e-06, 1.08e-06, 2.64e-07, 2.32e-04, 1.05e-04]    []
+15000     [2.49e-05, 3.53e-04, 3.71e-06, 4.91e-06, 3.25e-07, 6.39e-07, 1.58e-04, 9.12e-05]    [3.13e-05, 4.35e-04, 3.71e-06, 4.91e-06, 3.25e-07, 6.39e-07, 1.58e-04, 9.12e-05]    []
+16000     [1.98e-05, 3.44e-04, 3.19e-06, 3.79e-06, 3.57e-07, 7.59e-07, 1.09e-04, 9.33e-05]    [2.51e-05, 4.20e-04, 3.19e-06, 3.79e-06, 3.57e-07, 7.59e-07, 1.09e-04, 9.33e-05]    []
+17000     [1.76e-05, 3.40e-04, 3.20e-06, 3.85e-06, 5.57e-07, 5.68e-07, 8.02e-05, 8.83e-05]    [1.91e-05, 4.19e-04, 3.20e-06, 3.85e-06, 5.57e-07, 5.68e-07, 8.02e-05, 8.83e-05]    []
+18000     [1.65e-05, 3.35e-04, 3.32e-06, 4.32e-06, 3.65e-07, 3.28e-07, 6.27e-05, 8.42e-05]    [2.06e-05, 4.21e-04, 3.32e-06, 4.32e-06, 3.65e-07, 3.28e-07, 6.27e-05, 8.42e-05]    []
+19000     [1.55e-05, 3.29e-04, 3.23e-06, 4.11e-06, 1.59e-07, 1.51e-07, 4.69e-05, 8.24e-05]    [1.97e-05, 4.24e-04, 3.23e-06, 4.11e-06, 1.59e-07, 1.51e-07, 4.69e-05, 8.24e-05]    []
+20000     [1.40e-05, 3.23e-04, 3.01e-06, 4.01e-06, 1.29e-07, 2.49e-07, 3.44e-05, 8.04e-05]    [1.96e-05, 4.22e-04, 3.01e-06, 4.01e-06, 1.29e-07, 2.49e-07, 3.44e-05, 8.04e-05]    []
+Best model at step 20000:
+  train loss: 4.60e-04
+  test loss: 5.64e-04
+  test metric: []
+'train' took 660.494796 s
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_002_t0.2000_to_t0.4000/model_lbfgs-phase2-20000.pt
+Step 2 done. Final train loss: 4.5961e-04
+  Step 2: 2 reference file(s) in t=[0.2000, 0.4000]
+Step plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_002_t0.2000_to_t0.4000/step_002_t0.2000_to_t0.4000.png
+  Transfer learning source (adam): model_adam-phase1-10000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_002_t0.2000_to_t0.4000/step_config.json
+--- Time step 3/5: t = 0.4000 to 0.6000 ---
+Warning: 142 points required, but 144 points sampled.
+Warning: 1000 points required, but 1152 points sampled.
+  === Scheduler Phase 1: adam 10000 iters ===
+Compiling model...
+'compile' took 0.000067 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [1.28e-01, 9.15e-02, 1.37e-03, 2.92e-02, 1.29e-02, 5.95e-01, 1.05e+03, 6.17e-02]    [1.25e-01, 8.06e-02, 1.37e-03, 2.92e-02, 1.29e-02, 5.95e-01, 1.05e+03, 6.17e-02]    []
+1000      [3.80e-02, 2.48e-02, 3.00e-04, 6.65e-05, 1.23e-04, 1.63e-04, 1.84e-01, 1.95e-02]    [4.42e-02, 2.23e-02, 3.00e-04, 6.65e-05, 1.23e-04, 1.63e-04, 1.84e-01, 1.95e-02]    []
+2000      [1.76e-02, 2.08e-02, 1.28e-04, 6.15e-05, 9.55e-05, 4.88e-05, 5.50e-02, 1.88e-02]    [2.28e-02, 1.77e-02, 1.28e-04, 6.15e-05, 9.55e-05, 4.88e-05, 5.50e-02, 1.88e-02]    []
+3000      [1.04e-02, 1.78e-02, 7.08e-05, 2.67e-05, 6.01e-05, 3.24e-05, 2.71e-02, 1.68e-02]    [1.40e-02, 1.47e-02, 7.08e-05, 2.67e-05, 6.01e-05, 3.24e-05, 2.71e-02, 1.68e-02]    []
+4000      [7.84e-03, 1.52e-02, 4.63e-05, 1.88e-05, 2.68e-05, 1.28e-05, 2.32e-02, 1.49e-02]    [1.03e-02, 1.27e-02, 4.63e-05, 1.88e-05, 2.68e-05, 1.28e-05, 2.32e-02, 1.49e-02]    []
+5000      [4.99e-03, 1.31e-02, 3.44e-05, 9.76e-06, 2.67e-05, 1.45e-05, 1.99e-02, 1.33e-02]    [6.33e-03, 1.06e-02, 3.44e-05, 9.76e-06, 2.67e-05, 1.45e-05, 1.99e-02, 1.33e-02]    []
+6000      [6.92e-02, 1.28e-02, 2.05e-05, 2.50e-04, 1.50e-05, 5.69e-04, 1.98e-01, 1.27e-02]    [4.99e-02, 1.07e-02, 2.05e-05, 2.50e-04, 1.50e-05, 5.69e-04, 1.98e-01, 1.27e-02]    []
+7000      [3.30e-03, 9.65e-03, 2.11e-05, 1.26e-05, 1.24e-05, 1.89e-05, 1.81e-02, 9.96e-03]    [3.93e-03, 8.01e-03, 2.11e-05, 1.26e-05, 1.24e-05, 1.89e-05, 1.81e-02, 9.96e-03]    []
+8000      [2.61e-03, 8.48e-03, 1.26e-05, 2.07e-05, 1.07e-05, 1.38e-05, 1.09e-02, 8.77e-03]    [2.77e-03, 7.03e-03, 1.26e-05, 2.07e-05, 1.07e-05, 1.38e-05, 1.09e-02, 8.77e-03]    []
+9000      [2.77e-03, 7.18e-03, 4.65e-05, 1.31e-05, 2.51e-05, 1.15e-05, 2.76e-02, 7.50e-03]    [3.09e-03, 5.97e-03, 4.65e-05, 1.31e-05, 2.51e-05, 1.15e-05, 2.76e-02, 7.50e-03]    []
+10000     [1.94e-03, 6.38e-03, 7.95e-06, 6.42e-06, 6.09e-06, 1.13e-05, 7.95e-03, 6.66e-03]    [1.97e-03, 5.28e-03, 7.95e-06, 6.42e-06, 6.09e-06, 1.13e-05, 7.95e-03, 6.66e-03]    []
+Best model at step 10000:
+  train loss: 2.30e-02
+  test loss: 2.19e-02
+  test metric: []
+'train' took 576.582567 s
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_003_t0.4000_to_t0.6000/model_adam-phase1-10000.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000079 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+10000     [1.94e-03, 6.38e-03, 7.95e-06, 6.42e-06, 6.09e-06, 1.13e-05, 7.95e-03, 6.66e-03]    [1.97e-03, 5.28e-03, 7.95e-06, 6.42e-06, 6.09e-06, 1.13e-05, 7.95e-03, 6.66e-03]    []
+11000     [2.72e-04, 2.94e-04, 4.50e-06, 6.04e-06, 1.75e-06, 2.19e-06, 3.91e-03, 2.32e-05]    [2.76e-04, 4.20e-04, 4.50e-06, 6.04e-06, 1.75e-06, 2.19e-06, 3.91e-03, 2.32e-05]    []
+12000     [9.92e-05, 4.05e-04, 2.92e-06, 6.49e-06, 1.68e-06, 8.82e-07, 1.02e-03, 1.42e-04]    [1.00e-04, 5.25e-04, 2.92e-06, 6.49e-06, 1.68e-06, 8.82e-07, 1.02e-03, 1.42e-04]    []
+13000     [8.23e-05, 3.39e-04, 2.04e-06, 6.14e-06, 3.21e-07, 3.19e-06, 3.55e-04, 6.57e-05]    [6.30e-05, 4.75e-04, 2.04e-06, 6.14e-06, 3.21e-07, 3.19e-06, 3.55e-04, 6.57e-05]    []
+14000     [5.15e-05, 3.24e-04, 2.10e-06, 7.24e-06, 6.72e-08, 1.53e-06, 1.97e-04, 2.52e-05]    [4.45e-05, 4.96e-04, 2.10e-06, 7.24e-06, 6.72e-08, 1.53e-06, 1.97e-04, 2.52e-05]    []
+15000     [2.88e-05, 3.19e-04, 2.41e-06, 5.37e-06, 7.44e-08, 5.25e-07, 1.24e-04, 2.10e-05]    [3.11e-05, 4.89e-04, 2.41e-06, 5.37e-06, 7.44e-08, 5.25e-07, 1.24e-04, 2.10e-05]    []
+16000     [2.03e-05, 3.15e-04, 2.46e-06, 4.45e-06, 7.12e-08, 4.84e-07, 8.77e-05, 1.47e-05]    [2.28e-05, 4.91e-04, 2.46e-06, 4.45e-06, 7.12e-08, 4.84e-07, 8.77e-05, 1.47e-05]    []
+17000     [1.60e-05, 3.08e-04, 2.60e-06, 4.08e-06, 2.02e-07, 5.62e-07, 6.56e-05, 1.23e-05]    [1.66e-05, 4.84e-04, 2.60e-06, 4.08e-06, 2.02e-07, 5.62e-07, 6.56e-05, 1.23e-05]    []
+18000     [1.33e-05, 3.00e-04, 2.45e-06, 3.50e-06, 1.70e-07, 4.74e-07, 5.35e-05, 1.13e-05]    [1.39e-05, 4.66e-04, 2.45e-06, 3.50e-06, 1.70e-07, 4.74e-07, 5.35e-05, 1.13e-05]    []
+19000     [1.18e-05, 2.95e-04, 2.48e-06, 3.03e-06, 1.07e-07, 4.39e-07, 4.41e-05, 1.01e-05]    [1.25e-05, 4.57e-04, 2.48e-06, 3.03e-06, 1.07e-07, 4.39e-07, 4.41e-05, 1.01e-05]    []
+20000     [1.11e-05, 2.90e-04, 2.44e-06, 3.12e-06, 8.21e-08, 4.50e-07, 3.61e-05, 8.45e-06]    [1.13e-05, 4.45e-04, 2.44e-06, 3.12e-06, 8.21e-08, 4.50e-07, 3.61e-05, 8.45e-06]    []
+Best model at step 20000:
+  train loss: 3.51e-04
+  test loss: 5.07e-04
+  test metric: []
+'train' took 673.841566 s
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_003_t0.4000_to_t0.6000/model_lbfgs-phase2-20000.pt
+Step 3 done. Final train loss: 3.5128e-04
+  Step 3: 2 reference file(s) in t=[0.4000, 0.6000]
+Step plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_003_t0.4000_to_t0.6000/step_003_t0.4000_to_t0.6000.png
+  Transfer learning source (adam): model_adam-phase1-10000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_003_t0.4000_to_t0.6000/step_config.json
+--- Time step 4/5: t = 0.6000 to 0.8000 ---
+Warning: 142 points required, but 144 points sampled.
+Warning: 1000 points required, but 1152 points sampled.
+  === Scheduler Phase 1: adam 10000 iters ===
+Compiling model...
+'compile' took 0.000077 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [3.42e-02, 2.93e-02, 1.55e-02, 3.30e-03, 3.79e-01, 1.93e-03, 7.62e+02, 3.44e-02]    [3.29e-02, 2.62e-02, 1.55e-02, 3.30e-03, 3.79e-01, 1.93e-03, 7.62e+02, 3.44e-02]    []
+1000      [2.45e-02, 2.09e-02, 1.42e-04, 1.72e-04, 3.71e-04, 1.10e-04, 1.71e-01, 1.83e-02]    [3.08e-02, 1.94e-02, 1.42e-04, 1.72e-04, 3.71e-04, 1.10e-04, 1.71e-01, 1.83e-02]    []
+2000      [1.21e-02, 1.86e-02, 4.96e-05, 4.16e-05, 1.97e-04, 1.34e-04, 5.09e-02, 1.80e-02]    [1.54e-02, 1.61e-02, 4.96e-05, 4.16e-05, 1.97e-04, 1.34e-04, 5.09e-02, 1.80e-02]    []
+3000      [1.56e-02, 1.72e-02, 3.06e-05, 3.08e-05, 8.29e-05, 1.12e-04, 3.13e-02, 1.76e-02]    [1.69e-02, 1.48e-02, 3.06e-05, 3.08e-05, 8.29e-05, 1.12e-04, 3.13e-02, 1.76e-02]    []
+4000      [6.12e-03, 1.52e-02, 1.95e-05, 7.85e-06, 3.92e-05, 5.66e-05, 1.58e-02, 1.59e-02]    [7.47e-03, 1.26e-02, 1.95e-05, 7.85e-06, 3.92e-05, 5.66e-05, 1.58e-02, 1.59e-02]    []
+5000      [5.50e-03, 1.38e-02, 1.29e-04, 7.40e-06, 1.72e-05, 2.33e-05, 6.13e-02, 1.43e-02]    [6.73e-03, 1.18e-02, 1.29e-04, 7.40e-06, 1.72e-05, 2.33e-05, 6.13e-02, 1.43e-02]    []
+6000      [4.18e-03, 1.22e-02, 2.82e-05, 1.53e-04, 1.68e-05, 1.96e-05, 4.94e-02, 1.30e-02]    [4.61e-03, 9.91e-03, 2.82e-05, 1.53e-04, 1.68e-05, 1.96e-05, 4.94e-02, 1.30e-02]    []
+7000      [9.75e-03, 1.15e-02, 3.13e-05, 3.73e-05, 1.57e-05, 8.28e-06, 1.02e+00, 1.14e-02]    [8.89e-03, 1.11e-02, 3.13e-05, 3.73e-05, 1.57e-05, 8.28e-06, 1.02e+00, 1.14e-02]    []
+8000      [3.02e-03, 1.02e-02, 2.75e-05, 1.87e-04, 1.79e-05, 1.11e-05, 6.43e-02, 1.06e-02]    [3.07e-03, 8.55e-03, 2.75e-05, 1.87e-04, 1.79e-05, 1.11e-05, 6.43e-02, 1.06e-02]    []
+9000      [2.99e-03, 9.06e-03, 1.43e-05, 1.12e-05, 1.48e-05, 1.09e-05, 3.02e-02, 9.71e-03]    [3.28e-03, 7.75e-03, 1.43e-05, 1.12e-05, 1.48e-05, 1.09e-05, 3.02e-02, 9.71e-03]    []
+10000     [1.32e-02, 9.77e-03, 3.35e-04, 3.66e-05, 1.05e-04, 2.39e-05, 1.46e+00, 8.83e-03]    [1.62e-02, 9.99e-03, 3.35e-04, 3.66e-05, 1.05e-04, 2.39e-05, 1.46e+00, 8.83e-03]    []
+Best model at step 9000:
+  train loss: 5.20e-02
+  test loss: 5.10e-02
+  test metric: []
+'train' took 612.662223 s
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_004_t0.6000_to_t0.8000/model_adam-phase1-10000.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000100 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+10000     [1.32e-02, 9.77e-03, 3.35e-04, 3.66e-05, 1.05e-04, 2.39e-05, 1.46e+00, 8.83e-03]    [1.62e-02, 9.99e-03, 3.35e-04, 3.66e-05, 1.05e-04, 2.39e-05, 1.46e+00, 8.83e-03]    []
+11000     [2.89e-04, 2.62e-04, 8.82e-06, 2.17e-06, 7.93e-07, 1.16e-06, 3.16e-03, 7.29e-06]    [3.39e-04, 3.84e-04, 8.82e-06, 2.17e-06, 7.93e-07, 1.16e-06, 3.16e-03, 7.29e-06]    []
+12000     [1.70e-04, 2.68e-04, 4.49e-06, 3.83e-06, 1.30e-06, 6.39e-07, 1.40e-03, 1.86e-05]    [2.60e-04, 3.82e-04, 4.49e-06, 3.83e-06, 1.30e-06, 6.39e-07, 1.40e-03, 1.86e-05]    []
+13000     [6.95e-05, 2.71e-04, 3.67e-06, 1.99e-06, 5.83e-07, 1.33e-06, 4.27e-04, 2.90e-05]    [8.02e-05, 4.25e-04, 3.67e-06, 1.99e-06, 5.83e-07, 1.33e-06, 4.27e-04, 2.90e-05]    []
+14000     [4.51e-05, 2.63e-04, 3.28e-06, 2.07e-06, 2.59e-07, 8.35e-07, 1.82e-04, 1.11e-05]    [5.29e-05, 4.30e-04, 3.28e-06, 2.07e-06, 2.59e-07, 8.35e-07, 1.82e-04, 1.11e-05]    []
+15000     [2.70e-05, 2.62e-04, 3.27e-06, 2.00e-06, 4.31e-07, 3.75e-07, 1.02e-04, 5.13e-06]    [3.40e-05, 4.25e-04, 3.27e-06, 2.00e-06, 4.31e-07, 3.75e-07, 1.02e-04, 5.13e-06]    []
+16000     [1.80e-05, 2.59e-04, 3.78e-06, 1.62e-06, 1.22e-07, 2.99e-07, 6.48e-05, 4.64e-06]    [1.91e-05, 4.13e-04, 3.78e-06, 1.62e-06, 1.22e-07, 2.99e-07, 6.48e-05, 4.64e-06]    []
+17000     [1.48e-05, 2.58e-04, 3.83e-06, 1.46e-06, 4.02e-08, 2.21e-07, 4.03e-05, 3.06e-06]    [1.67e-05, 4.09e-04, 3.83e-06, 1.46e-06, 4.02e-08, 2.21e-07, 4.03e-05, 3.06e-06]    []
+18000     [1.17e-05, 2.55e-04, 3.86e-06, 1.40e-06, 9.77e-08, 2.25e-07, 2.81e-05, 2.28e-06]    [1.41e-05, 3.98e-04, 3.86e-06, 1.40e-06, 9.77e-08, 2.25e-07, 2.81e-05, 2.28e-06]    []
+19000     [8.86e-06, 2.54e-04, 3.93e-06, 1.51e-06, 7.37e-08, 1.92e-07, 2.11e-05, 2.36e-06]    [1.15e-05, 4.03e-04, 3.93e-06, 1.51e-06, 7.37e-08, 1.92e-07, 2.11e-05, 2.36e-06]    []
+19888     [7.79e-06, 2.51e-04, 3.83e-06, 1.46e-06, 9.38e-08, 5.64e-08, 1.80e-05, 2.05e-06]    [1.06e-05, 4.04e-04, 3.83e-06, 1.46e-06, 9.38e-08, 5.64e-08, 1.80e-05, 2.05e-06]    []
+Best model at step 19888:
+  train loss: 2.85e-04
+  test loss: 4.40e-04
+  test metric: []
+'train' took 695.789339 s
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_004_t0.6000_to_t0.8000/model_lbfgs-phase2-19888.pt
+Step 4 done. Final train loss: 2.8464e-04
+  Step 4: 2 reference file(s) in t=[0.6000, 0.8000]
+Step plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_004_t0.6000_to_t0.8000/step_004_t0.6000_to_t0.8000.png
+  Transfer learning source (adam): model_adam-phase1-10000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_004_t0.6000_to_t0.8000/step_config.json
+--- Time step 5/5: t = 0.8000 to 1.0000 ---
+Warning: 142 points required, but 144 points sampled.
+Warning: 1000 points required, but 1152 points sampled.
+  === Scheduler Phase 1: adam 10000 iters ===
+Compiling model...
+'compile' took 0.000067 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+0         [4.29e-02, 2.89e-01, 1.61e-02, 2.29e-02, 2.66e-04, 1.38e-01, 9.73e+02, 1.55e-01]    [4.60e-02, 3.17e-01, 1.61e-02, 2.29e-02, 2.66e-04, 1.38e-01, 9.73e+02, 1.55e-01]    []
+1000      [2.67e-02, 1.56e-02, 1.26e-04, 3.05e-05, 1.02e-04, 6.96e-05, 1.37e-01, 1.32e-02]    [3.30e-02, 1.47e-02, 1.26e-04, 3.05e-05, 1.02e-04, 6.96e-05, 1.37e-01, 1.32e-02]    []
+2000      [1.54e-02, 1.59e-02, 4.64e-05, 1.43e-03, 3.55e-05, 8.17e-05, 7.31e-01, 1.33e-02]    [1.84e-02, 1.43e-02, 4.64e-05, 1.43e-03, 3.55e-05, 8.17e-05, 7.31e-01, 1.33e-02]    []
+3000      [7.33e-03, 1.33e-02, 2.69e-05, 8.95e-06, 7.83e-06, 3.29e-05, 2.93e-02, 1.29e-02]    [8.76e-03, 1.11e-02, 2.69e-05, 8.95e-06, 7.83e-06, 3.29e-05, 2.93e-02, 1.29e-02]    []
+4000      [5.62e-03, 1.25e-02, 1.93e-05, 9.14e-06, 8.44e-06, 2.68e-05, 1.33e-02, 1.25e-02]    [6.94e-03, 1.04e-02, 1.93e-05, 9.14e-06, 8.44e-06, 2.68e-05, 1.33e-02, 1.25e-02]    []
+5000      [4.44e-03, 1.17e-02, 1.52e-05, 8.40e-06, 8.30e-06, 2.25e-05, 9.63e-03, 1.18e-02]    [5.21e-03, 9.70e-03, 1.52e-05, 8.40e-06, 8.30e-06, 2.25e-05, 9.63e-03, 1.18e-02]    []
+6000      [3.88e-03, 1.10e-02, 3.63e-05, 3.37e-05, 8.22e-06, 1.89e-05, 1.92e-02, 1.12e-02]    [4.44e-03, 9.20e-03, 3.63e-05, 3.37e-05, 8.22e-06, 1.89e-05, 1.92e-02, 1.12e-02]    []
+7000      [4.90e-03, 1.05e-02, 1.47e-05, 2.11e-05, 7.03e-06, 1.92e-05, 3.68e-01, 1.04e-02]    [6.04e-03, 9.61e-03, 1.47e-05, 2.11e-05, 7.03e-06, 1.92e-05, 3.68e-01, 1.04e-02]    []
+8000      [7.06e-03, 9.66e-03, 8.51e-06, 2.99e-05, 7.25e-06, 5.80e-05, 2.39e-02, 9.95e-03]    [6.72e-03, 8.13e-03, 8.51e-06, 2.99e-05, 7.25e-06, 5.80e-05, 2.39e-02, 9.95e-03]    []
+9000      [2.58e-03, 8.85e-03, 8.04e-06, 4.44e-06, 6.68e-06, 1.46e-05, 5.18e-03, 9.23e-03]    [3.23e-03, 7.34e-03, 8.04e-06, 4.44e-06, 6.68e-06, 1.46e-05, 5.18e-03, 9.23e-03]    []
+10000     [1.14e-02, 8.50e-03, 4.07e-05, 4.62e-05, 7.56e-06, 8.14e-05, 1.86e-01, 8.76e-03]    [8.70e-03, 6.78e-03, 4.07e-05, 4.62e-05, 7.56e-06, 8.14e-05, 1.86e-01, 8.76e-03]    []
+Best model at step 9000:
+  train loss: 2.59e-02
+  test loss: 2.50e-02
+  test metric: []
+'train' took 616.869245 s
+  Phase 2 Adam model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_005_t0.8000_to_t1.0000/model_adam-phase1-10000.pt
+  === Scheduler Phase 2: lbfgs 10000 iters ===
+Compiling model...
+'compile' took 0.000093 s
+Training model...
+Step      Train loss                                                                          Test loss                                                                           Test metric
+10000     [1.14e-02, 8.50e-03, 4.07e-05, 4.62e-05, 7.56e-06, 8.14e-05, 1.86e-01, 8.76e-03]    [8.70e-03, 6.78e-03, 4.07e-05, 4.62e-05, 7.56e-06, 8.14e-05, 1.86e-01, 8.76e-03]    []
+11000     [1.79e-04, 2.57e-04, 6.40e-06, 3.19e-06, 1.88e-06, 9.07e-07, 2.43e-03, 1.79e-05]    [2.03e-04, 3.37e-04, 6.40e-06, 3.19e-06, 1.88e-06, 9.07e-07, 2.43e-03, 1.79e-05]    []
+12000     [8.07e-05, 2.75e-04, 3.61e-06, 2.91e-06, 9.27e-07, 6.38e-07, 1.36e-03, 1.29e-05]    [9.37e-05, 4.10e-04, 3.61e-06, 2.91e-06, 9.27e-07, 6.38e-07, 1.36e-03, 1.29e-05]    []
+13000     [5.76e-05, 2.77e-04, 4.55e-06, 3.31e-06, 5.94e-07, 1.28e-07, 5.43e-04, 3.49e-05]    [5.71e-05, 3.79e-04, 4.55e-06, 3.31e-06, 5.94e-07, 1.28e-07, 5.43e-04, 3.49e-05]    []
+14000     [4.29e-05, 2.65e-04, 4.18e-06, 3.28e-06, 4.01e-07, 7.67e-07, 2.65e-04, 1.04e-05]    [4.13e-05, 4.15e-04, 4.18e-06, 3.28e-06, 4.01e-07, 7.67e-07, 2.65e-04, 1.04e-05]    []
+15000     [2.69e-05, 2.66e-04, 4.38e-06, 2.74e-06, 3.50e-07, 3.54e-07, 1.65e-04, 7.12e-06]    [2.71e-05, 4.26e-04, 4.38e-06, 2.74e-06, 3.50e-07, 3.54e-07, 1.65e-04, 7.12e-06]    []
+16000     [1.99e-05, 2.63e-04, 4.02e-06, 2.68e-06, 4.47e-07, 2.90e-07, 1.05e-04, 9.14e-06]    [2.18e-05, 4.27e-04, 4.02e-06, 2.68e-06, 4.47e-07, 2.90e-07, 1.05e-04, 9.14e-06]    []
+17000     [2.03e-05, 2.61e-04, 3.78e-06, 2.21e-06, 5.78e-08, 3.01e-07, 6.54e-05, 5.73e-06]    [2.12e-05, 4.20e-04, 3.78e-06, 2.21e-06, 5.78e-08, 3.01e-07, 6.54e-05, 5.73e-06]    []
+18000     [1.56e-05, 2.60e-04, 3.65e-06, 2.05e-06, 5.32e-08, 1.37e-07, 4.44e-05, 4.31e-06]    [1.44e-05, 4.17e-04, 3.65e-06, 2.05e-06, 5.32e-08, 1.37e-07, 4.44e-05, 4.31e-06]    []
+19000     [1.18e-05, 2.57e-04, 3.50e-06, 1.96e-06, 1.18e-08, 7.98e-08, 3.15e-05, 4.40e-06]    [1.28e-05, 4.15e-04, 3.50e-06, 1.96e-06, 1.18e-08, 7.98e-08, 3.15e-05, 4.40e-06]    []
+20000     [1.03e-05, 2.55e-04, 3.62e-06, 1.91e-06, 1.16e-07, 7.65e-08, 2.31e-05, 3.16e-06]    [1.05e-05, 4.12e-04, 3.62e-06, 1.91e-06, 1.16e-07, 7.65e-08, 2.31e-05, 3.16e-06]    []
+Best model at step 20000:
+  train loss: 2.98e-04
+  test loss: 4.55e-04
+  test metric: []
+'train' took 699.713103 s
+  Phase 3 L-BFGS model saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_005_t0.8000_to_t1.0000/model_lbfgs-phase2-20000.pt
+Step 5 done. Final train loss: 2.9770e-04
+  Step 5: 2 reference file(s) in t=[0.8000, 1.0000]
+Step plot saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_005_t0.8000_to_t1.0000/step_005_t0.8000_to_t1.0000.png
+  Transfer learning source (adam): model_adam-phase1-10000.pt
+Step config saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/time_adaptive_steps/step_005_t0.8000_to_t1.0000/step_config.json
+=== Time-Adaptive Training Complete ===
+Final loss: 2.9770e-04
+Final loss (unweighted): 2.7460e-04
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000074 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000088 s
+=== Running Time-Adaptive Error Analysis ===
+  Filtering to t=[0.0, 1.0]: 10 files
+  ── Output group: mu (5 files) ──
+  Loaded ground truth t=0.0000: 40401 pts from t_0_mu.txt
+  Loaded ground truth t=0.2500: 40401 pts from t_0.25_mu.txt
+  Loaded ground truth t=0.5000: 40401 pts from t_0.5_mu.txt
+  Loaded ground truth t=0.7500: 40401 pts from t_0.75_mu.txt
+  Loaded ground truth t=1.0000: 40401 pts from t_1_mu.txt
+  Found 5 time-adaptive step models
+  Step 1 [0.0000→0.2000]: t = [0.0]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000073 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.0000: 40401 points
+  Step 2 [0.2000→0.4000]: t = [0.25]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000063 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.2500: 40401 points
+  Step 3 [0.4000→0.6000]: t = [0.5]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000063 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.5000: 40401 points
+  Step 4 [0.6000→0.8000]: t = [0.75]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000063 s
+    Restored: model_lbfgs-phase2-19888.pt
+    Predicted at t=0.7500: 40401 points
+  Step 5 [0.8000→1.0000]: t = [1.0]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000060 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=1.0000: 40401 points
+  t=0.0000 — L₂=8.7485e-01, MeanAbs=4.8052e-02
+  t=0.2500 — L₂=5.0826e-01, MeanAbs=1.9965e-02
+  t=0.5000 — L₂=5.0699e-01, MeanAbs=1.9939e-02
+  t=0.7500 — L₂=4.8442e-01, MeanAbs=1.8628e-02
+  t=1.0000 — L₂=4.7054e-01, MeanAbs=1.7915e-02
+  Metrics saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_metrics_mu.txt
+  All 5 reference times together: L₂=7.2891e-01
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000110 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000079 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000089 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000091 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000080 s
+  Line comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/line_comparison_mu.png
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000114 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000085 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000076 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000080 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000086 s
+  Surface comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/surface_comparison_mu.png
+  Group 'mu' analysis complete
+  ── Output group: phi (5 files) ──
+  Loaded ground truth t=0.0000: 40401 pts from t_0_phi.txt
+  Loaded ground truth t=0.2500: 40401 pts from t_0.25_phi.txt
+  Loaded ground truth t=0.5000: 40401 pts from t_0.5_phi.txt
+  Loaded ground truth t=0.7500: 40401 pts from t_0.75_phi.txt
+  Loaded ground truth t=1.0000: 40401 pts from t_1_phi.txt
+  Found 5 time-adaptive step models
+  Step 1 [0.0000→0.2000]: t = [0.0]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000067 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.0000: 40401 points
+  Step 2 [0.2000→0.4000]: t = [0.25]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000069 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.2500: 40401 points
+  Step 3 [0.4000→0.6000]: t = [0.5]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000061 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=0.5000: 40401 points
+  Step 4 [0.6000→0.8000]: t = [0.75]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000063 s
+    Restored: model_lbfgs-phase2-19888.pt
+    Predicted at t=0.7500: 40401 points
+  Step 5 [0.8000→1.0000]: t = [1.0]
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000063 s
+    Restored: model_lbfgs-phase2-20000.pt
+    Predicted at t=1.0000: 40401 points
+  t=0.0000 — L₂=1.2205e-03, MeanAbs=2.6322e-04
+  t=0.2500 — L₂=6.1383e-02, MeanAbs=2.6636e-02
+  t=0.5000 — L₂=1.3002e-01, MeanAbs=4.7367e-02
+  t=0.7500 — L₂=1.9444e-01, MeanAbs=6.6321e-02
+  t=1.0000 — L₂=2.4804e-01, MeanAbs=8.4212e-02
+  Metrics saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/error_metrics_phi.txt
+  All 5 reference times together: L₂=1.5578e-01
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000117 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000081 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000075 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000073 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000087 s
+  Line comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/line_comparison_phi.png
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000068 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000072 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000072 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000080 s
+Warning: 45 points required, but 49 points sampled.
+Warning: 100 points required, but 147 points sampled.
+Compiling model...
+'compile' took 0.000073 s
+  Surface comparison saved: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01/error_analysis/surface_comparison_phi.png
+  Group 'phi' analysis complete
+=== Time-Adaptive Error Analysis Complete ===
+DONE
+
+✅ Training complete!
+💾 Results saved to: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01
+✅ Error analysis ran inline — check error_analysis/ folder.
+--- stderr ---

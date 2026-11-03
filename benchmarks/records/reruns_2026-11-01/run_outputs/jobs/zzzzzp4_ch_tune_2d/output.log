@@ -1,0 +1,5 @@
+77889c0 Renaming an output relabels the Loss weights rows and the output lists right away
+OK  Template: 2D Cahn-Hilliard (Wight & Zhao)          paper_wz s2026    5716s loss=0.0002977 maxL2=8.749e-01 
+OK  Template: 2D Cahn-Hilliard (Wight & Zhao)          paper_wz s1    5863s loss=0.00044209 maxL2=8.885e-01 
+OK  Template: 2D Cahn-Hilliard (Wight & Zhao)          paper_wz s2    5859s loss=0.00034478 maxL2=8.788e-01 
+OK  Template: 2D Cahn-Hilliard (Mattey & Ghosh)        paper_mg s2026   30133s loss=0.00014906 maxL2=4.207e-01 
