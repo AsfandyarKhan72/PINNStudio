@@ -18,7 +18,7 @@ machine (`.gpu_runner/done/zzzzzp1_ch_f7_1d` ... `p5_ch1d_wz_paper`).
 
 | File | Contents | SHA-256 (first 16) |
 |---|---|---|
-| `rerun1_fig7_ch1d_mg_per_time.json` | rerun 1, Figure 7(b): error over all times per output, from the run logs | `ebdef08e3fc662db` |
+| `rerun1_fig7_ch1d_mg_per_time.json` | rerun 1, Figure 7(b): error over all times per output, from the run logs (the runs are the 1D Cahn-Hilliard example of **Wight & Zhao**; the file name's "mg" is a mislabel) | `ebdef08e3fc662db` |
 | `rerun2_ch1d_mg_results.jsonl` | rerun 2, 1D CH (Mattey & Ghosh) paper_mg and best-setup variants, `tools/tuning_study.py` records | `835f22a0e2060657` |
 | `rerun3_fig7_ch2d_mg_per_time.json` | rerun 3, Figure 7(d): error over all times, from the run logs | `a86a3aa8095f7dae` |
 | `rerun3_per_time_bcpinn.json` | rerun 3: per-time L2 of h and mu | `7f052d95a1ece5c7` |
@@ -35,7 +35,7 @@ Relative L2. "Final time" is what Figure 4, Figure 7 and Table S2 report; "all t
 reference time together (the benchmark pages' second number). The two can move in opposite directions, so any
 statement in the paper must say which one it uses.
 
-### Figure 7, 1D Cahn-Hilliard (Mattey & Ghosh), u at t = 1 (rerun 1)
+### Figure 7(b), 1D Cahn-Hilliard (Wight & Zhao), u at t = 1 (rerun 1)
 | Run | old | new |
 |---|---|---|
 | windows | 4.03e-3 | 3.94e-3 |
@@ -93,13 +93,31 @@ Final-time judged error (worse of u and mu at t = 1) 2.06e-2 -> 2.58e-2 (+25 %),
 
 - **Figure 7 (b), (d)**: the windowed curves (windows, bcpinn, windowsEq, bcpinnEq) change from window 2 on;
   final-time values above. The text's range for the windowed final-time errors needs the new values.
-- **Figure 4 paper-method rows**: 1D CH W&Z 2.06e-2 -> 2.58e-2; 2D CH W&Z 0.217 -> 0.235 (phi); 2D CH M&G
-  (paper_mg) h 2.04e-2 -> 2.42e-2; 1D CH M&G paper_mg h 5.66e-3 -> 7.52e-3 with mu 4.6e-2 -> 1.07.
-- **Table S2**: the same rows; for 1D CH M&G the selected configuration changes (paper_mg -> windows2) under the
-  stated selection rule.
+- **Figure 4 paper-method rows** (Figure 4 plots the main output): 1D CH W&Z u 8.09e-3 -> 1.06e-2 (median of three
+  seeds; 2.06e-2 -> 2.58e-2 is the worse of u and mu, used only for selection); 2D CH W&Z phi 0.217 -> 0.235. The
+  Mattey & Ghosh Cahn-Hilliard problems are not Figure 4 rows: their paper-method values (2D h 2.04e-2 -> 2.42e-2;
+  1D h 5.66e-3 -> 7.52e-3, mu 4.6e-2 -> 1.07) appear on the benchmark pages only.
+- **Table S2**: one row changes, 1D CH M&G, whose selected configuration changes (paper_mg -> windows2) under the
+  stated selection rule (h 6.3e-3, mu 6.2e-2). The 2D CH M&G row (selected: iters) does not change.
 - **Aggregates**: the forward median (5.2e-4 over 22 benchmarks) and the inverse median change only if a rerun row
   is among the selected configurations they summarize; this is settled by rebuilding the records with these files
   (not done yet).
-- **Conclusions**: PINNStudio's own best setups for these problems were not affected (they do not use the windowed
-  weights or resampling rounds), so "exact constraints + SA-PINN give the lowest final-time errors" stands; the
+- **Conclusions**: PINNStudio's own best setups for the 2D problems and for 1D Wight & Zhao were not affected (they
+  do not use the windowed weights or resampling rounds); the 1D Mattey & Ghosh best-setup candidates were (they are
+  windowed with an IC weight of 100), which is why they were rerun in rerun 2, so "exact constraints + SA-PINN give the lowest final-time errors" stands; the
   paper-method rows remain far behind them. Statements must keep final-time and all-times errors apart.
+
+## Added 2026-11-03: complete per-time records and rebuilt summaries
+
+| Path | Contents |
+|---|---|
+| `rerun1_ch1d_per_time/` | rerun 1: the four windowed runs' own per-time u and mu errors, result/meta files and logs (`SOURCE.md`) |
+| `run_outputs/` | reruns 2, 4 and 5: each run's error files, log and model configuration, results.jsonl and job scripts |
+| `primary_reruns.json`, `spacetime_reruns.json`, `summaries_manifest.json` | the summaries the build needs (main output and every output at the last reference time; the main output's error over all times), rebuilt by `tools/build_rerun_summaries.py` from `run_outputs/` and checked against each run's log and results.jsonl |
+| `final_build/` | argument files of the final build (corrected set with these reruns taking precedence) |
+
+Note on the all-times column: for the Wight & Zhao Cahn-Hilliard paper-method and plain runs, the earlier
+`spacetime*.json` files of the original and corrected sets hold the chemical potential's error over all times (the
+first output in those logs), not the main output's. `spacetime_reruns.json` holds the main output's, so for the rerun
+rows the column now shows u (1D) or phi (2D). The plain runs of those two problems were not rerun and keep the older
+value; the records are left unchanged.

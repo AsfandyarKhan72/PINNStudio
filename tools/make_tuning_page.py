@@ -640,7 +640,8 @@ def page(summ, rows, with_files):
         if figs:
             a("\n".join(figs) + "\n")
         if s.get("file"):
-            a(f"Tuned settings: [`{s['file']}`](tuning/{s['file'].replace(' ', '%20')})\n")
+            a(f"Settings of the chosen (lowest-loss) variant: [`{s['file']}`](tuning/{s['file'].replace(' ', '%20')}) "
+              "(not always the example's **Tuned** preset, which is chosen by the reference error; see above)\n")
         a("</details>\n")
     return "\n".join(L)
 

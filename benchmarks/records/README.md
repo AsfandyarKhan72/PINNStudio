@@ -101,7 +101,7 @@ peak memory 6,734,100 kB; `tools/build_benchmark_records.py` with the same argum
 `forward_per_seed.csv` and `inverse_per_seed.csv` identical to the committed files).
 
 Note on the two pages' selection rules for these five examples (DeepXDE's own inverse examples, which the tuning
-study ran in their forward setting): `tuning_study.md` picks the change with the lowest error of the main output
+study ran in their forward setting): `tuning_study.md` picks the change with the lowest final training loss
 (*Chosen: all* for Brinkman-Forchheimer, Diffusion 1D and Diffusion-reaction 1D), while `benchmarks/README.md` and
 `pinnstudio/resources/tuned_settings.json` use the inverse-problem rule of that page (the error of the learned
 parameters or field, and the fastest within 25%: *iters*, *iters*, *net*). Both follow from the same records; what
