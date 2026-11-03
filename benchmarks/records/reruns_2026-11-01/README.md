@@ -121,3 +121,23 @@ Note on the all-times column: for the Wight & Zhao Cahn-Hilliard paper-method an
 first output in those logs), not the main output's. `spacetime_reruns.json` holds the main output's, so for the rerun
 rows the column now shows u (1D) or phi (2D). The plain runs of those two problems were not rerun and keep the older
 value; the records are left unchanged.
+
+## Added 2026-11-03: figures of the rerun runs
+
+The benchmark pages show surface and line comparisons of the runs their tables report. For the rerun runs the
+committed figures were still those of the earlier runs (2026-10-25), and the selected CH 1D Mattey & Ghosh run
+(`windows2`, best setup) had none. They are replaced by the figures the reruns wrote themselves
+(`error_analysis/{surface,line}_comparison_<output>.png` of seed 2026), scaled to 1400 px wide and saved with a
+256-colour palette like the other figures in `benchmarks/figures/tuning/`:
+
+| Figures | Run they come from (workstation `.gpu_runner/done/`) |
+|---|---|
+| `Template_1D_Cahn_Hilliard/paper_wz_*` | `p5_ch1d_wz_paper/out/Template_1D_Cahn_Hilliard/paper_wz_s2026/1D_Cahn-Hilliard__2026-11-01_17-18-11` (rerun 5) |
+| `Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_*` | `p2_ch_tune_1d/out/Template_1D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_14-31-34` (rerun 2) |
+| `Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_*` (new) | `p2_ch_tune_1d/out/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_s2026/1D_Cahn-Hilliard_Mattey__Ghosh__2026-10-31_16-55-23` (rerun 2) |
+| `Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_*` | `p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Wight_Zhao/paper_wz_s2026/2D_Cahn-Hilliard_Wight__Zhao__2026-11-01_04-05-01` (rerun 4) |
+| `Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_*` | `p4_ch_tune_2d/out/Template_2D_Cahn_Hilliard_Mattey_Ghosh/paper_mg_s2026/2D_Cahn-Hilliard_Mattey__Ghosh__2026-11-01_08-55-45` (rerun 4) |
+
+These are the same run folders whose error files, logs and `model_config.json` are in `run_outputs/`. Rerun 2's
+`all` run (best setup + every change) timed out after 14,400 s and has no result; it is no longer listed on the
+benchmark pages (the earlier `all` row, 0.99, came from a run with the time-window weight defect).
