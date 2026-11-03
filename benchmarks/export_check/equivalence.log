@@ -1,0 +1,97 @@
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+identical Integro-differential equation | forward                                
+identical Volterra integro-differential equation | forward                       
+identical ODE system | forward                                                   
+identical ODE system | inverse                                                   
+identical Lotka-Volterra equation | forward                                      
+identical Lotka-Volterra equation | inverse                                      
+identical Second-order ODE | forward                                             
+identical Second-order ODE | inverse                                             
+identical Inverse: Lorenz system | forward                                       
+identical Inverse: Lorenz system with exogenous input | forward                  
+identical Euler beam | forward                                                   
+identical Euler beam | inverse                                                   
+identical Fractional Poisson equation 1D | forward                               
+identical Poisson 1D – Dirichlet | forward                                       
+identical Poisson 1D – Dirichlet/Neumann | forward                               
+identical Poisson 1D – Dirichlet/Periodic | forward                              
+identical Poisson 1D – Dirichlet/PointSetOperator | forward                      
+identical Poisson 1D – Dirichlet/Robin | forward                                 
+identical Poisson 1D – hard boundary conditions | forward                        
+identical Poisson 1D – multi-scale Fourier features | forward                    
+identical Inverse: Brinkman-Forchheimer model | forward                          
+identical Inverse: diffusion-reaction with space-dependent rate | forward        
+identical Inverse: fractional Poisson equation 1D | forward                      
+identical Inverse: Poisson with unknown forcing field | forward                  
+identical Inverse: Poisson with unknown forcing field (batches) | forward        
+identical 1D Allen-Cahn (whole interval) | forward                               
+identical 1D Allen-Cahn (whole interval) | inverse                               
+identical 1D Cahn-Hilliard | forward                                             
+skipped   1D Cahn-Hilliard | inverse                                             no such problem: unknown template '1D Cahn-Hilliard' (Inverse list)
+identical 1D Cahn-Hilliard (Mattey & Ghosh) | forward                            
+skipped   1D Cahn-Hilliard (Mattey & Ghosh) | inverse                            no such problem: unknown template '1D Cahn-Hilliard (Mattey & Ghosh)' (Inverse list)
+identical American put option | forward                                          
+identical Black-Scholes equation (call option) | forward                         
+identical 1D Burgers | forward                                                   
+identical 1D Burgers | inverse                                                   
+identical Burgers equation with RAR | forward                                    
+identical Diffusion equation | forward                                           
+identical Diffusion equation with hard IC and BC | forward                       
+identical Diffusion equation with resampling | forward                           
+identical Diffusion-reaction equation | forward                                  
+identical Diffusion-reaction equation | inverse                                  
+identical Fractional diffusion equation | forward                                
+identical Heat equation | forward                                                
+identical Heat equation | inverse                                                
+identical Heat equation with resampling | forward                                
+identical Klein-Gordon equation | forward                                        
+identical Klein-Gordon equation | inverse                                        
+identical Schrödinger equation | forward                                         
+identical Schrödinger equation | inverse                                         
+identical Wave propagation – space-time multi-scale Fourier features | forward   
+identical Wave propagation – space-time multi-scale Fourier features | inverse   
+identical Inverse: diffusion equation | forward                                  
+identical Inverse: diffusion-reaction system | forward                           
+identical Fractional Poisson equation 2D | forward                               
+identical Helmholtz 2D (Dirichlet) | forward                                     
+identical Helmholtz 2D (Dirichlet) | inverse                                     
+skipped   Helmholtz 2D – hyperparameter optimization | forward                   parameter sweep example
+identical Helmholtz sound-hard scattering (absorbing BC) | forward               
+identical Helmholtz 2D with a hole | forward                                     
+identical Laplace equation on a disk | forward                                   
+identical Linear elastostatic plate | forward                                    
+identical Linear elastostatic plate | inverse                                    
+identical Linear elastostatic plate (soft BCs) | forward                         
+identical Kovasznay flow | forward                                               
+identical Kovasznay flow | inverse                                               
+identical 2D Poisson (Disk) | forward                                            
+identical 2D Poisson (Disk) | inverse                                            
+identical Poisson over an L-shaped domain | forward                              
+identical Poisson over an L-shaped domain | inverse                              
+identical Inverse: fractional Poisson equation 2D | forward                      
+identical 2D Allen-Cahn (Wight & Zhao) | forward                                 
+identical 2D Allen-Cahn (Wight & Zhao) | inverse                                 
+identical 2D Allen-Cahn (Mattey & Ghosh) | forward                               
+identical 2D Allen-Cahn (Mattey & Ghosh) | inverse                               
+identical 2D Cahn-Hilliard (Wight & Zhao) | forward                              
+identical 2D Cahn-Hilliard (Wight & Zhao) | inverse                              
+identical 2D Cahn-Hilliard (Mattey & Ghosh) | forward                            
+identical 2D Cahn-Hilliard (Mattey & Ghosh) | inverse                            
+identical 2D Burgers (Mathias) | forward                                         
+identical 2D Burgers (Mathias) | inverse                                         
+identical 2D Heat | forward                                                      
+identical 2D Heat | inverse                                                      
+identical Fractional Poisson equation 3D | forward                               
+identical 3D Poisson (Cube with spherical cut-out) | forward                     
+skipped   3D Poisson (Cube with spherical cut-out) | inverse                     no such problem: unknown template '3D Poisson (Cube with spherical cut-out)' (Inverse list)
+identical 3D Poisson (Sphere) | forward                                          
+identical 3D Poisson (Sphere) | inverse                                          
+identical 3D Allen-Cahn (Wight & Zhao) | forward                                 
+identical 3D Allen-Cahn (Wight & Zhao) | inverse                                 
+identical 3D Heat | forward                                                      
+identical 3D Heat | inverse                                                      
+identical Beltrami flow | forward                                                
+identical Beltrami flow | inverse                                                
+summary: {'identical': 89, 'differs': 0, 'error': 0, 'skipped': 4, 'bitwise': 89}

@@ -30,10 +30,10 @@ conditions go on faces (sketch3d).
 import json
 import math
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
                          QKeySequence, QTransform)
-from PyQt6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout,
+from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout,
                              QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QStackedWidget,
                              QVBoxLayout, QWidget)
 
@@ -162,11 +162,11 @@ def polygon_shape(pts):
 
 class _Canvas(QWidget):
     """The drawing surface itself (painted by hand, world y pointing up)."""
-    changed = pyqtSignal()           # the shape list was edited (on mouse release)
-    selection_changed = pyqtSignal(int)
-    cursor_moved = pyqtSignal(float, float)
-    edges_selected = pyqtSignal()    # Edges tool: the selected edges changed
-    edge_hovered = pyqtSignal(int)   # Edges tool: edge under the cursor (-1: none)
+    changed = Signal()           # the shape list was edited (on mouse release)
+    selection_changed = Signal(int)
+    cursor_moved = Signal(float, float)
+    edges_selected = Signal()    # Edges tool: the selected edges changed
+    edge_hovered = Signal(int)   # Edges tool: edge under the cursor (-1: none)
 
     def __init__(self, owner):
         super().__init__()
@@ -732,11 +732,11 @@ class SketchPanel(QWidget):
     """Toolbar + canvas + status line. `shapes_edited(list)` fires whenever
     the user changes the sketch; `set_shapes(list)` shows a shape list
     edited elsewhere (the Custom geometry rows) without firing it."""
-    shapes_edited = pyqtSignal(list)
-    new_bc_requested = pyqtSignal(str)            # "Where:" of the selected edges
-    add_to_bc_requested = pyqtSignal(int, str)    # BC row index, "Where:" to add
-    remove_from_bcs_requested = pyqtSignal(list)  # edge expressions to take out of their BC rows
-    toggle_edge_bc = pyqtSignal(int, int, bool)   # BC row index, edge index, add (else remove)
+    shapes_edited = Signal(list)
+    new_bc_requested = Signal(str)            # "Where:" of the selected edges
+    add_to_bc_requested = Signal(int, str)    # BC row index, "Where:" to add
+    remove_from_bcs_requested = Signal(list)  # edge expressions to take out of their BC rows
+    toggle_edge_bc = Signal(int, int, bool)   # BC row index, edge index, add (else remove)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -969,7 +969,7 @@ class SketchPanel(QWidget):
         self.shapes_edited.connect(self._record)
         self.undo_btn.clicked.connect(self.undo)
         self.redo_btn.clicked.connect(self.redo)
-        from PyQt6.QtGui import QKeySequence, QShortcut
+        from PySide6.QtGui import QKeySequence, QShortcut
         for seq, fn in (("Ctrl+Z", self.undo), ("Ctrl+Y", self.redo), ("Ctrl+Shift+Z", self.redo)):
             sc = QShortcut(QKeySequence(seq), self)
             sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -1454,7 +1454,7 @@ class SketchPanel(QWidget):
     def import_drawing(self, path=None, scale=None, replace=None):
         """Import a DXF/SVG drawing (asks for the file, the scale and, when
         the sketch isn't empty, whether to replace it)."""
-        from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+        from PySide6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
         from pinnstudio.ui.sketch_import import drawing_extent, import_file
         if path is None:
             path, _ = QFileDialog.getOpenFileName(self, "Import a 2D drawing", "",

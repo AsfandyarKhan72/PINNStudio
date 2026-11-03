@@ -60,14 +60,14 @@ def test_shading_darkens_faces_turned_away():
 
 
 def _settle(secs=0.6):
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     t = time.time()
     while time.time() - t < secs:
         QApplication.processEvents()
 
 
 def test_view_switches_in_the_sketch_panel():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.sketch_canvas import SketchPanel
     p = SketchPanel()
@@ -95,7 +95,7 @@ def test_view_switches_in_the_sketch_panel():
 
 
 def test_periodic_rows_colour_the_opposite_face():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
@@ -123,7 +123,7 @@ def test_point_preview_stays_in_the_domain():
 
 
 def test_points_checkbox_draws_points():
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.sketch_canvas import SketchPanel
     p = SketchPanel()
@@ -145,7 +145,7 @@ def test_show_points_uses_deepxde_with_the_run_settings():
     """In the app, Show points samples the real training points in the
     background (DeepXDE, the Collocation Points settings) and samples again
     when a setting changes."""
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()

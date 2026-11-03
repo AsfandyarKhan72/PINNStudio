@@ -15,9 +15,9 @@ its signals, so building and loading a configuration works unchanged.
 A node is hidden when every panel on its page is hidden (e.g. "Inverse
 problem" outside Inverse mode), and shown again when one is shown.
 """
-from PyQt6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
-from PyQt6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
                              QVBoxLayout, QWidget)
 
 
@@ -46,7 +46,7 @@ def node_icon(glyph, color, size=18):
 class ModelWorkspace(QObject):
     """Model tree + settings stack. `tree_panel` and `settings_panel` are
     the two widgets to put in the window's splitter."""
-    node_selected = pyqtSignal(str)
+    node_selected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -86,7 +86,7 @@ class ModelWorkspace(QObject):
         self.title = QLabel("")
         self.title.setObjectName("pageTitle")
         self.title.setWordWrap(True)      # a long title in a narrow panel at a large text size
-        from PyQt6.QtWidgets import QHBoxLayout, QToolButton
+        from PySide6.QtWidgets import QHBoxLayout, QToolButton
         trow = QHBoxLayout()
         trow.setContentsMargins(0, 0, 4, 0)
         trow.addWidget(self.title, 1)
@@ -155,7 +155,7 @@ class ModelWorkspace(QObject):
         return item
 
     def add_widget(self, key, widget):
-        from PyQt6.QtWidgets import QGroupBox
+        from PySide6.QtWidgets import QGroupBox
         if isinstance(widget, QGroupBox):
             make_collapsible(widget)
         info = self.pages[key]
@@ -215,7 +215,7 @@ class ModelWorkspace(QObject):
             return
         key = item.data(0, Qt.ItemDataRole.UserRole)
         info = self.pages[key]
-        from PyQt6.QtWidgets import QGroupBox
+        from PySide6.QtWidgets import QGroupBox
         for w in info["widgets"]:
             if isinstance(w, QGroupBox):
                 make_collapsible(w)
@@ -247,14 +247,14 @@ class ModelWorkspace(QObject):
         if self.open_url is not None:
             self.open_url(url)
             return
-        from PyQt6.QtCore import QUrl
-        from PyQt6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         QDesktopServices.openUrl(QUrl(url))
 
     def build_menu(self, key):
         """The right-click menu of node `key`: the window's actions for it,
         then folding the page's sections."""
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         menu = QMenu(self.tree)
         entries = []
         if self.menu_provider is not None:
@@ -421,44 +421,92 @@ MAX_LABEL_CHARS = 26
 
 def _grows(widget):
     """Whether a row's last widget takes the rest of the row by itself."""
-    from PyQt6.QtWidgets import QLineEdit, QSizePolicy
+    from PySide6.QtWidgets import QLineEdit, QSizePolicy
     pol = widget.sizePolicy().horizontalPolicy()
     return (isinstance(widget, QLineEdit) and widget.maximumWidth() >= 16777215
             and pol not in (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum))
+
+
+def _row_slots(lay):
+    """{index: widget} and the set of indices taken by nested layouts, for one
+    layout, found through the QObject tree (QLayout.indexOf) -- never through
+    QLayout.itemAt.
+
+    PySide6 keeps a Python wrapper alive for every layout item itemAt() has
+    returned (PyQt6 does not). Qt deletes those items itself when a row's
+    widget or layout is deleted, and a QLayoutItem is not a QObject, so
+    PySide6 is never told: the wrapper stays registered at the freed address.
+    Walking every row on every page switch left about a thousand of them after
+    a few example loads, and once those addresses were reused the heap was
+    corrupted (about one crash in 15 example loads in a stress loop)."""
+    from PySide6.QtWidgets import QLayout, QWidget
+    widgets, nested = {}, set()
+    pw = lay.parentWidget()
+    if pw is not None:
+        for w in pw.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
+            i = lay.indexOf(w)
+            if i >= 0:
+                widgets[i] = w
+    for child in lay.findChildren(QLayout, options=Qt.FindChildOption.FindDirectChildrenOnly):
+        i = lay.indexOf(child)
+        if i >= 0:
+            nested.add(i)
+    return widgets, nested
+
+
+def layout_widgets(lay):
+    """The widgets placed directly in `lay`, in layout order, found through
+    the QObject tree -- never through QLayout.itemAt (see _row_slots)."""
+    widgets, _nested = _row_slots(lay)
+    return [widgets[i] for i in sorted(widgets)]
+
+
+def layout_sublayouts(lay):
+    """The layouts nested directly in `lay`, in layout order (QObject tree)."""
+    from PySide6.QtWidgets import QLayout
+    found = []
+    for child in lay.findChildren(QLayout, options=Qt.FindChildOption.FindDirectChildrenOnly):
+        i = lay.indexOf(child)
+        if i >= 0:
+            found.append((i, child))
+    return [c for _i, c in sorted(found, key=lambda t: t[0])]
 
 
 def align_forms(root, max_label=190):
     """Rows built as  [label][stretch][control]  -- control pushed to the far
     right -- become  [label][control][stretch], and every row label on the
     page gets the same width, so a page reads as one aligned form.
-    Idempotent: safe to call again after rows are added."""
-    from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QSpinBox, QDoubleSpinBox
-    labels = []
+    Idempotent: safe to call again after rows are added.
 
-    def walk(lay):
-        for i in range(lay.count()):
-            it = lay.itemAt(i)
-            if it.layout() is not None:
-                walk(it.layout())
-            elif it.widget() is not None and it.widget().layout() is not None:
-                walk(it.widget().layout())
-        if not isinstance(lay, QHBoxLayout) or lay.count() < 2:
-            return
-        first = lay.itemAt(0).widget()
+    Works on the QObject tree only (findChildren, indexOf): see _row_slots."""
+    from PySide6.QtWidgets import QHBoxLayout, QLineEdit
+    labels = []
+    rows = [l for l in root.findChildren(QHBoxLayout)]
+    for lay in rows:
+        n = lay.count()
+        if n < 2:
+            continue
+        widgets, nested = _row_slots(lay)
+        first = widgets.get(0)
         if not isinstance(first, QLabel) or not first.text().rstrip().endswith(":") or first.wordWrap():
-            return
+            continue
         # The row ends in a stretch unless its last control takes the rest
         # of the row itself (a line edit left to grow): a fixed-width field
         # with no stretch after it left the spare room around the capped
         # label, so the row's label and field drifted apart (Min. delta,
-        # the loss-weight rows).
-        if lay.itemAt(1).spacerItem() is not None and lay.count() >= 3:
-            lay.takeAt(1)
-            last = lay.itemAt(lay.count() - 1).widget()
+        # the loss-weight rows). Index 1 holds a spacer when neither a widget
+        # nor a nested layout sits there.
+        if n >= 3 and 1 not in widgets and 1 not in nested and not lay.property("_pinn_row_aligned"):
+            # the spacer stays (removing it means takeAt, i.e. a layout-item
+            # wrapper); with stretch 0 it takes no room next to a stretch
+            # factor elsewhere in the row
+            lay.setStretch(1, 0)
+            lay.setProperty("_pinn_row_aligned", True)
+            last = widgets.get(n - 1)
             if last is not None and not _grows(last):
                 lay.addStretch(1)
-        else:
-            last = lay.itemAt(lay.count() - 1).widget()
+        elif 1 in widgets or 1 in nested:
+            last = widgets.get(n - 1)
             if isinstance(last, QLineEdit) and not _grows(last):
                 lay.addStretch(1)
         if first.property("_pinn_col") or first.minimumWidth() != first.maximumWidth() \
@@ -467,8 +515,6 @@ def align_forms(root, max_label=190):
             if lay.spacing() != ROW_SPACING:   # rows built in different ways had 3-6 px here
                 lay.setSpacing(ROW_SPACING)
 
-    if root.layout() is not None:
-        walk(root.layout())
     shown = [l for l in labels if l.isVisibleTo(root)]
     if not shown:
         return
@@ -488,14 +534,13 @@ def align_forms(root, max_label=190):
             l.setMaximumWidth(cap)
         l.setProperty("_pinn_col", True)
 
-
 class _Collapser(QObject):
     """A chevron at a group box's top-right corner folds it to its title
     (by limiting its height, so nothing inside changes state)."""
 
     def __init__(self, box):
         super().__init__(box)
-        from PyQt6.QtWidgets import QToolButton
+        from PySide6.QtWidgets import QToolButton
         self.box = box
         self.btn = QToolButton(box)
         self.btn.setObjectName("collapseButton")

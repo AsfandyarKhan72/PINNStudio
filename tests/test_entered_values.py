@@ -11,7 +11,7 @@ import sys
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.ui.main_window import InitGuessLineEdit, MainWindow, SciLineEdit
 from pinnstudio.ui.sci_spinbox import SciSpinBox
@@ -44,7 +44,7 @@ def test_number_boxes_keep_full_precision():
 
 
 def test_plot_settings_lists_keep_any_value(monkeypatch):
-    from PyQt6.QtWidgets import QDialog
+    from PySide6.QtWidgets import QDialog
 
     from pinnstudio.ui.figure_style import FigureStyleDialog, _combo
     assert _combo(["80", "100", "200"], "500").currentText() == "500"

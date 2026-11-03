@@ -13,7 +13,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QLabel, QMessageBox, QPushButton,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QLabel, QMessageBox, QPushButton,
                              QRadioButton, QWidget)
 
 from pinnstudio.ui.main_window import ExampleCombo, MainWindow

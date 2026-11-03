@@ -18,9 +18,9 @@ sizes (14 px text), multiplied by a UI scale (Display Settings).
 """
 import re
 
-from PyQt6.QtCore import QEvent, QObject, QTimer
-from PyQt6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
-from PyQt6.QtWidgets import QApplication, QDialog, QWidget
+from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
+from PySide6.QtWidgets import QApplication, QDialog, QWidget
 
 # ── themes ───────────────────────────────────────────────────────────────
 THEMES = {
@@ -538,7 +538,7 @@ class StyleRemapper(QObject):
     def _fit_combo(w):
         """A drop-down given a fixed width is widened when the option it shows
         does not fit (with a larger UI scale); at most 3 times wider."""
-        from PyQt6.QtWidgets import QComboBox
+        from PySide6.QtWidgets import QComboBox
         if not isinstance(w, QComboBox) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
             return
         if not w.property("_pinn_fit_combo"):
@@ -555,7 +555,7 @@ class StyleRemapper(QObject):
     def _fit_items(w):
         """A drop-down sized to its widest option (main_window's
         _fit_combo_width) is sized again with the font it is shown in."""
-        from PyQt6.QtWidgets import QComboBox
+        from PySide6.QtWidgets import QComboBox
         spec = w.property("_pinn_fit_items") if isinstance(w, QComboBox) else None
         if not spec:
             return
@@ -570,7 +570,7 @@ class StyleRemapper(QObject):
     def _fit_text_button(w):
         """A button given a fixed width for an older, smaller font ("Browse"
         at 65 px) is widened until its text fits with the theme's padding."""
-        from PyQt6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton
         if not isinstance(w, QPushButton) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
             return
         text = w.text().replace("&&", "&")
@@ -587,10 +587,10 @@ class StyleRemapper(QObject):
     def _fit_height_later(cls, w):
         """Again once the widget has been polished: the style sheet sets the
         larger minimum only then."""
-        from PyQt6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
+        from PySide6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
         if isinstance(w, (QLineEdit, QAbstractSpinBox, QComboBox, QPushButton)):
-            from PyQt6 import sip
-            QTimer.singleShot(0, lambda: None if sip.isdeleted(w) else cls._fit_height(w))
+            import shiboken6
+            QTimer.singleShot(0, lambda: None if (not shiboken6.isValid(w)) else cls._fit_height(w))
 
     @staticmethod
     def _fit_height(w):
@@ -600,7 +600,7 @@ class StyleRemapper(QObject):
         larger height, but the row around it is laid out for the smaller
         one, so the box's bottom edge was cut off (Add constant, the BC rows,
         the training phases ...). The maximum is raised to the minimum."""
-        from PyQt6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
+        from PySide6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
         if not isinstance(w, (QLineEdit, QAbstractSpinBox, QComboBox, QPushButton)):
             return
         if w.maximumHeight() < w.minimumHeight() <= 60:
@@ -610,7 +610,7 @@ class StyleRemapper(QObject):
     def _fit_small_button(w):
         """Icon-sized buttons (✕, ▲, ◀ ...) get no padding, so the theme's
         button padding doesn't push their one character out of view."""
-        from PyQt6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton
         if not isinstance(w, QPushButton) or w.maximumWidth() > 48 or w.property("_pinn_small"):
             return
         w.setProperty("_pinn_small", True)
@@ -624,7 +624,7 @@ class StyleRemapper(QObject):
             ss = w.styleSheet()
         except RuntimeError:
             return
-        from PyQt6.QtWidgets import QCheckBox, QRadioButton
+        from PySide6.QtWidgets import QCheckBox, QRadioButton
         if not ss:
             return
         themed = w.property("_pinn_themed")

@@ -1,12 +1,23 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+cd /d "%~dp0"
 echo Setting up PINNStudio...
 python -m venv venv
+if errorlevel 1 (
+    echo Could not create the virtual environment. Is Python 3.11 or newer installed and on PATH?
+    pause
+    exit /b 1
+)
 venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 
 echo Installing PINNStudio and its dependencies...
 venv\Scripts\pip.exe install . --quiet
+if errorlevel 1 (
+    echo Installing PINNStudio failed - see the messages above.
+    pause
+    exit /b 1
+)
 
 echo Checking for a compatible GPU...
 for /f "delims=" %%T in ('venv\Scripts\python.exe "%~dp0select_torch_index.py"') do set TORCH_TAG=%%T
@@ -25,7 +36,7 @@ if not errorlevel 1 (
 if "!_TORCH_OK!"=="0" (
     if not "!TORCH_TAG!"=="cpu" (
         echo Installed PyTorch build doesn't match the requested CUDA version - falling back to CPU...
-        echo ^(You can retry GPU setup later - see the README's GPU troubleshooting section.^)
+        echo ^(You can retry GPU setup later - see 'Troubleshooting' under Installation in the README.^)
     )
     venv\Scripts\pip.exe install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall --quiet
 )

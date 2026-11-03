@@ -38,7 +38,7 @@ if _REPO_ROOT not in sys.path:
 
 import ast
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

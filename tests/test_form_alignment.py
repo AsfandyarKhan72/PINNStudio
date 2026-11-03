@@ -11,7 +11,7 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QMessageBox
+from PySide6.QtWidgets import QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QMessageBox
 
 from pinnstudio.ui.main_window import MainWindow
 
@@ -25,24 +25,32 @@ def _pump(sec=0.3):
         app.processEvents()
 
 
+def _slots(lay):
+    """{index: widget} and {index: nested layout} of one layout, through the QObject tree (QLayout.itemAt
+    would leave PySide6 item wrappers behind in the test process; see workspace._row_slots)."""
+    from pinnstudio.ui.workspace import _row_slots, layout_sublayouts
+    widgets, _nested = _row_slots(lay)
+    return widgets, {lay.indexOf(sub): sub for sub in layout_sublayouts(lay)}
+
+
 def _rows(w, key):
     page = w.workspace.pages[key]["page"]
     out = []
 
     def walk(lay):
+        widgets, subs = _slots(lay)
         for i in range(lay.count()):
-            it = lay.itemAt(i)
-            if it.layout() is not None:
-                walk(it.layout())
-            elif it.widget() is not None and it.widget().layout() is not None:
-                walk(it.widget().layout())
+            if i in subs:
+                walk(subs[i])
+            elif i in widgets and widgets[i].layout() is not None:
+                walk(widgets[i].layout())
         if not isinstance(lay, QHBoxLayout) or lay.count() < 2:
             return
-        first = lay.itemAt(0).widget()
+        first = widgets.get(0)
         if not isinstance(first, QLabel) or not first.isVisibleTo(page) or first.wordWrap():
             return
-        ctrl = next((lay.itemAt(j).widget() for j in range(1, lay.count())
-                     if lay.itemAt(j).widget() is not None and lay.itemAt(j).widget().isVisibleTo(page)), None)
+        ctrl = next((widgets[j] for j in range(1, lay.count())
+                     if j in widgets and widgets[j].isVisibleTo(page)), None)
         if ctrl is None or isinstance(ctrl, QLabel) or first.text().startswith(HEADERS):
             return
         gap = ctrl.mapTo(page, ctrl.rect().topLeft()).x() - first.mapTo(page, first.rect().topRight()).x()

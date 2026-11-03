@@ -1,5 +1,6 @@
 import re
 from pinnstudio.core.line_slice import auto_line_slice
+from pinnstudio.core.ea_view3d import view3d_block as _view3d_block
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 # ── CUDA performance environment variables ────────────────────
@@ -11,7 +12,25 @@ os.environ["DDE_BACKEND"] = "pytorch"
 # present, same as it already does for everyone via the ordinary prebuilt
 # CUDA wheels install.sh/select_torch_index.py picks for their driver.)
 os.environ["CUDA_LAUNCH_BLOCKING"] = "0"        # async CUDA launches
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
+# The allocator settings: PyTorch 2.9 renamed the variable (the old name
+# warns there), and Windows has no expandable segments (it warns on every
+# GPU run). The installed torch version is read without importing torch.
+# A value the user has set already is left alone.
+def _torch_alloc_env():
+    import sys as _sys
+    try:
+        from importlib.metadata import version as _v
+        _tv = tuple(int(x) for x in re.findall(r"\d+", _v("torch"))[:2])
+    except Exception:
+        _tv = (0, 0)
+    name = "PYTORCH_ALLOC_CONF" if _tv >= (2, 9) else "PYTORCH_CUDA_ALLOC_CONF"
+    value = "max_split_size_mb:512" + ("" if _sys.platform == "win32" else ",expandable_segments:True")
+    return name, value
+
+
+_alloc_name, _alloc_value = _torch_alloc_env()
+if not (os.environ.get("PYTORCH_ALLOC_CONF") or os.environ.get("PYTORCH_CUDA_ALLOC_CONF")):
+    os.environ[_alloc_name] = _alloc_value
 
 import ast as _bc_ast
 import json as _bc_json_std
@@ -155,7 +174,7 @@ def _bc_entries_use_periodic(bc_entries):
 
 
 def _bc_initial_operator_rows(bc_entries):
-    """Operator BC rows set to apply at the initial time (Round 64)."""
+    """Operator BC rows set to apply at the initial time."""
     return [i for i, e in enumerate(bc_entries or [])
             if isinstance(e, dict) and e.get("type") == "operator" and e.get("apply_at") == "initial"]
 
@@ -179,7 +198,7 @@ def _bc_check_initial_operator_preconditions(bc_entries, is_steady, time_adaptiv
 
 
 def _check_anchor_preconditions(config):
-    """Extra training points (Round 65) aren't supported with Time-Adaptive
+    """Extra training points aren't supported with Time-Adaptive
     training -- each step only covers part of the time range."""
     if (getattr(config, "anchors_mode", "none") or "none") != "none" and getattr(config, "time_adaptive", False):
         raise ValueError("Extra training points (anchors) aren't supported with Time-Adaptive training "
@@ -409,7 +428,7 @@ _PDE_TORCH_FUNCS = (
 
 
 def _fold_numeric_calls(e):
-    """sqrt(3), exp(-1), gamma((1 - 1.8)/2), ... -> their values (Round 75):
+    """sqrt(3), exp(-1), gamma((1 - 1.8)/2), ... -> their values:
     torch's functions take tensors, not numbers, so torch.sqrt(3) in a
     generated expression fails. Calls whose argument is only numbers, pi,
     arithmetic and parentheses are evaluated here (innermost first);
@@ -455,7 +474,7 @@ def _simplify_pde_expr(expr):
     """Convert user-friendly math in a PDE expression: bare function calls
     become torch calls (sin(...) -> torch.sin(...)) and pi becomes np.pi.
     A call the user already qualified (np.sin, torch.sin) is left alone.
-    (Before Round 61 these became np.sin(...), which crashed on the
+    (Earlier these became np.sin(...), which crashed on the
     network's tensors -- no built-in template used one, so it never showed.)"""
     import re
     e = _fold_numeric_calls(expr.strip())
@@ -467,7 +486,7 @@ def _simplify_pde_expr(expr):
 
 def _bc_domain_values(config):
     """{name: value} of the domain limits a Boundary Conditions expression
-    can use by name (Round 68): x_min/x_max always, y_* in 2D/3D, z_* in
+    can use by name: x_min/x_max always, y_* in 2D/3D, z_* in
     3D, t_min/t_max when time-dependent."""
     dim = getattr(config, "problem_dim", "1D")
     names = ["x_min", "x_max"]
@@ -515,7 +534,7 @@ def _clean_bc_name_lines(indent, expr, domain, is_location):
     """For the exported script: define, inside a BC helper function, only
     the domain names an expression uses -- e.g. `x_min = -1.0` and
     `left = np.isclose(x, -1.0)  # x = x_min` -- so the expression reads
-    exactly as the user typed it (Round 68)."""
+    exactly as the user typed it."""
     used = _expr_names(expr)
     lines = [f"{indent}{n} = {v!r}" for n, v in domain.items() if n in used]
     if is_location:
@@ -812,10 +831,29 @@ def _training_methods_defs(config):
     out = ["", "# ── Training methods: causal training / per-point weights ──────"]
     if causal:
         out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
-           "w": None, "frozen": False, "n": 0,
+           "w": None, "frozen": False, "fp": None,
            "sched": {[0.01, 0.1, 1.0, 10.0, 100.0] if getattr(config, "causal_anneal", False) else None!r}, "k": 0}}
 if _CAUSAL["sched"]:
     _CAUSAL["eps"] = _CAUSAL["sched"][0]
+
+
+def _causal_sums(X):
+    # checksum of a point set: its size, plain sum and a position-weighted sum (a different set of the
+    # same size -- RAR or resampling candidates, test points -- or a reordering changes it)
+    _X = torch.as_tensor(X).detach().to(torch.float64).reshape(len(X), -1)
+    _i = torch.arange(1, len(_X) + 1, dtype=torch.float64, device=_X.device).unsqueeze(1) / len(_X)
+    return (len(_X), float(_X.sum()), float((_X * _i).sum()))
+
+
+def _causal_is_train(x):
+    _fp = _CAUSAL["fp"]
+    if _fp is None:
+        return True                        # no training run marked yet: weigh (as before any check)
+    if x.shape[0] != _fp[0]:
+        return False
+    _n, _a, _b = _causal_sums(x)
+    return (abs(_a - _fp[1]) <= 1e-5 * (1 + abs(_fp[1]))
+            and abs(_b - _fp[2]) <= 1e-5 * (1 + abs(_fp[2])))
 
 
 def _causal_wrap(_f):
@@ -823,6 +861,8 @@ def _causal_wrap(_f):
         _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
         if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
             return _r                      # residual on a subset of points (fractional): unchanged
+        if not _causal_is_train(x):
+            return _r                      # not the training points (test points, RAR / resampling candidates): plain residual
         _M = _CAUSAL["M"]
         _t = x[:, -1].detach()
         _t0, _t1 = float(_t.min()), float(_t.max())   # this training window (one Time-Adaptive step, or all of it)
@@ -837,8 +877,7 @@ def _causal_wrap(_f):
                 _c = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, torch.ones_like(_sq))
                 _L = _L / _c.clamp(min=1)
                 _w = torch.exp(-_CAUSAL["eps"] * (torch.cumsum(_L, 0) - _L))
-            if x.shape[0] >= _CAUSAL["n"]:     # the training points (not the smaller test set)
-                _CAUSAL["w"], _CAUSAL["n"] = _w.detach(), x.shape[0]
+            _CAUSAL["w"] = _w.detach()        # the training points' weights (others are returned above)
         _s = _w[_idx].sqrt().unsqueeze(1).to(_rs[0].dtype)
         _out = [_ri * _s for _ri in _rs]
         return _out if isinstance(_r, (list, tuple)) else _out[0]
@@ -866,8 +905,30 @@ class _CausalMonitor(dde.callbacks.Callback):
 
     def on_train_begin(self):
         _CAUSAL["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
-        if _CAUSAL["sched"] and not _CAUSAL["frozen"]:     # a new Adam run (e.g. the next time-adaptive step): start the schedule over
-            _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
+        # the training points of this run (RAR may have added some): only their
+        # residuals are weighted and only their weights are kept
+        try:
+            _X = np.asarray(self.model.data.train_x)
+            _CAUSAL["fp"] = _causal_sums(_X)
+            _rng = (float(_X[:, -1].min()), float(_X[:, -1].max()))
+        except Exception:
+            _CAUSAL["fp"], _rng = None, None
+        # a new training time range (the next time window): start the epsilon
+        # schedule over; further phases and RAR rounds on the same range go on with it
+        if _rng != _CAUSAL.get("rng"):
+            _CAUSAL["rng"], _CAUSAL["w"] = _rng, None
+            if _CAUSAL["sched"]:
+                _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
+
+    def on_batch_begin(self):
+        # the points this step trains on: a point resampler may have replaced them after the last step
+        try:
+            _X = self.model.data.train_x
+            if _X is not None and len(_X) and (_CAUSAL["fp"] is None or len(_X) != _CAUSAL["fp"][0]
+                                               or _causal_sums(_X) != _CAUSAL["fp"]):
+                _CAUSAL["fp"] = _causal_sums(_X)
+        except Exception:
+            pass
 
     def on_batch_end(self):
         st = self.model.train_state
@@ -1006,7 +1067,8 @@ def _training_methods_cbs(config, var_name, pad):
     return lines
 
 
-def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
+def _build_train_cbs_code(config, var_name="_train_cbs", indent=4, sol_dir_var="_sol_dir",
+                          ckpt_name='"checkpoint_best"'):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
     at the call site this is embedded into -- 4 for the Standard path, 8
@@ -1075,7 +1137,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
     if config.cb_model_checkpoint:
         lines.append(
             f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
-            f'_os.path.join(_sol_dir, "checkpoint_best"), verbose=1, '
+            f'_os.path.join({sol_dir_var}, {ckpt_name}), verbose=1, '
             f"save_better_only={bool(config.cb_checkpoint_save_better_only)}, "
             f"period={int(config.cb_checkpoint_period)}, "
             f"monitor={config.cb_checkpoint_monitor!r}))"
@@ -1087,7 +1149,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
 
 
 def _parse_sigmas(text):
-    """"1, 10" -> [1.0, 10.0] (Fourier-feature scales, Round 73)."""
+    """"1, 10" -> [1.0, 10.0] (Fourier-feature scales)."""
     out = []
     for p in str(text or "").replace(";", ",").split(","):
         p = p.strip()
@@ -1213,7 +1275,7 @@ def _loss_plot_runtime_code(config):
     script (alongside `net_helper_code`/`_tm_runtime_code`, same pattern)
     and called at every loss-plotting site in generate_script() (the
     Standard/RAR path and the Time-Adaptive path) and
-    generate_clean_script() -- honoring the Round 28 Loss Plot Settings
+    generate_clean_script() -- honoring the Loss Plot Settings
     (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth).
 
     Defining this as a reusable FUNCTION at module level, rather than a
@@ -1305,7 +1367,7 @@ def _training_monitor_runtime_code():
     definition) even though the math is identical -- this is an
     intentionally separate, self-contained copy so a diagnostic-only
     feature can never perturb the already-tested PDE-residual codegen
-    path. The duplication is the deliberate tradeoff (see Round 15's
+    path. The duplication is the deliberate tradeoff (see the earlier
     network-architecture lesson about avoiding a second place that needs
     the same derivation logic -- accepted here specifically to keep this
     feature's blast radius at zero for the PDE itself).
@@ -1612,7 +1674,7 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
 
 def _ea_metrics_csv_header(config):
     """CSV column header for an error_metrics.txt file, gated by the
-    "Error Metrics to Compute" settings (Round 31: config.ea_metric_l2/
+    "Error Metrics to Compute" settings (config.ea_metric_l2/
     mse/max, wired from the Error Analysis dialog's own checkboxes --
     previously stored but never actually read by anything, so every
     metric was always computed and shown regardless of what was
@@ -1680,7 +1742,7 @@ def _rar_optimizer(config):
     import json as _js
     try:
         phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or [])
-                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs", "nncg")]
     except (ValueError, TypeError):
         phases = []
     if getattr(config, "optimizer_scheduler", False) and phases:
@@ -1692,9 +1754,40 @@ def _rar_optimizer(config):
     return config.optimizer, float(config.learning_rate)
 
 
+def _rar_phase(config, lbfgs=False):
+    """The Training Phase whose loss function and loss weights an RAR round's
+    Adam step (the last first-order phase) or L-BFGS step (the last L-BFGS
+    phase, else the last first-order one) uses -- the same phases
+    _rar_optimizer() takes the optimizer and learning rate from. None when
+    the scheduler is off (old configs): the hidden single-optimizer fields."""
+    import json as _js
+    try:
+        phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or []) if isinstance(p, dict)]
+    except (ValueError, TypeError):
+        phases = []
+    if not (getattr(config, "optimizer_scheduler", False) and phases):
+        return None
+    # NNCG, like L-BFGS, is not a first-order optimizer a round can compile with a learning rate
+    fo = [p for p in phases if str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs", "nncg")]
+    lb = [p for p in phases if str(p.get("optimizer", "")).lower() in ("lbfgs", "l-bfgs")]
+    if lbfgs and lb:
+        return lb[-1]
+    return fo[-1] if fo else (lb[-1] if lb else None)
+
+
+def _rar_loss(config, lbfgs=False):
+    p = _rar_phase(config, lbfgs)
+    return str((p or {}).get("loss") or config.loss_type)
+
+
+def _rar_weights_str(config, lbfgs=False):
+    p = _rar_phase(config, lbfgs)
+    return str((p or {}).get("weights") or "")
+
+
 def _gs_rar_loop_code(config):
     """generate_script()'s Residual-based Adaptive Refinement loop, including the
-    per-round diagnostics (_rar_save_round_diagnostics) -- cleanup Round 52
+    per-round diagnostics (_rar_save_round_diagnostics)
     (audit §5): moved verbatim out of generate_script()'s template, where it
     was the largest unnamed inline block. Returns the exact same text the
     template used to contain (byte-for-byte; see the round's notes). Every
@@ -1715,7 +1808,7 @@ def _gs_rar_loop_code(config):
         # across rounds are visible afterward, not just the final model.
         # Saved under this run's own solution_results/rar_rounds/
         # round_NN/ -- the same per-run-unique save_dir every other plot
-        # already uses (see Round 19's _on_done() fix).
+        # already uses (see the _on_done() fix).
         _rar_rounds_dir = _os.path.join(_sol_dir, "rar_rounds")
         _rar_orig_pts = np.array(data.train_x_all, copy=True)
         _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
@@ -1755,14 +1848,14 @@ def _gs_rar_loop_code(config):
             # per-step diagnostics already use (a model file saved
             # alongside that unit's own plots), closing a gap RAR's own
             # per-round diagnostics had since they were first added
-            # (Round 20): this round's trained model is NOT saved anywhere
+            # This round's trained model is NOT saved anywhere
             # unless it happens to also be the FINAL round's model (saved
             # separately, after the whole RAR loop ends, as this run's one
             # overall model). Without this, every earlier round's model is
             # unrecoverable once RAR moves on -- only its plots/metrics
             # survive, not the weights themselves.
             #
-            # Round 31: this save always runs at the END of the round,
+            # This save always runs at the END of the round,
             # after whichever phase(s) ran (Adam-only, or Adam+L-BFGS).
             # Standardized on "one checkpoint per optimizer phase"
             # everywhere, matching Time-Adaptive's own per-step
@@ -1777,8 +1870,8 @@ def _gs_rar_loop_code(config):
             _rar_final_model_name = "model_lbfgs" if {config.rar_lbfgs_iters} > 0 else "model_adam"
             if _use_save:
                 try:
-                    model.save(_os.path.join(_rd, _rar_final_model_name))
-                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_os.path.join(_rd, _rar_final_model_name)}}.pt")
+                    _saved_pt = model.save(_os.path.join(_rd, _rar_final_model_name))
+                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_saved_pt}}")
                 except Exception as _rar_err_save:
                     print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
 
@@ -2161,7 +2254,7 @@ def _gs_rar_loop_code(config):
             # -- 2D/3D: solution snapshot merged with the error comparison --
             # One single file: PINN | Reference | |Error| -- all three
             # panels now share the SAME colormap (config.plot_colormap),
-            # standardized in Round 31 (previously |Error| hardcoded its
+            # standardized earlier (previously |Error| hardcoded its
             # own "inferno" colormap here, inconsistent with the other
             # two panels) -- whenever a reference file is configured;
             # just the PINN prediction alone, same as before, when it isn't.
@@ -2395,12 +2488,17 @@ def _gs_rar_loop_code(config):
             # unknowns of an inverse problem, and the training callbacks
             # (causal training, point weights, monitors) as in the phases
             _rar_ext = _inv_vars if _problem_type == "Inverse" else None
-            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}",
-                          loss_weights=_multi_weights, external_trainable_variables=_rar_ext)
+            # the loss function and loss weights of the same phases (a
+            # weight list that no longer fits the loss terms: the panel's)
+            _rar_w = [float(_w) for _w in {_rar_weights_str(config)!r}.split(",") if _w.strip()] or list(_multi_weights)
+            if len(_rar_w) != {_n_equations(config)} + len(_constraints):
+                _rar_w = list(_multi_weights)
+            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r},
+                          loss_weights=_rar_w, external_trainable_variables=_rar_ext)
             loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every},
                                                     callbacks=list(_train_cbs))
             if {config.rar_lbfgs_iters} > 0:
-                # Round 31: when this round also runs an L-BFGS phase, save
+                # When this round also runs an L-BFGS phase, save
                 # the Adam phase's own checkpoint here -- standardized on
                 # "one checkpoint per optimizer phase" everywhere, matching
                 # Time-Adaptive's own per-step convention (previously RAR
@@ -2414,8 +2512,8 @@ def _gs_rar_loop_code(config):
                     _rar_rd_adam = _os.path.join(_rar_rounds_dir, f"round_{{rar_cycle+1:02d}}")
                     _os.makedirs(_rar_rd_adam, exist_ok=True)
                     try:
-                        model.save(_os.path.join(_rar_rd_adam, "model_adam"))
-                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_os.path.join(_rar_rd_adam, 'model_adam')}}.pt")
+                        _saved_pt = model.save(_os.path.join(_rar_rd_adam, "model_adam"))
+                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_saved_pt}}")
                     except Exception as _rar_adam_save_err:
                         print(f"  [RAR round {{rar_cycle+1}}] model_adam save failed: {{_rar_adam_save_err}}")
                 dde.optimizers.set_LBFGS_options(
@@ -2423,7 +2521,10 @@ def _gs_rar_loop_code(config):
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                     maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls}
                 )
-                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights,
+                _rar_wl = [float(_w) for _w in {_rar_weights_str(config, True)!r}.split(",") if _w.strip()] or list(_multi_weights)
+                if len(_rar_wl) != {_n_equations(config)} + len(_constraints):
+                    _rar_wl = list(_multi_weights)
+                model.compile("L-BFGS", loss={_rar_loss(config, True)!r}, loss_weights=_rar_wl,
                               external_trainable_variables=_rar_ext)
                 loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=list(_train_cbs))
             _rar_save_round_diagnostics(rar_cycle + 1, new_points)
@@ -2439,7 +2540,7 @@ def _gs_rar_loop_code(config):
 
 def _gs_ea_setup_code(config, banner, indent):
     """generate_script()'s Error Analysis setup, shared by the Standard and
-    Time-Adaptive paths (cleanup Round 58 -- these were two hand-kept
+    Time-Adaptive paths (these were two hand-kept
     copies): normalize `ea_files` entries to (time, path, output_selector)
     3-tuples, keep the ones inside [t_min, t_max], group them by output,
     and define _ea_group_label / _ea_extract.
@@ -2521,14 +2622,79 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
         _ea_ns["torch"] = torch
         return eval(_ea_expr, _ea_ns)
 
-    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]'''
+    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
+
+# A reference file without an output in its name (t_<time>.txt) is compared
+# with the field the Results page plots: say which one.
+if "None" in _ea_groups and len(_plot_output_names_list) > 1:
+    print(f"  Reference files without an output name are compared with the plotted field: {{_ea_field_txt(None)}}")'''
+    from pinnstudio.core.ea_view3d import HELPERS as _v3_helpers   # the 3D view's helpers (ea_view3d.py)
+    code += "\n" + _v3_helpers.rstrip()
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
+
+
+def _first_adam_lr(config):
+    """The learning rate of the first Adam Training Phase (initial-condition
+    guided learning takes its iterations from that phase too); the hidden
+    single-optimizer field only for configs without phases."""
+    import json as _js
+    try:
+        phases = _js.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        first = next((p for p in phases if isinstance(p, dict) and str(p.get("optimizer", "")).lower() in ("adam", "adamw")), None)
+        if first is not None and first.get("lr") is not None:
+            return float(first["lr"])
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return float(config.learning_rate)
+
+
+def _bc_rng_code(config):
+    """The generator bc-PINN draws its stored points with: an explicit
+    ta_backward_seed (the benchmarks: 1234), else the run's seed when 'Use
+    random seed' is on, else unseeded."""
+    s = int(getattr(config, "ta_backward_seed", -1))
+    if s >= 0:
+        return f"np.random.default_rng({s})"
+    if getattr(config, "use_random_seed", True):
+        return f"np.random.default_rng({int(config.random_seed)})"
+    return "np.random.default_rng()"
+
+
+def _icgl_outputs(config):
+    """The outputs initial-condition guided learning fits in the first
+    window: those with an initial condition (a loss term or exact), output 0
+    when the IC comes from a file."""
+    n = int(config.num_outputs or 1)
+    act = [a.strip() == "True" for a in (config.ic_active or "").split(",")]
+    hard = [h.strip() == "True" for h in (getattr(config, "ic_hard", "") or "").split(",")]
+    outs = [k for k in range(n) if (k < len(act) and act[k]) or (k < len(hard) and hard[k])]
+    if getattr(config, "forward_ic_from_file", False) and 0 not in outs:
+        outs = [0] + outs
+    return outs or [0]
+
+
+def _ta_icgl_iterations(config):
+    """Initial-condition guided learning's iterations per time window: the
+    given fraction of the first Adam phase (Time-Adaptive settings)."""
+    frac = float(getattr(config, "ta_icgl_fraction", 0.0) or 0.0)
+    if frac <= 0:
+        return 0
+    n = int(config.iterations)
+    try:
+        import json as _j
+        phases = _j.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        first = next((p for p in phases if str(p.get("optimizer", "")).lower() in ("adam", "adamw")), None)
+        if first:
+            n = int(float(first.get("iterations", n)))
+    except (ValueError, TypeError):
+        pass
+    return max(1, round(frac * n))
 
 
 def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted, _safe_point_distribution="Hammersley"):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
-    Time-Adaptive Error Analysis) -- cleanup Round 52 (audit §5): moved
+    Time-Adaptive Error Analysis) moved
     verbatim out of generate_script()'s template, where it was the largest
     unnamed inline block (~1,600 lines). Returns the exact same text the
     template used to contain (byte-for-byte; see the round's notes)."""
@@ -2568,6 +2734,16 @@ if {config.time_adaptive}:
         x = x_grid  # (N*N, 2)
     else:
         x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
+    if _is_2d or _is_3d:
+        # a disk, polygon or custom shape: only the grid points in the domain
+        # (inside or on its boundary) carry the solution from one window to the
+        # next -- the rest of the bounding box is not part of the problem
+        _ta_gm = _build_geom()
+        _ta_in = np.asarray(_ta_gm.inside(x_grid)).reshape(-1) | np.asarray(_ta_gm.on_boundary(x_grid)).reshape(-1)
+        if not _ta_in.all():
+            print(f"  Time windows: {{int(_ta_in.sum())}} of {{_ta_in.size}} grid points lie in the domain")
+            x_grid = x_grid[_ta_in]
+            x = x_grid
 
     all_x = []; all_t = []; all_u = []
     _ta_frames = {{}}   # Surface Animation (GIF): frame index -> (X, Y, U), predicted by the step that covers its time
@@ -2696,14 +2872,37 @@ if {config.time_adaptive}:
         _ta_all_test_loss.extend(_lh.loss_test)
         _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
 
+    # One network through all windows (Time-Adaptive -> growing time range /
+    # backward compatibility / initial-condition guided learning, config.py)
+    _ta_growing = {bool(getattr(config, "ta_growing", False))}
+    _ta_bc = {bool(getattr(config, "ta_backward", False))}
+    _ta_bc_w = {float(getattr(config, "ta_backward_weight", 100.0))}
+    _ta_bc_nt = {int(getattr(config, "ta_backward_times", 10))}
+    _ta_bc_np = {int(getattr(config, "ta_backward_points", 2000))}
+    _ta_icgl_iters = {_ta_icgl_iterations(config)}
+    _ta_rs_rounds = {int(getattr(config, "ta_resample_rounds", 0) or 0)}
+    _ta_rs_points = {int(getattr(config, "ta_resample_points", 200))}
+    _ta_rs_cand = {int(getattr(config, "ta_resample_candidates", 10000))}
+    _ta_rs_iters = {int(getattr(config, "ta_resample_iters", 2000))}
+    _ta_t_start = _ta_flat_intervals[0][0]
+    _ta_bc_times, _ta_bc_pts, _ta_bc_vals = [], None, None
+
+    # the outputs with an initial-condition term in the first window, in order
+    _ta_ic_outs = [_o for _o in range({config.num_outputs})
+                   if ({config.forward_ic_from_file} and _o == 0)
+                   or (_o < len(_ic_active_list) and _ic_active_list[_o].strip() == "True")]
     for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
         geom_i = _build_geom()
-        time_i     = dde.geometry.TimeDomain(t0, t1)
+        # growing time range: residual and boundary points on [t_start, t1]
+        time_i     = dde.geometry.TimeDomain(_ta_t_start if _ta_growing else t0, t1)
         geomtime_i = dde.geometry.GeometryXTime(geom_i, time_i)
 
         _constraints_i = []
+        _xyt_ic_anchor = None   # set below when a window pins outputs to the previous solution
+        _ta_state_fo = None     # the network after this window's last first-order (Adam) phase
+        _n_bc_i = None          # boundary-condition terms of this window (Boundary Conditions panel)
         # The Boundary Conditions panel (custom_bc_json, already parsed into
         # _custom_bc_entries above) is now the source of truth here too --
         # same as the main (non-time-adaptive) path. The legacy per-side
@@ -2761,9 +2960,10 @@ if {config.time_adaptive}:
                     )
 
             # IC (independent of the BC panel -- same per-step IC scheme as always)
+            _n_bc_i = len(_constraints_i)
             for _oi_ta in range({config.num_outputs}):
                 _comp_ta = _oi_ta
-                if step_i == 0:
+                if step_i == 0 or _ta_growing:   # growing range: the true IC at t_start every window
                     if {config.forward_ic_from_file} and _oi_ta == 0:
                         _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
                         _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
@@ -2860,7 +3060,7 @@ if {config.time_adaptive}:
                         elif _btt_ta == "Periodic":
                             _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bt_on_ta, derivative_order=0, component=_comp_ta))
 
-                if step_i == 0:
+                if step_i == 0 or _ta_growing:
                     if {config.forward_ic_from_file} and _oi_ta == 0:
                         _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
                         _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
@@ -2881,6 +3081,35 @@ if {config.time_adaptive}:
                         _xyt_ic_anchor = xt_ic
                         _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
 
+        # Backward compatibility: hold the network to its stored solution on
+        # the time range already trained (one PointSetBC per output).
+        _n_bc_extra = 0
+        if _ta_bc and step_i > 0 and _ta_bc_pts is not None:
+            for _oi_bc in range({config.num_outputs}):
+                _constraints_i.append(dde.icbc.PointSetBC(_ta_bc_pts, _ta_bc_vals[:, _oi_bc:_oi_bc+1], component=_oi_bc))
+            _n_bc_extra = {config.num_outputs}
+            print(f"  Backward compatibility: {{len(_ta_bc_pts)}} stored points on t = {{_ta_t_start:g}} to {{t0:g}}, weight {{_ta_bc_w:g}}")
+        _wx = lambda _ws: list(_ws) + [_ta_bc_w] * _n_bc_extra
+
+        # From the second window on (not with a growing range) every output is
+        # held to the previous window's solution, one term per output, where the
+        # first window had one initial-condition term per output with an initial
+        # condition (none for an exact one or an output like a chemical
+        # potential). The weights the user set (for the first window's terms) are
+        # mapped onto these: the PDE and boundary weights as they are, each
+        # output's previous-solution term the weight of its initial condition,
+        # 1 for an output without one -- instead of replacing every weight by 1.
+        _ta_pins = step_i > 0 and not _ta_growing
+        def _ta_w(_ws):
+            _ws = list(_ws)
+            if not _ta_pins or _n_bc_i is None:   # (configs from before the panel: as before)
+                return _ws
+            _k = {_n_equations(config)} + _n_bc_i
+            if len(_ws) != _k + len(_ta_ic_outs):
+                return _ws
+            _icw = dict(zip(_ta_ic_outs, _ws[_k:]))
+            return _ws[:_k] + [_icw.get(_o, 1.0) for _o in range({config.num_outputs})]
+
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
@@ -2896,7 +3125,9 @@ if {config.time_adaptive}:
             # on, weakening (though not removing -- the PointSetBC loss
             # term above is still added either way) how strongly later
             # windows are forced to match their own true starting point.
-            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
+            # with a growing time range every window takes the true IC at t_start, so there is no
+            # previous-window grid to anchor (and _xyt_ic_anchor is not set after step 0)
+            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and not _ta_growing and (_is_2d or _is_3d)) else None)
         )
 
         net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
@@ -2909,10 +3140,10 @@ if {config.time_adaptive}:
         if {config.ta_transfer_learning} and step_i > 0 and (_prev_step_model_path or _prev_step_state):
             try:
                 import torch as _torch
-                # the saved checkpoint of the chosen phase; without a save
-                # folder, the previous step's network kept in memory
-                _state = (_torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
-                          if _prev_step_model_path else _prev_step_state)
+                # the previous window's network after the phase chosen under
+                # Transfer optimizer, kept in memory (see the end of the window)
+                _state = _prev_step_state if _prev_step_state is not None else \
+                    _torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
                 # the network's weights and biases, and its buffers too (an
                 # MsFFN's random Fourier matrices B_x/B_t: without them each
                 # step drew new features under the transferred weights)
@@ -2948,7 +3179,9 @@ if {config.time_adaptive}:
                 _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
                 _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
             else:
-                for _oi_pt in range({config.num_outputs}):
+                # the outputs whose initial condition is a loss term, as in the
+                # whole-interval script and the export (not an output with its IC off)
+                for _oi_pt in {[i for i, a in enumerate((config.ic_active or '').split(',')[:int(config.num_outputs or 1)]) if a.strip() == 'True']!r}:
                     _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                     def _mk_ic_pt(expr, comp):
                         def _ic_fn(x):
@@ -2959,6 +3192,52 @@ if {config.time_adaptive}:
             _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
 {_ic_pretrain_block_ta}
             print("  === Starting Main Training ===")
+
+        # ── Initial-condition guided learning ─────────────────────
+        # Fit the window's starting profile (the IC in the first window, the
+        # previous window's solution at t0 after it), held constant over the
+        # window, before the window's own training (Mattey & Ghosh 2022).
+        if _ta_icgl_iters > 0:
+            _gs_icgl = grid_size
+            if _is_3d:
+                _gx = [np.linspace(_lo, _hi, _gs_icgl) for _lo, _hi in (({config.x_min}, {config.x_max}), ({config.y_min}, {config.y_max}), ({config.z_min}, {config.z_max}))]
+                _sp_icgl = np.column_stack([_a.ravel() for _a in np.meshgrid(*_gx)])
+            elif _is_2d:
+                _gx = [np.linspace(_lo, _hi, _gs_icgl) for _lo, _hi in (({config.x_min}, {config.x_max}), ({config.y_min}, {config.y_max}))]
+                _sp_icgl = np.column_stack([_a.ravel() for _a in np.meshgrid(*_gx)])
+            else:
+                _sp_icgl = np.linspace({config.x_min}, {config.x_max}, _gs_icgl).reshape(-1, 1)
+            if step_i == 0 or _ta_growing:
+                # the initial condition: only the outputs that have one (an
+                # output like Cahn-Hilliard's mu has none), output 0 from the
+                # IC file when the problem reads it from a file
+                _x0_icgl = np.column_stack([_sp_icgl, np.full(len(_sp_icgl), _ta_t_start)])
+                def _icgl_ic(_k):
+                    _e = _ic_expressions[_k].strip() if _k < len(_ic_expressions) and _ic_expressions[_k].strip() else "0"
+                    _v = np.asarray(eval(_e, {{"np": np, "x": _x0_icgl, "__builtins__": __builtins__}}), dtype=float)
+                    return np.full(len(_x0_icgl), float(_v)) if _v.size == 1 else _v.reshape(-1)
+                _icgl_sets = []
+                for _k in {_icgl_outputs(config)!r}:
+                    if {bool(config.forward_ic_from_file)} and _k == 0:
+                        _xt_icf, _v_icf = _load_ic_from_file({config.forward_ic_file!r})
+                        _icgl_sets.append((0, np.asarray(_xt_icf)[:, :-1], np.asarray(_v_icf).reshape(-1)))
+                    else:
+                        _icgl_sets.append((_k, _sp_icgl, _icgl_ic(_k)))
+            else:
+                _sp_prev = np.asarray(x_grid).reshape(len(prev_u), -1)
+                _icgl_sets = [(_k, _sp_prev, np.asarray(prev_u)[:, _k]) for _k in range({config.num_outputs})]
+            _tg_icgl = np.linspace(_ta_t_start if _ta_growing else t0, t1, 10)
+            _cons_icgl = []
+            for _k, _sp_k, _v_k in _icgl_sets:
+                _P_k = np.vstack([np.column_stack([_sp_k, np.full(len(_sp_k), _tv)]) for _tv in _tg_icgl])
+                _V_k = np.concatenate([np.asarray(_v_k, dtype=float).reshape(-1) for _ in _tg_icgl]).reshape(-1, 1)
+                _cons_icgl.append(dde.icbc.PointSetBC(_P_k, _V_k, component=_k))
+            _data_icgl = dde.data.TimePDE(geomtime_i, pde, _cons_icgl, num_domain=16, num_boundary=0, num_initial=0)
+            _model_icgl = dde.Model(_data_icgl, model_i.net)
+            _model_icgl.compile("adam", lr={_first_adam_lr(config)!r},
+                                loss_weights=[0.0] * {_n_equations(config)} + [1.0] * len(_cons_icgl))
+            print(f"  === Initial-condition guided learning: {{_ta_icgl_iters}} iterations ===")
+            _model_icgl.train(iterations=_ta_icgl_iters, display_every={config.loss_display_every})
 
         # ── Phase 1 (Adam) ──────────────────────────────────────
         # Mirrors the Standard (non-Time-Adaptive) path's own unconditional
@@ -2976,16 +3255,17 @@ if {config.time_adaptive}:
         # no exception raised anywhere.
         if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
             model_i.compile("{config.optimizer}", lr={config.learning_rate},
-                            loss="{config.loss_type}", loss_weights=_multi_weights)
+                            loss="{config.loss_type}", loss_weights=_wx(_ta_w(_multi_weights)))
             lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
+            _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
             print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
             if _use_save:
                 _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                 _os.makedirs(_step_dir_adam, exist_ok=True)
                 _step_adam_path = _os.path.join(_step_dir_adam, "model_adam")
-                model_i.save(_step_adam_path)
-                print(f"Step Adam model saved: {{_step_adam_path}}.pt")
+                _saved_pt = model_i.save(_step_adam_path)
+                print(f"Step Adam model saved: {{_saved_pt}}")
 
         # ── Optimizer Scheduler phases ────────────────────────
         if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
@@ -2995,7 +3275,9 @@ if {config.time_adaptive}:
                 print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
                 # A phase without its own weights (e.g. written by hand) uses
                 # the Loss Weights panel's.
-                _sp_weights = [float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights)
+                _sp_weights = _ta_w([float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights))
+                if len(_sp_weights) + _n_bc_extra == {_n_equations(config)} + len(_constraints_i):
+                    _sp_weights = _wx(_sp_weights)   # the backward-compatibility terms' weights
                 # Same safety net as the main (non-Time-Adaptive) scheduler loop:
                 # each step rebuilds its own _constraints_i, which can be a
                 # different length than what the GUI's scheduler-phase weight
@@ -3022,8 +3304,8 @@ if {config.time_adaptive}:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_saved_pt}}")
                 elif _sp['optimizer'] == 'nncg':
                     # See the matching NNCG branch in the Standard scheduler
                     # loop above for why: exact-case "NNCG" name, no lr=, no
@@ -3038,8 +3320,8 @@ if {config.time_adaptive}:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_nncg-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_saved_pt}}")
                 else:
                     _sp_decay = None
                     _sp_decay_type = _sp.get('decay_type', 'none')
@@ -3058,20 +3340,21 @@ if {config.time_adaptive}:
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
                     _ta_accumulate_loss(lh_i)
+                    _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_adam-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_sp_save_path}}.pt")
+                        _saved_pt = model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_saved_pt}}")
         elif "{config.optimizer2}" != "none":
             dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
-                            loss_weights=_multi_weights)
+                            loss_weights=_wx(_ta_w(_multi_weights)))
             lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
@@ -3080,32 +3363,69 @@ if {config.time_adaptive}:
                 _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                 _os.makedirs(_step_dir_lbfgs, exist_ok=True)
                 _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
-                model_i.save(_step_lbfgs_path)
-                print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
+                _saved_pt = model_i.save(_step_lbfgs_path)
+                print(f"Step L-BFGS model saved: {{_saved_pt}}")
 
-        if _is_3d:
-            # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _z_pred = np.linspace({config.z_min}, {config.z_max}, grid_size)
-            _Xp, _Yp, _Zp = np.meshgrid(_x_pred, _y_pred, _z_pred)
-            _xyzt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), _Zp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyzt_pred)
-            x_grid  = _xyzt_pred[:, :3]  # store (x,y,z) triples for next step's PointSetBC
-        elif _is_2d:
-            # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
-            _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyt_pred)
-            x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
+        # ── Adaptive resampling in this window (Wight & Zhao's approach I + resampling) ──
+        # Random candidates over the window's range; those with the largest PDE residual
+        # join the collocation points, and training goes on with Adam.
+        for _rs_i in range(_ta_rs_rounds):
+            _rs_cand = geomtime_i.random_points(_ta_rs_cand)
+            _rs_res = model_i.predict(_rs_cand, operator=pde)
+            _rs_res = [_rs_res] if not isinstance(_rs_res, (list, tuple)) else list(_rs_res)
+            _rs_err = np.sum([np.abs(np.asarray(_r)).reshape(len(_rs_cand), -1).sum(axis=1) for _r in _rs_res], axis=0)
+            _rs_new = _rs_cand[np.argsort(-_rs_err)[:_ta_rs_points]]
+            data_i.add_anchors(_rs_new)
+            try:
+                _rs_w = list(_sp_weights)
+            except NameError:
+                _rs_w = _wx(_ta_w(_multi_weights))
+            if len(_rs_w) != {_n_equations(config)} + len(_constraints_i):
+                _rs_w = [1.0] * ({_n_equations(config)} + len(_constraints_i))
+            print(f"  === Resampling round {{_rs_i+1}}/{{_ta_rs_rounds}}: {{len(_rs_new)}} points added "
+                  f"(mean residual of the candidates {{float(np.mean(_rs_err)):.3e}}), {{_ta_rs_iters}} {_rar_optimizer(config)[0]} iterations ===")
+            # the optimizer, learning rate and loss function of the last first-order Training Phase
+            model_i.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights=_rs_w)
+            lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
+        if _ta_rs_rounds > 0:
+            # the resampling rounds are first-order training too: with Transfer optimizer "Adam" the next
+            # window starts from the network after them (it used to start from the one before them, while
+            # its initial condition came from the network after them)
+            _ta_state_fo = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
+        if _ta_rs_rounds > 0 and _use_save:
+            # the window's final network is the one after resampling: save it, so Error Analysis and
+            # Restore use the same network as the plots and the next window (they look for this file first)
+            _step_dir_rs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+            _os.makedirs(_step_dir_rs, exist_ok=True)
+            _rs_saved = model_i.save(_os.path.join(_step_dir_rs, "model_resampled"))
+            print(f"  Window model after resampling saved: {{_rs_saved}}")
+
+        if _is_3d or _is_2d:
+            # 2D/3D: predict at t=t1 on the window grid itself -- the box grid,
+            # or only its points in the domain for a disk, polygon or custom
+            # shape (rebuilding the whole box grid here brought the points
+            # outside the domain back from the second window on)
+            _xg_now = np.asarray(x_grid).reshape(-1, 3 if _is_3d else 2)
+            prev_u  = model_i.predict(np.column_stack([_xg_now, np.full(len(_xg_now), t1)]))
+            x_grid  = _xg_now  # the (x,y[,z]) points for the next window's PointSetBC
         else:
             x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
             t_pred  = np.full_like(x_pred, t1)
             xt_pred = np.column_stack([x_pred, t_pred])
             prev_u  = model_i.predict(xt_pred)
             x_grid  = x_pred.reshape(-1, 1)
+
+        # Backward compatibility: store the network's solution on the time
+        # range trained so far, for the next windows to keep (re-predicted by
+        # the newest network each window, as in Mattey & Ghosh's bc-PINN).
+        if _ta_bc and step_i < n_steps - 1:
+            _sp_all = np.asarray(x_grid).reshape(len(prev_u), -1)
+            if len(_sp_all) > _ta_bc_np:
+                _sp_all = _sp_all[{_bc_rng_code(config)}.choice(len(_sp_all), _ta_bc_np, replace=False)]
+            _ta_bc_times = sorted(set(_ta_bc_times) | set(np.round(np.linspace(t0, t1, _ta_bc_nt + 1)[:-1], 12).tolist()) | {{float(t1)}})
+            _ta_bc_pts = np.vstack([np.column_stack([_sp_all, np.full(len(_sp_all), _tv)]) for _tv in _ta_bc_times])
+            _ta_bc_vals = model_i.predict(_ta_bc_pts)
 
         if _is_3d:
             # 3D: no volumetric renderer for the stitched plot either (same
@@ -3155,9 +3475,14 @@ if {config.time_adaptive}:
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
         _ta_step_boundaries.append(_ta_loss_offset)
 
-        # for transfer learning without a save folder (no checkpoints to
-        # read): the network as this step ended, kept in memory
-        _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
+        # transfer learning (Transfer optimizer): the network after this window's
+        # last Adam phase and resampling rounds, or (L-BFGS) as the window ended -- the network whose
+        # prediction is the next window's initial condition. Kept in memory, so
+        # the result does not depend on whether a save folder is set.
+        if "{config.ta_transfer_optimizer}" == "adam" and _ta_state_fo is not None:
+            _prev_step_state = _ta_state_fo
+        else:
+            _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
 
         # ── Save step plot & models ───────────────────────────
         if _use_save:
@@ -3375,7 +3700,7 @@ if {config.time_adaptive}:
                                     _tea_vmax = _tea_vmin + 1e-12
                                 _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                                 _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
-                                # Round 31: standardized on "|Error|  Max=..."
+                                # Standardized on "|Error|  Max=..."
                                 # here -- matching every other per-panel error
                                 # label in the app (RAR's own round diagnostics,
                                 # this same per-step plot's sibling 3D branch,
@@ -3451,6 +3776,11 @@ if {config.time_adaptive}:
                 if _lbfgs_pts:
                     _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
                     print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
+            _rs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_resampled*.pt")))
+            if _rs_pts:
+                # the window's final network when it was resampled (saved after the resampling rounds)
+                _prev_step_model_path = max(_rs_pts, key=_os.path.getmtime)
+                print(f"  Transfer learning source (after resampling): {{_os.path.basename(_prev_step_model_path)}}")
             if not _prev_step_model_path:
                 # Fall back to adam
                 _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
@@ -3477,6 +3807,7 @@ if {config.time_adaptive}:
                 "z_min": {config.z_min}, "z_max": {config.z_max},
                 "t_min": t0, "t_max": t1,
                 "problem_dim": "{config.problem_dim}",
+                "float_type": _effective_float,
                 "loss_type": "{config.loss_type}",
                 "optimizer": "{config.optimizer}",
                 "optimizer2": "{config.optimizer2}",
@@ -3567,7 +3898,7 @@ if {config.time_adaptive}:
             _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
             _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
             _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
-            # cleanup Round 44: masked to the real geometry with
+            # Masked to the real geometry with
             # geom.inside(...) -- same convention the Standard path's own
             # 2D Surface branch already uses (geom here is the real
             # reconstructed geometry built at module scope above, NOT the
@@ -3596,7 +3927,7 @@ if {config.time_adaptive}:
                         _sd_for_t = _sds; break
                 # Load step model
                 _spt_ta = ""
-                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                for _pat_ta in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                     _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
                     if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
                 try:
@@ -3704,6 +4035,7 @@ if {config.time_adaptive}:
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = _load_ref(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), False)
                 if _is_3d:
                     # 3D format: x, y, z, t, u -- same as the Standard path's
                     # own non-steady 3D Error Analysis loader.
@@ -3748,6 +4080,14 @@ if {config.time_adaptive}:
             _ta_intervals = []
             for _sd in _ta_step_dirs:
                 _sd_name = _os.path.basename(_sd)
+                # the window's own bounds (the folder name rounds them to 4 decimals)
+                try:
+                    with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                        _scj = __import__("json").load(_scj_f)
+                    _ta_intervals.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                    continue
+                except Exception:
+                    pass
                 try:
                     _parts = _sd_name.split("_")
                     _t0_str = _parts[2].replace("t","")
@@ -3800,7 +4140,7 @@ if {config.time_adaptive}:
                 _step_model = dde.Model(_step_data, _step_net)
 
                 _step_pt = ""
-                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                     _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                     if _step_pts:
                         _step_pt = max(_step_pts, key=_os.path.getmtime)
@@ -3856,6 +4196,15 @@ if {config.time_adaptive}:
                 for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
                     _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
             print(f"  Metrics saved: {{_ea_metrics_path}}")
+            # All reference times together: the relative L2 over every reference
+            # point at every time, the measure papers usually report.
+            _ea_st_num = sum(float(np.sum((np.asarray(_ea_u_pinns[_k]) - np.asarray(_ea_u_refs[_k]))**2)) for _k in range(len(_ea_times)))
+            _ea_st_den = sum(float(np.sum(np.asarray(_ea_u_refs[_k])**2)) for _k in range(len(_ea_times)))
+            if len(_ea_times) > 1 and _ea_st_den > 0:
+                _ea_st_l2 = (_ea_st_num / _ea_st_den) ** 0.5
+                print(f"  All {{len(_ea_times)}} reference times together: L₂={{_ea_st_l2:.4e}}")
+                with open(_os.path.join(_ea_dir, f"error_spacetime{{_ea_suffix}}.txt"), "w") as _stf:
+                    _stf.write("times,L2_relative_all_times\\n" + f"{{len(_ea_times)}},{{_ea_st_l2:.6e}}\\n")
 
             # Line comparison
             if {config.ea_do_line}:
@@ -3931,7 +4280,7 @@ if {config.time_adaptive}:
                             _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
                             _model_l = dde.Model(_data_l, _net_l)
                             _pt_l = ""
-                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                            for _pat_l in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                                 _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
                                 if _pts_l:
                                     _pt_l = max(_pts_l, key=_os.path.getmtime)
@@ -3992,6 +4341,13 @@ if {config.time_adaptive}:
                     _ta_intervals2 = []
                     for _sd in _ta_step_dirs2:
                         try:
+                            with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                                _scj = _ea_json2.load(_scj_f)
+                            _ta_intervals2.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                            continue
+                        except Exception:
+                            pass
+                        try:
                             _parts = _os.path.basename(_sd).split("_")
                             _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
                         except Exception: pass
@@ -4023,7 +4379,7 @@ if {config.time_adaptive}:
                             _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
                             _sm2 = dde.Model(_sd2, _sn2)
                             _spt2 = ""
-                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                            for _pat2 in ["model_resampled-*.pt","model_resampled.pt","model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
                                 _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
                                 if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
                             if _spt2:
@@ -4183,7 +4539,7 @@ if {config.time_adaptive}:
 
 
 def _n_equations(config):
-    """How many PDE residuals the problem has (Round 63): config.num_equations,
+    """How many PDE residuals the problem has: config.num_equations,
     or one per output when it's 0 (every config saved before this round).
     DeepXDE itself allows any number -- e.g. its American-put example has
     three for one output, its unknown-field inverse problems one for two."""
@@ -4215,8 +4571,8 @@ def _feature_formula_list(cfg):
 
 def _net_transforms_code(cfg, fn_name="_apply_net_transforms"):
     """Source for `<fn_name>(net)`, which attaches this model's input and
-    output transforms to a freshly built network and returns it (cleanup
-    Round 62). Shared by the live Solve script, the exported script and
+    output transforms to a freshly built network and returns it.
+    Shared by the live Solve script, the exported script and
     both Restore & Visualize builders: DeepXDE's apply_feature_transform /
     apply_output_transform attach a Python closure to the net instance,
     not anything saved in a checkpoint, so every script that rebuilds the
@@ -4326,7 +4682,7 @@ def _ode_text(expr):
 
 
 def _ode_to_1d(config):
-    """Round 74: an ODE problem (problem_dim "ODE", independent variable t
+    """An ODE problem (problem_dim "ODE", independent variable t
     in [t_min, t_max]) solved as a 1D steady problem in x = t. Initial
     conditions become Dirichlet rows at the start (x = t_min), keeping
     their place in the loss-weight order; an Operator row "at the initial
@@ -4390,7 +4746,7 @@ _INTEGRAL_RE = None
 
 
 def _integral_text(expr, out_names, x0):
-    """Round 76: integro-differential terms. `integral(f)` in an equation
+    """Integro-differential terms. `integral(f)` in an equation
     of an ODE (or steady 1D) problem is the Volterra integral of f from the
     start of the range to the current point, f being an expression in the
     integration variable s, the current point (x, i.e. t) and the outputs
@@ -4451,7 +4807,7 @@ _FRAC_RE_SRC = r"(?<![\w.])frac\("
 
 
 def _uses_frac(config):
-    """Round 77: an equation uses the fractional operator frac(...)."""
+    """An equation uses the fractional operator frac(...)."""
     import re as _re_fr
     return bool(_re_fr.search(_FRAC_RE_SRC, getattr(config, "pde_expressions", "") or ""))
 
@@ -4474,7 +4830,7 @@ def _frac_alpha_expr(config):
 def _frac_data_text(text, config, geom, pde, cons):
     """dde.data.PDE/TimePDE(geom, pde, cons, ...) -> dde.data.FPDE/TimeFPDE(
     geom, pde, alpha, cons, resolution, meshtype=..., ...) for a fractional
-    problem (Round 77). The loss is tested on the training points
+    problem. The loss is tested on the training points
     (num_test=None, as in DeepXDE's fractional scripts; a static mesh can't
     have test points at all)."""
     import re as _re_fr
@@ -4522,18 +4878,34 @@ def _frac_apply(_im, _v):
 '''
 
 
+def _first_phase_loss(config):
+    """The loss function the first Training Phase trains with (the hidden
+    single-optimizer field without phases): 'Scale by initial losses'
+    measures L_i(0) with it, so the weights balance the losses trained."""
+    import json as _js
+    try:
+        phases = _js.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        if phases and isinstance(phases[0], dict) and phases[0].get("loss"):
+            return str(phases[0]["loss"])
+    except (ValueError, TypeError):
+        pass
+    return config.loss_type
+
+
 def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
-    """Round 75: 'Scale by initial losses' -- evaluate every loss term once
+    """'Scale by initial losses' -- evaluate every loss term once
     (no training) and set weight_i = c / L_i(0), as DeepXDE's wave example
-    does (loss_weights = 5 / initial_losses). Empty when the option is off."""
+    does (loss_weights = 5 / initial_losses). Empty when the option is off.
+    The last entry of the history is read: a model that has trained before
+    (Solve's, after IC pre-training) keeps its earlier entries."""
     c = float(getattr(config, "loss_weights_from_initial", 0.0) or 0.0)
     if c <= 0:
         return ""
     lines = [
         f"# Loss weights from the initial losses: w_i = {c:g} / L_i(0)",
-        f'{model}.compile("{config.optimizer}", lr={lr}, loss="{config.loss_type}", external_trainable_variables={ext_vars})',
+        f'{model}.compile("{config.optimizer}", lr={lr}, loss="{_first_phase_loss(config)}", external_trainable_variables={ext_vars})',
         f"_lh0, _ = {model}.train(iterations=0, display_every=1)",
-        f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[0]]",
+        f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[-1]]",
         f'print("Loss weights from the initial losses:", ["%.4g" % _w for _w in {weights_var}])',
     ]
     return "\n".join(indent + ln for ln in lines)
@@ -4694,7 +5066,7 @@ def _ta_out_label(config):
 
 
 def _effective_config(config):
-    """The config as the generators should read it -- cleanup Round 56.
+    """The config as the generators should read it
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
     (Time-Adaptive training splits a time axis a steady problem doesn't
     have), and the GUI hides it there -- but neither generator enforced
@@ -4711,7 +5083,7 @@ def _effective_config(config):
     _sb = _shape_bbox(config)
     if _sb and any(abs(float(getattr(config, k)) - v) > 1e-12 for k, v in _sb.items()):
         config = _dc.replace(config, **_sb)
-    # Round 70: named constants -> their values, in every expression.
+    # Named constants -> their values, in every expression.
     _consts = _constant_values(config)
     if _consts:
         from pinnstudio.core import constants as _cmod
@@ -4725,9 +5097,22 @@ def _effective_config(config):
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
+    # An initial condition holds at t = t_min, and its formula is evaluated
+    # on space columns only: a t in it (an exact solution typed as the IC)
+    # crashed both scripts with NameError. It now means t_min.
+    if getattr(config, "problem_dim", "") != "ODE" and not getattr(config, "steady_state", False):
+        import re as _re_ict
+        _t0 = repr(float(config.t_min))
+
+        def _ic_t(_e):
+            return _re_ict.sub(r"(?<![\w.])t(?![\w(])", f"({_t0})", _e) if isinstance(_e, str) else _e
+        if any(_re_ict.search(r"(?<![\w.])t(?![\w(])", getattr(config, f, "") or "")
+               for f in ("ic_expressions", "ic_expression")):
+            config = _dc.replace(config, ic_expressions=_ic_t(config.ic_expressions),
+                                 ic_expression=_ic_t(config.ic_expression))
     config = _exact_constraints(config)
     if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
-        # Round 75: weights from the initial losses replace every phase's own.
+        # Weights from the initial losses replace every phase's own.
         try:
             _ph = _bc_json_std.loads(config.scheduler_phases)
             if any(isinstance(p, dict) and "weights" in p for p in _ph):
@@ -4750,9 +5135,9 @@ def _effective_config(config):
         config = _dc.replace(config,
                              pde_expressions=_integral_text(config.pde_expressions, _names, config.x_min),
                              pde_expression=_integral_text(config.pde_expression, _names, config.x_min))
-    # Round 62: with an input feature formula the network's first layer
+    # With an input feature formula the network's first layer
     # takes one input per feature, not one per coordinate.
-    # Round 67: "reference from a formula" -> the files the scripts will
+    # "Reference from a formula" -> the files the scripts will
     # write (see _formula_reference_code), as ordinary ea_files entries.
     _ref = _formula_reference_entries(config)
     if _ref:
@@ -4761,7 +5146,7 @@ def _effective_config(config):
     if n_feat and config.layers and config.layers[0] != n_feat:
         config = _dc.replace(config, layers=[n_feat] + list(config.layers[1:]))
     if _was_ode:
-        # Round 74: plots of an ODE name its variable t, not x (a fresh
+        # Plots of an ODE name its variable t, not x (a fresh
         # copy, never the caller's config).
         config._ode = True
     return config
@@ -4796,12 +5181,31 @@ if not torch.cuda.is_available() and "OMP_NUM_THREADS" not in os.environ:
 def _cpu_only_line(config):
     """Train on: CPU -- PyTorch then sees no GPU (set before it is imported)."""
     if getattr(config, "train_device", "auto") == "cpu":
-        return 'os.environ["CUDA_VISIBLE_DEVICES"] = ""   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
+        # "-1", not "": on Windows the CUDA runtime treats an empty variable
+        # as unset and still sees the GPU, while PyTorch counts 0 devices
+        return 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
     return ""
+
+def _small_problem_gpu_tip(config):
+    """A line for the Training Log when a small 1D problem trains on the GPU:
+    with a small network a GPU step mostly waits on Python, and such problems
+    often train faster on the CPU (README, timing study; Windows laptop study
+    in benchmarks/platform/windows_speed.md). Only a hint: nothing is changed."""
+    if getattr(config, "train_device", "auto") != "auto":
+        return ""
+    if config.problem_dim not in ("1D", "ODE"):
+        return ""
+    points = int(config.num_domain or 0) + int(config.num_boundary or 0) + int(config.num_initial or 0)
+    widths = [int(w) for w in list(config.layers)[1:-1]] or [0]
+    if points > 3000 or max(widths) > 64:
+        return ""
+    return ('    print("  [Tip] A small 1D problem like this one often trains faster on the CPU: "\n'
+            '          "Settings -> GPU / Hardware -> Train on: CPU.")\n')
+
 
 def generate_script(config):
     config = _effective_config(config)
-    # Naming convention (cleanup Round 55): generation-time Python names in
+    # Naming convention: generation-time Python names in
     # this function use the same plain spelling as generate_clean_script()'s
     # (is_2d, is_3d, is_steady, line_slice_y, sol_ext, ...), so a fix ported
     # between the two generators keeps its names. Names INSIDE the script
@@ -4893,7 +5297,7 @@ def generate_script(config):
     config_pde_expressions = "|".join(pde_exprs_converted)
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
-    # Extra training points (Round 65) -- see _anchor_points_code; the
+    # Extra training points -- see _anchor_points_code; the
     # text stays exactly as before when there are none.
     _has_user_anchors = bool(_anchor_points_code(config))
     _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file
@@ -4958,7 +5362,7 @@ def generate_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
-    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # An ODE's variable
 
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
@@ -5135,7 +5539,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # true no-op wiring point like _train_cbs_code below.
     _tm_runtime_code = _training_monitor_runtime_code()
 
-    # Loss Plot Settings (Round 28) -- see _loss_plot_runtime_code()'s own
+    # Loss Plot Settings -- see _loss_plot_runtime_code()'s own
     # docstring. Embeds a single reusable `_make_loss_plot(...)` helper
     # once at module level (same pattern as net_helper_code/_make_net);
     # every loss-plotting call site (Standard/RAR path, Time-Adaptive
@@ -5154,7 +5558,8 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # one, see _build_training_monitors_code()'s docstring for why).
     _tm_cbs_code = _build_training_monitors_code(config, "_train_cbs", "_sol_dir", indent=4)
     _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4) + ("\n" + _tm_cbs_code if _tm_cbs_code else "")
-    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
+    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8,
+                                               ckpt_name='f"checkpoint_step{step_i + 1:03d}_best"')
     # Rendered at the very end of the script (see the {_tm_plot_code}
     # splice near the final "DONE" print below) -- reads each monitor's
     # own .txt/.meta.json back in and saves a line plot PNG, the same way
@@ -5169,7 +5574,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # hand-edited) could still carry 0 -- clamp here too as a second line
     # of defense. The field's own default (1000) is unaffected either way.
     _ic_pretrain_num_initial_safe = max(1, config.ic_pretrain_num_initial)
-    # cleanup Round 47: the IC Pre-Training dataset/compile/restore-or-train
+    # The IC Pre-Training dataset/compile/restore-or-train
     # block, shared by both of this function's copies (Standard and
     # Time-Adaptive) and both of generate_clean_script()'s -- see
     # _ic_pretrain_train_code.
@@ -5177,6 +5582,11 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
         config, "        ", "_ic_gt_pre", "_ic_ics_pre", _ic_pretrain_num_initial_safe,
         "_ic_only_weights", "net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
+    _small_gpu_tip = _small_problem_gpu_tip(config)
+    # On the CPU because the user chose it, or because there is no GPU
+    _no_gpu_line = ('    print("Training on the CPU (Settings -> GPU / Hardware -> Train on: CPU)")\n'
+                    if getattr(config, "train_device", "auto") == "cpu"
+                    else '    print("⚠️ No GPU found — running on CPU")\n')
     _ic_pretrain_block_ta = _ic_pretrain_train_code(
         config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
         "_ic_only_weights", "model_i.net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
@@ -5282,8 +5692,14 @@ if torch.cuda.is_available():
 
     # ── Performance settings ──────────────────────────────────
     _is_f64 = "{config.float_type}" == "float64"
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32       = False
+    # TF32 off (full float32 precision). PyTorch 2.9 replaced allow_tf32
+    # with fp32_precision and warns about the old name.
+    if hasattr(torch.backends.cuda.matmul, "fp32_precision"):
+        torch.backends.cuda.matmul.fp32_precision = "ieee"
+        torch.backends.cudnn.fp32_precision = "ieee"
+    else:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32       = False
     torch.backends.cudnn.benchmark        = False
     torch.backends.cudnn.deterministic    = False
 
@@ -5296,11 +5712,10 @@ if torch.cuda.is_available():
     print(f"   Total memory: {{_total / 1e9:.1f}} GB")
     print(f"   Available:    {{_free / 1e9:.1f}} GB")
     print(f"   TF32:         False")
-    print(f"   Float type:   {config.float_type}")
+    print(f"   Float type:   {{_effective_float}}")
     print(f"   cuDNN bench:  False")
-else:
-    print("⚠️ No GPU found — running on CPU")
-
+{_small_gpu_tip}else:
+{_no_gpu_line}
 # ── Save directory setup ─────────────────────────────────────
 import os as _os
 _save_dir = {repr(config.save_dir)}.strip()
@@ -5370,6 +5785,7 @@ if _use_save:
         "optimizer2": {repr(config.optimizer2)},
         "loss_type": {repr(config.loss_type)},
         "problem_type": {config.problem_type!r},
+        "float_type": _effective_float,
         "inverse_variables": {_mc_inv_vars_literal},
         {_transform_config_literal(config)}
     }}
@@ -5407,14 +5823,27 @@ _v1d = {v1!r}
 # a file covering the whole time range works fine, only its t=t_min
 # slice is used as the IC.
 def _load_ic_from_file(_path):
-    _rows = []
-    with open(_path) as _fh:                 # commas or spaces; header/comment lines skipped
-        for _line in _fh:
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(_path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                _rows.append([float(_v) for _v in _line.replace(",", " ").split()])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    _raw = np.array([_r for _r in _rows if _r])
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(_path) + " skipped (a missing value, or a different number of columns)")
+    _raw = data_
     _n_coord = 3 if _is_3d else (2 if _is_2d else 1)
     _t_col = _n_coord
     _v_col = _n_coord + 1
@@ -5472,21 +5901,30 @@ if _problem_type == "Inverse":
     _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
-        # Numbers separated by commas or spaces; a header line, comments
-        # (# or %) and blank lines are skipped -- and only those (the first
-        # line used to be dropped always, losing a point of a file without
-        # a header).
-        _rows = []
-        with open(fpath) as _fh:
-            for _line in _fh:
-                _parts = _line.replace(",", " ").split()
-                if not _parts or _parts[0][0] in "#%":
+        # Numbers separated by commas, semicolons or spaces; header, comment
+        # (# or %) and blank lines skipped; rows with a missing value (NaN) or
+        # a different number of columns skipped with a note -- as the window
+        # reads the file, and as Error Analysis reads reference files.
+        rows_ = []
+        with open(fpath, encoding="utf-8", errors="replace") as fh_:
+            for line_ in fh_:
+                parts_ = line_.replace(",", " ").replace(";", " ").split()
+                if not parts_ or parts_[0][0] in "#%":
                     continue
                 try:
-                    _rows.append([float(_v) for _v in _parts])
+                    rows_.append([float(v_) for v_ in parts_])
                 except ValueError:
                     continue
-        return np.array(_rows)
+        lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+        data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+        n_bad_ = len(rows_) - len(data_)
+        if width_:
+            ok_ = np.all(np.isfinite(data_), axis=1)
+            n_bad_ += int((~ok_).sum())
+            data_ = data_[ok_]
+        if n_bad_:
+            print("  Note: " + str(n_bad_) + " row(s) of " + str(fpath) + " skipped (a missing value, or a different number of columns)")
+        return data_
 
     # Number of leading coordinate columns in a measured-data file (before
     # its value column): x/y/z plus a time column, EXCEPT for a steady-state
@@ -5550,6 +5988,9 @@ if _problem_type == "Inverse":
         if _of_data.ndim != 2 or _of_data.shape[1] < _n_obs_coord_cols + 1:
             raise SystemExit(f"Measured data {{_of['path']}}: {{_n_obs_coord_cols + 1}} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.")
+        if _of_data.shape[1] > _n_obs_coord_cols + 1:
+            print(f"  Note: measured data {{_os.path.basename(_of['path'])}} has {{_of_data.shape[1] - _n_obs_coord_cols}} value "
+                  f"columns; the first (column {{_n_obs_coord_cols + 1}}) is used for output {{_of.get('output_idx', 0) + 1}}.")
 {_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
@@ -5990,7 +6431,7 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 
 # The domain's own limits, usable by name in every Boundary Conditions
 # expression (e.g. "x <= x_min", "x_max - x"), and the named sides of the
-# domain box usable in "Where:" (Round 68): left/right (x = x_min/x_max),
+# domain box usable in "Where:": left/right (x = x_min/x_max),
 # bottom/top (y = y_min/y_max, 2D/3D), front/back (z = z_min/z_max, 3D).
 _BC_DOMAIN = {_bc_domain_literal(config)}
 _BC_SIDES = {_bc_sides_literal(config)}
@@ -6015,7 +6456,7 @@ def _bc_loc_fn(_expr):
     return _f
 
 def _bc_init_loc_fn(_expr):
-    # Operator BC applied at the initial time t = t_min (Round 64) instead
+    # Operator BC applied at the initial time t = t_min instead
     # of on the spatial boundary -- e.g. a wave equation's du_t = 0 at t = 0.
     # TimePDE's training points include the initial-time points, so the
     # filter finds them; the location expression still applies on top.
@@ -6066,7 +6507,7 @@ def _bc_robin_fn(_expr, _comp):
             _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
             if not _is_steady:
                 _ns["t"] = _Xb[:, -1]
-        # Round 75: every output by name (e.g. -k0*u_im for a Helmholtz
+        # Every output by name (e.g. -k0*u_im for a Helmholtz
         # absorbing condition on u_re), then u = this row's own output.
         for _oi, _on in enumerate(_out_names_list):
             if _on.strip():
@@ -6119,11 +6560,12 @@ def _bc_operator_fn(_expr):
         return eval(_code, _ns)
     return _f
 
+{_POINT_TABLE_READER}
 def _bc_load_points_file(_path, _bc_label, _n_values=1):
     if not _path or not _os.path.isfile(_path):
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs a points file, but "
                             f"'{{_path}}' was not found. Browse for a valid file in that BC's row.")
-    _data = np.loadtxt(_path, delimiter=",") if _path.lower().endswith(".csv") else np.loadtxt(_path)
+    _data = _read_point_table(_path)
     if _data.ndim == 1:
         _data = _data.reshape(1, -1)
     # _n_values > 1 is PointSetBC's multi-component case (component=[i, j,
@@ -6138,7 +6580,7 @@ def _bc_load_points_file(_path, _bc_label, _n_values=1):
     return _data[:, :_n_coord_cols_bc], _data[:, _n_coord_cols_bc:_n_coord_cols_bc + _n_values]
 
 def _bc_parse_points(_text, _bc_label):
-    # Typed list of points (Round 71): ';' between points, ',' between
+    # Typed list of points: ';' between points, ',' between
     # coordinates (x[, y[, z]][, t]); in 1D steady problems ',' also
     # separates points ("0.2, 0.5, 0.8").
     _txt = (_text or "").strip()
@@ -6156,7 +6598,7 @@ def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
     # points from a file, a typed list or generated at random (on the part
     # of the boundary picked by "Where", or in the domain); values from the
     # file's value columns or a formula in x, y, z, t ('|' between
-    # components) -- Round 71.
+    # components)
     _mode = _be.get('points_mode', 'file') or 'file'
     _vmode = _be.get('values_mode', 'file') or 'file'
     if _mode == 'file':
@@ -6172,9 +6614,16 @@ def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
         else:
             _loc = _bc_loc_fn(_be.get('location', '') or '')
             _cand = _gt.random_boundary_points(max(20 * _n, 200))
-            _pts = np.array([_p for _p in _cand if _loc(_p, True)][:_n])
+            _sel = [_p for _p in _cand if _loc(_p, True)]
+            for _more in range(5):     # a small Where region: draw more candidates until n match
+                if len(_sel) >= _n:
+                    break
+                _sel += [_p for _p in _gt.random_boundary_points(max(20 * _n, 200) * 4 ** (_more + 1)) if _loc(_p, True)]
+            _pts = np.array(_sel[:_n])
             if len(_pts) == 0:
                 raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}}: no boundary points match its Where expression.")
+            if len(_pts) < _n:
+                print(f"  Note: {{_bc_label}}: only {{len(_pts)}} of {{_n}} boundary points found where its Where expression holds.")
     _formulas = [_f for _f in (_be.get('values_formula', '') or '0').split("|")]
     if len(_formulas) < _n_values:
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs {{_n_values}} value formula(s), "
@@ -6622,6 +7071,17 @@ else:
             anchors={_live_fwd_anchors}
         )
 
+def _warn_empty_conditions(_d):
+    # A condition that selects no training point (a side such as "left" on a
+    # disk, which has no flat sides) has a NaN loss at any weight: training
+    # goes on without it and L-BFGS stops in its line search.
+    _empty = [_i + 1 for _i, _n in enumerate(getattr(_d, "num_bcs", None) or []) if int(_n) == 0]
+    if _empty:
+        print(f"⚠️ Condition(s) {{_empty}} (in loss order: Boundary Conditions rows, then initial conditions, "
+              f"then measured data) select no training point, so their loss is NaN -- check their 'Where' "
+              f"(e.g. a side such as 'left' on a disk or other curved shape). Change or remove them.")
+_warn_empty_conditions(data)
+
 # ── Parametric loop ──────────────────────────────────────────
 _summary = []
 
@@ -6709,6 +7169,9 @@ for _pval in _param_values:
         print(f"  IC-only weights: {{_ic_only_weights}} -- dummy PDE, IC points only")
 {_ic_pretrain_block_std}
         print("=== Starting Main Training ===\\n")
+        # 'Scale by initial losses': the initial losses of the pre-trained
+        # network, the one main training starts from (as the exported script does)
+{_init_loss_weights_code(config, "        ", "model", "_multi_weights", "_lr", "_inv_vars if _problem_type == 'Inverse' else None")}
 
     if not {config.time_adaptive}:
         _sched_active = {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}
@@ -6718,10 +7181,10 @@ for _pval in _param_values:
             if not _sched_active:
                 _var_cb = dde.callbacks.VariableValue(
                     _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history.txt",
-                    precision=6
+                    precision=8
                 )
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
-                # Round 31: standardized on "save one checkpoint per
+                # Standardized on "save one checkpoint per
                 # optimizer phase" everywhere (matching Time-Adaptive's own
                 # established per-step convention, and the user's explicit
                 # choice when this was flagged as an inconsistency) --
@@ -6733,11 +7196,11 @@ for _pval in _param_values:
                 # itself actually ran.
                 if _use_save:
                     _adam_model_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}")
-                    model.save(_adam_model_path)
+                    _saved_pt = model.save(_adam_model_path)
                     _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                     with open(_adam_cfg_path, "w") as _acf:
                         _json.dump(_model_config, _acf, indent=2)
-                    print(f"Adam model saved: {{_adam_model_path}}.pt")
+                    print(f"Adam model saved: {{_saved_pt}}")
                     print(f"Adam config saved to: {{_adam_cfg_path}}")
             else:
                 # Scheduler phases below define all training — skip this
@@ -6759,7 +7222,7 @@ for _pval in _param_values:
                 # was also "none").
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=_train_cbs)
             if _use_save and not _sched_active:
-                # Round 31: standardized on "save one checkpoint per
+                # Standardized on "save one checkpoint per
                 # optimizer phase" everywhere (matching Time-Adaptive's own
                 # established per-step convention) -- previously this
                 # Adam-phase checkpoint was only saved when Adam was the
@@ -6771,8 +7234,8 @@ for _pval in _param_values:
                 # Adam-only run, with no Phase 2, is still covered -- this
                 # is the only save it would otherwise ever get).
                 _adam_model_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}")
-                model.save(_adam_model_path)
-                print(f"Adam model saved: {{_adam_model_path}}.pt")
+                _saved_pt = model.save(_adam_model_path)
+                print(f"Adam model saved: {{_saved_pt}}")
                 _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                 with open(_adam_cfg_path, "w") as _acf:
                     _json.dump(_model_config, _acf, indent=2)
@@ -6817,7 +7280,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             display_every={config.loss_display_every}, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
@@ -6836,8 +7299,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_saved_pt}}")
                 elif _sp['optimizer'] == 'nncg':
                     # NNCG (deepxde>=1.13.0, version-guarded above): exact-case
                     # "NNCG" name required, no lr= (ignored with a warning --
@@ -6852,7 +7315,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6872,8 +7335,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_nncg-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} NNCG model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} NNCG model saved: {{_saved_pt}}")
                 else:
                     _sp_decay = None
                     _sp_decay_type = _sp.get('decay_type', 'none')
@@ -6896,7 +7359,7 @@ for _pval in _param_values:
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
                             _inv_vars, period={inv_record_period(config)},
-                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=8)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6916,8 +7379,8 @@ for _pval in _param_values:
                         loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
-                        model.save(_nta_save_path)
-                        print(f"  Phase {{_sp_i+1}} Adam model saved: {{_nta_save_path}}.pt")
+                        _saved_pt = model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} Adam model saved: {{_saved_pt}}")
         elif "{config.optimizer2}" != "none":
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
@@ -6929,7 +7392,7 @@ for _pval in _param_values:
                 if _problem_type == "Inverse":
                     _var_cb2 = dde.callbacks.VariableValue(
                         _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history_phase2.txt",
-                        precision=6
+                        precision=8
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
                                   external_trainable_variables=_inv_vars)
@@ -7146,7 +7609,7 @@ for _pval in _param_values:
     # on "not time_adaptive" -- which this whole section already requires
     # too, so they're guaranteed to exist here without redefining them.
     if not {config.time_adaptive}:
-        # Every output gets its own plot, named after it (Round 69): the
+        # Every output gets its own plot, named after it: the
         # selected "Plot output" is still solution_plot.<ext>, and with more
         # than one output each one is also saved as solution_plot_<name>.<ext>.
         _plot_main_job = (_plot_idx, _run_solution_path)
@@ -7275,7 +7738,7 @@ for _pval in _param_values:
                             (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
                             (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
                         ]
-                        # cleanup Round 46: mask every bounding-box face to the
+                        # Mask every bounding-box face to the
                         # real geometry, same geom.inside(...) convention as the
                         # static 3D Surface plot -- spatial-only, computed once.
                         _face_inside3a = []
@@ -7331,7 +7794,7 @@ for _pval in _param_values:
                         if _is_2d:
                             _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
                             _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
-                            # cleanup Round 46: NaN out grid points outside the
+                            # NaN out grid points outside the
                             # real geometry, same as the static 2D Surface plot.
                             _inside2d_gif = np.asarray(geom.inside(np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel()]))).reshape(_res_anim_gif, _res_anim_gif)
                             for _tv in _t_frames:
@@ -7718,6 +8181,7 @@ for _pval in _param_values:
                 for _ea_tv, _ea_fp in _ea_files:
                     _ea_d = _load_ref(_ea_fp)
                     if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                    _check_ref_layout(_ea_d, _ea_fp, 3 if _is_3d else (2 if _is_2d else 1), _is_steady)
                     if _is_steady and _is_3d:
                         # Steady 3D format: x, y, z, u — no time column at all.
                         _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
@@ -7847,6 +8311,14 @@ for _pval in _param_values:
                     _ta_intervals = []
                     for _sd in _ta_step_dirs:
                         _sd_name = _os.path.basename(_sd)
+                        # the window's own bounds (the folder name rounds them to 4 decimals)
+                        try:
+                            with open(_os.path.join(_sd, "step_config.json")) as _scj_f:
+                                _scj = __import__("json").load(_scj_f)
+                            _ta_intervals.append((float(_scj["t_min"]), float(_scj["t_max"]), _sd))
+                            continue
+                        except Exception:
+                            pass
                         try:
                             _parts = _sd_name.split("_")
                             _t0_str = _parts[2].replace("t","")
@@ -7901,7 +8373,7 @@ for _pval in _param_values:
 
                         # Find best saved model for this step (lbfgs preferred)
                         _step_pt = ""
-                        for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                        for _pat in ["model_resampled-*.pt", "model_resampled.pt", "model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
                             _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
                             if _step_pts:
                                 _step_pt = max(_step_pts, key=_os.path.getmtime)
@@ -7952,6 +8424,15 @@ for _pval in _param_values:
                     for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
                         _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
                 print(f"  Metrics saved: {{_ea_metrics_path}}")
+                # All reference times together: the relative L2 over every reference
+                # point at every time, the measure papers usually report.
+                _ea_st_num = sum(float(np.sum((np.asarray(_ea_u_pinns[_k]) - np.asarray(_ea_u_refs[_k]))**2)) for _k in range(len(_ea_times)))
+                _ea_st_den = sum(float(np.sum(np.asarray(_ea_u_refs[_k])**2)) for _k in range(len(_ea_times)))
+                if len(_ea_times) > 1 and _ea_st_den > 0:
+                    _ea_st_l2 = (_ea_st_num / _ea_st_den) ** 0.5
+                    print(f"  All {{len(_ea_times)}} reference times together: L₂={{_ea_st_l2:.4e}}")
+                    with open(_os.path.join(_ea_dir, f"error_spacetime{{_ea_suffix}}.txt"), "w") as _stf:
+                        _stf.write("times,L2_relative_all_times\\n" + f"{{len(_ea_times)}},{{_ea_st_l2:.6e}}\\n")
 
                 # ── Line comparison ───────────────────────────────────
                 if {config.ea_do_line}:
@@ -8126,6 +8607,18 @@ for _pval in _param_values:
                             _all_coords_ea = (_bxr_ea, _byr_ea, _bzr_ea)
                             _pinn_faces_ea = []
                             _gt_faces_ea = []
+                            # Faces of the bounding box: for a combined geometry (a cube with a
+                            # sphere cut out, say) parts of them lie outside the domain. Those
+                            # quads are drawn transparent and left out of the colour ranges, as
+                            # in the result plots, instead of showing an extrapolated PINN value
+                            # against an interpolated reference there.
+                            _inside_faces_ea = []
+                            for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
+                                try:
+                                    _inside_faces_ea.append(np.asarray(geom.inside(np.column_stack(
+                                        [_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel()]))).reshape(_fX_ea.shape))
+                                except Exception:
+                                    _inside_faces_ea.append(np.ones(_fX_ea.shape, dtype=bool))
                             for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
                                 # Steady-state 3D has no time axis at all --
                                 # the network only takes 3 (x,y,z) inputs,
@@ -8154,13 +8647,38 @@ for _pval in _param_values:
                                 if _nan_mask_ea.any():
                                     _fgt_nn_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='nearest')
                                     _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
+                                # Next to a cut-out the linear interpolation uses triangles that
+                                # bridge the hole, so the reference there is made up and shows as a
+                                # ring of false errors. Quads whose triangle is more than twice as long
+                                # as a typical one on that face are left out, like the outside ones, and a
+                                # quad is drawn only when all four of its corners pass (plot_surface
+                                # colours a quad by one corner).
+                                _m_ea = _inside_faces_ea[len(_pinn_faces_ea)]
+                                try:
+                                    from scipy.spatial import Delaunay as _Dl3
+                                    _pts2_ea = np.unique(np.column_stack([_free0_ea, _free1_ea]), axis=0)
+                                    _tri_ea = _Dl3(_pts2_ea)
+                                    _tp_ea = _pts2_ea[_tri_ea.simplices]
+                                    _tedge_ea = np.max([np.linalg.norm(_tp_ea[:, _k] - _tp_ea[:, (_k + 1) % 3], axis=1)
+                                                        for _k in range(3)], axis=0)   # longest edge per triangle
+                                    _sx_ea = _tri_ea.find_simplex(np.column_stack([_gridA_ea.ravel(), _gridB_ea.ravel()]))
+                                    _edge_ea = np.where(_sx_ea >= 0, _tedge_ea[_sx_ea], 0.0).reshape(_gridA_ea.shape)
+                                    _m_ea &= _edge_ea < 2.0 * float(np.median(_tedge_ea))
+                                except Exception:
+                                    pass  # no scipy.spatial or a degenerate face: keep the inside mask
+                                _m0_ea = _m_ea.copy()
+                                _m_ea[:-1, :-1] &= _m0_ea[1:, :-1] & _m0_ea[:-1, 1:] & _m0_ea[1:, 1:]
                                 _pinn_faces_ea.append(_fpinn_ea)
                                 _gt_faces_ea.append(_fgt_ea)
-                            _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
-                            _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                            _in_vals_ea = [_f[_m] for _f, _m in zip(_pinn_faces_ea + _gt_faces_ea, _inside_faces_ea * 2) if _m.any()]
+                            if not _in_vals_ea:
+                                _in_vals_ea = _pinn_faces_ea + _gt_faces_ea
+                            _vmin3_ea = min(_v.min() for _v in _in_vals_ea)
+                            _vmax3_ea = max(_v.max() for _v in _in_vals_ea)
                             _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)
                             _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
-                            _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
+                            _err_in_ea = [_f[_m] for _f, _m in zip(_err_faces_ea, _inside_faces_ea) if _m.any()] or _err_faces_ea
+                            _vmax_err_ea = max(_v.max() for _v in _err_in_ea)
                             # See the matching comment on the Line comparison
                             # title above -- steady-state has no time axis,
                             # so "t=..." is dropped from every column title.
@@ -8176,7 +8694,8 @@ for _pval in _param_values:
                                 for _face_i_ea, (_fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea) in enumerate(_faces3_ea):
                                     _ax3_ea.plot_surface(
                                         _fX_ea, _fY_ea, _fZ_ea,
-                                        facecolors=_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])),
+                                        facecolors=np.concatenate([np.asarray(_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])))[..., :3],
+                                                                   np.where(_inside_faces_ea[_face_i_ea], 1.0, 0.0)[..., None]], axis=-1),
                                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False,
                                     )
                                 _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)
@@ -8434,6 +8953,7 @@ for _pval in _param_values:
                         _ea_slp = _os.path.join(_ea_dir, f"slice_comparison{{_ea_suffix}}.png")
                         plt.savefig(_ea_slp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                         print(f"  Slice comparison saved: {{_ea_slp}}")
+{_view3d_block(config, 20)}
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 
@@ -8448,6 +8968,16 @@ for _pval in _param_values:
                 "solution_data"
             )
             _os.makedirs(_data_dir, exist_ok=True)
+            # A disk, polygon or other non-box shape: grid points outside the
+            # domain are written as NaN (the network's value there is an
+            # extrapolation, not part of the solution)
+            _exp_geom = _build_geom() if (_is_2d or _is_3d) else None
+            def _nan_outside(_pts, _u):
+                _u = np.array(_u, dtype=float)
+                if _exp_geom is not None:
+                    _in = np.asarray(_exp_geom.inside(_pts)).reshape(-1) | np.asarray(_exp_geom.on_boundary(_pts)).reshape(-1)
+                    _u[~_in] = np.nan
+                return _u
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
 
@@ -8457,7 +8987,7 @@ for _pval in _param_values:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                 _XY_exp = np.column_stack([_Xe.ravel(), _Ye.ravel()])
-                _u_exp = model.predict(_XY_exp)
+                _u_exp = _nan_outside(_XY_exp, model.predict(_XY_exp))
                 _header = "x,y," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
@@ -8467,14 +8997,14 @@ for _pval in _param_values:
                 _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
                 _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                 _XYZ_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel()])
-                _u_exp = model.predict(_XYZ_exp)
+                _u_exp = _nan_outside(_XYZ_exp, model.predict(_XYZ_exp))
                 _header = "x,y,z," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
             elif _is_steady:
                 _u_exp_all = model.predict(_x_export.reshape(-1, 1))
-                _header_cols = "x," + ",".join(_out_names_list)
+                _header_cols = "{'t' if getattr(config, '_ode', False) else 'x'}," + ",".join(_out_names_list)   # an ODE's variable is t
                 _out = np.column_stack([_x_export, _u_exp_all])
                 _fname = _os.path.join(_data_dir, "solution.txt")
                 np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
@@ -8483,7 +9013,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye = np.meshgrid(_x_export, _y_export)
                     _XYT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYT_exp)
+                    _u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
@@ -8499,7 +9029,7 @@ for _pval in _param_values:
                 for _t_val in _t_export:
                     _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
                     _XYZT_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val)])
-                    _u_exp = model.predict(_XYZT_exp)
+                    _u_exp = _nan_outside(_XYZT_exp[:, :3], model.predict(_XYZT_exp))
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
@@ -8698,7 +9228,7 @@ def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
 def _clean_geom_inner(config, is_2d, is_3d, tri_verts, poly_verts):
     """The bare dde.geometry.XXX(...) constructor call behind
     _clean_geom_line(), plus whether it needs the _DTypeSafeGeom wrapper.
-    Split out in cleanup Round 48 so the GUI's Domain Preview builds its
+    Split out earlier so the GUI's Domain Preview builds its
     geometry with exactly the constructor the exported script trains on,
     instead of its own hand-typed per-shape copy."""
     gt = config.geometry_type or "Rectangle"
@@ -8732,7 +9262,7 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d, is_steady=True, used=Non
     the problem has them -- shared by every BC location/value helper
     below so an expression like "x" or "np.isclose(x, 0)" the user typed
     means exactly what it looks like. A time-dependent problem also gets
-    t (the last column) when the expression uses it -- Round 64; before,
+    t (the last column) when the expression uses it; before,
     a value like x*cos(t) was a NameError in the exported script while
     the live script supported it."""
     lines = []
@@ -8822,7 +9352,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     defs, append = [], []
 
     def _clean_points_values(i, entry, n_values):
-        """Points and target values of a Point Set (Operator) row (Round 71):
+        """Points and target values of a Point Set (Operator) row:
         from a file, a typed list or generated; values from the file or a
         formula. Returns (def_lines, append_lines) defining _pts{i}/_pvals{i}."""
         mode = entry.get('points_mode', 'file') or 'file'
@@ -8850,7 +9380,16 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                 ploc = _np_math_expr((entry.get('location', '') or '').strip() or 'True')
                 D += loc_fn(f"_bc{i}_ploc", ploc)
                 A.append(f"_cand{i} = geomtime.random_boundary_points({max(20 * npts, 200)})")
-                A.append(f"_pts{i} = np.array([p for p in _cand{i} if _bc{i}_ploc(p, True)][:{npts}])")
+                A.append(f"_sel{i} = [p for p in _cand{i} if _bc{i}_ploc(p, True)]")
+                A.append(f"for _more in range(5):   # a small Where region: draw more candidates until {npts} match")
+                A.append(f"    if len(_sel{i}) >= {npts}:")
+                A.append(f"        break")
+                A.append(f"    _sel{i} += [p for p in geomtime.random_boundary_points({max(20 * npts, 200)} * 4 ** (_more + 1)) if _bc{i}_ploc(p, True)]")
+                A.append(f"_pts{i} = np.array(_sel{i}[:{npts}])")
+                A.append(f"if len(_pts{i}) == 0:")
+                A.append(f"    raise RuntimeError('BC {i + 1}: no boundary points match its Where expression.')")
+                A.append(f"if len(_pts{i}) < {npts}:")
+                A.append(f"    print(f'  Note: BC {i + 1}: only {{len(_pts{i})}} of {npts} boundary points found where its Where expression holds.')")
         if vmode == 'formula':
             forms = [(f.strip() or "0") for f in (entry.get('values_formula', '') or '0').split("|")]
             if len(forms) < n_values:
@@ -8926,7 +9465,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
         if entry.get('apply_at') == 'initial' and not is_steady:
-            # At the initial time t = t_min (Round 64), not on the boundary --
+            # At the initial time t = t_min, not on the boundary --
             # the initial-time training points pass this filter.
             init_loc = [f"def {loc_name}(X, on_boundary):",
                         f"    if not np.isclose(X[-1], {t_min!r}):",
@@ -9246,7 +9785,7 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
 
 def _clean_loss_series_lines(config, train_rows_expr, test_rows_expr, steps_expr):
     """Builds the plain `plt.<semilogy|plot>(...)` lines for one "Export as
-    DeepXDE Script" loss plot, honoring the Round 28 Loss Plot Settings
+    DeepXDE Script" loss plot, honoring the Loss Plot Settings
     (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth) -- the same
     settings generate_script()'s _make_loss_plot applies, but resolved HERE,
     directly into fixed plt calls at codegen time, since generate_clean_script
@@ -9313,7 +9852,7 @@ _DTYPE_SAFE_GEOM_CLASS = '''class _DTypeSafeGeom:
 
 def _dtype_safe_geom_class_code():
     """The _DTypeSafeGeom adapter class every generated script that needs it
-    embeds -- cleanup Round 56: it used to be hand-typed four times (live
+    embeds it used to be hand-typed four times (live
     Solve, export, both restore builders), two with a docstring and two
     without; now one copy."""
     return _DTYPE_SAFE_GEOM_CLASS
@@ -9327,7 +9866,7 @@ def _math_namespace_code(var, lib, indent=""):
     """`<var> = {"sin": ..., ..., "pi": np.pi}` -- the dict of math functions
     a generated script's eval() namespace offers user expressions, for
     lib "torch" (custom plot fields, evaluated on tensors) or "np" (BC/EA
-    expressions, evaluated on arrays). cleanup Round 56: this dict was
+    expressions, evaluated on arrays).: this dict was
     hand-typed seven times across the generators and restore builders."""
     alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"} if lib == "torch" else {}
     lines = [f"{var} = {{"]
@@ -9459,7 +9998,7 @@ def anim_dpi(src):
 def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, colors=None, fonts=None, dpi_anim=150,
                          extras=None):
     """Builds the literal Python source for a module-level `_plot_figsize(
-    default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
+    default_w, default_h)` helper -- the Plot Settings figure-size
     standardization, called at every single-panel plot site in place of a
     bare figsize=(W, H) literal. "Default" mode returns (default_w,
     default_h) unchanged, so every wrapped call site renders byte-identical
@@ -9471,8 +10010,8 @@ def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, 
     (inline, below), generate_clean_script() (via _clean_figsize_runtime_code()
     right below this function), and main_window.py's three restore/GIF
     script builders (_build_restore_param_script, _build_restore_script,
-    _build_restore_script_ta -- imported from here rather than hand-copied,
-    cleanup Round 39). Previously this exact block existed as 5 separate
+    _build_restore_script_ta -- imported from here rather than hand-copied).
+    Previously this exact block existed as 5 separate
     hand-typed copies; this is now the only one.
 
     The multi-panel Error Analysis grids use _panel_figsize(), which scales
@@ -9518,6 +10057,36 @@ def _panel_figsize(_pw, _ph, _ncols, _nrows):
     return (_pw * _ncols * _fw / 7.0, _ph * _nrows * _fh / 5.0)''' + _PLOT_TEXT_HELPERS
 
 
+# Reader for points files (Point Set BC rows, extra-points files): the same rules as the other data files.
+_POINT_TABLE_READER = '''def _read_point_table(path):
+    """Reads a points file like the other data files: commas, semicolons or spaces; header and comment lines,
+    rows with a missing value and rows with a different number of columns are skipped, with a note."""
+    rows = []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            parts = line.replace(",", " ").replace(";", " ").split()
+            if not parts or parts[0][0] in "#%":
+                continue
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue
+    lens = [len(r) for r in rows]
+    width = max(set(lens), key=lambda w: (lens.count(w), w)) if lens else 0   # the most common row length
+    data = np.array([r for r in rows if len(r) == width], dtype=float) if width else np.zeros((0, 0))
+    n_bad = len(rows) - len(data)
+    if width:
+        ok = np.all(np.isfinite(data), axis=1)
+        n_bad += int((~ok).sum())
+        data = data[ok]
+    if n_bad:
+        print("  Note: " + str(n_bad) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    if data.size == 0:
+        raise RuntimeError("No usable rows in points file " + repr(path))
+    return data
+
+'''
+
 _PLOT_TEXT_HELPERS = """
 
 def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
@@ -9529,6 +10098,20 @@ def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
     from scipy.interpolate import griddata as _gd_e
     _e = np.abs(np.ravel(_pinn_at_pts) - np.ravel(_ref))
     return _gd_e(np.asarray(_pts)[:, :2], _e, (_Xg, _Yg), method="linear", fill_value=np.nan)
+
+def _check_ref_layout(_d, _path, _n_space, _steady):
+    # One reference time and one value column per file: a file with several
+    # times is compared at its first row's time, and only the first value
+    # column is used -- say so instead of comparing silently.
+    import os as _os_rl
+    _tcol = _n_space
+    if not _steady and _d.ndim == 2 and _d.shape[1] > _tcol and np.ptp(_d[:, _tcol]) > 1e-9 * max(1.0, float(np.abs(_d[:, _tcol]).max())):
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " holds several times (" + "%g" % _d[:, _tcol].min() + " to "
+              + "%g" % _d[:, _tcol].max() + "); it is compared at t = " + "%g" % _d[0, _tcol] + ". Use one file per time.")
+    _ncols = _n_space + (0 if _steady else 1) + 1
+    if _d.ndim == 2 and _d.shape[1] > _ncols:
+        print("  Note: " + _os_rl.path.basename(str(_path)) + " has " + str(_d.shape[1] - _ncols + 1)
+              + " value columns; the first is used.")
 
 def _load_ref(_path):
     # A reference-data file: comma or space separated, header and comment
@@ -9545,7 +10128,8 @@ def _load_ref(_path):
                 _rows.append([float(_v) for _v in _re.split(r"[,\\s;]+", _ln) if _v])
             except ValueError:
                 continue
-    _w = max((len(_r) for _r in _rows), default=0)
+    _lens = [len(_r) for _r in _rows]
+    _w = max(set(_lens), key=lambda _x: (_lens.count(_x), _x)) if _lens else 0   # the most common row length
     if not _w:
         return np.zeros((0, 0))
     _d = np.array([_r for _r in _rows if len(_r) == _w], dtype=float)
@@ -9848,7 +10432,7 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
 
 
 def _rar_tolerance_check(config, indent):
-    """RAR early stop (Round 66): leave the refinement loop once the mean
+    """RAR early stop: leave the refinement loop once the mean
     |residual| over the candidate points is below config.rar_tolerance --
     "" (no code) when it's 0, so existing scripts are unchanged."""
     tol = float(getattr(config, "rar_tolerance", 0.0) or 0.0)
@@ -9867,7 +10451,7 @@ def _formula_reference_dir(config):
 
 def _formula_reference_entries(config):
     """[(t, path, output index, expression)] for "reference from a formula"
-    Error Analysis (Round 67) -- one reference file per output with a
+    Error Analysis -- one reference file per output with a
     formula and per comparison time (one per output when steady)."""
     if (getattr(config, "ea_ref_mode", "files") or "files") != "formula":
         return []
@@ -9965,7 +10549,7 @@ def _anchor_join(names, var="_a"):
 
 def _anchor_points_code(config):
     """Source defining `_user_anchors` (an (N, n_inputs) array) for the
-    extra training points the user asked for (Round 65), or "" when none
+    extra training points the user asked for, or "" when none
     -- shared by both generators. "box": uniformly random points in the
     given per-column ranges (blank = the column's domain range); "file":
     a points file with one column per input."""
@@ -9976,7 +10560,8 @@ def _anchor_points_code(config):
         return "\n".join([
             "# Extra training points (anchors) from a file -- one column per input:",
             f"# {', '.join(c[0] for c in cols)}",
-            f"_user_anchors = np.loadtxt({path!r}, delimiter=',' if {path!r}.lower().endswith('.csv') else None, ndmin=2)",
+            _POINT_TABLE_READER.rstrip("\n"),
+            f"_user_anchors = _read_point_table({path!r})",
             f"if _user_anchors.shape[1] < {len(cols)}:",
             f"    raise RuntimeError(f'Anchor points file needs {len(cols)} columns ({', '.join(c[0] for c in cols)}), "
             "got {_user_anchors.shape[1]}.')",
@@ -10004,7 +10589,7 @@ def _anchor_points_code(config):
 
 def _contour_levels_helper_code():
     """Runtime source for _cf_levels(n, vmin, vmax, *data) -- cleanup Round
-    50 (open item from Round 22). matplotlib's contourf IGNORES vmin/vmax
+    50. matplotlib's contourf IGNORES vmin/vmax
     when choosing its level boundaries if `levels` is a plain integer count:
     the fill colors still go through the vmin/vmax norm, but the bands and
     the colorbar auto-range to each panel's own data. So two panels meant to
@@ -10047,7 +10632,7 @@ def _contour_levels_helper_code():
 def _clean_figsize_runtime_code(config):
     """Thin wrapper around _figsize_helper_code() for generate_clean_script()'s
     own call sites -- kept as its own name/signature since generate_clean_script()
-    already calls it this way (see Round 31). See _figsize_helper_code()'s own
+    already calls it this way. See _figsize_helper_code()'s own
     docstring for the full rationale; this just extracts the 3 relevant fields
     from a PINNConfig."""
     return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h,
@@ -10264,13 +10849,13 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     main_window.py's single-model restore (_build_restore_script) and its
     Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
     43 (audit §2e, sub-round 2). Unlike the Line/Animation-Line pair
-    (Round 42), the "Surface" branch itself turned out to be only ~47%
+   , the "Surface" branch itself turned out to be only ~47%
     textually similar between the two builders (real structural
     differences under Time-Adaptive routing -- left for a separate
     investigation, see that round's notes) -- but THIS branch,
     "Animation Surface (GIF)", measured ~82% similar, concentrated in
     large matching blocks, and is in fact a clean is_time_adaptive-only
-    difference exactly like Round 42's pair: which bbox source feeds the
+    difference exactly like the earlier pair: which bbox source feeds the
     3D face grid (geom.bbox vs. a geomtime helper's own bbox), whether a
     per-frame Time-Adaptive model needs resolving before each predict
     call (and the extra model argument that goes with it), the
@@ -10282,7 +10867,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     would be wasteful). All of it follows from one is_time_adaptive flag.
     Verified byte-for-byte identical to both original hand-typed copies
     across a 300-trial randomized fuzz check before this function
-    replaced them. cleanup Round 46 then added geometry masking (3D:
+    replaced them. Later commits added geometry masking (3D:
     alpha-0 out-of-domain face quads; 2D: NaN out-of-domain grid points),
     which neither original copy had -- the same geom.inside(...)
     convention the static Surface plot (_restore_surface_code) uses."""
@@ -10395,7 +10980,7 @@ if is_3d:
         (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
         (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
     ]
-    # cleanup Round 46: mask every bounding-box face to the real geometry
+    # Mask every bounding-box face to the real geometry
     # with geom.inside(...), same convention as the static 3D Surface plot
     # -- a Sphere/Custom-3D model would otherwise animate its full
     # bounding-box faces. Spatial-only, so computed once for every frame.
@@ -10442,7 +11027,7 @@ else:
     if is_2d:
         y_anim = np.linspace({y_min}, {y_max}, {res})
         Xg, Yg = np.meshgrid(x_anim, y_anim)
-        # cleanup Round 46: NaN out grid points outside the real geometry
+        # NaN out grid points outside the real geometry
         # (contourf leaves them unfilled), same as the static 2D Surface plot.
         _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape({res}, {res})
 {loop_2d}    else:
@@ -10481,10 +11066,10 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
                           ylabel_1d_steady, title_1d_steady, is_time_adaptive, res3d=40):
     """Builds the static "Surface" branch shared between main_window.py's
     single-model restore (_build_restore_script) and its Time-Adaptive
-    counterpart (_build_restore_script_ta) -- cleanup Round 45 (audit §2e,
-    sub-round 3). Round 43 measured this pair at only ~47% similar and left
+    counterpart (_build_restore_script_ta) (audit §2e,
+    sub-round 3). A comparison measured this pair at only ~47% similar and left
     it alone, partly because the Time-Adaptive copy never masked to the real
-    geometry; Round 44 fixed that, and with masking now in parity the two
+    geometry; that was fixed, and with masking now in parity the two
     copies differ only in things that follow from one is_time_adaptive
     flag, same as Rounds 42/43's pairs:
       - which bbox source feeds the 3D face grid (geom.bbox vs. the
@@ -10509,7 +11094,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
     cf_range = "None, None" if auto_range else f"{vmin_val}, {vmax_val}"
     if is_time_adaptive:
         suptitle_note = (
-            "# Round 31: only the 3D/2D branches below add a fig.suptitle() above\n"
+            "# Only the 3D/2D branches below add a fig.suptitle() above\n"
             "# their own per-panel subplot titles; the final 1D branch is single-panel\n"
             "# with no suptitle -- see the matching comment in _build_restore_script.\n"
         )
@@ -10526,7 +11111,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         bbox3_expr = f"_ta_build_geomtime({t_min}, {t_max}).geometry.bbox"
         mesh_xy_note = mesh_xz_note = mesh_yz_note = ""
         mask_comment_3d = (
-            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # Masked to the real geometry with geom.inside(...) --\n"
             "    # same convention _build_restore_script's own 3D Surface branch already\n"
             "    # uses (geom here is the real reconstructed geometry built above, not\n"
             "    # just its bounding box -- a Sphere/Custom-3D model would otherwise show\n"
@@ -10553,7 +11138,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         )
         comment_2d = "    # Same multi-snapshot convention as the 3D branch above.\n"
         mask_comment_2d = (
-            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # Masked to the real geometry with geom.inside(...) --\n"
             "    # same convention _build_restore_script's own 2D Surface branch already\n"
             "    # uses. Spatial-only, so computed once and reused for every panel.\n"
         )
@@ -10586,7 +11171,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
         )
     else:
         suptitle_note = (
-            "# Round 31: only the 3D/2D multi-snapshot branches below ever add a\n"
+            "# Only the 3D/2D multi-snapshot branches below ever add a\n"
             "# fig.suptitle() above their own per-panel subplot titles -- the steady-1D\n"
             "# and 1D-surface branches are single-panel with no suptitle at all -- so\n"
             "# the shared plt.tight_layout() after this if/elif chain only needs to\n"
@@ -10821,7 +11406,7 @@ def _lbfgs_maxfun(config, iterations):
 def _ic_pretrain_train_code(config, indent, geomtime_var, constraints_var, num_initial, weights_expr,
                             net_expr, save_dir_expr, os_name, log_prefix, distribution):
     """Builds the IC Pre-Training "dummy-PDE dataset + compile + restore-or-
-    train" block -- cleanup Round 47 (audit §2b/§4). This block used to be
+    train" block (audit §2b/§4). This block used to be
     hand-typed four times (generate_script()'s Standard and Time-Adaptive
     paths, generate_clean_script()'s Standard path and its Time-Adaptive
     per-step loop), under four different temp-model names (_model_pre,
@@ -10879,6 +11464,8 @@ if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
     _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
     print("{p}IC pre-train model restored -- skipping training.")
 else:
+    if {config.ic_pretrain_restore}:
+        print("{p}Note: IC pre-train model to restore not found (" + {rp} + ") -- pre-training instead.")
     _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
                                  display_every={max(1, int(getattr(config, 'loss_display_every', 1000) or 1000))}, batch_size=None,
                                  model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
@@ -10888,7 +11475,7 @@ else:
 
 
 def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
-    """generate_clean_script()'s RAR per-round diagnostics -- cleanup Round 53
+    """generate_clean_script()'s RAR per-round diagnostics
     (long-standing open item: the export had none). For every RAR round,
     under <sol_dir>/rar_rounds/round_NN/: model.pt (that round's weights, in
     the same {"model_state_dict": ...} format the Restore tab loads),
@@ -10993,6 +11580,50 @@ model.net.load_state_dict(rar_final_state)
 print(f"RAR per-round diagnostics saved under: {{os.path.join(sol_dir, 'rar_rounds')}}")'''
 
 
+def _ta_clean_unsupported(config):
+    """The time-window options the short export script does not write yet (empty: none in use)."""
+    if not getattr(config, "time_adaptive", False) or getattr(config, "problem_type", "Forward") == "Inverse":
+        return []
+    out = []
+    if getattr(config, "ta_backward", False):
+        out.append("backward compatibility (bc-PINN)")
+    if getattr(config, "ta_growing", False):
+        out.append("a growing time range")
+    if float(getattr(config, "ta_icgl_fraction", 0.0) or 0.0) > 0:
+        out.append("initial-condition guided learning")
+    if int(getattr(config, "ta_resample_rounds", 0) or 0) > 0:
+        out.append("resampling in each window")
+    return out
+
+
+def _export_gpu_code(config):
+    """The Hardware settings' GPU choice for the exported script (Solve's
+    script sets them too): the device index and the memory fraction, written
+    only when they differ from PyTorch's own defaults (device 0, no cap)."""
+    idx = int(getattr(config, "gpu_device_index", 0) or 0)
+    frac = float(getattr(config, "gpu_memory_fraction", 0.95) or 0.95)
+    if idx == 0 and frac >= 0.95:
+        return ""
+    lines = ["", "# GPU (Hardware settings)", "if torch.cuda.is_available():"]
+    if idx:
+        lines.append(f"    torch.cuda.set_device({idx})")
+    if frac < 0.95:
+        lines.append(f"    torch.cuda.set_per_process_memory_fraction({frac!r}, device={idx})")
+    return "\n".join(lines)
+
+
+_EMPTY_COND_CHECK = '''def _warn_empty_conditions(_d):
+    # A condition that selects no training point (a side such as "left" on a
+    # disk, which has no flat sides) has a NaN loss at any weight: training
+    # goes on without it and L-BFGS stops in its line search.
+    _empty = [_i + 1 for _i, _n in enumerate(getattr(_d, "num_bcs", None) or []) if int(_n) == 0]
+    if _empty:
+        print(f"⚠️ Condition(s) {_empty} (in loss order: Boundary Conditions rows, then initial conditions, "
+              f"then measured data) select no training point, so their loss is NaN -- check their 'Where' "
+              f"(e.g. a side such as 'left' on a disk or other curved shape). Change or remove them.")
+'''
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -11003,8 +11634,27 @@ def generate_clean_script(config):
     "if" dispatch over every option this app exposes. See generate_script()
     above for the generator Solve itself actually runs -- that one stays
     untouched; this is a second, independent generator."""
+    # Time windows with backward compatibility (bc-PINN), a growing time range, initial-condition guided
+    # learning or resampling in each window: these are written only by generate_script() so far, so the
+    # export is that script (standalone too), and it trains exactly the model Solve trains.
+    _ta_extras = _ta_clean_unsupported(config)
+    if _ta_extras:
+        return ("# Exported from PINNStudio. This problem uses time windows with " + ", ".join(_ta_extras)
+                + ",\n# so the export is the full script PINNStudio's Solve runs (it trains exactly the same model).\n"
+                + generate_script(config))
     from pinnstudio.core import constants as _cmod_hdr
     _const_header = _cmod_hdr.header_lines(_constant_values(config))
+    if getattr(config, "export_enabled", False) and config.problem_type != "Inverse":
+        # Results > "Export solution data" is written by PINNStudio's Solve only
+        _const_header = list(_const_header) + [
+            "# Note: 'Export solution data' (Results page) is on for this problem, but only PINNStudio's",
+            "# Solve writes those data files; this script saves the plots, the model and the losses."]
+    if config.problem_dim == "3D" and (getattr(config, "ea_files", "[]") not in ("", "[]")
+                                       or (getattr(config, "ea_ref_mode", "files") == "formula")):
+        # Solve also draws 3D slice and 3D-view comparisons (Plot settings: 3D grid resolution, iso level)
+        _const_header = list(_const_header) + [
+            "# Note: this script draws the line, surface and error-analysis figures; the 3D slice and 3D view",
+            "# comparisons (Plot settings: 3D grid resolution, iso level) are drawn by PINNStudio's Solve only."]
     config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -11048,7 +11698,7 @@ def generate_clean_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
-    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # An ODE's variable
 
     # ---- PDE expressions (host-resolved derivative terms) --------------
     pde_exprs = [_simplify_pde_expr(e) for e in config.pde_expressions.split("|")]
@@ -11189,7 +11839,7 @@ def generate_clean_script(config):
     for sp in sched_phases:
         sp['_w'] = _clean_phase_weights(sp, expected_len, multi_weights)
     if (config.loss_weights_from_initial or 0) > 0:
-        # Round 75: weights computed at runtime from the initial losses.
+        # Weights computed at runtime from the initial losses.
         multi_weights = "loss_weights"
         for sp in sched_phases:
             sp['_w'] = "loss_weights"
@@ -11211,7 +11861,7 @@ def generate_clean_script(config):
     if any_cbs:
         _tm_clean_cbs_code = _build_training_monitors_code(config, "train_cbs", "(save_dir or '.')", indent=0)
         cbs_code = (
-            _build_train_cbs_code(config, "train_cbs", indent=0)
+            _build_train_cbs_code(config, "train_cbs", indent=0, sol_dir_var="(save_dir or '.')")
             + ("\n" + _tm_clean_cbs_code if _tm_clean_cbs_code else "")
         ).replace("_os.path.join", "os.path.join")
 
@@ -11235,7 +11885,7 @@ def generate_clean_script(config):
     # as a plain float; _make_net silently drops it for PFNN).
     net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
 
-    # ---- Plot Settings: figure-size standardization (Round 31) -----------
+    # ---- Plot Settings: figure-size standardization -----------
     # Same shared-helper pattern as net_helper_code just above -- see
     # _clean_figsize_runtime_code()'s own docstring.
     figsize_helper_code = _clean_figsize_runtime_code(config) + "\n\n" + _contour_levels_helper_code()
@@ -11344,7 +11994,9 @@ Time:    t in [{config.t_min}, {config.t_max}]''') +
                  f'''
 
 Edit anything below and re-run -- this is a plain script, not tied to
-the PINNStudio GUI.
+the PINNStudio GUI. PINNStudio's copyright holders permit you to use, change
+and share this generated script under terms of your choice; the libraries it
+imports keep their own licenses (see "License" in PINNStudio's README).
 """
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -11391,7 +12043,7 @@ import matplotlib.pyplot as plt
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
-{_cpu_threads_code(config)}''')
+{_cpu_threads_code(config)}{_export_gpu_code(config)}''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]
@@ -11423,15 +12075,27 @@ if save_dir:
     coordinate column per spatial axis, then time, then value -- e.g.
     "x, t, u" in 1D. Only the rows already at t = {config.t_min} (the
     domain's start time) are used."""
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
+    # commas, semicolons or spaces; header/comment lines and rows with a missing value skipped
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
+                continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
-                continue                     # a header or comment line
-    raw = np.array([r for r in rows if r])
+                continue
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    raw = data_
     n_coord = {n_coord}
     t_col, v_col = n_coord, n_coord + 1
     mask = np.abs(raw[:, t_col] - {config.t_min}) < 1e-8
@@ -11442,6 +12106,7 @@ if save_dir:
     return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
 
     if needs_points_loader:
+        parts.append(_POINT_TABLE_READER)
         parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}, n_values=1):
     """Loads a points file for a PointSetBC / PointSetOperatorBC row:
     n_coord_cols coordinate (+ time) columns, then n_values target value
@@ -11450,7 +12115,7 @@ if save_dir:
     component, in the same order DeepXDE expects."""
     if not path or not os.path.isfile(path):
         raise RuntimeError(f"Boundary condition points file not found: {{path!r}}")
-    data = np.loadtxt(path, delimiter=",") if path.lower().endswith(".csv") else np.loadtxt(path)
+    data = _read_point_table(path)
     if data.ndim == 1:
         data = data.reshape(1, -1)
     n_have = data.shape[1] - n_coord_cols
@@ -11482,7 +12147,7 @@ if save_dir:
     parts.append(figsize_helper_code)
     # Training Monitors' own _tm_build_dvars/_tm_hess helpers are also what
     # the custom plot-field expression (_extract_plot_field, below) routes
-    # through once configured -- same derivative-aware mechanism Round 17
+    # through once configured -- the same derivative-aware mechanism
     # wired into generate_script()/the Restore scripts, now also reaching
     # this exporter. Embed the helper whenever any of these needs it, not
     # just for Training Monitors, so a custom expression works even if
@@ -11517,18 +12182,28 @@ if save_dir:
         inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
-    # numbers separated by commas or spaces; header, comment and blank lines skipped
-    rows = []
-    with open(path) as f:
-        for line in f:
-            parts = line.replace(",", " ").split()
-            if not parts or parts[0][0] in "#%":
+    # numbers separated by commas, semicolons or spaces; header, comment and blank lines skipped;
+    # rows with a missing value (NaN) or a different number of columns skipped with a note
+    rows_ = []
+    with open(path, encoding="utf-8", errors="replace") as fh_:
+        for line_ in fh_:
+            parts_ = line_.replace(",", " ").replace(";", " ").split()
+            if not parts_ or parts_[0][0] in "#%":
                 continue
             try:
-                rows.append([float(v) for v in parts])
+                rows_.append([float(v_) for v_ in parts_])
             except ValueError:
                 continue
-    return np.array(rows)
+    lens_ = [len(r_) for r_ in rows_]; width_ = max(set(lens_), key=lambda w_: (lens_.count(w_), w_)) if lens_ else 0   # the most common row length
+    data_ = np.array([r_ for r_ in rows_ if len(r_) == width_], dtype=float) if width_ else np.zeros((0, 0))
+    n_bad_ = len(rows_) - len(data_)
+    if width_:
+        ok_ = np.all(np.isfinite(data_), axis=1)
+        n_bad_ += int((~ok_).sum())
+        data_ = data_[ok_]
+    if n_bad_:
+        print("  Note: " + str(n_bad_) + " row(s) of " + str(path) + " skipped (a missing value, or a different number of columns)")
+    return data_
 ''')
         # Number of leading coordinate columns in a measured-data file --
         # x/y/z plus time, EXCEPT for a steady-state problem, which has no
@@ -11556,6 +12231,9 @@ def _load_obs_data(path):
                              # inside an f-string expression are a SyntaxError before Python 3.12
                              f"    raise SystemExit(\"Measured data \" + os.path.basename({of['path']!r}) + f\": {_n_obs_cols + 1} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
+            obs_lines.append(f"if _of_data.shape[1] > {_n_obs_cols + 1}:\n"
+                             f"    print(\"  Note: measured data \" + os.path.basename({of['path']!r}) + \" has \" + str(_of_data.shape[1] - {_n_obs_cols}) + "
+                             f"\" value columns; the first (column {_n_obs_cols + 1}) is used.\")")
             if _obs_red:
                 obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
                                  f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")
@@ -11676,6 +12354,7 @@ def _load_obs_data(path):
         if "_frac(" in (config.pde_expressions or ""):
             data_lines = [_frac_data_text(t, config, "geomtime", "pde", "constraints") for t in data_lines]
         parts.append("\n".join(data_lines))
+        parts.append(_EMPTY_COND_CHECK + "_warn_empty_conditions(data)")
         parts.append(net_line)
 
         if use_ic_pretrain and not is_steady:
@@ -11745,6 +12424,13 @@ for rar_cycle in range({config.rar_cycles}):''']
             # geometry for every non-box shape, so RAR's candidates are
             # now guaranteed to lie inside the actual domain for any
             # geometry, not just a rectangular one.
+            # the RAR rounds use the loss function and weights of the phases
+            # their optimizer comes from (as in Solve's script)
+            _rar_pa, _rar_pl = _rar_phase(config), _rar_phase(config, True)
+            _rar_w_adam = (_clean_phase_weights(_rar_pa, expected_len, multi_weights)
+                           if (_rar_pa is not None and multi_weights != "loss_weights") else multi_weights)
+            _rar_w_lbfgs = (_clean_phase_weights(_rar_pl, expected_len, multi_weights)
+                            if (_rar_pl is not None and multi_weights != "loss_weights") else multi_weights)
             rar_lines.append(f'''    xt_cand = geomtime.random_points({config.rar_candidates})''')
             # "Points from:" (rar_output_selector): restrict selection to one
             # equation's residual, same as the live Solve path; -1 (default)
@@ -11758,13 +12444,13 @@ for rar_cycle in range({config.rar_cycles}):''']
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
-    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss={_rar_loss(config)!r}, loss_weights={_rar_w_adam}{ext_vars_kw})
     loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every}{cbs_kw})''')
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                                      maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls})
-    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    model.compile("L-BFGS", loss={_rar_loss(config, True)!r}, loss_weights={_rar_w_lbfgs}{ext_vars_kw})
     loss_history, train_state = model.train(display_every={config.loss_display_every}{cbs_kw})''')
             rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")
             parts.append("\n".join(rar_lines))
@@ -11821,6 +12507,13 @@ x_grid = np.column_stack([_Xg.ravel(), _Yg.ravel()])''')
             ta_lines.append(f'''grid_size = {config.ta_grid_size}
 x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size).reshape(-1, 1)''')
 
+        if is_2d or is_3d:
+            # as in Solve's script: only the grid points in the domain (inside or
+            # on its boundary) carry the solution from one window to the next
+            ta_lines.append('''_ta_gm = _build_geom()
+_ta_in = np.asarray(_ta_gm.inside(x_grid)).reshape(-1) | np.asarray(_ta_gm.on_boundary(x_grid)).reshape(-1)
+if not _ta_in.all():
+    x_grid = x_grid[_ta_in]''')
         if config.forward_ic_from_file:
             ta_lines.append(f'_ic_ta_xt, prev_u = _load_ic_from_file({repr(config.forward_ic_file)})')
         else:
@@ -11852,12 +12545,45 @@ _ta_loss_offset = 0''')
         if cbs_code:
             parts.append(cbs_code)
 
-        loop_lines = [f"def _ta_weights(w, constraints):",
+        _ta_ic_outs = [o for o in range(n_out) if (o == 0 and config.forward_ic_from_file) or o in active_ic_outputs]
+        loop_lines = [f"def _ta_weights(w, constraints, step_i):",
                       f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
-                      "    return list(w) if len(w) == n else [1.0] * n",
+                      "    w = list(w)",
+                      "    # from the second window on every output is held to the previous window's solution (one term",
+                      "    # per output): the PDE and boundary weights as set, each output's term its initial",
+                      "    # condition's weight, 1 for an output without one (as Solve's script does)",
+                      f"    ic_outs = {_ta_ic_outs!r}",
+                      f"    k = len(w) - len(ic_outs)",
+                      f"    if step_i > 0 and k == n - {n_out}:",
+                      f"        icw = dict(zip(ic_outs, w[k:]))",
+                      f"        w = w[:k] + [icw.get(o, 1.0) for o in range({n_out})]",
+                      "    return w if len(w) == n else [1.0] * n",
                       "",
-                      "",
-                      "for step_i, (t0, t1) in enumerate(intervals):",
+                      ""]
+        # Solve's script builds the model for the whole time interval (its data, then its network) before the
+        # time windows start. That uses up random numbers, so the same is done here, unused, so that the first
+        # window's points and starting weights are the same as Solve's and the two scripts train the same model.
+        full_bc = [ln.replace("geomtime", "_gt_full").replace("constraints.append", "_c_full.append") for ln in bc_appends]
+        full_ic = [ln.replace("geomtime", "_gt_full").replace("constraints.append", "_c_full.append") for ln in ic_appends]
+        loop_lines += ["# Solve's script builds the whole-interval model before the time windows; doing the same here",
+                       "# (and not using it) keeps the random numbers, and so the first window's points and starting",
+                       "# weights, the same as Solve's.",
+                       "_gt_full = dde.geometry.GeometryXTime(_build_geom(), dde.geometry.TimeDomain(intervals[0][0], intervals[-1][1]))",
+                       "_c_full = []",
+                       *full_bc, *full_ic,
+                       f"dde.data.TimePDE(_gt_full, pde, _c_full, num_domain={config.num_domain}, num_boundary={config.num_boundary},",
+                       f"                 num_initial={config.num_initial}, num_test={_safe_num_test!r},",
+                       f'                 train_distribution="{_safe_point_distribution}", anchors=None)',
+                       (f'_apply_transforms(_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))'
+                        if needs_transform_helper else
+                        f'_make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})'),
+                       "",
+                       "for step_i, (t0, t1) in enumerate(intervals):",
+                      *(["    for _cb in train_cbs:   # a fresh checkpoint per window, named by window, as in Solve",
+                         "        if isinstance(_cb, dde.callbacks.ModelCheckpoint):",
+                         "            _cb.filepath = os.path.join((save_dir or '.'), f\"checkpoint_step{step_i + 1:03d}_best\")",
+                         "            _cb.best, _cb.epochs_since_last_save = np.inf, 0"]
+                        if cbs_kw and getattr(config, "cb_model_checkpoint", False) else []),
                       *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
                          "        if isinstance(_cb, dde.callbacks.Timer):",
                          "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),
@@ -11936,11 +12662,10 @@ _ta_loss_offset = 0''')
         for pi, sp in enumerate(sched_phases):
             loop_lines.append(f"    # ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
                                f"{int(sp.get('iterations', 0) or 0)} iterations ──")
-            # a later step pins every output to the previous step's solution,
-            # which can be more loss terms than step 0 had (an output with no
-            # initial condition): _ta_weights then uses equal weights, as
-            # Solve does, instead of crashing on the length mismatch
-            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i)", ext_vars_kw,
+            # from the second window on every output is held to the previous
+            # window's solution: _ta_weights gives each its initial condition's
+            # weight (1 for an output without one) and keeps the other weights
+            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i, step_i)", ext_vars_kw,
                                                      cbs_kw, "model_i", "data_i", config, indent="    ")
             if sp.get('optimizer', 'adam') != 'lbfgs':
                 loop_lines.append("    _adam_state_i = {k: v.detach().clone() for k, v in net_i.state_dict().items()}")
@@ -12101,7 +12826,7 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     # doesn't have) -- without this, an exported script for a custom-field
     # template always plotted and error-analyzed the raw first output
     # instead of the derived field the GUI itself shows, and (before this
-    # round) couldn't reference derivatives at all -- Round 17 added
+    # round) couldn't reference derivatives at all added
     # derivative support to the Restore tab and the live Results panel but
     # explicitly left this exporter on the old NumPy-only path; this closes
     # that gap.
@@ -12132,7 +12857,7 @@ def _extract_plot_field(_x_grid, _pf_model=None):
         parts.append(_clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name))
 
     def _result_plot_parts(out_name):
-        """The result-plot code for one plotted field (Round 69: called once
+        """The result-plot code for one plotted field (called once
         for the selected output, then once per output when there are several)."""
         if use_ta:
             parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
@@ -12644,7 +13369,8 @@ ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
     d = _load_ref(fp)
     if d.ndim == 1:
-        d = d.reshape(1, -1)''']
+        d = d.reshape(1, -1)
+    _check_ref_layout(d, fp, {3 if is_3d else (2 if is_2d else 1)}, {bool(is_steady)})''']
             # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
             # this file: a steady-state reference file (PINNStudio's own
             # "solution.txt", written by _auto_configure_ea's is_steady branch

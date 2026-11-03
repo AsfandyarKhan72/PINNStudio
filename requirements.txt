@@ -1,6 +1,10 @@
 deepxde>=1.10.0
 torch>=2.0
-PyQt6>=6.4
+# Python 3.11 or newer; PySide6-Essentials below 6.12 on Python 3.11 (see setup.py)
+PySide6-Essentials>=6.5,<6.12; python_version < '3.12'   # 6.12.0 refcount defect, see setup.py
+PySide6-Essentials>=6.5; python_version >= '3.12'
 numpy<2.5
+numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'
 matplotlib
 pandas
+scipy

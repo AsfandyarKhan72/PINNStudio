@@ -1,7 +1,7 @@
 """Test setup for Windows.
 
-* PyTorch must be loaded before PyQt6 or it fails with "[WinError 1114] ...
-  c10.dll" (see pinnstudio/main.py); test modules import PyQt6 first, so load
+* PyTorch must be loaded before PySide6 or it fails with "[WinError 1114] ...
+  c10.dll" (see pinnstudio/main.py); test modules import PySide6 first, so load
   PyTorch here, before any test module is collected.
 * Scripts the tests start themselves run in Python's UTF-8 mode, as the app
   runs its own (pinnstudio/core/pyexe.py), and print in this process's
@@ -35,6 +35,7 @@ SLOW_FILES = {
     "test_restore_geometry_masking.py", "test_round38_line_steps_masking.py",
     "test_round45_restore_surface_refactor.py", "test_round47_ic_pretrain_shared_block.py",
     "test_round44_ta_surface_masking.py", "test_example_carry_over.py",
+    "test_audit_v160_runs.py", "test_audit_v160_gui.py",
 }
 
 

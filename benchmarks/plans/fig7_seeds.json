@@ -1,0 +1,288 @@
+[
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Plain",
+  "name": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact",
+  "name": "f7_ac1d_exact_s2027",
+  "match": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "name": "f7_ac1d_rba_s2027",
+  "match": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ac1d_sa_s2027",
+  "match": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao (time-adaptive)",
+  "setup": "Time-adaptive",
+  "name": "f7_ac1d_windows_s2027",
+  "equal_budget": true,
+  "match": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao (time-adaptive)",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac1d_bcpinn_s2027",
+  "equal_budget": true,
+  "match": "f7_ac1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Plain",
+  "name": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact",
+  "name": "f7_ch1d_exact_s2027",
+  "match": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "name": "f7_ch1d_rba_s2027",
+  "match": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ch1d_sa_s2027",
+  "match": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "name": "f7_ch1d_windows_s2027",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "equal_budget": true,
+  "match": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ch1d_bcpinn_s2027",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "equal_budget": true,
+  "match": "f7_ch1d_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Plain",
+  "name": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact",
+  "name": "f7_ac2dmg_exact_s2027",
+  "match": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + RBA",
+  "name": "f7_ac2dmg_rba_s2027",
+  "match": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ac2dmg_sa_s2027",
+  "match": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "name": "f7_ac2dmg_windows_s2027",
+  "equal_budget": true,
+  "match": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac2dmg_bcpinn_s2027",
+  "equal_budget": true,
+  "match": "f7_ac2dmg_plain_s2027",
+  "seed": 2027
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Plain",
+  "name": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact",
+  "name": "f7_ac1d_exact_s2028",
+  "match": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "name": "f7_ac1d_rba_s2028",
+  "match": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ac1d_sa_s2028",
+  "match": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao (time-adaptive)",
+  "setup": "Time-adaptive",
+  "name": "f7_ac1d_windows_s2028",
+  "equal_budget": true,
+  "match": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 1D – Wight & Zhao (time-adaptive)",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac1d_bcpinn_s2028",
+  "equal_budget": true,
+  "match": "f7_ac1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Plain",
+  "name": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact",
+  "name": "f7_ch1d_exact_s2028",
+  "match": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + RBA",
+  "name": "f7_ch1d_rba_s2028",
+  "match": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ch1d_sa_s2028",
+  "match": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive",
+  "name": "f7_ch1d_windows_s2028",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "equal_budget": true,
+  "match": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Cahn-Hilliard 1D – Wight & Zhao",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ch1d_bcpinn_s2028",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "equal_budget": true,
+  "match": "f7_ch1d_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Plain",
+  "name": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact",
+  "name": "f7_ac2dmg_exact_s2028",
+  "match": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + RBA",
+  "name": "f7_ac2dmg_rba_s2028",
+  "match": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Exact + SA-PINN",
+  "name": "f7_ac2dmg_sa_s2028",
+  "match": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive",
+  "name": "f7_ac2dmg_windows_s2028",
+  "equal_budget": true,
+  "match": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ },
+ {
+  "example": "Allen-Cahn 2D – Mattey & Ghosh",
+  "setup": "Time-adaptive + backward",
+  "name": "f7_ac2dmg_bcpinn_s2028",
+  "equal_budget": true,
+  "match": "f7_ac2dmg_plain_s2028",
+  "seed": 2028
+ }
+]

@@ -32,7 +32,7 @@ IC_EXAMPLES = ["Allen-Cahn 1D – Wight & Zhao (whole interval)", "Heat 2D", "Ca
 
 def _window():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
+    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
     app = QApplication.instance() or QApplication(["pinnstudio"])
     QMessageBox.exec = lambda self: 0
     QDialog.exec = lambda self: 0

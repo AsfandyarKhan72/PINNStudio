@@ -58,7 +58,7 @@ Checks:
    _start_sweep's SweepThread actually calls.
 
 This file is wired into CI (smoke-test.yml) and deliberately never
-actually trains anything -- CI only installs PyQt6/numpy/matplotlib/
+actually trains anything -- CI only installs PySide6/numpy/matplotlib/
 pandas, no torch/deepxde, matching every other file in this suite. A
 real, tiny, end-to-end run_sweep() (actual subprocess training) is
 covered separately in test_sweep_execution.py, which is NOT wired into
@@ -79,8 +79,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -310,7 +310,7 @@ def run():
 
     # ── Sweep Parameters live inline in the left panel's "Parameter
     # Sweep" group, no nested/height-capped inner scroll area ────────
-    from PyQt6.QtWidgets import QGroupBox, QScrollArea
+    from PySide6.QtWidgets import QGroupBox, QScrollArea
     sweep_groups = [w for w in win.findChildren(QGroupBox) if w.title() == "Parameter Sweep"]
     check(len(sweep_groups) == 1, f"expected exactly one 'Parameter Sweep' QGroupBox panel, got {len(sweep_groups)}")
     if sweep_groups:
@@ -348,7 +348,7 @@ def run():
     # Each parameter row is now a stacked block (header, Parameter, then
     # Values: list-or-range kind + the values on one line), the same convention Training Phases use
     # in this same narrow column -- not v69's single-line table layout.
-    from PyQt6.QtWidgets import QVBoxLayout as _QVBoxLayout
+    from PySide6.QtWidgets import QVBoxLayout as _QVBoxLayout
     check(isinstance(row['widget'].layout(), _QVBoxLayout),
           "each sweep parameter row should be laid out as a stacked (vertical) block, matching "
           "the Training Phases' own per-row layout in this narrow column")
@@ -431,7 +431,7 @@ def run():
     # NOTE: a real, tiny, end-to-end run_sweep() execution (actual
     # subprocess training) is intentionally NOT exercised here -- this
     # file is wired into CI's smoke-test workflow, which only installs
-    # PyQt6/numpy/matplotlib/pandas (no torch/deepxde), matching every
+    # PySide6/numpy/matplotlib/pandas (no torch/deepxde), matching every
     # other file in this suite (test_templates.py etc. only ever call
     # generate_script(), never actually run it). That real-execution
     # check lives in test_sweep_execution.py instead, run locally where

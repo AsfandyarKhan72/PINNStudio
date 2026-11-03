@@ -16,8 +16,8 @@ reliable enough to build on.
 import json
 import math
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from pinnstudio.ui import sketch3d as s3
 

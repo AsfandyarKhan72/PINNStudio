@@ -1,0 +1,738 @@
+{
+ "Integro-differential ODE": [
+  [
+   "Integro-differential ODE — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png"
+  ]
+ ],
+ "Integro-differential ODE – Volterra kernel": [
+  [
+   "Integro-differential ODE – Volterra kernel — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png"
+  ]
+ ],
+ "Linear ODE system": [
+  [
+   "Linear ODE system — PINN vs reference along a line (y1)",
+   "assets/Images/DeepXDE/ODE_system/line_comparison_y1.png"
+  ],
+  [
+   "Linear ODE system — PINN vs reference along a line (y2)",
+   "assets/Images/DeepXDE/ODE_system/line_comparison_y2.png"
+  ]
+ ],
+ "Lotka-Volterra ODE": [
+  [
+   "Lotka-Volterra ODE — PINN vs reference along a line (r)",
+   "assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png"
+  ],
+  [
+   "Lotka-Volterra ODE — PINN vs reference along a line (p)",
+   "assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png"
+  ]
+ ],
+ "Second-order ODE": [
+  [
+   "Second-order ODE — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Second_order_ODE/line_comparison.png"
+  ]
+ ],
+ "Lorenz ODE – unknown C₁, C₂, C₃": [
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y1)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y2)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y2.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y3)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif"
+  ]
+ ],
+ "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input": [
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y1)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y2)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y2.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y3)",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png"
+  ],
+  [
+   "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif"
+  ]
+ ],
+ "Euler beam 1D": [
+  [
+   "Euler beam 1D — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Euler_beam/line_comparison.png"
+  ]
+ ],
+ "Fractional Poisson 1D": [
+  [
+   "Fractional Poisson 1D — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Fractional_Poisson_equation_1D/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – Dirichlet": [
+  [
+   "Poisson 1D – Dirichlet — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – Dirichlet/Neumann": [
+  [
+   "Poisson 1D – Dirichlet/Neumann — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – Dirichlet/Periodic": [
+  [
+   "Poisson 1D – Dirichlet/Periodic — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_Dirichlet_Periodic/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – Dirichlet/point-set operator": [
+  [
+   "Poisson 1D – Dirichlet/point-set operator — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – Dirichlet/Robin": [
+  [
+   "Poisson 1D – Dirichlet/Robin — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – hard BCs": [
+  [
+   "Poisson 1D – hard BCs — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png"
+  ]
+ ],
+ "Poisson 1D – multi-scale Fourier features": [
+  [
+   "Poisson 1D – multi-scale Fourier features — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png"
+  ]
+ ],
+ "Brinkman-Forchheimer 1D – unknown ν_e, K": [
+  [
+   "Brinkman-Forchheimer 1D – unknown ν_e, K — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/line_comparison.png"
+  ],
+  [
+   "Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_convergence_animation.gif"
+  ]
+ ],
+ "Diffusion-reaction 1D – unknown rate field": [
+  [
+   "Diffusion-reaction 1D – unknown rate field — PINN vs reference along a line (u)",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/line_comparison.png"
+  ],
+  [
+   "Diffusion-reaction 1D – unknown rate field — PINN solution (u)",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot.png"
+  ],
+  [
+   "Diffusion-reaction 1D – unknown rate field — learned rate field (k)",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot_k.png"
+  ]
+ ],
+ "Fractional Poisson 1D – unknown order α": [
+  [
+   "Fractional Poisson 1D – unknown order α — PINN vs reference along a line",
+   "assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png"
+  ],
+  [
+   "Fractional Poisson 1D – unknown order α — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif"
+  ]
+ ],
+ "Poisson 1D – unknown forcing field": [
+  [
+   "Poisson 1D – unknown forcing field — PINN vs reference along a line (u)",
+   "assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_u.png"
+  ],
+  [
+   "Poisson 1D – unknown forcing field — PINN vs reference along a line (q)",
+   "assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png"
+  ]
+ ],
+ "Poisson 1D – unknown forcing field (batches)": [
+  [
+   "Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (u)",
+   "assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_u.png"
+  ],
+  [
+   "Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (q)",
+   "assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_q.png"
+  ]
+ ],
+ "Allen-Cahn 1D – Wight & Zhao": [
+  [
+   "1D Allen-Cahn — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/1D-AllenCahn/surface_comparison.png"
+  ],
+  [
+   "1D Allen-Cahn — line comparison against reference data",
+   "assets/Images/1D-AllenCahn/line_comparison.png"
+  ],
+  [
+   "1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition, causal training and MsFFN — PINN vs reference",
+   "assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png"
+  ],
+  [
+   "1D Allen-Cahn, whole time interval — line comparison against reference data",
+   "assets/Images/1D-AllenCahn/whole_domain_line_comparison.png"
+  ],
+  [
+   "1D Allen-Cahn inverse parameter convergence animation",
+   "assets/Images/1D-AllenCahn/param_convergence_animation.gif"
+  ]
+ ],
+ "Cahn-Hilliard 1D – Wight & Zhao": [
+  [
+   "1D Cahn-Hilliard — PINN vs reference, u",
+   "assets/Images/1D-CahnHilliard/surface_comparison_u.png"
+  ],
+  [
+   "1D Cahn-Hilliard — u along x at the reference times",
+   "assets/Images/1D-CahnHilliard/line_comparison_u.png"
+  ],
+  [
+   "1D Cahn-Hilliard — PINN vs reference, chemical potential mu",
+   "assets/Images/1D-CahnHilliard/surface_comparison_mu.png"
+  ],
+  [
+   "1D Cahn-Hilliard — mu along x at the reference times",
+   "assets/Images/1D-CahnHilliard/line_comparison_mu.png"
+  ]
+ ],
+ "Cahn-Hilliard 1D – Mattey & Ghosh": [
+  [
+   "1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, h",
+   "assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png"
+  ],
+  [
+   "1D Cahn-Hilliard (Mattey & Ghosh) — h along x at the reference times",
+   "assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png"
+  ],
+  [
+   "1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu",
+   "assets/Images/1D-CahnHilliard-Mattey/surface_comparison_mu.png"
+  ],
+  [
+   "1D Cahn-Hilliard (Mattey & Ghosh) — mu along x at the reference times",
+   "assets/Images/1D-CahnHilliard-Mattey/line_comparison_mu.png"
+  ]
+ ],
+ "Black-Scholes 1D – American put": [
+  [
+   "Black-Scholes 1D – American put — PINN solution over time (u)",
+   "assets/Images/DeepXDE/American_put_option/animation.gif"
+  ]
+ ],
+ "Black-Scholes 1D – European call": [
+  [
+   "Black-Scholes 1D – European call — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif"
+  ],
+  [
+   "Black-Scholes 1D – European call — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png"
+  ]
+ ],
+ "Burgers 1D – Raissi et al.": [
+  [
+   "1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/1D-Burgers/surface_comparison.png"
+  ],
+  [
+   "1D Burgers — line comparison against reference data",
+   "assets/Images/1D-Burgers/line_comparison.png"
+  ],
+  [
+   "1D Burgers — restored solution animation",
+   "assets/Images/1D-Burgers/restored_animation.gif"
+  ],
+  [
+   "1D Burgers inverse parameter convergence animation",
+   "assets/Images/1D-Burgers/param_convergence_animation.gif"
+  ]
+ ],
+ "Burgers 1D – RAR": [
+  [
+   "Burgers 1D – RAR — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif"
+  ],
+  [
+   "Burgers 1D – RAR — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png"
+  ],
+  [
+   "Burgers 1D – RAR — collocation points after the last RAR round: original points (gray), points added in earlier rounds (orange) and in the last round (red)",
+   "assets/Images/DeepXDE/Burgers_equation_with_RAR/rar_collocation_points.png"
+  ]
+ ],
+ "Diffusion 1D": [
+  [
+   "Diffusion 1D — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Diffusion_equation/animation.gif"
+  ],
+  [
+   "Diffusion 1D — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Diffusion_equation/surface_comparison.png"
+  ]
+ ],
+ "Diffusion 1D – hard IC and BCs": [
+  [
+   "Diffusion 1D – hard IC and BCs — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif"
+  ],
+  [
+   "Diffusion 1D – hard IC and BCs — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png"
+  ]
+ ],
+ "Diffusion 1D – resampling": [
+  [
+   "Diffusion 1D – resampling — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif"
+  ],
+  [
+   "Diffusion 1D – resampling — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Diffusion_equation_with_resampling/surface_comparison.png"
+  ]
+ ],
+ "Diffusion-reaction 1D": [
+  [
+   "Diffusion-reaction 1D — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif"
+  ],
+  [
+   "Diffusion-reaction 1D — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Diffusion_reaction_equation/surface_comparison.png"
+  ]
+ ],
+ "Fractional diffusion 1D": [
+  [
+   "Fractional diffusion 1D — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif"
+  ],
+  [
+   "Fractional diffusion 1D — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Fractional_diffusion_equation/surface_comparison.png"
+  ]
+ ],
+ "Heat 1D – Dirichlet": [
+  [
+   "Heat 1D – Dirichlet — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Heat_equation/animation.gif"
+  ],
+  [
+   "Heat 1D – Dirichlet — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Heat_equation/surface_comparison.png"
+  ],
+  [
+   "Heat 1D – Dirichlet inverse mode — inferred parameter during training",
+   "assets/Images/DeepXDE/Heat_equation/inverse_param_convergence_animation.gif"
+  ]
+ ],
+ "Heat 1D – resampling": [
+  [
+   "Heat 1D – resampling — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif"
+  ],
+  [
+   "Heat 1D – resampling — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Heat_equation_with_resampling/surface_comparison.png"
+  ]
+ ],
+ "Klein-Gordon 1D": [
+  [
+   "Klein-Gordon 1D — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif"
+  ],
+  [
+   "Klein-Gordon 1D — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Klein_Gordon_equation/surface_comparison.png"
+  ]
+ ],
+ "Schrödinger 1D": [
+  [
+   "Schrödinger 1D — PINN solution over time (|h|)",
+   "assets/Images/DeepXDE/Schr_dinger_equation/animation.gif"
+  ],
+  [
+   "Schrödinger 1D — PINN vs reference, error analysis (|h|)",
+   "assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png"
+  ],
+  [
+   "Schrödinger 1D inverse mode — inferred parameter during training",
+   "assets/Images/DeepXDE/Schr_dinger_equation/inverse_param_convergence_animation.gif"
+  ]
+ ],
+ "Wave 1D – space-time multi-scale Fourier features": [
+  [
+   "Wave 1D – space-time multi-scale Fourier features — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif"
+  ],
+  [
+   "Wave 1D – space-time multi-scale Fourier features — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/surface_comparison.png"
+  ]
+ ],
+ "Diffusion 1D – unknown coefficient": [
+  [
+   "Diffusion 1D – unknown coefficient — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif"
+  ],
+  [
+   "Diffusion 1D – unknown coefficient — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Inverse_diffusion_equation/surface_comparison.png"
+  ],
+  [
+   "Diffusion 1D – unknown coefficient — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_diffusion_equation/param_convergence_animation.gif"
+  ]
+ ],
+ "Diffusion-reaction 1D – unknown k_f, D": [
+  [
+   "Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (ca)",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif"
+  ],
+  [
+   "Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif"
+  ],
+  [
+   "Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif"
+  ]
+ ],
+ "Fractional Poisson 2D – disk": [
+  [
+   "Fractional Poisson 2D – disk — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png"
+  ]
+ ],
+ "Helmholtz 2D – Dirichlet": [
+  [
+   "Helmholtz 2D – Dirichlet — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png"
+  ]
+ ],
+ "Helmholtz 2D – hyperparameter search": [
+  [
+   "Helmholtz 2D – hyperparameter search — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png"
+  ],
+  [
+   "Helmholtz 2D – hyperparameter search — Bayesian search: final loss of every run and the best so far",
+   "assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/bayes_convergence.png"
+  ]
+ ],
+ "Helmholtz 2D – sound-hard scattering": [
+  [
+   "Helmholtz 2D – sound-hard scattering — PINN vs reference, error analysis (u_re)",
+   "assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_re.png"
+  ],
+  [
+   "Helmholtz 2D – sound-hard scattering — PINN vs reference, error analysis (u_im)",
+   "assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png"
+  ]
+ ],
+ "Helmholtz 2D – square with hole": [
+  [
+   "Helmholtz 2D – square with hole — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Helmholtz_2D_with_a_hole/surface_comparison.png"
+  ]
+ ],
+ "Laplace 2D – disk": [
+  [
+   "Laplace 2D – disk — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png"
+  ]
+ ],
+ "Linear elasticity 2D – plate": [
+  [
+   "Linear elasticity 2D – plate — PINN vs reference, error analysis (ux)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png"
+  ],
+  [
+   "Linear elasticity 2D – plate — PINN vs reference, error analysis (uy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_uy.png"
+  ],
+  [
+   "Linear elasticity 2D – plate — PINN vs reference, error analysis (sxx)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxx.png"
+  ],
+  [
+   "Linear elasticity 2D – plate — PINN vs reference, error analysis (syy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_syy.png"
+  ],
+  [
+   "Linear elasticity 2D – plate — PINN vs reference, error analysis (sxy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxy.png"
+  ]
+ ],
+ "Linear elasticity 2D – plate, soft BCs": [
+  [
+   "Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (ux)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png"
+  ],
+  [
+   "Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (uy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png"
+  ],
+  [
+   "Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (sxx)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png"
+  ],
+  [
+   "Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (syy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png"
+  ],
+  [
+   "Linear elasticity 2D – plate, soft BCs — PINN vs reference, error analysis (sxy)",
+   "assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png"
+  ]
+ ],
+ "Navier-Stokes 2D – Kovasznay flow": [
+  [
+   "Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (u)",
+   "assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png"
+  ],
+  [
+   "Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (v)",
+   "assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_v.png"
+  ],
+  [
+   "Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (p)",
+   "assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png"
+  ]
+ ],
+ "Poisson 2D – disk": [
+  [
+   "2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png"
+  ],
+  [
+   "2D Poisson (Disk) inverse parameter convergence animation",
+   "assets/Images/2D-Poisson-Disk-Shaped/param_convergence_animation.gif"
+  ]
+ ],
+ "Poisson 2D – L-shape": [
+  [
+   "Poisson 2D – L-shape — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/surface_comparison.png"
+  ],
+  [
+   "Poisson 2D – L-shape inverse parameter convergence animation",
+   "assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/param_convergence_animation.gif"
+  ]
+ ],
+ "Fractional Poisson 2D – unknown order α": [
+  [
+   "Fractional Poisson 2D – unknown order α — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png"
+  ],
+  [
+   "Fractional Poisson 2D – unknown order α — inferred parameters during training",
+   "assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif"
+  ]
+ ],
+ "Allen-Cahn 2D – Wight & Zhao": [
+  [
+   "2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/2D_AllenCahn-Wight/surface_comparison.png"
+  ],
+  [
+   "2D Allen-Cahn (Wight & Zhao) — restored solution animation",
+   "assets/Images/2D_AllenCahn-Wight/restored_animation.gif"
+  ],
+  [
+   "2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation",
+   "assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif"
+  ]
+ ],
+ "Allen-Cahn 2D – Mattey & Ghosh": [
+  [
+   "2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png"
+  ],
+  [
+   "2D Allen-Cahn (Mattey & Ghosh), whole time interval with exact periodicity, exact initial condition and RBA — PINN vs reference",
+   "assets/Images/2D_Allen_Cahn_Mattey/whole_domain_surface_comparison.png"
+  ],
+  [
+   "2D Allen-Cahn (Mattey & Ghosh), whole time interval — line comparison against reference data",
+   "assets/Images/2D_Allen_Cahn_Mattey/whole_domain_line_comparison.png"
+  ],
+  [
+   "2D Allen-Cahn (Mattey & Ghosh) — restored solution animation",
+   "assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif"
+  ],
+  [
+   "2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation",
+   "assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif"
+  ]
+ ],
+ "Cahn-Hilliard 2D – Wight & Zhao": [
+  [
+   "2D Cahn-Hilliard — PINN vs reference, φ",
+   "assets/Images/2D_CahnHilliard-Wight/surface_comparison_u.png"
+  ],
+  [
+   "2D Cahn-Hilliard — PINN vs reference, chemical potential mu",
+   "assets/Images/2D_CahnHilliard-Wight/surface_comparison_mu.png"
+  ],
+  [
+   "2D Cahn-Hilliard (Wight & Zhao) inverse parameter convergence animation",
+   "assets/Images/2D_CahnHilliard-Wight/param_convergence_animation.gif"
+  ]
+ ],
+ "Cahn-Hilliard 2D – Mattey & Ghosh": [
+  [
+   "2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, h",
+   "assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png"
+  ],
+  [
+   "2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu",
+   "assets/Images/2D_CahnHilliard-Mattey/surface_comparison_mu.png"
+  ],
+  [
+   "2D Cahn-Hilliard (Mattey & Ghosh) inverse parameter convergence animation",
+   "assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif"
+  ]
+ ],
+ "Burgers 2D – Mathias et al.": [
+  [
+   "2D Burgers (Mathias) inverse parameter convergence animation",
+   "assets/Images/2D_Burgers/param_convergence_animation.gif"
+  ]
+ ],
+ "Heat 2D": [
+  [
+   "2D Heat — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/2D-Heat/surface_comparison.png"
+  ],
+  [
+   "2D Heat — restored solution animation",
+   "assets/Images/2D-Heat/restored_animation_2D_Heat.gif"
+  ],
+  [
+   "2D Heat inverse parameter convergence animation",
+   "assets/Images/2D-Heat/param_convergence_animation.gif"
+  ]
+ ],
+ "Fractional Poisson 3D – sphere": [
+  [
+   "Fractional Poisson 3D – sphere — PINN vs reference, error analysis",
+   "assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png"
+  ]
+ ],
+ "Poisson 3D – sphere": [
+  [
+   "3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison",
+   "assets/Images/3D-Poisson-Sphere/surface_comparison.png"
+  ],
+  [
+   "3D Poisson (Sphere) inverse parameter convergence animation",
+   "assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif"
+  ]
+ ],
+ "Allen-Cahn 3D – Wight & Zhao": [
+  [
+   "3D Allen-Cahn — slice z = 0.5, PINN vs reference",
+   "assets/Images/3D_AllenCahn-Wight/slice_comparison.png"
+  ],
+  [
+   "3D Allen-Cahn — the drop inside the cube and the error, PINN vs reference",
+   "assets/Images/3D_AllenCahn-Wight/isosurface.png"
+  ],
+  [
+   "3D Allen-Cahn — drop radius over time, PINN vs reference",
+   "assets/Images/3D_AllenCahn-Wight/radius.png"
+  ],
+  [
+   "3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation",
+   "assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif"
+  ],
+  [
+   "3D Allen-Cahn inverse — the drop inside the cube and the error, PINN vs reference",
+   "assets/Images/3D_AllenCahn-Wight/isosurface_inverse.png"
+  ]
+ ],
+ "Heat 3D": [
+  [
+   "3D Heat solution surface",
+   "assets/Images/3D_Heat/3D_Heat_Solution_Surface.png"
+  ],
+  [
+   "3D Heat — restored solution animation",
+   "assets/Images/3D_Heat/restored_animation.gif"
+  ],
+  [
+   "3D Heat inverse parameter convergence animation",
+   "assets/Images/3D_Heat/param_convergence_animation.gif"
+  ]
+ ],
+ "Navier-Stokes 3D – Beltrami flow": [
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN solution over time (u)",
+   "assets/Images/DeepXDE/Beltrami_flow/animation_u.gif"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN solution over time (v)",
+   "assets/Images/DeepXDE/Beltrami_flow/animation_v.gif"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN solution over time (w)",
+   "assets/Images/DeepXDE/Beltrami_flow/animation_w.gif"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN solution over time (p)",
+   "assets/Images/DeepXDE/Beltrami_flow/animation_p.gif"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (u)",
+   "assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (v)",
+   "assets/Images/DeepXDE/Beltrami_flow/surface_comparison_v.png"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (w)",
+   "assets/Images/DeepXDE/Beltrami_flow/surface_comparison_w.png"
+  ],
+  [
+   "Navier-Stokes 3D – Beltrami flow — PINN vs reference, error analysis (p)",
+   "assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png"
+  ]
+ ],
+ "Run many training configurations from one setup, varying any parameter": [
+  [
+   "Parameter sweep page — Burgers 1D network-size sweep (hidden layers 2, 4, 6, 8 × neurons 10, 20, 40, All combinations) after it finished: each run's final loss and L2 error in the Training Log, and History comparing the four 40-neuron networks' loss and error",
+   "assets/Images/Parameter_Sweep/sweep_panel.png"
+  ],
+  [
+   "Parameter sweep summary — Burgers 1D, relative L₂ error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value",
+   "assets/Images/Parameter_Sweep/burgers_network_size_sweep.png"
+  ]
+ ]
+}

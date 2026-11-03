@@ -53,7 +53,7 @@ _TEMPLATES = [
     ("1D Heat", "Heat 1D", "1D", "Time-dependent", "Interval", ""),
     ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)", "1D", "Time-dependent", "Interval",
      "Wight & Zhao (2021)"),
-    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao (whole interval)", "1D", "Time-dependent",
+    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao", "1D", "Time-dependent",
      "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard", "Cahn-Hilliard 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard (Mattey & Ghosh)", "Cahn-Hilliard 1D – Mattey & Ghosh", "1D", "Time-dependent", "Interval",
@@ -84,7 +84,13 @@ TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 # DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D,
 # 2D Poisson (L-Shape) DeepXDE's Poisson 2D – L-shape.
 # They stay loadable by name, so saved projects and scripts keep working.
-HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)")
+HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)",
+                    # one Allen-Cahn 1D – Wight & Zhao: the whole-interval template (Settings: Tuned) and
+                    # the paper's own method (Default); the time-adaptive one still loads by name
+                    "1D Allen-Cahn")
+# DeepXDE examples left out of the lists (still loadable by name, e.g. from a
+# saved problem): Allen-Cahn 1D is covered by the two Wight & Zhao templates.
+HIDDEN_DEEPXDE = ("Allen-Cahn equation",)
 
 # Phase-field problems lead their group, Allen-Cahn before Cahn-Hilliard;
 # within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh.
@@ -96,7 +102,7 @@ PAPERS = {
     "Raissi et al. (2019)": "https://doi.org/10.1016/j.jcp.2018.10.045",
     "Wight & Zhao (2021)": "https://doi.org/10.4208/cicp.OA-2020-0086",
     "Mattey & Ghosh (2022)": "https://doi.org/10.1016/j.cma.2021.114474",
-    "Mathias et al. (2022)": "https://arxiv.org/abs/2301.07824",
+    "Mathias et al. (2022)": "https://doi.org/10.1007/978-3-031-21689-3_28",
     "Lu et al. (2021)": "https://doi.org/10.1137/19M1274067",
     **ps.PAPERS,
 }
@@ -104,7 +110,7 @@ PAPERS = {
 _DEEPXDE_CODE_ROOT = "https://github.com/lululxvi/deepxde/blob/master/examples/"
 # DeepXDE documentation page -> the example's script in DeepXDE's repository.
 _DOC_TO_SCRIPT = {
-    "ode.system": "ode_system.py", "Lotka.Volterra": "Lotka_Volterra.py", "ode.2nd": "ode_2nd.py", "ide": "ide.py",
+    "ode.system": "ode_system.py", "lotka.volterra": "Lotka_Volterra.py", "ode.2nd": "ode_2nd.py",
     "poisson.1d.dirichlet": "Poisson_Dirichlet_1d.py", "poisson.1d.neumanndirichlet": "Poisson_Neumann_1d.py",
     "poisson.1d.dirichletrobin": "Poisson_Robin_1d.py", "poisson.1d.dirichletperiodic": "Poisson_periodic_1d.py",
     "poisson.1d.pointsetoperator": "Poisson_PointSetOperator_1d.py", "poisson.Lshape": "Poisson_Lshape.py",
@@ -114,7 +120,7 @@ _DOC_TO_SCRIPT = {
     "heat.resample": "heat_resample.py", "diffusion.1d": "diffusion_1d.py", "diffusion.1d.exactBC": "diffusion_1d_exactBC.py",
     "diffusion.1d.resample": "diffusion_1d_resample.py", "diffusion.reaction": "diffusion_reaction.py",
     "allen.cahn": "Allen_Cahn.py", "klein.gordon": "Klein_Gordon.py", "black_scholes": "black_scholes_call.py",
-    "Lorenz.inverse": "Lorenz_inverse.py", "Lorenz.inverse.forced": "Lorenz_inverse_forced.py",
+    "lorenz.inverse": "Lorenz_inverse.py", "lorenz.inverse.forced": "Lorenz_inverse_forced.py",
     "diffusion.1d.inverse": "diffusion_1d_inverse.py", "reaction.inverse": "reaction_inverse.py",
     "elliptic.inverse.field": "elliptic_inverse_field.py",
 }
@@ -228,7 +234,7 @@ def _build():
         problem = INVERSE if ex.category == dx.INVERSE else (BOTH if ex.inverse else FORWARD)
         entries.append(Entry(ex.name, DEEPXDE_NAMES.get(ex.name, ex.name), DEEPXDE, cfg.problem_dim,
                              "Steady" if cfg.steady_state else "Time-dependent", problem,
-                             _dx_geometry(cfg, ex.name), ex.source))
+                             _dx_geometry(cfg, ex.name), ex.source, ex.name in HIDDEN_DEEPXDE))
 
     def _paper_rank(e):
         if e.source == DEEPXDE:
@@ -258,7 +264,7 @@ def for_category(category, include_hidden=False):
     has every forward example; Inverse has DeepXDE's inverse examples and
     every example with an Inverse mode (every template, and DeepXDE
     examples with Example.inverse), which load in Inverse mode from there.
-    Hidden templates are left out unless `include_hidden`."""
+    Hidden templates and DeepXDE examples are left out unless `include_hidden`."""
     if category == INVERSE:
         out = [e for e in ENTRIES if e.problem in (INVERSE, BOTH)]
     else:

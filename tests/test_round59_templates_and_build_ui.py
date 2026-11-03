@@ -38,7 +38,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -53,6 +53,8 @@ def run():
             failures.append(msg)
 
     win = MainWindow()
+    # the templates' own settings (Settings: Default would load a paper's method instead)
+    win._apply_example_settings_mode = lambda key: None
 
     def pick(name):
         win.quick_examples_combo.setCurrentText("📋 Examples")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generates the reference / measured data used by the DeepXDE Examples
 Quick Examples (reference_data/deepxde/), with our own solvers -- no data
-is copied from the DeepXDE repository (LGPL-2.1; PINNStudio is MIT).
+is copied from the DeepXDE repository.
 
 Problems with a closed-form solution use the "Reference from formula"
 Error Analysis option instead and need no files here; the DeepXDE Burgers
@@ -10,7 +10,8 @@ solution, written by tools/make_exact_reference_data.py)
 and reference_data/2D/poisson_lshape (same problems).
 
 Run from the repository root:
-    python tools/make_deepxde_reference_data.py
+    python tools/make_deepxde_reference_data.py                  # everything
+    python tools/make_deepxde_reference_data.py --inverse-only   # only the added Inverse modes' data
 """
 import os
 
@@ -143,6 +144,81 @@ def _save(rel, data, header=""):
     print("wrote", os.path.relpath(path, os.path.dirname(OUT)), data.shape)
 
 
+def inverse_measurements():
+    """Measured data for the Inverse modes PINNStudio adds to DeepXDE's
+    forward examples (deepxde_examples.py, Example.inverse): the exact
+    solutions with the forward example's own coefficients, at points inside
+    the domain (and at several times for time-dependent problems). Columns:
+    the coordinates (x [y [z]] [t], or t for an ODE), then the value."""
+    rng = np.random.default_rng(2026)
+    pi = np.pi
+    times4 = (0.25, 0.5, 0.75, 1.0)
+
+    # Linear elastostatic plate: lmbd = 1, mu = 0.5, Q = 4; ux, uy on a 19 x 19 interior grid.
+    g = np.linspace(0.05, 0.95, 19)
+    X, Y = [a.ravel() for a in np.meshgrid(g, g)]
+    _save("elasticity_inverse/ux_obs.txt", np.column_stack([X, Y, np.cos(2 * pi * X) * np.sin(pi * Y)]))
+    _save("elasticity_inverse/uy_obs.txt", np.column_stack([X, Y, np.sin(pi * X) * 4 * Y ** 4 / 4]))
+
+    # Kovasznay flow, Re = 20: u, v at 500 random points.
+    nu = 1 / 20
+    lam = 1 / (2 * nu) - np.sqrt(1 / (4 * nu ** 2) + 4 * pi ** 2)
+    x, y = rng.uniform(-0.5, 1.0, 500), rng.uniform(-0.5, 1.5, 500)
+    _save("kovasznay_inverse/u_obs.txt", np.column_stack([x, y, 1 - np.exp(lam * x) * np.cos(2 * pi * y)]))
+    _save("kovasznay_inverse/v_obs.txt", np.column_stack([x, y, lam / (2 * pi) * np.exp(lam * x) * np.sin(2 * pi * y)]))
+
+    # Beltrami flow (a = d = 1, viscosity 1): u, v, w at 500 random points each at t = 0.5 and t = 1.
+    n = 500
+    for k, (f, name) in enumerate((
+            (lambda x, y, z: -(np.exp(x) * np.sin(y + z) + np.exp(z) * np.cos(x + y)), "u"),
+            (lambda x, y, z: -(np.exp(y) * np.sin(z + x) + np.exp(x) * np.cos(y + z)), "v"),
+            (lambda x, y, z: -(np.exp(z) * np.sin(x + y) + np.exp(y) * np.cos(z + x)), "w"))):
+        rows = []
+        for tt in (0.5, 1.0):
+            r = np.random.default_rng(100 + int(10 * tt))
+            x, y, z = r.uniform(-1, 1, n), r.uniform(-1, 1, n), r.uniform(-1, 1, n)
+            rows.append(np.column_stack([x, y, z, np.full(n, tt), f(x, y, z) * np.exp(-tt)]))
+        _save(f"beltrami_inverse/{name}_obs.txt", np.vstack(rows))
+
+    # Klein-Gordon: u = x cos t at t = 1, 2, ..., 10 (and 2.5, 7.5) (101 points each).
+    xs = np.linspace(-1, 1, 101)
+    for tt in [float(i) for i in range(1, 11)] + [2.5, 7.5]:
+        _save(f"klein_gordon_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), xs * np.cos(tt)]))
+
+    # Helmholtz 2D (Dirichlet), k0 = 4 pi: u on a 31 x 31 interior grid.
+    g = np.linspace(1 / 32, 31 / 32, 31)
+    X, Y = [a.ravel() for a in np.meshgrid(g, g)]
+    _save("helmholtz_inverse/u_obs.txt", np.column_stack([X, Y, np.sin(4 * pi * X) * np.sin(4 * pi * Y)]))
+
+    # Wave, A = 2, C = 10: u at 2,000 random (x, t) points. On any regular set of times the
+    # fast mode cos(20 pi t) is sampled in step with its period (at t = 0.1, 0.2, ... it is always
+    # 1), so a slower wave fits the same data; random times can't be aliased that way.
+    r = np.random.default_rng(2027)
+    xw, tw = r.uniform(0, 1, 2000), r.uniform(0, 1, 2000)
+    uw = np.sin(pi * xw) * np.cos(10 * pi * tw) + np.sin(2 * pi * xw) * np.cos(20 * pi * tw)
+    _save("wave_inverse/u_obs.txt", np.column_stack([xw, tw, uw]))
+
+    # Diffusion-reaction (diffusivity 1): u at t = 0.25, 0.5, 0.75, 1 (101 points each).
+    xs = np.linspace(-pi, pi, 101)
+    for tt in times4:
+        u = np.exp(-tt) * (np.sin(xs) + np.sin(2 * xs) / 2 + np.sin(3 * xs) / 3 + np.sin(4 * xs) / 4
+                           + np.sin(8 * xs) / 8)
+        _save(f"diffusion_reaction_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), u]))
+
+    # Euler beam (EI = 1, load 1): deflection at 20 points.
+    xs = np.linspace(0.05, 1, 20)
+    _save("euler_beam_inverse/u_obs.txt", np.column_stack([xs, -xs ** 4 / 24 + xs ** 3 / 6 - xs ** 2 / 4]))
+
+    # Second-order ODE u'' - 10 u' + 9 u = 5 t: u at 30 times in [0, 0.25].
+    ts = np.linspace(0, 0.25, 30)
+    _save("ode2_inverse/u_obs.txt", np.column_stack([ts, 50 / 81 + ts * 5 / 9 - 2 * np.exp(ts) + 31 / 81 * np.exp(9 * ts)]))
+
+    # ODE system y1' = y2, y2' = -w y1 (w = 1): y1, y2 at 40 times in [0, 10].
+    ts = np.linspace(0, 10, 40)
+    _save("ode_system_inverse/y1_obs.txt", np.column_stack([ts, np.sin(ts)]))
+    _save("ode_system_inverse/y2_obs.txt", np.column_stack([ts, np.cos(ts)]))
+
+
 def main():
     xs, snaps = allen_cahn()
     for t, u in snaps.items():
@@ -167,12 +243,12 @@ def main():
     xo = np.linspace(1 / 6, 1, 5, endpoint=False)
     _save("brinkman_forchheimer/u_obs.txt", np.column_stack([xo, 1 - np.cosh(20 * (xo - 0.5)) / np.cosh(10)]))
 
-    # Helmholtz sound-hard scattering (Round 75): columns x, y, value.
+    # Helmholtz sound-hard scattering: columns x, y, value.
     x, y, ure, uim = sound_hard_scattering()
     _save("helmholtz_sound_hard/u_re.txt", np.column_stack([x, y, ure]))
     _save("helmholtz_sound_hard/u_im.txt", np.column_stack([x, y, uim]))
 
-    # Inverse fractional Poisson (Round 77): measurements of the exact solutions
+    # Inverse fractional Poisson: measurements of the exact solutions
     # (alpha = 1.8), as DeepXDE's scripts make them.
     xo = np.linspace(-1, 1, 20)
     _save("fractional_inverse_1d/u_obs.txt", np.column_stack([xo, xo * np.abs(1 - xo ** 2) ** 0.9]))
@@ -181,7 +257,7 @@ def main():
     xo, yo = r * np.cos(th), r * np.sin(th)
     _save("fractional_inverse_2d/u_obs.txt", np.column_stack([xo, yo, (1 - xo ** 2 - yo ** 2) ** 1.9]))
 
-    # ODE examples (Round 74): columns t, value.
+    # ODE examples: columns t, value.
     t, (r, pp) = lotka_volterra()
     _save("lotka_volterra/r.txt", np.column_stack([t, r]))
     _save("lotka_volterra/p.txt", np.column_stack([t, pp]))
@@ -198,4 +274,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--inverse-only" in sys.argv:     # only the measured data for the added Inverse modes
+        inverse_measurements()
+    else:
+        main()
+        inverse_measurements()

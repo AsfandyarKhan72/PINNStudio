@@ -64,6 +64,7 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
                     errors='replace',
                     env=_env
                 )
+        _pyexe.end_with_pinnstudio(process)   # Windows: it ends when PINNStudio ends
         if set_process:
             set_process(process)
 

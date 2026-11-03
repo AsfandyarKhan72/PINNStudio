@@ -87,7 +87,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -138,8 +138,13 @@ def _run_restore_and_wait(win, timeout_s=60):
     win._on_restore()
     thread = win._restore_thread
     thread.wait(timeout_s * 1000)
-    deadline = time.time() + 5
-    while win.restore_btn.text() != "🔄  Restore && Visualize" and time.time() < deadline:
+    # Wait for _on_restore_done itself (it re-enables the button, then shows the figure). The old condition
+    # compared the button with an older label ("🔄  Restore && Visualize") that it no longer has, so it never
+    # matched and the loop simply ran out its 5 s; once, on a loaded Intel-Mac CI runner, the queued done
+    # signal came later than that and the check saw no figure yet.
+    deadline = time.time() + 60
+    while not (thread.isFinished() and win.restore_btn.isEnabled() and "Restoring" not in win.restore_btn.text()) \
+            and time.time() < deadline:
         _app.processEvents()
         time.sleep(0.02)
     _app.processEvents()

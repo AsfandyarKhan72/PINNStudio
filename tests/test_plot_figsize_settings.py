@@ -57,6 +57,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
@@ -65,7 +66,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -280,7 +281,7 @@ def run():
     # use elsewhere in this suite for dialog-content checks without a
     # modal event loop).
     import pinnstudio.ui.main_window as mw_mod
-    from PyQt6.QtWidgets import QDialog
+    from PySide6.QtWidgets import QDialog
     _orig_exec = QDialog.exec
     captured = {}
 
@@ -311,7 +312,7 @@ def run():
     # produced file, not just the generated script's text. Needs
     # deepxde+torch (same as the rest of this project's real-training
     # checks) -- skipped, not failed, when unavailable (e.g. this repo's
-    # lightweight CI job, which only installs PyQt6/numpy/matplotlib/
+    # lightweight CI job, which only installs PySide6/numpy/matplotlib/
     # pandas).
     try:
         import deepxde as _dde_probe  # noqa: F401
@@ -361,7 +362,21 @@ def run():
             sp = os.path.join(tmpdir, "run_script.py")
             with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
-            proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120)
+            # the script runs under faulthandler: if it is still running after 110 s it prints every thread's
+            # Python stack (one Windows / Python 3.14 run hit the 120 s limit; this shows where a run hangs)
+            runner = ("import faulthandler, runpy, sys; faulthandler.dump_traceback_later(110, exit=False); "
+                      f"sys.argv = [{sp!r}]; runpy.run_path({sp!r}, run_name='__main__')")
+            t_start = time.time()
+            try:
+                proc = subprocess.run([sys.executable, "-c", runner], cwd=tmpdir, capture_output=True, text=True,
+                                      timeout=120)
+            except subprocess.TimeoutExpired as exc:
+                out = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+                err = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+                check(False, f"[{mode}] the script did not finish in 120 s. stdout tail:\n{out[-2500:]}\n"
+                             f"stderr tail (thread stacks at 110 s):\n{err[-6000:]}")
+                continue
+            print(f"[{mode}] script finished in {time.time() - t_start:.1f} s")
             check(proc.returncode == 0, f"[{mode}] real run should exit 0, got {proc.returncode}. stderr tail: {proc.stderr[-1500:]}")
             loss_png = os.path.join(tmpdir, "solution_results", "loss_plot.png")
             if not os.path.isfile(loss_png):

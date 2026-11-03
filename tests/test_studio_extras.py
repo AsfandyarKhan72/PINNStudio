@@ -15,9 +15,9 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtCore import QCoreApplication, QEvent, Qt
-from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.ui.equation import to_latex, unknown_names, render
@@ -268,7 +268,13 @@ def test_help_links_and_start_first():
     _settle()
     assert w.workspace.help_btn.isVisible()
     w.workspace.help_btn.click()
-    assert opened == [w.DOCS_URL + "#training"], "a child node uses its parent's section"
+    assert opened == [w.DOCS_URL + "guide/loss-weights/"], "Loss weights opens its own guide page"
+    bc_keys = [k for k in w.workspace.pages if k.startswith("bc:")]
+    if not bc_keys:
+        w._menu_add_bc()
+        bc_keys = [k for k in w.workspace.pages if k.startswith("bc:")]
+    assert bc_keys and w.workspace.help_url(bc_keys[0]) == w.DOCS_URL + "guide/boundary-conditions/", \
+        "a child node uses its parent's page"
     assert "Help" in [a.text() for a in w.workspace.build_menu("sweep").actions()]
     # opening a saved problem keeps Save-to at the folder, not the old run's folder
     assert w._save_root("/r/1D_Forward__2026-10-14_22-02-08") == "/r"
@@ -277,7 +283,7 @@ def test_help_links_and_start_first():
 
 
 def test_buttons_fit_and_restore_visible():
-    from PyQt6.QtWidgets import QPushButton
+    from PySide6.QtWidgets import QPushButton
     from pinnstudio.ui import theme
     w = _window()
     for key in ("restore", "ic", "results"):
@@ -318,7 +324,7 @@ def test_live_loss_per_time_step_and_ea_cleared():
 
 
 def test_copy_and_save():
-    from PyQt6.QtGui import QGuiApplication, QImage
+    from PySide6.QtGui import QGuiApplication, QImage
     from pinnstudio.ui import export_tools as ex
     d = tempfile.mkdtemp()
     png = os.path.join(d, "fig.png")
@@ -367,7 +373,7 @@ def test_error_analysis_shows_only_this_runs_folder():
     w = _window()
     old = tempfile.mkdtemp()
     os.makedirs(os.path.join(old, "error_analysis"))
-    from PyQt6.QtGui import QImage
+    from PySide6.QtGui import QImage
     img = QImage(10, 10, QImage.Format.Format_RGB32)
     img.save(os.path.join(old, "error_analysis", "line_comparison.png"))
     w._last_config = PINNConfig(save_dir=old)          # a previous run's

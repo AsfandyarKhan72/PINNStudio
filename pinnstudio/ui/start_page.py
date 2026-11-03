@@ -2,8 +2,8 @@
 load an example from the gallery."""
 import os
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy,
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy,
                              QVBoxLayout, QWidget)
 
 from pinnstudio.core import example_catalog as _cat
@@ -56,10 +56,10 @@ class _Card(QPushButton):
 
 
 class StartPage(QScrollArea):
-    new_requested = pyqtSignal(str)        # "1D" / "2D" / "3D" / "ODE"
-    open_requested = pyqtSignal()
-    open_path = pyqtSignal(str)
-    example_requested = pyqtSignal(str)    # an example key
+    new_requested = Signal(str)        # "1D" / "2D" / "3D" / "ODE"
+    open_requested = Signal()
+    open_path = Signal(str)
+    example_requested = Signal(str)    # an example key
 
     def __init__(self, parent=None):
         super().__init__(parent)

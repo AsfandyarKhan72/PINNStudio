@@ -17,7 +17,7 @@ SCRIPT = textwrap.dedent(f"""
         time.sleep(60)   # still waiting when the window closes, even on a slow runner
         raise OSError("offline")
     urllib.request.urlopen = slow
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication(["pinnstudio"])
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()

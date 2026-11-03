@@ -7,13 +7,18 @@ and trained. Several runs share the GPU at once (--jobs).
 
     python benchmarks/study_runner.py PLAN.json OUT_DIR [--jobs 3] [--smoke]
 
-PLAN.json is a list of {"example": <example key>, "setup": <setup name>,
-"name": <folder name>, optional "seed", "windows", "phases", "extra"}. Each
+PLAN.json is a list of {"example": <example name as the Examples list shows it>, "setup": <setup name>,
+"name": <folder name>, optional "category", "seed", "windows", "phases", "extra", "equal_budget"}.
+"match": <name of an earlier run>: copy that run's network, points, learning rate and training phases (MATCH),
+so all techniques on one example share them; set before "equal_budget" divides the steps over the windows.
+"equal_budget": a time-windows setup gets the same total training as the whole-interval ones (the steps
+divided by the number of windows; every window keeps the full points). Each
 run's folder gets run.py, log.txt and result.json (the relative L2 error of
 every output group at every reference time). --smoke cuts iterations and
 points so that a whole plan can be checked in minutes.
 """
 import argparse
+import copy
 import json
 import os
 import re
@@ -38,9 +43,17 @@ SETUPS = {
     "Time-adaptive": ["soft_ic", "exact_bc", "windows"],
     "Time-adaptive + RBA": ["soft_ic", "exact_bc", "windows", "rba"],
     "Time-adaptive + SA-PINN": ["soft_ic", "exact_bc", "windows", "sa"],
+    "Time-adaptive + backward": ["soft_ic", "exact_bc", "windows", "backward"],   # bc-PINN (Mattey & Ghosh)
+    "Time-adaptive + growing": ["soft_ic", "exact_bc", "windows", "growing"],     # Wight & Zhao's approach I
+    "Exact + RAR": ["exact_ic", "exact_bc", "whole", "rar"],                      # residual-based refinement
     "Template": [],
 }
 IC_WEIGHT = 100.0
+
+
+# settings a "match" run copies, so every technique on one example uses the same network, points and training
+MATCH = ("layers", "activation", "learning_rate", "num_domain", "num_boundary", "num_initial", "num_test",
+         "random_seed")                # plus the optimizer and step count of each phase (loss weights stay per setup)
 
 
 def _phases(cfg):
@@ -77,14 +90,25 @@ def apply_setup(cfg, setup, run):
             cfg.periodic_inputs = True
         elif sw == "whole":
             cfg.time_adaptive = False
+            cfg.ta_backward = cfg.ta_growing = False      # no window options left over from the template
+            cfg.ta_icgl_fraction, cfg.ta_resample_rounds = 0.0, 0
             cfg.adapt_method = "None"
         elif sw == "windows":
             cfg.time_adaptive = True
             cfg.adapt_method = "Time Adaptive"
             cfg.ta_transfer_learning = True
+            cfg.ta_backward = cfg.ta_growing = False      # plain windows unless "backward" is asked for
+            cfg.ta_icgl_fraction, cfg.ta_resample_rounds = 0.0, 0
             if run.get("windows"):
                 cfg.ta_step_groups = json.dumps(run["windows"])
                 cfg.ta_num_steps = sum(g["steps"] for g in run["windows"])
+        elif sw == "backward":       # later windows are held to the stored solution of the earlier ones
+            cfg.ta_backward = True
+            cfg.ta_backward_seed = 1234     # the seed the recorded bc-PINN runs used
+        elif sw == "growing":        # one network on [t0, t], t growing window by window
+            cfg.ta_growing = True
+        elif sw == "rar":            # points with the largest residual added in rounds (rar_* from "extra")
+            cfg.adapt_method = "RAR"
         elif sw == "rba":
             cfg.point_weights, cfg.point_weights_lbfgs = "RBA", "keep"
         elif sw == "sa":
@@ -110,6 +134,25 @@ def apply_setup(cfg, setup, run):
             continue
         assert hasattr(cfg, k), k
         setattr(cfg, k, v)
+    if run.get("match"):              # the same main settings as another run of the same example
+        for k, v in run["match_cfg"].items():
+            if k != "_steps":
+                setattr(cfg, k, copy.deepcopy(v))
+        ph, ref = _phases(cfg), run["match_cfg"]["_steps"]
+        assert [p["optimizer"] for p in ph] == [o for o, _ in ref], (run["name"], ph, ref)
+        if run.get("match_steps", True):     # False: the run sets its own steps ("phases"; RAR's rounds add the rest)
+            for p, (_, n) in zip(ph, ref):
+                p["iterations"] = n
+        cfg.scheduler_phases = json.dumps(ph)
+    if run.get("equal_budget") and cfg.time_adaptive:
+        # the same training budget as the whole-interval setups: the optimizer steps are shared out over the
+        # windows (each window gets 1/k of them); every window keeps the full network and points, so a step
+        # costs the same as in the whole-interval setups and the total compute is equal
+        k = max(1, int(cfg.ta_num_steps))
+        ph = _phases(cfg)
+        for p in ph:
+            p["iterations"] = max(1, int(round(int(p["iterations"]) / k)))
+        cfg.scheduler_phases = json.dumps(ph)
     if "seed" in run:
         cfg.random_seed = run["seed"]
 
@@ -127,32 +170,52 @@ def _smoke(cfg):
 
 def build(plan, out, smoke):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     from pinnstudio.ui.main_window import MainWindow
     from pinnstudio.core.codegen import generate_script
     w = MainWindow()
     app.processEvents()
     dirs = []
+    shared = {}                         # name -> the MATCH settings it ran with
     for run in plan:
         if "settings" in run:          # an example given by its settings (deepxde_examples style)
             from pinnstudio.core import deepxde_examples as dx
             ex = dx.Example(run["name"], dx.FORWARD, "", run["settings"], "", None, "")
             cfg = dx.build_config(ex, os.path.join(os.path.dirname(HERE), "reference_data"))
         else:
-            w.quick_examples_combo.setCurrentText(run["example"])
+            w.quick_examples_category_combo.setCurrentText(run.get("category", "Forward"))
             app.processEvents()
-            assert w.quick_examples_combo.currentText() == run["example"], run["example"]
+            i = w.quick_examples_combo.findText(run["example"])
+            w.quick_examples_combo.setCurrentIndex(-1)
+            app.processEvents()
+            w.quick_examples_combo.setCurrentIndex(i)
+            for _ in range(20):
+                app.processEvents()
+            assert i >= 0, run["example"]    # (the list goes back to "None" once the example is loaded)
             cfg = w._build_config()
         d = os.path.join(out, run["name"])
         os.makedirs(d, exist_ok=True)
         cfg.save_dir = d
+        if run.get("match"):
+            assert run["match"] in shared, f"{run['name']}: match {run['match']} must come earlier in the plan"
+            run = dict(run, match_cfg=shared[run["match"]])
         apply_setup(cfg, run["setup"], run)
+        mine = {k: copy.deepcopy(getattr(cfg, k)) for k in MATCH if hasattr(cfg, k)}
+        mine["_steps"] = [(p["optimizer"], int(p["iterations"])) for p in _phases(cfg)]
+        shared[run["name"]] = mine
+        if run.get("match") and not run.get("equal_budget"):
+            assert {k: v for k, v in mine.items() if k != "_steps" or run.get("match_steps", True)} == \
+                {k: v for k, v in run["match_cfg"].items() if k != "_steps" or run.get("match_steps", True)}, run["name"]
         if smoke:
             _smoke(cfg)
         errs = cfg.validate()
-        meta = dict(run, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
-                    ta=cfg.time_adaptive, windows=cfg.ta_step_groups if cfg.time_adaptive else None,
+        meta = dict({k: v for k, v in run.items() if k != "match_cfg"}, layers=cfg.layers, adapt=cfg.adapt_method,
+                    rar=(cfg.rar_cycles, cfg.rar_add_points, cfg.rar_adam_iters, cfg.rar_lbfgs_iters),
+                    growing=getattr(cfg, "ta_growing", False), msffn=cfg.network_type,
+                    num_domain=cfg.num_domain, num_boundary=cfg.num_boundary,
+                    num_initial=getattr(cfg, "num_initial", None), lr=cfg.learning_rate, ic_hard=cfg.ic_hard, ic_active=cfg.ic_active, periodic=cfg.periodic_inputs,
+                    ta=cfg.time_adaptive, backward=getattr(cfg, "ta_backward", False), windows=cfg.ta_step_groups if cfg.time_adaptive else None,
                     point_weights=cfg.point_weights, causal=cfg.causal_training, net=cfg.network_type,
                     phases=[(p["optimizer"], p["iterations"], p.get("weights", "")) for p in _phases(cfg)],
                     validate=errs)
@@ -171,10 +234,14 @@ def parse(log):
     """{group: [[t, L2], ...]} from the Error Analysis lines of a log."""
     res, group = {}, "u"
     for line in log.splitlines():
-        m = re.search(r"Output group[^:]*:\s*(\S+)", line) or re.search(r"── (\S+) ──", line)
+        m = (re.search(r"Output group[^:]*:\s*(\S+)", line) or re.search(r"── (\S+) ──", line)
+             or re.search(r"Loaded ground truth.*?from (\S+)", line))
         if m:
-            group = m.group(1).strip("'\":,")
-        m = re.search(r"t=([-\d.eE+]+)\s+—\s+L2=([-\d.eE+]+)", line)
+            g = m.group(1).strip("'\":,")
+            if g.endswith(".txt"):          # a reference file name: t_0.25.txt, mu_t_0.25.txt, ...
+                g = re.sub(r"_?t_[-\d.e]+$", "", re.sub(r"^t_[-\d.e]+_?", "", g[:-4])) or "u"
+            group = g
+        m = re.search(r"t=([-\d.eE+]+)\s+(?:—|--|-)\s+L(?:2|₂)=([-\d.eE+]+)", line)
         if m:
             res.setdefault(group, []).append([float(m.group(1)), float(m.group(2))])
     return res
@@ -201,12 +268,24 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--build-only", action="store_true", help=argparse.SUPPRESS)
     a = ap.parse_args()
     out = os.path.abspath(a.out)
     plan = json.load(open(a.plan))
-    dirs = build(plan, out, a.smoke)
+    if a.build_only:
+        build(plan, out, a.smoke)
+        os._exit(0)                 # skip Qt's teardown, which can crash after the scripts are written
+    # the scripts are written in a separate process, so a crash of the hidden window cannot stop the runs
+    cmd = [sys.executable, os.path.abspath(__file__), a.plan, out, "--build-only"] + (["--smoke"] if a.smoke else [])
+    rc = subprocess.run(cmd).returncode
+    dirs = [os.path.join(out, r["name"]) for r in plan]
+    todo = [d for d in dirs if os.path.exists(os.path.join(d, "run.py"))
+            and not os.path.exists(os.path.join(d, "result.json"))]          # finished runs are kept
+    missing = [os.path.basename(d) for d in dirs if not os.path.exists(os.path.join(d, "run.py"))]
+    print(f"== scripts built (rc={rc}); {len(todo)} to run, {len(dirs) - len(todo) - len(missing)} already done"
+          + (f"; NOT BUILT: {missing}" if missing else ""), flush=True)
     with ThreadPoolExecutor(a.jobs) as ex:
-        list(ex.map(run_one, dirs))
+        list(ex.map(run_one, todo))
 
 
 if __name__ == "__main__":

@@ -1,14 +1,17 @@
 """PINNStudio's icons: one line-icon set (24-unit grid, 2-unit round
 strokes, in the style of Lucide/Feather), drawn in the theme's colours.
+The path data of "log", "fit", "delete", "add", "code" and "down", and part of
+"sketch", comes from Lucide (ISC) and Feather (MIT); their notices are in
+LICENSES/ and THIRD_PARTY_LICENSES.md.
 
 Emoji render differently on every platform and look informal in a
 toolbar; these are crisp at any size and follow the theme. `icon(name)`
 gives a QIcon; `apply(widget, name)` sets it on a button/tab and keeps it
 coloured right when the theme changes (`retint_all()`).
 """
-from PyQt6.QtCore import QByteArray, QRectF, QSize, Qt
-from PyQt6.QtGui import QIcon, QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QByteArray, QRectF, QSize, Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 
 from pinnstudio.ui import theme as _theme
 
@@ -114,13 +117,13 @@ def apply(target, name, role="text", size=18):
 def _prune():
     """Forget buttons that have been deleted (removed BC rows, closed dialogs)."""
     try:
-        from PyQt6 import sip
+        import shiboken6
     except ImportError:
         return
     def alive(t):
         w = t[0] if isinstance(t, tuple) else t
         try:
-            return not sip.isdeleted(w)
+            return shiboken6.isValid(w)
         except TypeError:
             return True
     _registry[:] = [e for e in _registry if alive(e[0])]
@@ -158,7 +161,7 @@ _PREFIXES = (("➕", "add", "accent"), ("+ ", "add", "accent"), ("📊", "analys
 
 
 def iconize(btn):
-    from PyQt6.QtWidgets import QPushButton
+    from PySide6.QtWidgets import QPushButton
     if not isinstance(btn, QPushButton) or btn.property("_pinn_icon"):
         return
     txt = btn.text()
@@ -171,17 +174,25 @@ def iconize(btn):
             return
 
 
+# The application icon: a small neural network whose output node draws a solution curve. Drawn for PINNStudio
+# (with the assistance of Claude, Oct 2026) and part of PINNStudio under its license; the files in
+# pinnstudio/resources/ (pinnstudio.png, .ico, .icns) are rendered from it by tools/make_app_icon.py.
 _APP = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-        '<rect x="2" y="2" width="60" height="60" rx="14" fill="#2f6fde"/>'
-        '<path d="M10 44 C 20 44, 22 20, 32 20 S 44 40, 54 40" fill="none" stroke="#ffffff" stroke-width="4.5" '
-        'stroke-linecap="round"/>'
-        '<circle cx="21" cy="32" r="3.6" fill="#ffd166"/><circle cx="32" cy="20" r="3.6" fill="#ffd166"/>'
-        '<circle cx="43" cy="30" r="3.6" fill="#ffd166"/></svg>')
+        '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b3a6b"/>'
+        '<stop offset="1" stop-color="#0e6f8a"/></linearGradient></defs>'
+        '<rect x="2" y="2" width="60" height="60" rx="13" fill="url(#bg)"/>'
+        '<path d="M11 24 L22 16 M11 24 L22 32 M11 24 L22 48 M11 40 L22 16 M11 40 L22 32 M11 40 L22 48 '
+        'M22 16 L32 32 M22 32 L32 32 M22 48 L32 32" stroke="#a8d8ff" stroke-opacity="0.6" stroke-width="1.8" fill="none"/>'
+        '<path d="M32 32 C 38 32, 39 17, 44.5 17 S 50 44, 55 41" fill="none" stroke="#ffc94d" stroke-width="4.4" '
+        'stroke-linecap="round" stroke-linejoin="round"/>'
+        '<g fill="#ffffff"><circle cx="11" cy="24" r="3.5"/><circle cx="11" cy="40" r="3.5"/>'
+        '<circle cx="22" cy="16" r="3.5"/><circle cx="22" cy="32" r="3.5"/><circle cx="22" cy="48" r="3.5"/></g>'
+        '<circle cx="32" cy="32" r="4.4" fill="#ffc94d"/></svg>')
 
 
 def app_icon():
-    """PINNStudio's window icon: a smooth solution curve through a few
-    training points."""
+    """PINNStudio's window icon: a small neural network whose output draws a
+    solution curve."""
     ic = QIcon()
     for size in (16, 24, 32, 48, 64, 128, 256):
         r = QSvgRenderer(QByteArray(_APP.encode()))

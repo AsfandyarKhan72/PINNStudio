@@ -1,0 +1,2622 @@
+# Tuning study
+
+*PINNStudio, October 2026*
+
+DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
+
+88 problems are included, chosen as the ones with the largest errors in the [example results](examples.md). 36 of them improve by 1.5× or more; the median improvement is 1×.
+
+## How it is done
+
+| Variant | What changes |
+|---|---|
+| **base** | the example's own settings |
+| **iters** | 3× the iterations of every training phase |
+| **net** | hidden layers twice as wide (at most 512) and one layer more |
+| **points** | 3× the domain, boundary and initial points |
+| **lbfgs** | an L-BFGS phase (15,000 iterations) after Adam |
+| **all** | all of the changes above together |
+| **dataw** | 10× the weight of the measured data (inverse problems) |
+| **lbfgs3** | 3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems) |
+| **times** | measured data at every reference time after t = 0, not only one (inverse problems) |
+| **setup** | the best whole-interval setup of the forward problem from the training methods study (inverse problems) |
+| **invall** | 10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems) |
+| **windows2** | twice as many time windows (time-adaptive training) |
+| **rar** | residual-based adaptive refinement: 5 rounds of 500 points with the largest residual |
+| **msffn** | a multi-scale Fourier-feature network (scales 1 and 10) |
+| **fracres** | 3× the resolution of the fractional operator (fractional problems) |
+
+- **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant. (The *Tuned* settings shipped with the examples and shown on the [benchmarks page](README.md) use a second rule: the variant with the lowest error against the reference, the fastest one where several are within 25% of it. The two rules agree for most problems.)
+- **The error** is the relative $L_2$ error from PINNStudio's Error Analysis of the main output (u, c, phi, ...) at the last reference time, against the reference data the example ships with, the same measure as the paper's Fig. 4. (The worst over all outputs and times would often be an output such as a chemical potential at t = 0, where the reference is close to zero and a relative error says little.) For inverse problems the worst relative error of the learned parameters is given as well.
+- **Seeds.** The example's own settings and the chosen variant are run with up to 3 random seeds (1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses seed 2026.
+- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5. Times are wall-clock training time per run.
+- **Reproducing a result.** Each problem's section links the tuned settings as a problem file in [`tuning/`](tuning/): open it in PINNStudio (*Open a saved problem…*) and press Solve. The runs were made with [`tools/tuning_study.py`](../tools/tuning_study.py) and this page is written from its results by [`tools/make_tuning_page.py`](../tools/make_tuning_page.py).
+
+## Summary
+
+The figure has the layout of the paper's Fig. 4 and lists every example of PINNStudio, in the order of the README: one row per problem, the forward (circles) and inverse (diamonds) results on one axis, and each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: the filled marker is the chosen run, and an open grey marker the example's own settings where a change helped. Rows without † show the README's result (kept in [`tuning/readme_results.json`](tuning/readme_results.json)) until they are run here. For a template run from the training methods study's best setup, the grey marker is the template as it loads.
+
+![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)
+
+| Problem | Own settings: $L_2$ | Tuned: $L_2$ | Improvement | Chosen variant | Parameter error: own → tuned | Time (s): own → tuned |
+|---|---|---|---|---|---|---|
+| [Poisson 1D – Dirichlet/Periodic](#tune-poisson-1d-dirichlet-periodic) | 9.6 × 10<sup>-3</sup> | 6.4 × 10<sup>-6</sup> | 1,495× | all | – | 20 → 67 |
+| [Diffusion-reaction 1D](#tune-diffusion-reaction-1d) | 8.8 × 10<sup>-2</sup> | 8.5 × 10<sup>-5</sup> | 1,034× | all | – | 87 → 290 |
+| [Linear elasticity 2D – plate](#tune-linear-elasticity-2d-plate) | 6.7 × 10<sup>-2</sup> | 1.3 × 10<sup>-4</sup> | 521× | all | – | 541 → 1147 |
+| [Wave 1D – space-time multi-scale Fourier features](#tune-wave-1d-space-time-multi-scale-fourier-features) | 3.0 × 10<sup>-1</sup> | 1.5 × 10<sup>-3</sup> | 207× | all | – | 75 → 645 |
+| [Second-order ODE, inverse mode](#tune-second-order-ode-inverse-mode) | 1.6 × 10<sup>-3</sup> | 8.9 × 10<sup>-6</sup> | 178× | net | 7.3% → 0.082% | 27 → 30 |
+| [Diffusion 1D – unknown coefficient](#tune-diffusion-1d-unknown-coefficient) | 6.2 × 10<sup>-3</sup> | 2.0 × 10<sup>-4</sup> | 32× | all | 0.045% → 0.017% | 118 → 380 |
+| [Klein-Gordon 1D](#tune-klein-gordon-1d) | 6.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-3</sup> | 30× | net | – | 60 → 151 |
+| [Euler beam 1D, inverse mode](#tune-euler-beam-1d-inverse-mode) | 1.6 × 10<sup>-3</sup> | 6.8 × 10<sup>-5</sup> | 23× | all | 2.3% → 0.14% | 61 → 228 |
+| [Helmholtz 2D – square with hole](#tune-helmholtz-2d-square-with-hole) | 1.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-4</sup> | 15× | lbfgs | – | 17 → 24 |
+| [Diffusion 1D](#tune-diffusion-1d) | 2.3 × 10<sup>-2</sup> | 1.5 × 10<sup>-3</sup> | 15× | all | – | 26 → 76 |
+| [Burgers 1D – Raissi et al. (PINNStudio template), inverse mode](#tune-burgers-1d-raissi-et-al-pinnstudio-template-inverse-mode) | 7.8 × 10<sup>-4</sup> | 5.5 × 10<sup>-5</sup> | 14× | invall | 0.39% → 0.099% | 97 → 119 |
+| [Euler beam 1D](#tune-euler-beam-1d) | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 12× | all | – | 55 → 217 |
+| [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 4.0 × 10<sup>-3</sup> | 3.6 × 10<sup>-4</sup> | 11× | invall | 8.5% → 0.44% | 1285 → 6623 |
+| [Diffusion 1D – resampling](#tune-diffusion-1d-resampling) | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> | 9× | lbfgs | – | 8 → 12 |
+| [Diffusion-reaction 1D, inverse mode](#tune-diffusion-reaction-1d-inverse-mode) | 6.2 × 10<sup>-4</sup> | 9.5 × 10<sup>-5</sup> | 7× | all | 0.12% → 0.012% | 121 → 334 |
+| [Poisson 1D – unknown forcing field (batches)](#tune-poisson-1d-unknown-forcing-field-batches) | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> | 6× | all | – | 62 → 215 |
+| [Heat 1D – Dirichlet, inverse mode](#tune-heat-1d-dirichlet-inverse-mode) | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | 5× | all | 0.69% → 0.1% | 50 → 146 |
+| [Klein-Gordon 1D, inverse mode](#tune-klein-gordon-1d-inverse-mode) | 1.4 × 10<sup>-2</sup> | 2.9 × 10<sup>-3</sup> | 5× | all | 5.5% → 0.91% | 81 → 1259 |
+| [Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode) | 2.5 × 10<sup>-4</sup> | 5.8 × 10<sup>-5</sup> | 4× | invall | 0.79% → 0.55% | 393 → 1939 |
+| [Heat 1D – resampling](#tune-heat-1d-resampling) | 1.4 × 10<sup>-2</sup> | 3.3 × 10<sup>-3</sup> | 4× | all | – | 509 → 2060 |
+| [Helmholtz 2D – Dirichlet, inverse mode](#tune-helmholtz-2d-dirichlet-inverse-mode) | 3.5 × 10<sup>-4</sup> | 8.7 × 10<sup>-5</sup> | 4× | all | 0.011% → 0.0042% | 35 → 125 |
+| [Schrödinger 1D, inverse mode](#tune-schr-dinger-1d-inverse-mode) | 1.8 × 10<sup>-1</sup> | 4.7 × 10<sup>-2</sup> | 4× | net | 3% → 1.9% | 196 → 359 |
+| [Heat 1D – Dirichlet](#tune-heat-1d-dirichlet) | 5.0 × 10<sup>-2</sup> | 1.3 × 10<sup>-2</sup> | 4× | all | – | 42 → 128 |
+| [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
+| [Heat 2D (PINNStudio template), inverse mode](#tune-heat-2d-pinnstudio-template-inverse-mode) | 5.2 × 10<sup>-4</sup> | 1.8 × 10<sup>-4</sup> | 3× | dataw | 0.3% → 0.25% | 138 → 184 |
+| [Wave 1D – space-time multi-scale Fourier features, inverse mode](#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode) | 5.5 × 10<sup>-5</sup> | 2.0 × 10<sup>-5</sup> | 3× | all | 0.0001% → 0% | 303 → 4354 |
+| [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 5.9 × 10<sup>-3</sup> | 2× | times | 5.2% → 0.96% | 1741 → 5306 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template) | 2.0 × 10<sup>-3</sup> | 8.5 × 10<sup>-4</sup> | 2× | net | – | 954 → 2301 |
+| [Poisson 3D – cube with spherical cut-out (PINNStudio template)](#tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template) | 3.7 × 10<sup>-4</sup> | 1.9 × 10<sup>-4</sup> | 2× | all | – | 92 → 1096 |
+| [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 4.6 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.0045% | 220 → 924 |
+| [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
+| [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
+| [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
+| [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> | 2× | net | 0.22% → 0.2% | 2514 → 6315 |
+| [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.2 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
+| [Allen-Cahn 1D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template) | 1.4 × 10<sup>-3</sup> | 9.4 × 10<sup>-4</sup> | none | all | – | 200 → 2938 |
+| [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
+| [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.0 × 10<sup>-3</sup> | none | net | – | 872 → 1995 |
+| [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 9.9 × 10<sup>-3</sup> | 8.3 × 10<sup>-3</sup> | none | iters | – | 1662 → 3998 |
+| [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
+| [Poisson 3D – sphere (PINNStudio template), inverse mode](#tune-poisson-3d-sphere-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> | none | base | 0.005% → 0.005% | 83 → 83 |
+| [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
+| [Heat 2D (PINNStudio template)](#tune-heat-2d-pinnstudio-template) | 6.1 × 10<sup>-3</sup> | 6.1 × 10<sup>-3</sup> | none | base | – | 98 → 98 |
+| [Heat 3D (PINNStudio template)](#tune-heat-3d-pinnstudio-template) | 2.6 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> | none | base | – | 323 → 323 |
+| [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 7.6 × 10<sup>-5</sup> | 7.6 × 10<sup>-5</sup> | none | base | 0.22% → 0.22% | 1547 → 1547 |
+| [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 5.9 × 10<sup>-5</sup> | 5.9 × 10<sup>-5</sup> | none | base | – | 1596 → 1596 |
+| [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0% → 0% | 242 → 242 |
+| [Linear elasticity 2D – plate, inverse mode](#tune-linear-elasticity-2d-plate-inverse-mode) | 1.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | none | base | 0.045% → 0.045% | 542 → 542 |
+| [Integro-differential ODE](#tune-integro-differential-ode) | 6.5 × 10<sup>-5</sup> | 6.5 × 10<sup>-5</sup> | none | base | – | 23 → 23 |
+| [Lotka-Volterra ODE](#tune-lotka-volterra-ode) | 2.1 × 10<sup>-3</sup> | 2.1 × 10<sup>-3</sup> | none | base | – | 219 → 219 |
+| [Lorenz ODE – unknown C₁, C₂, C₃](#tune-lorenz-ode-unknown-c-c-c) | 1.0 × 10<sup>-4</sup> | 1.0 × 10<sup>-4</sup> | none | base | 0.032% → 0.032% | 84 → 84 |
+| [Fractional Poisson 1D – unknown order α](#tune-fractional-poisson-1d-unknown-order) | 5.3 × 10<sup>-3</sup> | 5.3 × 10<sup>-3</sup> | none | base | 0.48% → 0.48% | 255 → 255 |
+| [Black-Scholes 1D – European call](#tune-black-scholes-1d-european-call) | 4.3 × 10<sup>-4</sup> | 4.3 × 10<sup>-4</sup> | none | base | – | 59 → 59 |
+| [Schrödinger 1D](#tune-schr-dinger-1d) | 1.8 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> | none | base | – | 108 → 108 |
+| [Helmholtz 2D – Dirichlet](#tune-helmholtz-2d-dirichlet) | 1.1 × 10<sup>-2</sup> | 1.1 × 10<sup>-2</sup> | none | base | – | 26 → 26 |
+| [Navier-Stokes 2D – Kovasznay flow](#tune-navier-stokes-2d-kovasznay-flow) | 2.0 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | none | base | – | 213 → 213 |
+| [Navier-Stokes 3D – Beltrami flow](#tune-navier-stokes-3d-beltrami-flow) | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> | none | base | – | 2325 → 2325 |
+| [Poisson 2D – disk (PINNStudio template)](#tune-poisson-2d-disk-pinnstudio-template) | 2.8 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> | none | base | – | 156 → 156 |
+| [Integro-differential ODE – Volterra kernel](#tune-integro-differential-ode-volterra-kernel) | 2.5 × 10<sup>-3</sup> | 2.5 × 10<sup>-3</sup> | none | base | – | 5 → 5 |
+| [Linear ODE system](#tune-linear-ode-system) | 3.6 × 10<sup>-3</sup> | 3.6 × 10<sup>-3</sup> | none | base | – | 42 → 42 |
+| [Second-order ODE](#tune-second-order-ode) | 6.9 × 10<sup>-4</sup> | 6.9 × 10<sup>-4</sup> | none | base | – | 28 → 28 |
+| [Poisson 1D – Dirichlet](#tune-poisson-1d-dirichlet) | 3.7 × 10<sup>-4</sup> | 3.7 × 10<sup>-4</sup> | none | base | – | 23 → 23 |
+| [Poisson 1D – Dirichlet/Neumann](#tune-poisson-1d-dirichlet-neumann) | 2.3 × 10<sup>-4</sup> | 2.3 × 10<sup>-4</sup> | none | base | – | 27 → 27 |
+| [Poisson 1D – Dirichlet/point-set operator](#tune-poisson-1d-dirichlet-point-set-operator) | 2.6 × 10<sup>-5</sup> | 2.6 × 10<sup>-5</sup> | none | base | – | 44 → 44 |
+| [Poisson 1D – Dirichlet/Robin](#tune-poisson-1d-dirichlet-robin) | 2.4 × 10<sup>-4</sup> | 2.4 × 10<sup>-4</sup> | none | base | – | 27 → 27 |
+| [Poisson 1D – hard BCs](#tune-poisson-1d-hard-bcs) | 2.2 × 10<sup>-6</sup> | 2.2 × 10<sup>-6</sup> | none | base | – | 76 → 76 |
+| [Poisson 1D – multi-scale Fourier features](#tune-poisson-1d-multi-scale-fourier-features) | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> | none | base | – | 70 → 70 |
+| [Burgers 1D – RAR](#tune-burgers-1d-rar) | 8.4 × 10<sup>-4</sup> | 8.4 × 10<sup>-4</sup> | none | base | – | 170 → 170 |
+| [Diffusion 1D – hard IC and BCs](#tune-diffusion-1d-hard-ic-and-bcs) | 2.8 × 10<sup>-3</sup> | 2.8 × 10<sup>-3</sup> | none | base | – | 40 → 40 |
+| [Fractional diffusion 1D](#tune-fractional-diffusion-1d) | 3.3 × 10<sup>-3</sup> | 3.3 × 10<sup>-3</sup> | none | base | – | 39 → 39 |
+| [Fractional Poisson 2D – disk](#tune-fractional-poisson-2d-disk) | 9.2 × 10<sup>-4</sup> | 9.2 × 10<sup>-4</sup> | none | base | – | 184 → 184 |
+| [Laplace 2D – disk](#tune-laplace-2d-disk) | 1.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | none | base | – | 72 → 72 |
+| [Linear elasticity 2D – plate, soft BCs](#tune-linear-elasticity-2d-plate-soft-bcs) | 4.9 × 10<sup>-4</sup> | 4.9 × 10<sup>-4</sup> | none | base | – | 654 → 654 |
+| [Fractional Poisson 3D – sphere](#tune-fractional-poisson-3d-sphere) | 7.2 × 10<sup>-3</sup> | 7.2 × 10<sup>-3</sup> | none | base | – | 1343 → 1343 |
+| [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#tune-lorenz-ode-unknown-c-c-c-exogenous-input) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | 0.26% → 0.26% | 196 → 196 |
+| [Diffusion-reaction 1D – unknown k_f, D](#tune-diffusion-reaction-1d-unknown-k-f-d) | 2.1 × 10<sup>-2</sup> | 2.1 × 10<sup>-2</sup> | none | base | 0.82% → 0.82% | 747 → 747 |
+| [Fractional Poisson 2D – unknown order α](#tune-fractional-poisson-2d-unknown-order) | 3.4 × 10<sup>-3</sup> | 3.4 × 10<sup>-3</sup> | none | base | 0.21% → 0.21% | 1395 → 1395 |
+| [Poisson 3D – sphere (PINNStudio template)](#tune-poisson-3d-sphere-pinnstudio-template) | 1.5 × 10<sup>-3</sup> | 1.5 × 10<sup>-3</sup> | none | base | – | 76 → 76 |
+| [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 1.9 × 10<sup>-4</sup> | 1.9 × 10<sup>-4</sup> | none | base | 0.003% → 0.003% | 167 → 167 |
+| [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-4</sup> | 9.7 × 10<sup>-4</sup> | none | base | 7.2% → 7.2% | 1715 → 1715 |
+| [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | 0.34% → 0.34% | 689 → 689 |
+| [Allen-Cahn 3D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template) | 2.7 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> | none | iters | – | 957 → 1626 |
+| [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 7.7 × 10<sup>-5</sup> | 1.1 × 10<sup>-4</sup> | none | times | 0.41% → 0.39% | 3793 → 10691 |
+| [Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template) | 5.2 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 350 → 719 |
+| [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 2.1 × 10<sup>-4</sup> | 5.1 × 10<sup>-4</sup> | worse (2× higher) | net | – | 283 → 464 |
+| [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.5 × 10<sup>-3</sup> | 9.2 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
+| [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
+
+## Problems
+
+Click a problem to open its results.
+
+<details id="tune-poisson-1d-dirichlet-periodic">
+<summary><strong>Poisson 1D – Dirichlet/Periodic</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Periodic](examples.md#dx-poisson-1d-dirichlet-periodic).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.30e-03 | 1.2 × 10<sup>-2</sup> | – | 20 |
+| iters | 1.40e-05 | 1.1 × 10<sup>-3</sup> | – | 54 |
+| net | 5.53e-04 | 2.6 × 10<sup>-3</sup> | – | 22 |
+| points | 5.12e-05 | 1.6 × 10<sup>-3</sup> | – | 20 |
+| lbfgs | 3.53e-06 | 3.5 × 10<sup>-5</sup> | – | 21 |
+| **all** | 4.71e-07 | 3.2 × 10<sup>-6</sup> | – | 67 |
+
+**Chosen: all** (all of the changes above together): network [1, 100, 100, 100, 100, 1], Adam 30,000 → L-BFGS 15,000, 48 / 6 / 0 points.
+
+Over seeds: own settings 9.6 × 10<sup>-3</sup> [7.9 × 10<sup>-4</sup> – 1.2 × 10<sup>-2</sup>] (3 seeds), tuned 6.4 × 10<sup>-6</sup> [3.2 × 10<sup>-6</sup> – 8.8 × 10<sup>-6</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Poisson_1D_Dirichlet_Periodic/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Poisson_1D_Dirichlet_Periodic/tuned_line_comparison.png)
+
+
+Tuned settings: [`Poisson 1D – Dirichlet - Periodic (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Periodic%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-reaction-1d">
+<summary><strong>Diffusion-reaction 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion-reaction 1D](examples.md#dx-diffusion-reaction-equation).
+
+**Own settings:** network [2, 30, 30, 30, 30, 30, 30, 1], Adam 20,000, 320 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 4.91e-03 | 1.1 × 10<sup>-1</sup> | – | 88 |
+| iters | 5.18e-04 | 2.3 × 10<sup>-2</sup> | – | 251 |
+| net | 4.57e-03 | 3.3 × 10<sup>-2</sup> | – | 94 |
+| points | 7.76e-03 | 5.2 × 10<sup>-2</sup> | – | 89 |
+| lbfgs | 1.19e-05 | 5.0 × 10<sup>-4</sup> | – | 98 |
+| **all** | 1.13e-06 | 8.5 × 10<sup>-5</sup> | – | 290 |
+
+**Chosen: all** (all of the changes above together): network [2, 60, 60, 60, 60, 60, 60, 60, 1], Adam 60,000 → L-BFGS 15,000, 960 / 0 / 0 points.
+
+Over seeds: own settings 8.8 × 10<sup>-2</sup> [4.7 × 10<sup>-2</sup> – 1.1 × 10<sup>-1</sup>] (3 seeds), tuned 8.5 × 10<sup>-5</sup> [6.1 × 10<sup>-5</sup> – 9.0 × 10<sup>-5</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_reaction_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_reaction_equation/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Diffusion-reaction 1D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-elasticity-2d-plate">
+<summary><strong>Linear elasticity 2D – plate</strong></summary>
+
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate](examples.md#dx-linear-elastostatic-plate).
+
+**Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.48e-05 | 4.9 × 10<sup>-2</sup> | – | 498 |
+| iters | 5.57e-05 | 7.5 × 10<sup>-2</sup> | – | 1010 |
+| net | 1.92e-05 | 2.2 × 10<sup>-3</sup> | – | 485 |
+| points | 1.12e-05 | 5.8 × 10<sup>-4</sup> | – | 476 |
+| **all** | 9.21e-06 | 1.3 × 10<sup>-4</sup> | – | 1100 |
+
+**Chosen: all** (all of the changes above together): network [2, 80, 80, 80, 80, 80, 5], Adam 60,000 → L-BFGS 60,000, 1,500 / 1,500 / 0 points.
+
+Over seeds: own settings 6.7 × 10<sup>-2</sup> [4.9 × 10<sup>-2</sup> – 1.1 × 10<sup>-1</sup>] (3 seeds), tuned 1.3 × 10<sup>-4</sup> [1.3 × 10<sup>-4</sup> – 1.3 × 10<sup>-4</sup>] (3 seeds).
+
+*Surface comparison, sxx, the example's own settings:*
+
+![Surface comparison, sxx, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxx.png)
+
+*Surface comparison, sxx, tuned (all):*
+
+![Surface comparison, sxx, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxx.png)
+
+*Surface comparison, sxy, the example's own settings:*
+
+![Surface comparison, sxy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxy.png)
+
+*Surface comparison, sxy, tuned (all):*
+
+![Surface comparison, sxy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxy.png)
+
+*Surface comparison, syy, the example's own settings:*
+
+![Surface comparison, syy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_syy.png)
+
+*Surface comparison, syy, tuned (all):*
+
+![Surface comparison, syy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_syy.png)
+
+*Surface comparison, ux, the example's own settings:*
+
+![Surface comparison, ux, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_ux.png)
+
+*Surface comparison, ux, tuned (all):*
+
+![Surface comparison, ux, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_ux.png)
+
+*Surface comparison, uy, the example's own settings:*
+
+![Surface comparison, uy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_uy.png)
+
+*Surface comparison, uy, tuned (all):*
+
+![Surface comparison, uy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_uy.png)
+
+
+Tuned settings: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-wave-1d-space-time-multi-scale-fourier-features">
+<summary><strong>Wave 1D – space-time multi-scale Fourier features</strong></summary>
+
+Its own settings and results are on the examples page: [Wave 1D – space-time multi-scale Fourier features](examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
+
+**Own settings:** network [2, 100, 100, 100, 1], Adam 10,000, 360 domain / 360 boundary / 360 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 9.24e-04 | 1.4 × 10<sup>-1</sup> | – | 75 |
+| iters | 1.27e-04 | 8.5 × 10<sup>-3</sup> | – | 220 |
+| net | 9.09e-04 | 4.2 × 10<sup>-2</sup> | – | 86 |
+| points | 7.59e-04 | 1.1 × 10<sup>-1</sup> | – | 75 |
+| lbfgs | 1.07e-06 | 1.6 × 10<sup>-1</sup> | – | 178 |
+| **all** | 9.92e-07 | 4.2 × 10<sup>-3</sup> | – | 645 |
+
+**Chosen: all** (all of the changes above together): network [2, 200, 200, 200, 200, 1], Adam 30,000 → L-BFGS 15,000, 1,080 / 1,080 / 1,080 points.
+
+Over seeds: own settings 3.0 × 10<sup>-1</sup> [1.4 × 10<sup>-1</sup> – 7.6 × 10<sup>-1</sup>] (3 seeds), tuned 1.5 × 10<sup>-3</sup> [1.2 × 10<sup>-3</sup> – 4.2 × 10<sup>-3</sup>] (3 seeds).
+
+Adding L-BFGS reaches almost the lowest training loss but a worse error (0.16), one of the cases where the training loss and the error do not agree. With every change together the error is about 150 times lower, and it barely changes between seeds while the example's own settings give 0.14 to 0.76.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-second-order-ode-inverse-mode">
+<summary><strong>Second-order ODE, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Second-order ODE](examples.md#dx-second-order-ode).
+
+**Own settings:** network [2, 50, 50, 50, 1], Adam 10,000 → L-BFGS 15,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.90e-04 | 1.6 × 10<sup>-3</sup> | 7.3% | 27 |
+| **net** | 3.23e-06 | 8.9 × 10<sup>-6</sup> | 0.082% | 30 |
+| all | 8.07e-06 | 5.8 × 10<sup>-5</sup> | 0.19% | 74 |
+| lbfgs3 | 2.90e-04 | 1.6 × 10<sup>-3</sup> | 7.3% | 25 |
+| invall | 8.85e-04 | 4.1 × 10<sup>-4</sup> | 4.2% | 28 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 100, 100, 100, 100, 1], Adam 10,000 → L-BFGS 15,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 8.9 × 10<sup>-6</sup> (1 seeds).
+ Learned parameters (tuned, median): a = 10.0003 (true 10.0), b = 8.99262 (true 9.0).
+
+PINNStudio's own inverse mode: a and b of u'' - a u' + b u = 5t from u at 30 times. With the example's settings b comes out 7% off (9.65 against 9); the wider network finds a = 10.0003 and b = 8.993.
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Second_order_ODE_inv/own_line_comparison.png)
+
+*Line comparison, tuned (net):*
+
+![Line comparison, tuned (net)](figures/tuning/Second_order_ODE_inv/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Second_order_ODE_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Second_order_ODE_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-1d-unknown-coefficient">
+<summary><strong>Diffusion 1D – unknown coefficient</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion 1D – unknown coefficient](examples.md#dx-inverse-diffusion-equation).
+
+**Own settings:** network [2, 32, 32, 32, 1], Adam 50,000, 40 domain / 20 boundary / 10 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 4.43e-05 | 1.1 × 10<sup>-2</sup> | 0.045% | 107 |
+| iters | 3.89e-06 | 1.2 × 10<sup>-3</sup> | 0.004% | 311 |
+| net | 7.61e-05 | 1.5 × 10<sup>-2</sup> | 0.17% | 127 |
+| points | 2.57e-04 | 1.6 × 10<sup>-2</sup> | 0.17% | 106 |
+| lbfgs | 1.98e-06 | 1.1 × 10<sup>-3</sup> | 0.081% | 111 |
+| **all** | 4.88e-07 | 2.0 × 10<sup>-4</sup> | 0.017% | 380 |
+
+**Chosen: all** (all of the changes above together): network [2, 64, 64, 64, 64, 1], Adam 150,000 → L-BFGS 15,000, 120 / 60 / 30 points.
+
+Over seeds: own settings 6.2 × 10<sup>-3</sup> [2.9 × 10<sup>-3</sup> – 1.1 × 10<sup>-2</sup>] (3 seeds), tuned 2.0 × 10<sup>-4</sup> [1.2 × 10<sup>-4</sup> – 2.6 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): C = 1.00017 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Inverse_diffusion_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Inverse_diffusion_equation/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Inverse_diffusion_equation/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Inverse_diffusion_equation/tuned_param_plot.png)
+
+
+Tuned settings: [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](tuning/Diffusion%201D%20–%20unknown%20coefficient%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-klein-gordon-1d">
+<summary><strong>Klein-Gordon 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Klein-Gordon 1D](examples.md#dx-klein-gordon-equation).
+
+**Own settings:** network [2, 40, 40, 1], Adam 20,000 → L-BFGS 15,000, 30,000 domain / 1,500 boundary / 1,500 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.82e-04 | 8.1 × 10<sup>-2</sup> | – | 55 |
+| iters | 1.82e-05 | 3.3 × 10<sup>-2</sup> | – | 156 |
+| **net** | 7.07e-07 | 1.7 × 10<sup>-3</sup> | – | 151 |
+| points | 2.38e-06 | 1.1 × 10<sup>-2</sup> | – | 159 |
+| all | 8.86e-06 | 2.1 × 10<sup>-2</sup> | – | 1214 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 80, 80, 80, 1], Adam 20,000 → L-BFGS 15,000, 30,000 / 1,500 / 1,500 points.
+
+Over seeds: own settings 6.9 × 10<sup>-2</sup> [8.4 × 10<sup>-3</sup> – 8.1 × 10<sup>-2</sup>] (3 seeds), tuned 2.3 × 10<sup>-3</sup> [1.7 × 10<sup>-3</sup> – 2.5 × 10<sup>-3</sup>] (3 seeds).
+
+The wider network alone is the best and steadiest change; with all the changes together the error is about three times higher.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Klein_Gordon_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Klein_Gordon_equation/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Klein-Gordon 1D (tuned).pinn.json`](tuning/Klein-Gordon%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-euler-beam-1d-inverse-mode">
+<summary><strong>Euler beam 1D, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Euler beam 1D](examples.md#dx-euler-beam).
+
+**Own settings:** network [1, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 10 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.82e-04 | 1.6 × 10<sup>-3</sup> | 2.3% | 61 |
+| net | 4.49e-06 | 6.4 × 10<sup>-5</sup> | 0.15% | 80 |
+| **all** | 1.56e-07 | 3.8 × 10<sup>-5</sup> | 0.075% | 231 |
+| lbfgs3 | 1.82e-04 | 1.6 × 10<sup>-3</sup> | 2.3% | 60 |
+| invall | 8.30e-06 | 1.9 × 10<sup>-4</sup> | 0.47% | 80 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 45,000, 30 / 6 / 0 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 6.8 × 10<sup>-5</sup> [3.8 × 10<sup>-5</sup> – 1.2 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): EI = 1.00137 (true 1.0).
+
+PINNStudio's own inverse mode: the bending stiffness EI from the deflection at 20 points. The example's settings leave EI 2.3% off; every change together brings it to 0.08%.
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Euler_beam_inv/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Euler_beam_inv/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Euler_beam_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Euler_beam_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%20beam%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-helmholtz-2d-square-with-hole">
+<summary><strong>Helmholtz 2D – square with hole</strong></summary>
+
+Its own settings and results are on the examples page: [Helmholtz 2D – square with hole](examples.md#dx-helmholtz-2d-with-a-hole).
+
+**Own settings:** network [2, 350, 350, 350, 1], Adam 5,000, 225 domain / 240 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.17e+00 | 4.6 × 10<sup>-2</sup> | – | 17 |
+| iters | 1.98e-02 | 5.8 × 10<sup>-3</sup> | – | 40 |
+| net | 5.85e-02 | 1.1 × 10<sup>-2</sup> | – | 18 |
+| points | 5.11e-02 | 1.6 × 10<sup>-2</sup> | – | 18 |
+| **lbfgs** | 1.13e-04 | 7.0 × 10<sup>-4</sup> | – | 24 |
+| all | 8.82e-04 | 2.6 × 10<sup>-3</sup> | – | 79 |
+
+**Chosen: lbfgs** (an L-BFGS phase (15,000 iterations) after Adam): network [2, 350, 350, 350, 1], Adam 5,000 → L-BFGS 15,000, 225 / 240 / 0 points.
+
+Over seeds: own settings 1.1 × 10<sup>-2</sup> [8.5 × 10<sup>-3</sup> – 4.6 × 10<sup>-2</sup>] (3 seeds), tuned 7.0 × 10<sup>-4</sup> [6.7 × 10<sup>-4</sup> – 2.5 × 10<sup>-3</sup>] (3 seeds).
+
+An L-BFGS phase after Adam is all it needs: about 15 times lower error for 7 seconds more training.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Helmholtz_2D_with_a_hole/own_surface_comparison.png)
+
+*Surface comparison, tuned (lbfgs):*
+
+![Surface comparison, tuned (lbfgs)](figures/tuning/Helmholtz_2D_with_a_hole/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Helmholtz 2D – square with hole (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20square%20with%20hole%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-1d">
+<summary><strong>Diffusion 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion 1D](examples.md#dx-diffusion-equation).
+
+**Own settings:** network [2, 32, 32, 32, 1], Adam 10,000, 40 domain / 20 boundary / 10 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.19e-04 | 3.0 × 10<sup>-2</sup> | – | 23 |
+| iters | 2.66e-05 | 1.1 × 10<sup>-2</sup> | – | 61 |
+| net | 6.62e-04 | 1.2 × 10<sup>-2</sup> | – | 26 |
+| points | 3.51e-05 | 1.2 × 10<sup>-2</sup> | – | 23 |
+| lbfgs | 1.27e-06 | 4.4 × 10<sup>-3</sup> | – | 25 |
+| **all** | 1.25e-06 | 1.5 × 10<sup>-3</sup> | – | 74 |
+
+**Chosen: all** (all of the changes above together): network [2, 64, 64, 64, 64, 1], Adam 30,000 → L-BFGS 15,000, 120 / 60 / 30 points.
+
+Over seeds: own settings 2.3 × 10<sup>-2</sup> [3.5 × 10<sup>-3</sup> – 3.0 × 10<sup>-2</sup>] (3 seeds), tuned 1.5 × 10<sup>-3</sup> [8.7 × 10<sup>-4</sup> – 1.7 × 10<sup>-3</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_equation/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Diffusion 1D (tuned).pinn.json`](tuning/Diffusion%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-1d-raissi-et-al-pinnstudio-template-inverse-mode">
+<summary><strong>Burgers 1D – Raissi et al. (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 200 boundary / 200 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.31e-04 | 7.8 × 10<sup>-4</sup> | 0.39% | 97 |
+| dataw | 2.33e-04 | 1.2 × 10<sup>-4</sup> | 0.18% | 117 |
+| times | 1.54e-04 | 3.0 × 10<sup>-4</sup> | 0.091% | 103 |
+| setup | 2.41e-04 | 4.8 × 10<sup>-4</sup> | 0.57% | 100 |
+| **invall** | 4.25e-05 | 5.5 × 10<sup>-5</sup> | 0.099% | 101 |
+
+**Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [2, 40, 40, 40, 40, 1], Adam 15,000 → L-BFGS 30,000, 8,000 / 200 / 200 points.
+
+Over seeds: own settings 7.8 × 10<sup>-4</sup> (1 seeds), tuned 5.5 × 10<sup>-5</sup> [5.0 × 10<sup>-5</sup> – 6.4 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): lambda_1 = 0.999888 (true 1.0), lambda_2 = 0.00999801 (true 0.01).
+
+Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-euler-beam-1d">
+<summary><strong>Euler beam 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Euler beam 1D](examples.md#dx-euler-beam).
+
+**Own settings:** network [1, 20, 20, 20, 1], Adam 10,000, 10 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 4.64e-05 | 8.4 × 10<sup>-3</sup> | – | 55 |
+| iters | 9.30e-07 | 5.2 × 10<sup>-3</sup> | – | 157 |
+| net | 6.35e-04 | 8.2 × 10<sup>-3</sup> | – | 74 |
+| points | 2.12e-04 | 2.8 × 10<sup>-2</sup> | – | 56 |
+| lbfgs | 4.25e-07 | 2.4 × 10<sup>-4</sup> | – | 59 |
+| **all** | 1.44e-07 | 1.1 × 10<sup>-4</sup> | – | 221 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 15,000, 30 / 6 / 0 points.
+
+Over seeds: own settings 3.5 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 8.4 × 10<sup>-3</sup>] (3 seeds), tuned 2.8 × 10<sup>-4</sup> [1.1 × 10<sup>-4</sup> – 4.0 × 10<sup>-4</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Euler_beam/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Euler_beam/tuned_line_comparison.png)
+
+
+Tuned settings: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode">
+<summary><strong>Burgers 2D – Mathias et al. (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 2,000 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.74e-03 | 3.9 × 10<sup>-3</sup> | 8.3% | 1284 |
+| dataw | 9.62e-03 | 2.7 × 10<sup>-3</sup> | 3.5% | 1295 |
+| times | 2.09e-03 | 3.0 × 10<sup>-3</sup> | 0.23% | 4087 |
+| **invall** | 1.80e-04 | 3.8 × 10<sup>-4</sup> | 0.31% | 6686 |
+
+**Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [3, 256, 256, 256, 256, 256, 2], Adam 15,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
+
+Over seeds: own settings 4.0 × 10<sup>-3</sup> [3.9 × 10<sup>-3</sup> – 4.2 × 10<sup>-3</sup>] (3 seeds), tuned 3.6 × 10<sup>-4</sup> [3.6 × 10<sup>-4</sup> – 3.8 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): nu = 0.00319713 (true 0.00318309886184).
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
+
+
+Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-1d-resampling">
+<summary><strong>Diffusion 1D – resampling</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion 1D – resampling](examples.md#dx-diffusion-equation-with-resampling).
+
+**Own settings:** network [2, 32, 32, 32, 1], Adam 2,000, 40 domain / 20 boundary / 10 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.64e-04 | 4.3 × 10<sup>-2</sup> | – | 8 |
+| iters | 7.75e-05 | 6.7 × 10<sup>-3</sup> | – | 16 |
+| net | 1.43e-03 | 3.5 × 10<sup>-2</sup> | – | 9 |
+| points | 7.11e-04 | 6.7 × 10<sup>-2</sup> | – | 8 |
+| **lbfgs** | 2.39e-06 | 1.9 × 10<sup>-3</sup> | – | 11 |
+| all | 2.79e-06 | 4.7 × 10<sup>-3</sup> | – | 20 |
+
+**Chosen: lbfgs** (an L-BFGS phase (15,000 iterations) after Adam): network [2, 32, 32, 32, 1], Adam 2,000 → L-BFGS 15,000, 40 / 20 / 10 points.
+
+Over seeds: own settings 5.4 × 10<sup>-2</sup> [4.3 × 10<sup>-2</sup> – 5.6 × 10<sup>-2</sup>] (3 seeds), tuned 5.8 × 10<sup>-3</sup> [1.9 × 10<sup>-3</sup> – 9.9 × 10<sup>-3</sup>] (3 seeds).
+
+Again L-BFGS alone gives most of the gain, at almost no extra time.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_equation_with_resampling/own_surface_comparison.png)
+
+*Surface comparison, tuned (lbfgs):*
+
+![Surface comparison, tuned (lbfgs)](figures/tuning/Diffusion_equation_with_resampling/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Diffusion 1D – resampling (tuned).pinn.json`](tuning/Diffusion%201D%20–%20resampling%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-reaction-1d-inverse-mode">
+<summary><strong>Diffusion-reaction 1D, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion-reaction 1D](examples.md#dx-diffusion-reaction-equation).
+
+**Own settings:** network [2, 30, 30, 30, 30, 30, 30, 1], Adam 20,000 → L-BFGS 15,000, 320 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.36e-04 | 6.2 × 10<sup>-4</sup> | 0.12% | 121 |
+| net | 1.15e-04 | 5.2 × 10<sup>-4</sup> | 0.1% | 130 |
+| **all** | 1.58e-05 | 1.4 × 10<sup>-4</sup> | 0.023% | 334 |
+| lbfgs3 | 2.36e-04 | 6.2 × 10<sup>-4</sup> | 0.12% | 118 |
+| invall | 2.71e-03 | 1.5 × 10<sup>-3</sup> | 0.2% | 118 |
+
+**Chosen: all** (all of the changes above together): network [2, 60, 60, 60, 60, 60, 60, 60, 1], Adam 60,000 → L-BFGS 45,000, 960 / 0 / 0 points.
+
+Over seeds: own settings 6.2 × 10<sup>-4</sup> (1 seeds), tuned 9.5 × 10<sup>-5</sup> [7.1 × 10<sup>-5</sup> – 1.4 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): D = 0.99988 (true 1.0).
+
+PINNStudio's own inverse mode: the diffusivity D from u at four times.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_reaction_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_reaction_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Diffusion_reaction_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Diffusion_reaction_equation_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning/Diffusion-reaction%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-unknown-forcing-field-batches">
+<summary><strong>Poisson 1D – unknown forcing field (batches)</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – unknown forcing field (batches)](examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches).
+
+**Own settings:** network [1, 20, 20, 20, 2], Adam 20,000, 200 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.89e-02 | 7.6 × 10<sup>-3</sup> | – | 60 |
+| iters | 1.14e-02 | 4.6 × 10<sup>-3</sup> | – | 179 |
+| net | 1.42e-02 | 5.3 × 10<sup>-3</sup> | – | 74 |
+| points | 3.12e-02 | 7.5 × 10<sup>-3</sup> | – | 61 |
+| lbfgs | 2.95e-02 | 7.5 × 10<sup>-3</sup> | – | 61 |
+| **all** | 1.45e-03 | 1.6 × 10<sup>-3</sup> | – | 214 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 2], Adam 60,000 → L-BFGS 15,000, 600 / 6 / 0 points.
+
+Over seeds: own settings 4.5 × 10<sup>-3</sup> [2.8 × 10<sup>-3</sup> – 7.6 × 10<sup>-3</sup>] (3 seeds), tuned 7.8 × 10<sup>-4</sup> [7.4 × 10<sup>-4</sup> – 1.6 × 10<sup>-3</sup>] (3 seeds).
+
+*Line comparison, q, the example's own settings:*
+
+![Line comparison, q, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_q.png)
+
+*Line comparison, q, tuned (all):*
+
+![Line comparison, q, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_q.png)
+
+*Line comparison, u, the example's own settings:*
+
+![Line comparison, u, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_u.png)
+
+*Line comparison, u, tuned (all):*
+
+![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_u.png)
+
+
+Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(batches)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-1d-dirichlet-inverse-mode">
+<summary><strong>Heat 1D – Dirichlet, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Heat 1D – Dirichlet](examples.md#dx-heat-equation).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 20,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.63e-06 | 5.1 × 10<sup>-3</sup> | 0.69% | 46 |
+| iters | 2.60e-06 | 3.0 × 10<sup>-3</sup> | 0.48% | 130 |
+| net | 2.32e-06 | 1.2 × 10<sup>-3</sup> | 0.38% | 50 |
+| points | 2.41e-06 | 1.7 × 10<sup>-3</sup> | 0.55% | 53 |
+| **all** | 1.43e-06 | 1.1 × 10<sup>-3</sup> | 0.051% | 146 |
+
+**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 60,000 → L-BFGS 45,000, 7,620 / 240 / 480 points.
+
+Over seeds: own settings 5.1 × 10<sup>-3</sup> [2.6 × 10<sup>-3</sup> – 6.0 × 10<sup>-3</sup>] (3 seeds), tuned 1.1 × 10<sup>-3</sup> [8.7 × 10<sup>-4</sup> – 1.3 × 10<sup>-3</sup>] (3 seeds).
+ Learned parameters (tuned, median): a = 0.400406 (true 0.4).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Heat_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Heat_equation_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-klein-gordon-1d-inverse-mode">
+<summary><strong>Klein-Gordon 1D, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Klein-Gordon 1D](examples.md#dx-klein-gordon-equation).
+
+**Own settings:** network [2, 40, 40, 1], Adam 20,000 → L-BFGS 15,000, 30,000 domain / 1,500 boundary / 1,500 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.85e-02 | 1.4 × 10<sup>-2</sup> | 5.5% | 81 |
+| net | 2.50e-02 | 1.5 × 10<sup>-2</sup> | 3.3% | 151 |
+| **all** | 5.46e-04 | 6.3 × 10<sup>-4</sup> | 0.91% | 1361 |
+| lbfgs3 | 1.85e-02 | 1.4 × 10<sup>-2</sup> | 5.5% | 79 |
+| invall | 9.34e-02 | 7.4 × 10<sup>-3</sup> | 6.5% | 151 |
+
+**Chosen: all** (all of the changes above together): network [2, 80, 80, 80, 1], Adam 60,000 → L-BFGS 45,000, 90,000 / 4,500 / 4,500 points.
+
+Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 2.9 × 10<sup>-3</sup> [6.3 × 10<sup>-4</sup> – 5.9 × 10<sup>-3</sup>] (3 seeds).
+ Learned parameters (tuned, median): gamma = 1.00912 (true 1.0).
+
+Tuned settings: [`Klein-Gordon 1D, inverse mode (tuned).pinn.json`](tuning/Klein-Gordon%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.88e-04 | 2.5 × 10<sup>-4</sup> | 0.79% | 393 |
+| dataw | 7.99e-03 | 3.6 × 10<sup>-4</sup> | 69% | 393 |
+| times | 2.93e-03 | 8.5 × 10<sup>-4</sup> | 56% | 1001 |
+| setup | 1.02e-01 | 1.7 × 10<sup>-2</sup> | 52% | 313 |
+| **invall** | 6.05e-05 | 5.8 × 10<sup>-5</sup> | 0.55% | 1939 |
+
+**Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [3, 256, 256, 256, 256, 256, 1], Adam 20,000 → L-BFGS 30,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 2.5 × 10<sup>-4</sup> (1 seeds), tuned 5.8 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): lambda_ = 10.0536 (true 10.0), diff_coeff = 0.00628417 (true 0.00625).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-1d-resampling">
+<summary><strong>Heat 1D – resampling</strong></summary>
+
+Its own settings and results are on the examples page: [Heat 1D – resampling](examples.md#dx-heat-equation-with-resampling).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 200,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.35e-07 | 1.4 × 10<sup>-2</sup> | – | 505 |
+| iters | 1.65e-07 | 7.2 × 10<sup>-3</sup> | – | 1502 |
+| net | 2.53e-07 | 3.1 × 10<sup>-3</sup> | – | 558 |
+| points | 5.40e-07 | 1.0 × 10<sup>-2</sup> | – | 626 |
+| **all** | 6.42e-08 | 2.9 × 10<sup>-3</sup> | – | 2054 |
+
+**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 600,000 → L-BFGS 45,000, 7,620 / 240 / 480 points.
+
+Over seeds: own settings 1.4 × 10<sup>-2</sup> [6.1 × 10<sup>-3</sup> – 2.7 × 10<sup>-2</sup>] (3 seeds), tuned 3.3 × 10<sup>-3</sup> [2.9 × 10<sup>-3</sup> – 3.5 × 10<sup>-3</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation_with_resampling/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation_with_resampling/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20–%20resampling%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-helmholtz-2d-dirichlet-inverse-mode">
+<summary><strong>Helmholtz 2D – Dirichlet, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Helmholtz 2D – Dirichlet](examples.md#dx-helmholtz-2d-dirichlet).
+
+**Own settings:** network [2, 150, 150, 150, 1], Adam 5,000 → L-BFGS 15,000, 400 domain / 80 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.09e-03 | 3.5 × 10<sup>-4</sup> | 0.011% | 35 |
+| net | 4.89e-04 | 2.2 × 10<sup>-4</sup> | 0.011% | 64 |
+| **all** | 2.64e-04 | 8.7 × 10<sup>-5</sup> | 0.0042% | 125 |
+| lbfgs3 | 5.09e-03 | 3.5 × 10<sup>-4</sup> | 0.011% | 35 |
+| invall | 7.95e-04 | 4.0 × 10<sup>-5</sup> | 0.00023% | 58 |
+
+**Chosen: all** (all of the changes above together): network [2, 300, 300, 300, 300, 1], Adam 15,000 → L-BFGS 45,000, 1,200 / 240 / 0 points.
+
+Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 8.7 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): k0 = 12.5669 (true 12.5663706144).
+
+PINNStudio's own inverse mode: the wavenumber k0 = 4π from u on a 31 × 31 grid. The source term is the known load and keeps the true wavenumber, so k0 is unknown only in the k0² u term (an earlier version also had k0 inside the source and failed). k0 is found to 0.01% with the example's settings and to 0.004% after tuning.
+
+Tuned settings: [`Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-schr-dinger-1d-inverse-mode">
+<summary><strong>Schrödinger 1D, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Schrödinger 1D](examples.md#dx-schr-dinger-equation).
+
+**Own settings:** network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 domain / 20 boundary / 200 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.34e-04 | 1.8 × 10<sup>-1</sup> | 3% | 196 |
+| iters | 1.96e-04 | 3.6 × 10<sup>-1</sup> | 2.3% | 483 |
+| **net** | 6.19e-06 | 9.9 × 10<sup>-4</sup> | 0.0072% | 337 |
+| points | 1.84e-03 | 6.5 × 10<sup>-2</sup> | 0.023% | 324 |
+| all | 6.75e-04 | 1.7 × 10<sup>-1</sup> | 0.82% | 1745 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 200, 200, 200, 200, 200, 2], Adam 10,000 → L-BFGS 10,000, 10,000 / 20 / 200 points.
+
+Over seeds: own settings 1.8 × 10<sup>-1</sup> (1 seeds), tuned 4.7 × 10<sup>-2</sup> [9.9 × 10<sup>-4</sup> – 1.4 × 10<sup>-1</sup>] (3 seeds).
+ Learned parameters (tuned, median): c = 0.509404 (true 0.5).
+
+Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to 0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Schr_dinger_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Schr_dinger_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Schr_dinger_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Schr_dinger_equation_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-1d-dirichlet">
+<summary><strong>Heat 1D – Dirichlet</strong></summary>
+
+Its own settings and results are on the examples page: [Heat 1D – Dirichlet](examples.md#dx-heat-equation).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 20,000 → L-BFGS 15,000, 2,540 domain / 80 boundary / 160 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.34e-06 | 5.0 × 10<sup>-2</sup> | – | 40 |
+| iters | 2.21e-06 | 2.9 × 10<sup>-2</sup> | – | 108 |
+| net | 7.55e-07 | 5.8 × 10<sup>-3</sup> | – | 46 |
+| points | 6.41e-06 | 3.1 × 10<sup>-2</sup> | – | 40 |
+| **all** | 6.48e-07 | 1.0 × 10<sup>-2</sup> | – | 128 |
+
+**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 60,000 → L-BFGS 45,000, 7,620 / 240 / 480 points.
+
+Over seeds: own settings 5.0 × 10<sup>-2</sup> [3.4 × 10<sup>-2</sup> – 6.3 × 10<sup>-2</sup>] (3 seeds), tuned 1.3 × 10<sup>-2</sup> [1.0 × 10<sup>-2</sup> – 1.6 × 10<sup>-2</sup>] (3 seeds).
+
+With one seed the wider network looked best (5.8e-3), but over three seeds it varies from 5.8e-3 to 3.3e-2, while all the changes together stay between 1.0e-2 and 1.6e-2.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Heat 1D – Dirichlet (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup">
+<summary><strong>Burgers 1D – Raissi et al. (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 200 boundary / 200 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.31e-05 | 1.7 × 10<sup>-3</sup> | – | 86 |
+| iters | 1.90e-05 | 5.5 × 10<sup>-4</sup> | – | 148 |
+| net | 1.06e-05 | 6.8 × 10<sup>-4</sup> | – | 75 |
+| **all** | 4.02e-06 | 5.2 × 10<sup>-4</sup> | – | 172 |
+
+**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 45,000 → L-BFGS 30,000, 24,000 / 600 / 600 points.
+
+Over seeds: own settings 1.7 × 10<sup>-3</sup> (1 seeds), tuned 5.2 × 10<sup>-4</sup> (1 seeds).
+
+Causal training on the whole interval, then every change together, gives 5.2e-4 at t = 1, against 1.3e-3 for the template as it loads.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_1D_Burgers_best_setup/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Template_1D_Burgers_best_setup/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-2d-pinnstudio-template-inverse-mode">
+<summary><strong>Heat 2D (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 64, 64, 64, 64, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 400 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.53e-03 | 4.7 × 10<sup>-4</sup> | 0.068% | 138 |
+| **dataw** | 6.12e-03 | 1.8 × 10<sup>-4</sup> | 0.25% | 184 |
+| times | 1.35e-02 | 3.5 × 10<sup>-4</sup> | 0.077% | 444 |
+| invall | 6.71e-03 | 2.4 × 10<sup>-4</sup> | 0.42% | 356 |
+
+**Chosen: dataw** (10× the weight of the measured data (inverse problems)): network [3, 64, 64, 64, 64, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 400 points.
+
+Over seeds: own settings 5.2 × 10<sup>-4</sup> [4.7 × 10<sup>-4</sup> – 5.3 × 10<sup>-4</sup>] (3 seeds), tuned 1.8 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 0.401007 (true 0.4).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Heat_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Heat_inv/own_param_plot.png)
+
+
+Tuned settings: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode">
+<summary><strong>Wave 1D – space-time multi-scale Fourier features, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Wave 1D – space-time multi-scale Fourier features](examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features).
+
+**Own settings:** network [2, 100, 100, 100, 1], Adam 10,000 → L-BFGS 15,000, 5,000 domain / 360 boundary / 360 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.05e-07 | 5.5 × 10<sup>-5</sup> | 0.0001% | 303 |
+| net | 4.65e-07 | 5.1 × 10<sup>-5</sup> | 0.0001% | 608 |
+| **all** | 1.95e-07 | 3.8 × 10<sup>-5</sup> | 0% | 4354 |
+| invall | 2.92e-07 | 4.1 × 10<sup>-5</sup> | 0.0001% | 1513 |
+
+**Chosen: all** (all of the changes above together): network [2, 200, 200, 200, 200, 1], Adam 30,000 → L-BFGS 45,000, 15,000 / 1,080 / 1,080 points.
+
+Over seeds: own settings 5.5 × 10<sup>-5</sup> (1 seeds), tuned 2.0 × 10<sup>-5</sup> [1.6 × 10<sup>-5</sup> – 3.8 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): C = 10 (true 10.0).
+
+Tuned settings: [`Wave 1D – space-time multi-scale Fourier features, inverse mode (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-unknown-forcing-field">
+<summary><strong>Poisson 1D – unknown forcing field</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – unknown forcing field](examples.md#dx-inverse-poisson-with-unknown-forcing-field).
+
+**Own settings:** network [1, 20, 20, 20, 2], Adam 20,000, 200 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.75e-04 | 8.3 × 10<sup>-4</sup> | – | 59 |
+| iters | 7.00e-04 | 1.1 × 10<sup>-3</sup> | – | 171 |
+| net | 1.53e-04 | 5.1 × 10<sup>-4</sup> | – | 70 |
+| points | 3.72e-04 | 8.3 × 10<sup>-4</sup> | – | 63 |
+| lbfgs | 3.75e-04 | 8.3 × 10<sup>-4</sup> | – | 60 |
+| **all** | 5.60e-05 | 3.2 × 10<sup>-4</sup> | – | 216 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 2], Adam 60,000 → L-BFGS 15,000, 600 / 6 / 0 points.
+
+Over seeds: own settings 5.4 × 10<sup>-4</sup> [1.3 × 10<sup>-4</sup> – 8.3 × 10<sup>-4</sup>] (3 seeds), tuned 2.1 × 10<sup>-4</sup> [9.8 × 10<sup>-5</sup> – 3.2 × 10<sup>-4</sup>] (3 seeds).
+
+*Line comparison, q, the example's own settings:*
+
+![Line comparison, q, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_q.png)
+
+*Line comparison, q, tuned (all):*
+
+![Line comparison, q, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_q.png)
+
+*Line comparison, u, the example's own settings:*
+
+![Line comparison, u, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_u.png)
+
+*Line comparison, u, tuned (all):*
+
+![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_u.png)
+
+
+Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.25e-02 | 1.4 × 10<sup>-2</sup> | 5.2% | 1741 |
+| dataw | 2.92e-01 | 8.0 × 10<sup>-3</sup> | 43% | 776 |
+| **times** | 3.34e-02 | 5.9 × 10<sup>-3</sup> | 0.96% | 5306 |
+| invall | 3.52e-02 | 1.5 × 10<sup>-3</sup> | 4.2% | 4619 |
+
+**Chosen: times** (measured data at every reference time after t = 0, not only one (inverse problems)): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 5.9 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 0.000201912 (true 0.0002), kappa = 0.995857 (true 1.0).
+
+Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.90e-03 | 2.0 × 10<sup>-3</sup> | – | 954 |
+| iters | 1.67e-02 | 1.1 × 10<sup>-3</sup> | – | 1964 |
+| **net** | 7.24e-04 | 8.5 × 10<sup>-4</sup> | – | 2301 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [3, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 2.0 × 10<sup>-3</sup> (1 seeds), tuned 8.5 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-3d-cube-with-spherical-cut-out-pinnstudio-template">
+<summary><strong>Poisson 3D – cube with spherical cut-out (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 64, 64, 64, 64, 1], Adam 15,000 → L-BFGS 15,000, 8,000 domain / 2,000 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.96e-07 | 3.7 × 10<sup>-4</sup> | – | 92 |
+| iters | 2.62e-07 | 3.4 × 10<sup>-4</sup> | – | 209 |
+| net | 2.69e-07 | 3.0 × 10<sup>-4</sup> | – | 141 |
+| points | 2.53e-07 | 3.3 × 10<sup>-4</sup> | – | 166 |
+| **all** | 2.13e-07 | 1.9 × 10<sup>-4</sup> | – | 1096 |
+
+**Chosen: all** (all of the changes above together): network [3, 128, 128, 128, 128, 128, 1], Adam 45,000 → L-BFGS 45,000, 24,000 / 6,000 / 0 points.
+
+Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 1.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20cube%20with%20spherical%20cut-out%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-2d-kovasznay-flow-inverse-mode">
+<summary><strong>Navier-Stokes 2D – Kovasznay flow, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Navier-Stokes 2D – Kovasznay flow](examples.md#dx-kovasznay-flow).
+
+**Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 220 |
+| net | 3.02e-06 | 5.9 × 10<sup>-5</sup> | 0.011% | 252 |
+| **all** | 1.95e-06 | 3.7 × 10<sup>-5</sup> | 0.009% | 956 |
+| lbfgs3 | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 224 |
+| invall | 1.98e-05 | 7.1 × 10<sup>-5</sup> | 0.043% | 253 |
+
+**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 100, 3], Adam 90,000 → L-BFGS 45,000, 7,803 / 1,200 / 0 points.
+
+Over seeds: own settings 9.1 × 10<sup>-5</sup> (1 seeds), tuned 4.6 × 10<sup>-5</sup> [3.7 × 10<sup>-5</sup> – 5.2 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): Re = 19.9995 (true 20.0).
+
+PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, within 0.01% with every setting tried.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (all):*
+
+![Surface comparison, u, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (all):*
+
+![Surface comparison, v, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-poisson-1d">
+<summary><strong>Fractional Poisson 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional Poisson 1D](examples.md#dx-fractional-poisson-equation-1d).
+
+**Own settings:** network [1, 20, 20, 20, 20, 1], Adam 10,000, 101 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.79e-06 | 3.7 × 10<sup>-2</sup> | – | 19 |
+| iters | 5.03e-07 | 1.4 × 10<sup>-2</sup> | – | 52 |
+| net | 1.86e-06 | 1.5 × 10<sup>-2</sup> | – | 21 |
+| points | 7.79e-06 | 3.7 × 10<sup>-2</sup> | – | 19 |
+| lbfgs | 4.42e-06 | 2.0 × 10<sup>-2</sup> | – | 19 |
+| **all** | 3.02e-07 | 1.2 × 10<sup>-2</sup> | – | 56 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 15,000, 303 / 6 / 0 points.
+
+Over seeds: own settings 2.3 × 10<sup>-2</sup> [1.6 × 10<sup>-2</sup> – 3.7 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [1.2 × 10<sup>-2</sup> – 1.4 × 10<sup>-2</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Fractional_Poisson_equation_1D/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Fractional_Poisson_equation_1D/tuned_line_comparison.png)
+
+
+Tuned settings: [`Fractional Poisson 1D (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-brinkman-forchheimer-1d-unknown-e-k">
+<summary><strong>Brinkman-Forchheimer 1D – unknown ν_e, K</strong></summary>
+
+Its own settings and results are on the examples page: [Brinkman-Forchheimer 1D – unknown ν_e, K](examples.md#dx-inverse-brinkman-forchheimer-model).
+
+**Own settings:** network [1, 20, 20, 20, 1], Adam 30,000, 100 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 8.74e-04 | 2.0 × 10<sup>-2</sup> | 28% | 76 |
+| iters | 8.36e-04 | 1.3 × 10<sup>-2</sup> | 15% | 234 |
+| net | 3.36e-04 | 1.2 × 10<sup>-2</sup> | 20% | 82 |
+| points | 8.62e-04 | 2.1 × 10<sup>-2</sup> | 30% | 74 |
+| lbfgs | 5.57e-05 | 1.9 × 10<sup>-2</sup> | 30% | 78 |
+| **all** | 1.63e-05 | 1.1 × 10<sup>-2</sup> | 17% | 254 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 1], Adam 90,000 → L-BFGS 15,000, 300 / 0 / 0 points.
+
+Over seeds: own settings 2.0 × 10<sup>-2</sup> [1.7 × 10<sup>-2</sup> – 2.0 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [1.1 × 10<sup>-2</sup> – 1.3 × 10<sup>-2</sup>] (3 seeds).
+ Learned parameters (tuned, median): v_e = 0.00117644 (true 0.001), K = 0.00100487 (true 0.001).
+
+The field improves, but the effective viscosity stays about 18% too high in every seed, while K comes out within 0.5%. With the measured velocity at only a few points, ν_e is weakly determined by the data.
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_param_plot.png)
+
+
+Tuned settings: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`](tuning/Brinkman-Forchheimer%201D%20–%20unknown%20ν_e,%20K%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-ode-system-inverse-mode">
+<summary><strong>Linear ODE system, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Linear ODE system](examples.md#dx-ode-system).
+
+**Own settings:** network [2, 50, 50, 50, 2], Adam 20,000 → L-BFGS 15,000, 35 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.52e-05 | 3.3 × 10<sup>-4</sup> | 0.022% | 48 |
+| net | 3.27e-05 | 4.5 × 10<sup>-4</sup> | 0.044% | 49 |
+| **all** | 9.53e-06 | 2.0 × 10<sup>-4</sup> | 0.0088% | 135 |
+| lbfgs3 | 3.52e-05 | 3.3 × 10<sup>-4</sup> | 0.022% | 47 |
+| invall | 2.79e-04 | 4.6 × 10<sup>-4</sup> | 0.091% | 50 |
+
+**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 2], Adam 60,000 → L-BFGS 45,000, 105 / 6 / 0 points.
+
+Over seeds: own settings 3.3 × 10<sup>-4</sup> (1 seeds), tuned 2.0 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): w = 0.999912 (true 1.0).
+
+PINNStudio's own inverse mode: w in y2' = -w y1 from y1 and y2 at 40 times. Already within 0.03% with the example's settings.
+
+*Line comparison, y1, the example's own settings:*
+
+![Line comparison, y1, the example's own settings](figures/tuning/ODE_system_inv/own_line_comparison_y1.png)
+
+*Line comparison, y1, tuned (all):*
+
+![Line comparison, y1, tuned (all)](figures/tuning/ODE_system_inv/tuned_line_comparison_y1.png)
+
+*Line comparison, y2, the example's own settings:*
+
+![Line comparison, y2, the example's own settings](figures/tuning/ODE_system_inv/own_line_comparison_y2.png)
+
+*Line comparison, y2, tuned (all):*
+
+![Line comparison, y2, tuned (all)](figures/tuning/ODE_system_inv/tuned_line_comparison_y2.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/ODE_system_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/ODE_system_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Linear%20ODE%20system,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-3d-beltrami-flow-inverse-mode">
+<summary><strong>Navier-Stokes 3D – Beltrami flow, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Navier-Stokes 3D – Beltrami flow](examples.md#dx-beltrami-flow).
+
+**Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.17e-04 | 3.5 × 10<sup>-4</sup> | 0.22% | 2514 |
+| **net** | 4.56e-05 | 2.2 × 10<sup>-4</sup> | 0.2% | 6315 |
+| lbfgs3 | 1.09e-04 | 3.5 × 10<sup>-4</sup> | 0.12% | 2575 |
+| invall | 1.01e-04 | 2.6 × 10<sup>-4</sup> | 0.25% | 6328 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [4, 100, 100, 100, 100, 100, 4], Adam 30,000 → L-BFGS 15,000, 50,000 / 5,000 / 5,000 points.
+
+Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 2.2 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): nu = 0.998003 (true 1.0).
+
+PINNStudio's own inverse mode: the viscosity from u, v and w at two times. The error is that of u; the pressure is only known up to a constant here, so its own error is large and not a fault. Every change together ran out of memory on the 24 GB GPU.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (net):*
+
+![Surface comparison, v, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_v.png)
+
+*Surface comparison, w, the example's own settings:*
+
+![Surface comparison, w, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_w.png)
+
+*Surface comparison, w, tuned (net):*
+
+![Surface comparison, w, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_w.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Beltrami_flow_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-2d-l-shape">
+<summary><strong>Poisson 2D – L-shape</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 2D – L-shape](examples.md#dx-poisson-over-an-l-shaped-domain).
+
+**Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 15,000, 1,200 domain / 120 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.74e-06 | 3.5 × 10<sup>-2</sup> | – | 160 |
+| iters | 3.88e-06 | 3.1 × 10<sup>-2</sup> | – | 413 |
+| **net** | 1.96e-06 | 2.2 × 10<sup>-2</sup> | – | 182 |
+| points | 8.78e-06 | 1.8 × 10<sup>-2</sup> | – | 175 |
+| all | 2.97e-06 | 1.0 × 10<sup>-2</sup> | – | 465 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 100, 100, 100, 100, 100, 1], Adam 50,000 → L-BFGS 15,000, 1,200 / 120 / 0 points.
+
+Over seeds: own settings 3.5 × 10<sup>-2</sup> [3.1 × 10<sup>-2</sup> – 3.5 × 10<sup>-2</sup>] (3 seeds), tuned 2.2 × 10<sup>-2</sup> [2.2 × 10<sup>-2</sup> – 2.4 × 10<sup>-2</sup>] (3 seeds).
+
+Training loss picks the wider network, but all the changes together give the lower error; the re-entrant corner keeps the error near 1–2% either way.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Poisson_over_an_L_shaped_domain/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Poisson_over_an_L_shaped_domain/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D%20–%20L-shape%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-1d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 1D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.06e-06 | 1.4 × 10<sup>-3</sup> | – | 200 |
+| iters | 1.45e-06 | 8.8 × 10<sup>-3</sup> | – | 412 |
+| net | 3.64e-07 | 6.3 × 10<sup>-4</sup> | – | 359 |
+| **all** | 3.48e-07 | 9.4 × 10<sup>-4</sup> | – | 2938 |
+
+**Chosen: all** (all of the changes above together): network [2, 256, 256, 256, 256, 256, 1], Adam 60,000 → L-BFGS 30,000, 30,000 / 600 / 1,536 points.
+
+Over seeds: own settings 1.4 × 10<sup>-3</sup> (1 seeds), tuned 9.4 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-reaction-1d-unknown-rate-field">
+<summary><strong>Diffusion-reaction 1D – unknown rate field</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion-reaction 1D – unknown rate field](examples.md#dx-inverse-diffusion-reaction-with-space-dependent-rate).
+
+**Own settings:** network [1, 20, 20, 2], Adam 20,000, 50 domain / 8 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 6.77e-06 | 4.0 × 10<sup>-2</sup> | – | 49 |
+| iters | 1.11e-05 | 2.3 × 10<sup>-2</sup> | – | 148 |
+| net | 3.85e-06 | 1.3 × 10<sup>-2</sup> | – | 61 |
+| points | 2.03e-05 | 4.0 × 10<sup>-2</sup> | – | 50 |
+| lbfgs | 6.77e-06 | 4.0 × 10<sup>-2</sup> | – | 50 |
+| **all** | 6.57e-07 | 1.3 × 10<sup>-2</sup> | – | 180 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 2], Adam 60,000 → L-BFGS 15,000, 150 / 24 / 0 points.
+
+Over seeds: own settings 4.0 × 10<sup>-2</sup> [1.8 × 10<sup>-2</sup> – 4.1 × 10<sup>-2</sup>] (3 seeds), tuned 2.8 × 10<sup>-2</sup> [1.3 × 10<sup>-2</sup> – 3.0 × 10<sup>-2</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/tuned_line_comparison.png)
+
+
+Tuned settings: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20rate%20field%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.85e-04 | 1.1 × 10<sup>-2</sup> | – | 822 |
+| iters | 1.56e-04 | 4.5 × 10<sup>-3</sup> | – | 1464 |
+| **net** | 1.39e-04 | 8.0 × 10<sup>-3</sup> | – | 1995 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [3, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 1.1 × 10<sup>-2</sup> [6.1 × 10<sup>-3</sup> – 1.1 × 10<sup>-2</sup>] (3 seeds), tuned 8.0 × 10<sup>-3</sup> (1 seeds).
+
+The worst error is at t = 0, where the initial field is close to zero and the relative error is not a good measure; none of the changes improves it.
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_mu.png)
+
+*Surface comparison, mu, tuned (net):*
+
+![Surface comparison, mu, tuned (net)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_u.png)
+
+
+Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-2d-mathias-et-al-pinnstudio-template">
+<summary><strong>Burgers 2D – Mathias et al. (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 2,000 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.80e-04 | 9.9 × 10<sup>-3</sup> | – | 1662 |
+| **iters** | 1.16e-04 | 6.2 × 10<sup>-3</sup> | – | 3684 |
+| net | 1.74e-04 | 7.4 × 10<sup>-3</sup> | – | 4720 |
+| points | 1.43e-04 | 7.3 × 10<sup>-3</sup> | – | 4352 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [3, 128, 128, 128, 128, 2], Adam 45,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
+
+Over seeds: own settings 9.9 × 10<sup>-3</sup> (1 seeds), tuned 8.3 × 10<sup>-3</sup> [6.2 × 10<sup>-3</sup> – 1.0 × 10<sup>-2</sup>] (3 seeds).
+
+None of the changes helps: every variant ends at about 1.8% (worst output and time). With every change together the run did not finish within the 4-hour limit.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (iters):*
+
+![Surface comparison, u, tuned (iters)](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (iters):*
+
+![Surface comparison, v, tuned (iters)](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_v.png)
+
+
+Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-helmholtz-2d-sound-hard-scattering">
+<summary><strong>Helmholtz 2D – sound-hard scattering</strong></summary>
+
+Its own settings and results are on the examples page: [Helmholtz 2D – sound-hard scattering](examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc).
+
+**Own settings:** network [2, 350, 350, 350, 2], Adam 10,000, 1,600 domain / 320 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.29e-03 | 7.8 × 10<sup>-2</sup> | – | 61 |
+| iters | 8.20e-03 | 8.8 × 10<sup>-2</sup> | – | 170 |
+| net | 1.69e-03 | 7.9 × 10<sup>-2</sup> | – | 101 |
+| points | 9.41e-04 | 7.7 × 10<sup>-2</sup> | – | 135 |
+| lbfgs | 5.40e-06 | 7.7 × 10<sup>-2</sup> | – | 108 |
+| **all** | 1.54e-06 | 7.7 × 10<sup>-2</sup> | – | 1006 |
+
+**Chosen: all** (all of the changes above together): network [2, 512, 512, 512, 512, 2], Adam 30,000 → L-BFGS 15,000, 4,800 / 960 / 0 points.
+
+Over seeds: own settings 8.0 × 10<sup>-2</sup> [7.8 × 10<sup>-2</sup> – 1.3 × 10<sup>-1</sup>] (3 seeds), tuned 7.7 × 10<sup>-2</sup> [7.7 × 10<sup>-2</sup> – 7.7 × 10<sup>-2</sup>] (3 seeds).
+
+No variant gets below about 7.7%, although the training loss falls about 800 times. The limit is the problem itself: the absorbing boundary condition only approximates the infinite domain the exact solution is written for, so a better-trained network converges to a slightly different answer.
+
+*Surface comparison, u_im, the example's own settings:*
+
+![Surface comparison, u_im, the example's own settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_im.png)
+
+*Surface comparison, u_im, tuned (all):*
+
+![Surface comparison, u_im, tuned (all)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_im.png)
+
+*Surface comparison, u_re, the example's own settings:*
+
+![Surface comparison, u_re, the example's own settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_re.png)
+
+*Surface comparison, u_re, tuned (all):*
+
+![Surface comparison, u_re, tuned (all)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_re.png)
+
+
+Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-3d-sphere-pinnstudio-template-inverse-mode">
+<summary><strong>Poisson 3D – sphere (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 50, 50, 50, 50, 1], Adam 20,000 → L-BFGS 20,000, 2,000 domain / 300 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.46e-06 | 1.4 × 10<sup>-3</sup> | 0.005% | 83 |
+| dataw | 1.24e-05 | 1.3 × 10<sup>-3</sup> | 0.0095% | 84 |
+| invall | 1.69e-05 | 1.6 × 10<sup>-3</sup> | 0.04% | 92 |
+
+**Chosen: base** (the example's own settings): network [3, 50, 50, 50, 50, 1], Adam 20,000 → L-BFGS 20,000, 2,000 / 300 / 0 points.
+
+Over seeds: own settings 1.4 × 10<sup>-3</sup> (1 seeds), tuned 1.4 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): source_term = 1.00005 (true 1.0).
+
+Tuned settings: [`Poisson 3D – sphere (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode">
+<summary><strong>Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.41e-05 | 1.4 × 10<sup>-4</sup> | 0.77% | 253 |
+| dataw | 4.99e-05 | 9.7 × 10<sup>-5</sup> | 2.7% | 249 |
+| times | 2.46e-05 | 1.7 × 10<sup>-4</sup> | 0.47% | 302 |
+| invall | 1.11e-03 | 2.3 × 10<sup>-4</sup> | 96% | 363 |
+
+**Chosen: base** (the example's own settings): network [2, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 200 / 512 points.
+
+Over seeds: own settings 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds), tuned 1.5 × 10<sup>-4</sup> [1.4 × 10<sup>-4</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): gamma_1 = 9.9233e-05 (true 0.0001), gamma_2 = 4.99768 (true 5.0).
+
+Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-2d-pinnstudio-template">
+<summary><strong>Heat 2D (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 64, 64, 64, 64, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 400 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 6.95e-03 | 4.3 × 10<sup>-3</sup> | – | 98 |
+
+**Chosen: base** (the example's own settings): network [3, 64, 64, 64, 64, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 400 points.
+
+Over seeds: own settings 6.1 × 10<sup>-3</sup> [4.3 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>] (3 seeds), tuned 6.1 × 10<sup>-3</sup> [4.3 × 10<sup>-3</sup> – 2.6 × 10<sup>-2</sup>] (3 seeds).
+
+Tuned settings: [`Heat 2D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-3d-pinnstudio-template">
+<summary><strong>Heat 3D (PINNStudio template)</strong></summary>
+
+**Own settings:** network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 15,000 domain / 1,000 boundary / 1,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.64e-04 | 2.6 × 10<sup>-3</sup> | – | 323 |
+
+**Chosen: base** (the example's own settings): network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 15,000 / 1,000 / 1,000 points.
+
+Over seeds: own settings 2.6 × 10<sup>-3</sup> (1 seeds), tuned 2.6 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Heat 3D (PINNStudio template) (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode">
+<summary><strong>Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 30,000 domain / 1,500 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.39e-04 | 9.7 × 10<sup>-5</sup> | 0.31% | 1419 |
+
+**Chosen: base** (the example's own settings): network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 30,000 / 1,500 / 2,000 points.
+
+Over seeds: own settings 7.6 × 10<sup>-5</sup> [6.4 × 10<sup>-5</sup> – 9.7 × 10<sup>-5</sup>] (3 seeds), tuned 7.6 × 10<sup>-5</sup> [6.4 × 10<sup>-5</sup> – 9.7 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): lambda_ = 9.97804 (true 10.0), diff_coeff = 0.0249908 (true 0.025).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+
+
+Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.48e-05 | 5.9 × 10<sup>-5</sup> | – | 1596 |
+| iters | 1.70e-05 | 5.2 × 10<sup>-5</sup> | – | 4504 |
+| net | 1.64e-05 | 1.2 × 10<sup>0</sup> | – | 4991 |
+| windows2 | 2.76e-05 | 6.4 × 10<sup>-5</sup> | – | 3109 |
+
+**Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 5.9 × 10<sup>-5</sup> (1 seeds), tuned 5.9 × 10<sup>-5</sup> (1 seeds).
+
+The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. More iterations and two time windows give the same errors at every time; the wider network fails (120% at t = 10). The run with every change together did not finish within the 4-hour limit.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/own_surface_comparison.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-lotka-volterra-ode-inverse-mode">
+<summary><strong>Lotka-Volterra ODE, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Lotka-Volterra ODE](examples.md#dx-lotka-volterra-equation).
+
+**Own settings:** network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 4.07e-06 | 1.5 × 10<sup>-5</sup> | 0.0005% | 230 |
+| net | 6.85e-06 | 1.8 × 10<sup>-5</sup> | 0.00094% | 243 |
+| all | 6.58e-06 | 1.2 × 10<sup>-5</sup> | 0.00094% | 648 |
+| lbfgs3 | 4.07e-06 | 1.5 × 10<sup>-5</sup> | 0.0005% | 240 |
+| invall | 7.10e-06 | 9.2 × 10<sup>-6</sup> | 0.00094% | 250 |
+
+**Chosen: base** (the example's own settings): network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 / 2 / 0 points.
+
+Over seeds: own settings 1.5 × 10<sup>-5</sup> [1.5 × 10<sup>-5</sup> – 1.6 × 10<sup>-5</sup>] (3 seeds), tuned 1.5 × 10<sup>-5</sup> [1.5 × 10<sup>-5</sup> – 1.6 × 10<sup>-5</sup>] (3 seeds).
+ Learned parameters (tuned, median): a = 2 (true 2.0), d = 1.06 (true 1.06).
+
+PINNStudio's own inverse mode: the prey growth rate a and the predator death rate d from both populations. Both are found to 0.001% with the example's settings; no change does better.
+
+*Line comparison, p, the example's own settings:*
+
+![Line comparison, p, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_p.png)
+
+*Line comparison, r, the example's own settings:*
+
+![Line comparison, r, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_r.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_param_plot.png)
+
+
+Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-elasticity-2d-plate-inverse-mode">
+<summary><strong>Linear elasticity 2D – plate, inverse mode</strong></summary>
+
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate](examples.md#dx-linear-elastostatic-plate).
+
+**Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 3.46e-05 | 1.9 × 10<sup>-3</sup> | 0.026% | 546 |
+| lbfgs3 | 3.46e-05 | 1.9 × 10<sup>-3</sup> | 0.026% | 561 |
+
+**Chosen: base** (the example's own settings): network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 / 500 / 0 points.
+
+Over seeds: own settings 1.1 × 10<sup>-3</sup> [3.8 × 10<sup>-4</sup> – 1.9 × 10<sup>-3</sup>] (3 seeds), tuned 1.1 × 10<sup>-3</sup> [3.8 × 10<sup>-4</sup> – 1.9 × 10<sup>-3</sup>] (3 seeds).
+ Learned parameters (tuned, median): lmbd = 0.999548 (true 1.0), mu = 0.500189 (true 0.5).
+
+PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. The body force is the known load and keeps the true values, so λ and μ are unknown only in the stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found to within 0.03%.
+
+Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-integro-differential-ode">
+<summary><strong>Integro-differential ODE</strong></summary>
+
+Its own settings and results are on the examples page: [Integro-differential ODE](examples.md#dx-integro-differential-equation).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 5.59e-06 | 1.5 × 10<sup>-4</sup> | – | 23 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 1], Adam 10,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 6.5 × 10<sup>-5</sup> [5.7 × 10<sup>-5</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds), tuned 6.5 × 10<sup>-5</sup> [5.7 × 10<sup>-5</sup> – 1.5 × 10<sup>-4</sup>] (3 seeds).
+
+Tuned settings: [`Integro-differential ODE (tuned).pinn.json`](tuning/Integro-differential%20ODE%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-lotka-volterra-ode">
+<summary><strong>Lotka-Volterra ODE</strong></summary>
+
+Its own settings and results are on the examples page: [Lotka-Volterra ODE](examples.md#dx-lotka-volterra-equation).
+
+**Own settings:** network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 7.02e-06 | 2.1 × 10<sup>-3</sup> | – | 219 |
+
+**Chosen: base** (the example's own settings): network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 / 2 / 0 points.
+
+Over seeds: own settings 2.1 × 10<sup>-3</sup> [1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>] (3 seeds), tuned 2.1 × 10<sup>-3</sup> [1.1 × 10<sup>-3</sup> – 7.4 × 10<sup>-1</sup>] (3 seeds).
+
+Tuned settings: [`Lotka-Volterra ODE (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-lorenz-ode-unknown-c-c-c">
+<summary><strong>Lorenz ODE – unknown C₁, C₂, C₃</strong></summary>
+
+Its own settings and results are on the examples page: [Lorenz ODE – unknown C₁, C₂, C₃](examples.md#dx-inverse-lorenz-system).
+
+**Own settings:** network [2, 40, 40, 40, 3], Adam 20,000 → L-BFGS 15,000, 400 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 7.05e-04 | 1.0 × 10<sup>-4</sup> | 0.0013% | 86 |
+
+**Chosen: base** (the example's own settings): network [2, 40, 40, 40, 3], Adam 20,000 → L-BFGS 15,000, 400 / 2 / 0 points.
+
+Over seeds: own settings 1.0 × 10<sup>-4</sup> [9.5 × 10<sup>-5</sup> – 1.1 × 10<sup>-4</sup>] (3 seeds), tuned 1.0 × 10<sup>-4</sup> [9.5 × 10<sup>-5</sup> – 1.1 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): C1 = 10 (true 10.0), C2 = 14.9998 (true 15.0), C3 = 2.66664 (true 2.66667).
+
+Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-poisson-1d-unknown-order">
+<summary><strong>Fractional Poisson 1D – unknown order α</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional Poisson 1D – unknown order α](examples.md#dx-inverse-fractional-poisson-equation-1d).
+
+**Own settings:** network [1, 20, 20, 20, 20, 1], Adam 10,000, 20 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.34e-04 | 4.9 × 10<sup>-3</sup> | 0.45% | 255 |
+
+**Chosen: base** (the example's own settings): network [1, 20, 20, 20, 20, 1], Adam 10,000, 20 / 0 / 0 points.
+
+Over seeds: own settings 5.3 × 10<sup>-3</sup> [4.9 × 10<sup>-3</sup> – 6.7 × 10<sup>-3</sup>] (3 seeds), tuned 5.3 × 10<sup>-3</sup> [4.9 × 10<sup>-3</sup> – 6.7 × 10<sup>-3</sup>] (3 seeds).
+ Learned parameters (tuned, median): alpha = 1.79135 (true 1.8).
+
+Tuned settings: [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20–%20unknown%20order%20α%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-black-scholes-1d-european-call">
+<summary><strong>Black-Scholes 1D – European call</strong></summary>
+
+Its own settings and results are on the examples page: [Black-Scholes 1D – European call](examples.md#dx-black-scholes-equation-call-option).
+
+**Own settings:** network [2, 28, 28, 28, 28, 1], Adam 20,000 → L-BFGS 15,000, 2,047 domain / 63 boundary / 127 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 2.77e-02 | 4.3 × 10<sup>-4</sup> | – | 60 |
+
+**Chosen: base** (the example's own settings): network [2, 28, 28, 28, 28, 1], Adam 20,000 → L-BFGS 15,000, 2,047 / 63 / 127 points.
+
+Over seeds: own settings 4.3 × 10<sup>-4</sup> [3.4 × 10<sup>-4</sup> – 6.3 × 10<sup>-4</sup>] (3 seeds), tuned 4.3 × 10<sup>-4</sup> [3.4 × 10<sup>-4</sup> – 6.3 × 10<sup>-4</sup>] (3 seeds).
+
+Tuned settings: [`Black-Scholes 1D – European call (tuned).pinn.json`](tuning/Black-Scholes%201D%20–%20European%20call%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-schr-dinger-1d">
+<summary><strong>Schrödinger 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Schrödinger 1D](examples.md#dx-schr-dinger-equation).
+
+**Own settings:** network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 domain / 20 boundary / 200 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 3.86e-06 | 1.8 × 10<sup>-3</sup> | – | 108 |
+
+**Chosen: base** (the example's own settings): network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 / 20 / 200 points.
+
+Over seeds: own settings 1.8 × 10<sup>-3</sup> [1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>] (3 seeds), tuned 1.8 × 10<sup>-3</sup> [1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>] (3 seeds).
+
+Tuned settings: [`Schrödinger 1D (tuned).pinn.json`](tuning/Schrödinger%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-helmholtz-2d-dirichlet">
+<summary><strong>Helmholtz 2D – Dirichlet</strong></summary>
+
+Its own settings and results are on the examples page: [Helmholtz 2D – Dirichlet](examples.md#dx-helmholtz-2d-dirichlet).
+
+**Own settings:** network [2, 150, 150, 150, 1], Adam 5,000, 400 domain / 80 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 4.75e-02 | 1.9 × 10<sup>-3</sup> | – | 26 |
+
+**Chosen: base** (the example's own settings): network [2, 150, 150, 150, 1], Adam 5,000, 400 / 80 / 0 points.
+
+Over seeds: own settings 1.1 × 10<sup>-2</sup> [1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>] (3 seeds), tuned 1.1 × 10<sup>-2</sup> [1.9 × 10<sup>-3</sup> – 1.3 × 10<sup>-2</sup>] (3 seeds).
+
+Tuned settings: [`Helmholtz 2D – Dirichlet (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-2d-kovasznay-flow">
+<summary><strong>Navier-Stokes 2D – Kovasznay flow</strong></summary>
+
+Its own settings and results are on the examples page: [Navier-Stokes 2D – Kovasznay flow](examples.md#dx-kovasznay-flow).
+
+**Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.47e-06 | 2.1 × 10<sup>-4</sup> | – | 210 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 / 400 / 0 points.
+
+Over seeds: own settings 2.0 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>] (3 seeds), tuned 2.0 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 2.1 × 10<sup>-4</sup>] (3 seeds).
+
+Tuned settings: [`Navier-Stokes 2D – Kovasznay flow (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-3d-beltrami-flow">
+<summary><strong>Navier-Stokes 3D – Beltrami flow</strong></summary>
+
+Its own settings and results are on the examples page: [Navier-Stokes 3D – Beltrami flow](examples.md#dx-beltrami-flow).
+
+**Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 9.96e-05 | 1.4 × 10<sup>-3</sup> | – | 2420 |
+
+**Chosen: base** (the example's own settings): network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 / 5,000 / 5,000 points.
+
+Over seeds: own settings 1.4 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>] (3 seeds), tuned 1.4 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 1.5 × 10<sup>-3</sup>] (3 seeds).
+
+Tuned settings: [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-2d-disk-pinnstudio-template">
+<summary><strong>Poisson 2D – disk (PINNStudio template)</strong></summary>
+
+**Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 domain / 120 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.07e-07 | 2.8 × 10<sup>-4</sup> | – | 156 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 / 120 / 0 points.
+
+Over seeds: own settings 2.8 × 10<sup>-4</sup> [2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>] (3 seeds), tuned 2.8 × 10<sup>-4</sup> [2.6 × 10<sup>-4</sup> – 3.9 × 10<sup>-4</sup>] (3 seeds).
+
+Tuned settings: [`Poisson 2D – disk (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-integro-differential-ode-volterra-kernel">
+<summary><strong>Integro-differential ODE – Volterra kernel</strong></summary>
+
+Its own settings and results are on the examples page: [Integro-differential ODE – Volterra kernel](examples.md#dx-volterra-integro-differential-equation).
+
+**Own settings:** network [2, 20, 20, 20, 1], L-BFGS 15,000, 10 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.14e-08 | 2.5 × 10<sup>-3</sup> | – | 5 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 1], L-BFGS 15,000, 10 / 2 / 0 points.
+
+Over seeds: own settings 2.5 × 10<sup>-3</sup> (1 seeds), tuned 2.5 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Integro-differential ODE – Volterra kernel (tuned).pinn.json`](tuning/Integro-differential%20ODE%20–%20Volterra%20kernel%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-ode-system">
+<summary><strong>Linear ODE system</strong></summary>
+
+Its own settings and results are on the examples page: [Linear ODE system](examples.md#dx-ode-system).
+
+**Own settings:** network [2, 50, 50, 50, 2], Adam 20,000, 35 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.09e-05 | 3.6 × 10<sup>-3</sup> | – | 42 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 2], Adam 20,000, 35 / 2 / 0 points.
+
+Over seeds: own settings 3.6 × 10<sup>-3</sup> (1 seeds), tuned 3.6 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Linear ODE system (tuned).pinn.json`](tuning/Linear%20ODE%20system%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-second-order-ode">
+<summary><strong>Second-order ODE</strong></summary>
+
+Its own settings and results are on the examples page: [Second-order ODE](examples.md#dx-second-order-ode).
+
+**Own settings:** network [2, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.06e-04 | 6.9 × 10<sup>-4</sup> | – | 28 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 1], Adam 10,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 6.9 × 10<sup>-4</sup> (1 seeds), tuned 6.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Second-order ODE (tuned).pinn.json`](tuning/Second-order%20ODE%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-dirichlet">
+<summary><strong>Poisson 1D – Dirichlet</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet](examples.md#dx-poisson-1d-dirichlet).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 2.69e-06 | 3.7 × 10<sup>-4</sup> | – | 23 |
+
+**Chosen: base** (the example's own settings): network [1, 50, 50, 50, 1], Adam 10,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 3.7 × 10<sup>-4</sup> (1 seeds), tuned 3.7 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – Dirichlet (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-dirichlet-neumann">
+<summary><strong>Poisson 1D – Dirichlet/Neumann</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Neumann](examples.md#dx-poisson-1d-dirichlet-neumann).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 6.56e-06 | 2.3 × 10<sup>-4</sup> | – | 27 |
+
+**Chosen: base** (the example's own settings): network [1, 50, 50, 50, 1], Adam 10,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 2.3 × 10<sup>-4</sup> (1 seeds), tuned 2.3 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – Dirichlet - Neumann (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Neumann%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-dirichlet-point-set-operator">
+<summary><strong>Poisson 1D – Dirichlet/point-set operator</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/point-set operator](examples.md#dx-poisson-1d-dirichlet-pointsetoperator).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 20,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 2.17e-06 | 2.6 × 10<sup>-5</sup> | – | 44 |
+
+**Chosen: base** (the example's own settings): network [1, 50, 50, 50, 1], Adam 20,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 2.6 × 10<sup>-5</sup> (1 seeds), tuned 2.6 × 10<sup>-5</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – Dirichlet - point-set operator (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20point-set%20operator%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-dirichlet-robin">
+<summary><strong>Poisson 1D – Dirichlet/Robin</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – Dirichlet/Robin](examples.md#dx-poisson-1d-dirichlet-robin).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 10,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 2.46e-06 | 2.4 × 10<sup>-4</sup> | – | 27 |
+
+**Chosen: base** (the example's own settings): network [1, 50, 50, 50, 1], Adam 10,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 2.4 × 10<sup>-4</sup> (1 seeds), tuned 2.4 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – Dirichlet - Robin (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Robin%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-hard-bcs">
+<summary><strong>Poisson 1D – hard BCs</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – hard BCs](examples.md#dx-poisson-1d-hard-boundary-conditions).
+
+**Own settings:** network [1, 50, 50, 50, 1], Adam 30,000, 64 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.07e-05 | 2.2 × 10<sup>-6</sup> | – | 76 |
+
+**Chosen: base** (the example's own settings): network [1, 50, 50, 50, 1], Adam 30,000, 64 / 0 / 0 points.
+
+Over seeds: own settings 2.2 × 10<sup>-6</sup> (1 seeds), tuned 2.2 × 10<sup>-6</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – hard BCs (tuned).pinn.json`](tuning/Poisson%201D%20–%20hard%20BCs%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-1d-multi-scale-fourier-features">
+<summary><strong>Poisson 1D – multi-scale Fourier features</strong></summary>
+
+Its own settings and results are on the examples page: [Poisson 1D – multi-scale Fourier features](examples.md#dx-poisson-1d-multi-scale-fourier-features).
+
+**Own settings:** network [1, 100, 100, 100, 1], Adam 20,000, 1,280 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 6.48e+00 | 3.9 × 10<sup>-3</sup> | – | 70 |
+
+**Chosen: base** (the example's own settings): network [1, 100, 100, 100, 1], Adam 20,000, 1,280 / 2 / 0 points.
+
+Over seeds: own settings 3.9 × 10<sup>-3</sup> (1 seeds), tuned 3.9 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Poisson 1D – multi-scale Fourier features (tuned).pinn.json`](tuning/Poisson%201D%20–%20multi-scale%20Fourier%20features%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-1d-rar">
+<summary><strong>Burgers 1D – RAR</strong></summary>
+
+Its own settings and results are on the examples page: [Burgers 1D – RAR](examples.md#dx-burgers-equation-with-rar).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 2,500 domain / 100 boundary / 160 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 5.84e-05 | 8.4 × 10<sup>-4</sup> | – | 170 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 2,500 / 100 / 160 points.
+
+Over seeds: own settings 8.4 × 10<sup>-4</sup> (1 seeds), tuned 8.4 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Burgers 1D – RAR (tuned).pinn.json`](tuning/Burgers%201D%20–%20RAR%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-1d-hard-ic-and-bcs">
+<summary><strong>Diffusion 1D – hard IC and BCs</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion 1D – hard IC and BCs](examples.md#dx-diffusion-equation-with-hard-ic-and-bc).
+
+**Own settings:** network [2, 32, 32, 32, 1], Adam 10,000, 40 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.76e-05 | 2.8 × 10<sup>-3</sup> | – | 40 |
+
+**Chosen: base** (the example's own settings): network [2, 32, 32, 32, 1], Adam 10,000, 40 / 0 / 0 points.
+
+Over seeds: own settings 2.8 × 10<sup>-3</sup> (1 seeds), tuned 2.8 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](tuning/Diffusion%201D%20–%20hard%20IC%20and%20BCs%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-diffusion-1d">
+<summary><strong>Fractional diffusion 1D</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional diffusion 1D](examples.md#dx-fractional-diffusion-equation).
+
+**Own settings:** network [2, 20, 20, 20, 20, 1], Adam 10,000, 400 domain / 2 boundary / 2 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 8.18e-06 | 3.3 × 10<sup>-3</sup> | – | 39 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 20, 1], Adam 10,000, 400 / 2 / 2 points.
+
+Over seeds: own settings 3.3 × 10<sup>-3</sup> (1 seeds), tuned 3.3 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Fractional diffusion 1D (tuned).pinn.json`](tuning/Fractional%20diffusion%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-poisson-2d-disk">
+<summary><strong>Fractional Poisson 2D – disk</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional Poisson 2D – disk](examples.md#dx-fractional-poisson-equation-2d).
+
+**Own settings:** network [2, 20, 20, 20, 20, 1], Adam 20,000, 100 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 4.38e-05 | 9.2 × 10<sup>-4</sup> | – | 184 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 20, 1], Adam 20,000, 100 / 0 / 0 points.
+
+Over seeds: own settings 9.2 × 10<sup>-4</sup> (1 seeds), tuned 9.2 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Fractional Poisson 2D – disk (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20disk%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-laplace-2d-disk">
+<summary><strong>Laplace 2D – disk</strong></summary>
+
+Its own settings and results are on the examples page: [Laplace 2D – disk](examples.md#dx-laplace-equation-on-a-disk).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 15,000, 2,540 domain / 80 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 3.54e-07 | 1.1 × 10<sup>-3</sup> | – | 72 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 1], Adam 15,000, 2,540 / 80 / 0 points.
+
+Over seeds: own settings 1.1 × 10<sup>-3</sup> (1 seeds), tuned 1.1 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Laplace 2D – disk (tuned).pinn.json`](tuning/Laplace%202D%20–%20disk%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-elasticity-2d-plate-soft-bcs">
+<summary><strong>Linear elasticity 2D – plate, soft BCs</strong></summary>
+
+Its own settings and results are on the examples page: [Linear elasticity 2D – plate, soft BCs](examples.md#dx-linear-elastostatic-plate-soft-bcs).
+
+**Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 2.19e-05 | 4.9 × 10<sup>-4</sup> | – | 654 |
+
+**Chosen: base** (the example's own settings): network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 / 500 / 0 points.
+
+Over seeds: own settings 4.9 × 10<sup>-4</sup> (1 seeds), tuned 4.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Linear elasticity 2D – plate, soft BCs (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20soft%20BCs%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-poisson-3d-sphere">
+<summary><strong>Fractional Poisson 3D – sphere</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional Poisson 3D – sphere](examples.md#dx-fractional-poisson-equation-3d).
+
+**Own settings:** network [3, 20, 20, 20, 20, 1], Adam 10,000, 256 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 6.37e-03 | 7.2 × 10<sup>-3</sup> | – | 1343 |
+
+**Chosen: base** (the example's own settings): network [3, 20, 20, 20, 20, 1], Adam 10,000, 256 / 0 / 0 points.
+
+Over seeds: own settings 7.2 × 10<sup>-3</sup> (1 seeds), tuned 7.2 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Fractional Poisson 3D – sphere (tuned).pinn.json`](tuning/Fractional%20Poisson%203D%20–%20sphere%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-lorenz-ode-unknown-c-c-c-exogenous-input">
+<summary><strong>Lorenz ODE – unknown C₁, C₂, C₃, exogenous input</strong></summary>
+
+Its own settings and results are on the examples page: [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](examples.md#dx-inverse-lorenz-system-with-exogenous-input).
+
+**Own settings:** network [2, 40, 40, 40, 3], Adam 60,000, 400 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.69e-02 | 1.6 × 10<sup>-3</sup> | 0.26% | 196 |
+
+**Chosen: base** (the example's own settings): network [2, 40, 40, 40, 3], Adam 60,000, 400 / 2 / 0 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): C1 = 9.97389 (true 10.0), C2 = 14.9961 (true 15.0), C3 = 2.66686 (true 2.66667).
+
+Tuned settings: [`Lorenz ODE – unknown C₁, C₂, C₃, exogenous input (tuned).pinn.json`](tuning/Lorenz%20ODE%20–%20unknown%20C₁,%20C₂,%20C₃,%20exogenous%20input%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-reaction-1d-unknown-k-f-d">
+<summary><strong>Diffusion-reaction 1D – unknown k_f, D</strong></summary>
+
+Its own settings and results are on the examples page: [Diffusion-reaction 1D – unknown k_f, D](examples.md#dx-inverse-diffusion-reaction-system).
+
+**Own settings:** network [2, 20, 20, 20, 2], Adam 80,000, 2,000 domain / 100 boundary / 100 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.74e-06 | 2.1 × 10<sup>-2</sup> | 0.82% | 747 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 2], Adam 80,000, 2,000 / 100 / 100 points.
+
+Over seeds: own settings 2.1 × 10<sup>-2</sup> (1 seeds), tuned 2.1 × 10<sup>-2</sup> (1 seeds).
+ Learned parameters (tuned, median): kf = 0.0991842 (true 0.1), D = 1.9933 (true 2.0).
+
+Tuned settings: [`Diffusion-reaction 1D – unknown k_f, D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20k_f,%20D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-fractional-poisson-2d-unknown-order">
+<summary><strong>Fractional Poisson 2D – unknown order α</strong></summary>
+
+Its own settings and results are on the examples page: [Fractional Poisson 2D – unknown order α](examples.md#dx-inverse-fractional-poisson-equation-2d).
+
+**Own settings:** network [2, 20, 20, 20, 20, 1], Adam 10,000, 64 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 3.08e-03 | 3.4 × 10<sup>-3</sup> | 0.21% | 1395 |
+
+**Chosen: base** (the example's own settings): network [2, 20, 20, 20, 20, 1], Adam 10,000, 64 / 0 / 0 points.
+
+Over seeds: own settings 3.4 × 10<sup>-3</sup> (1 seeds), tuned 3.4 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 1.80386 (true 1.8).
+
+Tuned settings: [`Fractional Poisson 2D – unknown order α (tuned).pinn.json`](tuning/Fractional%20Poisson%202D%20–%20unknown%20order%20α%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-3d-sphere-pinnstudio-template">
+<summary><strong>Poisson 3D – sphere (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 50, 50, 50, 50, 1], Adam 20,000 → L-BFGS 20,000, 2,000 domain / 300 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 6.67e-07 | 1.5 × 10<sup>-3</sup> | – | 76 |
+
+**Chosen: base** (the example's own settings): network [3, 50, 50, 50, 50, 1], Adam 20,000 → L-BFGS 20,000, 2,000 / 300 / 0 points.
+
+Over seeds: own settings 1.5 × 10<sup>-3</sup> (1 seeds), tuned 1.5 × 10<sup>-3</sup> (1 seeds).
+
+Tuned settings: [`Poisson 3D – sphere (PINNStudio template) (tuned).pinn.json`](tuning/Poisson%203D%20–%20sphere%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-poisson-2d-disk-pinnstudio-template-inverse-mode">
+<summary><strong>Poisson 2D – disk (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 domain / 120 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.34e-06 | 3.4 × 10<sup>-4</sup> | 0.003% | 167 |
+| dataw | 1.27e-05 | 2.9 × 10<sup>-4</sup> | 0% | 166 |
+| invall | 3.52e-06 | 2.7 × 10<sup>-4</sup> | 0.009% | 200 |
+
+**Chosen: base** (the example's own settings): network [2, 50, 50, 50, 50, 1], Adam 50,000 → L-BFGS 50,000, 1,200 / 120 / 0 points.
+
+Over seeds: own settings 1.9 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 3.4 × 10<sup>-4</sup>] (3 seeds), tuned 1.9 × 10<sup>-4</sup> [1.5 × 10<sup>-4</sup> – 3.4 × 10<sup>-4</sup>] (3 seeds).
+ Learned parameters (tuned, median): source_term = 1.00003 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
+
+
+Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
+<summary><strong>Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.69e-04 | 9.7 × 10<sup>-4</sup> | 7.2% | 1715 |
+| dataw | 8.23e-04 | 6.5 × 10<sup>-4</sup> | 6.6% | 1711 |
+| setup | 2.20e-04 | 1.1 × 10<sup>-3</sup> | 6.1% | 1602 |
+| invall | 3.04e-04 | 3.7 × 10<sup>-4</sup> | 9.8% | 4680 |
+
+**Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 9.7 × 10<sup>-4</sup> (1 seeds), tuned 9.7 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): c1_sq = 0.000107239 (true 0.0001), c2 = 1.00559 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_param_plot.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-heat-3d-pinnstudio-template-inverse-mode">
+<summary><strong>Heat 3D (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 15,000 domain / 1,000 boundary / 1,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 4.13e-04 | 1.6 × 10<sup>-3</sup> | 0.34% | 689 |
+| dataw | 5.69e-04 | 8.4 × 10<sup>-4</sup> | 0.22% | 694 |
+| invall | 2.04e-02 | 1.6 × 10<sup>-3</sup> | 10% | 1907 |
+
+**Chosen: base** (the example's own settings): network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 15,000 / 1,000 / 1,000 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 0.398656 (true 0.4).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_3D_Heat_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Heat_inv/own_param_plot.png)
+
+
+Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-3d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 3D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 30,000 domain / 1,500 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.43e-04 | 2.7 × 10<sup>-4</sup> | – | 957 |
+| **iters** | 9.18e-05 | 2.8 × 10<sup>-4</sup> | – | 1626 |
+| net | 1.04e-04 | 1.9 × 10<sup>-4</sup> | – | 2678 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [4, 128, 128, 128, 128, 1], Adam 60,000 → L-BFGS 60,000, 30,000 / 1,500 / 2,000 points.
+
+Over seeds: own settings 2.7 × 10<sup>-4</sup> (1 seeds), tuned 2.8 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode">
+<summary><strong>Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.16e-04 | 6.9 × 10<sup>-5</sup> | 0.42% | 3736 |
+| dataw | 2.56e-04 | 5.4 × 10<sup>-5</sup> | 1.1% | 3984 |
+| **times** | 8.86e-05 | 1.1 × 10<sup>-4</sup> | 0.39% | 10691 |
+
+**Chosen: times** (measured data at every reference time after t = 0, not only one (inverse problems)): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 7.7 × 10<sup>-5</sup> [6.9 × 10<sup>-5</sup> – 7.9 × 10<sup>-5</sup>] (3 seeds), tuned 1.1 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): eps_sq = 0.00250963 (true 0.0025).
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_u.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
+
+
+Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.87e-04 | 6.0 × 10<sup>-4</sup> | – | 380 |
+| iters | 2.64e-03 | 4.5 × 10<sup>-4</sup> | – | 626 |
+| **net** | 1.14e-04 | 8.9 × 10<sup>-4</sup> | – | 719 |
+| all | 1.41e-01 | 1.9 × 10<sup>-1</sup> | – | 4197 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 10,000 / 200 / 512 points.
+
+Over seeds: own settings 5.2 × 10<sup>-4</sup> [5.1 × 10<sup>-4</sup> – 6.0 × 10<sup>-4</sup>] (3 seeds), tuned 8.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup">
+<summary><strong>Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.08e-04 | 2.1 × 10<sup>-4</sup> | – | 266 |
+| iters | 2.98e-04 | 1.3 × 10<sup>-4</sup> | – | 617 |
+| **net** | 2.38e-05 | 5.1 × 10<sup>-4</sup> | – | 464 |
+| all | 1.51e-04 | 1.9 × 10<sup>-4</sup> | – | 3872 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [3, 256, 256, 256, 256, 256, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 2.1 × 10<sup>-4</sup> [2.1 × 10<sup>-4</sup> – 2.2 × 10<sup>-4</sup>] (3 seeds), tuned 5.1 × 10<sup>-4</sup> (1 seeds).
+
+Switching from the template's time windows to the study's best setup (exact periodicity and IC, SA-PINN weights, whole interval) lowers the error from 6.7e-3 to 3.6e-4 and trains in 4.5 minutes. More iterations give about the same; the variant with the lowest training loss (the wider network) is a little worse.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.78e-05 | 7.5 × 10<sup>-3</sup> | – | 1780 |
+| **iters** | 4.53e-05 | 9.2 × 10<sup>-2</sup> | – | 3710 |
+| net | 7.75e-05 | 1.4 × 10<sup>-1</sup> | – | 4728 |
+| points | 6.01e-05 | 5.2 × 10<sup>-4</sup> | – | 4108 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [3, 128, 128, 128, 128, 1], Adam 60,000 → L-BFGS 30,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 7.5 × 10<sup>-3</sup> (1 seeds), tuned 9.2 × 10<sup>-2</sup> (1 seeds).
+
+The template's own settings are the best here; more iterations or a bigger network make the error 4 to 7 times larger. Its settings come from the training methods study, where time windows with exact periodicity and RBA weights were found to be needed. With every change together the run did not finish within the 4-hour limit.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/own_surface_comparison.png)
+
+*Surface comparison, tuned (iters):*
+
+![Surface comparison, tuned (iters)](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/tuned_surface_comparison.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup">
+<summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 2], Adam 5,000 → L-BFGS 5,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.85e-05 | 3.9 × 10<sup>-3</sup> | – | 1002 |
+| iters | 2.28e-04 | 6.1 × 10<sup>-2</sup> | – | 2165 |
+| **net** | 1.50e-12 | 9.9 × 10<sup>-1</sup> | – | 1893 |
+| all | 7.33e-11 | 9.9 × 10<sup>-1</sup> | – | 13959 |
+| windows2 | 3.50e-05 | 1.5 × 10<sup>-2</sup> | – | 1709 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 256, 256, 256, 256, 256, 2], Adam 5,000 → L-BFGS 5,000, 10,000 / 200 / 512 points.
+
+Over seeds: own settings 3.9 × 10<sup>-3</sup> (1 seeds), tuned 9.9 × 10<sup>-1</sup> (1 seeds).
+
+The study's best setup (time windows, exact periodicity, SA-PINN weights) gives 0.39% at t = 1, as in the training methods study. Every change makes it worse, and the wider network is a warning: its training loss is the lowest of all (1.5e-12) while the solution has collapsed to a nearly flat field (99% error). A tiny loss does not mean a right answer for this problem.
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_mu.png)
+
+*Surface comparison, mu, tuned (net):*
+
+![Surface comparison, mu, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_u.png)
+
+
+Tuned settings: [`Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+
+</details>

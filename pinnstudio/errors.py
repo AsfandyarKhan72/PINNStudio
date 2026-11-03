@@ -2,8 +2,9 @@
 
 Started from its desktop shortcut on Windows, PINNStudio runs under
 pythonw.exe: there is no console, sys.stdout and sys.stderr are None, and an
-error that nobody catches makes PyQt end the program, so the window just
-disappears. Here:
+error that nobody catches goes nowhere: PySide6 prints it to the missing
+stderr and carries on, so it is lost (PyQt6 ended the program instead, and
+the window just disappeared). Here:
 
 * output goes to a log file when there is no console (and anything a library
   writes to the missing streams no longer raises);
@@ -62,8 +63,8 @@ def _report(exc_type, exc, tb, where=""):
     if _showing:              # an error while the message is open: log only
         return
     try:
-        from PyQt6.QtCore import QThread
-        from PyQt6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtCore import QThread
+        from PySide6.QtWidgets import QApplication, QMessageBox
         app = QApplication.instance()
         if app is None or QThread.currentThread() is not app.thread():
             return            # message boxes only from the GUI thread

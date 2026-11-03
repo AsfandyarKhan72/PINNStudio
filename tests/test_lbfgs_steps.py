@@ -35,7 +35,7 @@ def test_short_lbfgs_phase_runs_its_iterations():
     for gen in (cg.generate_script, cg.generate_clean_script):
         with open(os.path.join(d, "run.py"), "w") as fh:
             fh.write(gen(c))
-        env = dict(os.environ, CUDA_VISIBLE_DEVICES="", MPLBACKEND="Agg")
+        env = dict(os.environ, CUDA_VISIBLE_DEVICES="-1", MPLBACKEND="Agg")
         p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900, env=env)
         assert p.returncode == 0, p.stderr[-1500:]
         steps = [int(s) for s in re.findall(r"^(\d+)\s+\[", p.stdout, re.M)]

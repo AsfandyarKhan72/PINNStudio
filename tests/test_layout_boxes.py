@@ -18,7 +18,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import (QAbstractSpinBox, QApplication, QComboBox, QGroupBox, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QComboBox, QGroupBox, QHBoxLayout, QLabel,
                              QLineEdit, QMessageBox, QPushButton, QWidget)
 
 from pinnstudio.ui.main_window import MainWindow
@@ -30,6 +30,18 @@ def _pump(sec=0.3):
     t = time.time()
     while time.time() - t < sec:
         app.processEvents()
+
+
+def _settled(measure, w, limit=5.0):
+    """The measure once the window has finished laying out: pumped until it reports nothing or `limit` seconds
+    pass, then its last result. A box that stays cut still fails; one measured mid-relayout on a loaded CI runner
+    (macOS, 175 %: every phase row "15 of 28 px shown" right after a phase was added) no longer does."""
+    end = time.time() + limit
+    out = measure(w)
+    while out and time.time() < end:
+        _pump(0.2)
+        out = measure(w)
+    return out
 
 
 def _cut_boxes(w):
@@ -52,21 +64,29 @@ def _cut_boxes(w):
     return bad
 
 
+def _slots(lay):
+    """{index: widget} and {index: nested layout} of one layout, through the QObject tree (QLayout.itemAt
+    would leave PySide6 item wrappers behind in the test process; see workspace._row_slots)."""
+    from pinnstudio.ui.workspace import _row_slots, layout_sublayouts
+    widgets, _nested = _row_slots(lay)
+    return widgets, {lay.indexOf(sub): sub for sub in layout_sublayouts(lay)}
+
+
 def _misaligned(w):
     """Group boxes whose label rows start their controls at different places."""
     def rows(lay, out):
+        widgets, subs = _slots(lay)
         for i in range(lay.count()):
-            it = lay.itemAt(i)
-            if it.layout() is not None:
-                rows(it.layout(), out)
-            elif it.widget() is not None and it.widget().layout() is not None:
-                rows(it.widget().layout(), out)
+            if i in subs:
+                rows(subs[i], out)
+            elif i in widgets and widgets[i].layout() is not None:
+                rows(widgets[i].layout(), out)
         if isinstance(lay, QHBoxLayout) and lay.count() >= 2:
-            first = lay.itemAt(0).widget()
+            first = widgets.get(0)
             if isinstance(first, QLabel) and first.isVisible() and not first.wordWrap() \
                     and first.text().rstrip().endswith(":"):
-                ctl = next((lay.itemAt(j).widget() for j in range(1, lay.count())
-                            if lay.itemAt(j).widget() is not None and lay.itemAt(j).widget().isVisible()), None)
+                ctl = next((widgets[j] for j in range(1, lay.count())
+                            if j in widgets and widgets[j].isVisible()), None)
                 if ctl is not None:
                     out.append((first, ctl))
     bad = []
@@ -110,8 +130,8 @@ def test_boxes_whole_and_forms_aligned(monkeypatch, tmp_path, ui_scale):
         if key == "training":
             w._add_scheduler_phase()                                   # a phase added by the user
         _pump(0.4)
-        cut += [f"{key}: {b}" for b in _cut_boxes(w)]
-        off += [f"{key}: {b}" for b in _misaligned(w)]
+        cut += [f"{key}: {b}" for b in _settled(_cut_boxes, w)]
+        off += [f"{key}: {b}" for b in _settled(_misaligned, w)]
     # the Inverse page, with a second data file added
     w.quick_examples_category_combo.setCurrentText("Inverse")
     _pump(0.3)
@@ -122,8 +142,8 @@ def test_boxes_whole_and_forms_aligned(monkeypatch, tmp_path, ui_scale):
     w._add_inverse_data_row()
     w._add_inverse_var_row()
     _pump(0.5)
-    cut += [f"inverse: {b}" for b in _cut_boxes(w)]
-    off += [f"inverse: {b}" for b in _misaligned(w)]
+    cut += [f"inverse: {b}" for b in _settled(_cut_boxes, w)]
+    off += [f"inverse: {b}" for b in _settled(_misaligned, w)]
     narrow = [b.width() for b in w.inverse_group.findChildren(QPushButton) if b.isVisible() and b.text() == "✕" and b.width() < 20]
     assert not narrow, f"remove buttons squeezed to {narrow} px"
     heads = [r["init"].mapTo(w.inverse_group, r["init"].rect().topLeft()).x() for r in w.inv_var_rows]

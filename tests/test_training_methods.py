@@ -17,8 +17,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtCore import QCoreApplication, QEvent
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.codegen import (_training_methods_defs, generate_clean_script,
@@ -37,6 +37,7 @@ def _settle(secs=0.2):
 
 def _window(example="1D Burgers"):
     w = MainWindow()
+    w._apply_example_settings_mode = lambda key: None   # the templates' own settings, not Settings: Default
     w.show()
     _settle()
     w.quick_examples_combo.setCurrentText(example)
@@ -212,7 +213,8 @@ def test_generated_code_runs():
 
 def test_causal_epsilon_schedule():
     """The paper's schedule: epsilon starts at 0.01 and moves up once every
-    chunk weight is above 0.99; a new Adam run starts it over; L-BFGS holds it."""
+    chunk weight is above 0.99; L-BFGS holds it; a further Adam run on the same points goes on with it, and
+    a new training time range (the next time window) starts it over."""
     c = PINNConfig()
     c.causal_training = True
     c.causal_chunks = 4
@@ -231,7 +233,12 @@ def test_causal_epsilon_schedule():
     assert C["frozen"] and C["k"] == k        # not advanced during L-BFGS
     model.compile("adam", lr=1e-3)
     model.train(iterations=0, display_every=1000, verbose=0, callbacks=[cb])
-    assert C["k"] == 0 and C["eps"] == 0.01   # a new Adam run (next time window) starts over
+    assert C["k"] == k and not C["frozen"]    # a further Adam phase on the same time range goes on
+    model.data.train_x = model.data.train_x.copy()
+    model.data.train_x[:, -1] += 1.0          # the next time window: a new time range
+    model.compile("adam", lr=1e-3)
+    model.train(iterations=0, display_every=1000, verbose=0, callbacks=[cb])
+    assert C["k"] == 0 and C["eps"] == 0.01   # starts over
     c.causal_anneal = False
     assert '"sched": None' in _training_methods_defs(c)
 

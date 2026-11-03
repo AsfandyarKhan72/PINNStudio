@@ -38,7 +38,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtWidgets import QApplication, QCheckBox
+from PySide6.QtWidgets import QApplication, QCheckBox
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -97,7 +97,7 @@ def main():
     # Count all "Where" examples toggles in the whole BC group
     # before adding any rows, then after adding 3 -- should stay at 1.
     def _count_hint_checkboxes():
-        from PyQt6.QtWidgets import QToolButton
+        from PySide6.QtWidgets import QToolButton
         return sum(
             1 for cb in win.custom_bc_group.findChildren(QToolButton)
             if cb.text().strip() == '"Where" examples'

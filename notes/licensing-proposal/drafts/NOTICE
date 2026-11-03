@@ -1,0 +1,14 @@
+PINNStudio
+Copyright 2025-2026 <COPYRIGHT HOLDER TO BE CONFIRMED>
+
+This product is licensed under the Apache License, Version 2.0.
+
+PINNStudio's graphical interface uses Qt for Python (PySide6, shiboken6) and
+the Qt libraries Qt Core, Qt GUI, Qt Widgets and Qt SVG, Copyright (C) The Qt
+Company Ltd. and other contributors, used under the GNU Lesser General Public
+License version 3 (LGPLv3). They are installed as separate packages and are not
+part of this product; see THIRD_PARTY_LICENSES.md.
+
+PINNStudio runs on DeepXDE (GNU LGPL version 2.1), installed as a separate
+package. Some interface icons are derived from Lucide (ISC License) and Feather
+(MIT License); see LICENSES/.

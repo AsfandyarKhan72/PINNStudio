@@ -17,13 +17,14 @@ import os
 import re
 import time
 
-from PyQt6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter, QPixmap
-from PyQt6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
+from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
                              QTableWidgetItem, QVBoxLayout, QWidget)
 
 from pinnstudio.ui import theme as _theme
+from pinnstudio.ui.workspace import layout_widgets
 
 
 # ── what a run is going to do ────────────────────────────────────────────
@@ -463,6 +464,7 @@ class ErrorAnalysisPanel(QWidget):
         split.addWidget(self.table)
         self.figs = QWidget()
         self.figs_lay = QVBoxLayout(self.figs)
+        self.figs_lay.addStretch()        # stays last; the figures are inserted before it
         self.figs_lay.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -475,10 +477,9 @@ class ErrorAnalysisPanel(QWidget):
         """A new run started: nothing from the last one stays."""
         self.table.setRowCount(0)
         self.summary.setText(message)
-        while self.figs_lay.count():
-            w = self.figs_lay.takeAt(0).widget()
-            if w is not None:
-                w.deleteLater()
+        for w in layout_widgets(self.figs_lay):   # not takeAt: see workspace._row_slots
+            self.figs_lay.removeWidget(w)
+            w.deleteLater()
 
     def show_run(self, metrics, folder, figures=()):
         self.table.setRowCount(0)
@@ -497,19 +498,17 @@ class ErrorAnalysisPanel(QWidget):
                                  f"over {len(l2s)} reference time{'s' if len(l2s) != 1 else ''}.")
         else:
             self.summary.setText("No error analysis in the last run (set it up on the Results page).")
-        while self.figs_lay.count():
-            w = self.figs_lay.takeAt(0).widget()
-            if w is not None:
-                w.deleteLater()
+        for w in layout_widgets(self.figs_lay):   # not takeAt: see workspace._row_slots
+            self.figs_lay.removeWidget(w)
+            w.deleteLater()
         paths = [f for f in figures if "error_analysis" in f.replace("\\", "/") and os.path.exists(f)]
         if not paths and folder and os.path.isdir(folder):
             paths = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.lower().endswith(".png")]
         for path in paths:
             cap = QLabel(os.path.basename(path))
             cap.setObjectName("pageDesc")
-            self.figs_lay.addWidget(cap)
-            self.figs_lay.addWidget(_Thumb(path, 520))
-        self.figs_lay.addStretch()
+            self.figs_lay.insertWidget(self.figs_lay.count() - 1, cap)
+            self.figs_lay.insertWidget(self.figs_lay.count() - 1, _Thumb(path, 520))
 
 
 # ── Run history ──────────────────────────────────────────────────────────
@@ -750,11 +749,11 @@ class RunCompare(QWidget):
 class RunHistory(QWidget):
     """The runs saved in the Save-to folder: when, which, final loss and
     error. Double-click (or Show) brings a run's figures back up."""
-    run_activated = pyqtSignal(dict)
+    run_activated = Signal(dict)
 
     def __init__(self, base_fn, parent=None):
         super().__init__(parent)
-        from PyQt6.QtWidgets import QPushButton
+        from PySide6.QtWidgets import QPushButton
         self.base_fn = base_fn
         self.runs = []
         lay = QVBoxLayout(self)
@@ -870,8 +869,8 @@ class RunHistory(QWidget):
         self._activate(self._row())
 
     def _open_folder(self):
-        from PyQt6.QtCore import QUrl
-        from PyQt6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         r = self._row()
         if 0 <= r < len(self.runs):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.runs[r]["folder"]))

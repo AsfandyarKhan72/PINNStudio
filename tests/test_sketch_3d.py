@@ -28,9 +28,9 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QPointF, Qt
-from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -142,6 +142,7 @@ def run():
     sp.set_tool("Rectangle")
     sp.new_d0.setValue(0)
     sp.new_d1.setValue(0.5)
+    _settle()     # pending layout/resize events first, so the points below map with the canvas's final geometry
 
     def at(x, y):
         return c.to_screen(QPointF(x, y)).toPoint()

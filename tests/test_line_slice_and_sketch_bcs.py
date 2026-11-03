@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.core import codegen
 from pinnstudio.core.line_slice import auto_line_slice

@@ -2,7 +2,7 @@ import sys
 
 
 def _preload_torch_on_windows():
-    """On Windows, PyTorch fails to load once PyQt6 is loaded ("[WinError
+    """On Windows, PyTorch fails to load once Qt (seen with PyQt6) is loaded ("[WinError
     1114] A dynamic link library (DLL) initialization routine failed ...
     c10.dll"): both bring a Microsoft C++ runtime, and the first one loaded
     wins. Loading PyTorch first avoids it. Other systems are unaffected."""
@@ -14,7 +14,7 @@ def _preload_torch_on_windows():
 
 
 _preload_torch_on_windows()
-from PyQt6.QtWidgets import QApplication  # noqa: E402  (after the preload above)
+from PySide6.QtWidgets import QApplication  # noqa: E402  (after the preload above)
 
 
 def _check_gpu_torch_mismatch():
@@ -28,14 +28,12 @@ def _check_gpu_torch_mismatch():
             return
     except Exception:
         pass
+    from pinnstudio.core import torch_index
     print("=" * 70)
-    print("An NVIDIA GPU was detected, but PyTorch cannot use it.")
-    print("This usually happens when PyTorch was installed with pip install pinnstudio directly,")
-    print("which can pull a CUDA build newer than what your GPU driver supports.")
-    print("Fix it with these two commands:")
-    print("  pip install --upgrade pip")
-    print("  pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall")
-    print("(PINNStudio will still run on CPU in the meantime.)")
+    print("An NVIDIA GPU was detected, but PyTorch cannot use it (PINNStudio runs on the CPU for now).")
+    print("This happens with a CPU-only PyTorch, or one built for a newer CUDA than the driver supports.")
+    for line in torch_index.gpu_fix_lines(torch_index.select_tag()):
+        print(line)
     print("=" * 70)
 
 def main():

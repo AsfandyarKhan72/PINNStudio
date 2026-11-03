@@ -7,14 +7,14 @@ import sys
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import QApplication, QComboBox, QDialog, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QPushButton
 
 from pinnstudio.core.codegen import generate_clean_script, generate_script
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.ui.main_window import MainWindow
 
 app = QApplication.instance() or QApplication([])
-LINE = 'os.environ["CUDA_VISIBLE_DEVICES"] = ""'
+LINE = 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"'
 
 
 def test_scripts():
@@ -49,3 +49,13 @@ def test_dialog_and_saved_settings(monkeypatch):
     assert w2._build_config().train_device == "cpu", "kept when a saved problem is opened"
     w.close()
     w2.close()
+
+
+def test_cpu_run_says_it_was_chosen():
+    c = PINNConfig()
+    c.train_device = "cpu"
+    text = generate_script(c)
+    assert 'print("Training on the CPU (Settings -> GPU / Hardware -> Train on: CPU)")' in text
+    assert "No GPU found" not in text
+    c.train_device = "auto"
+    assert "No GPU found" in generate_script(c)

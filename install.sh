@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+cd "$(dirname "$0")"   # the repository folder, wherever the script is started from
 
 echo "Setting up PINNStudio..."
 python3 -m venv venv
@@ -9,7 +10,7 @@ echo "Installing PINNStudio and its dependencies..."
 ./venv/bin/pip install . --quiet
 
 echo "Checking for a compatible GPU..."
-TORCH_TAG=$(./venv/bin/python "$(dirname "$0")/select_torch_index.py")
+TORCH_TAG=$(./venv/bin/python select_torch_index.py)
 
 # Install the matching PyTorch build (a specific CUDA tag, or CPU-only) LAST,
 # with --force-reinstall. The dependency resolution above may already have
@@ -29,7 +30,7 @@ fi
 if [ "$_torch_ok" != "1" ]; then
     if [ "$TORCH_TAG" != "cpu" ]; then
         echo "Installed PyTorch build doesn't match the requested CUDA version — falling back to CPU..."
-        echo "(You can retry GPU setup later — see the README's GPU troubleshooting section.)"
+        echo "(You can retry GPU setup later — see 'Troubleshooting' under Installation in the README.)"
     fi
     ./venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall --quiet
 fi

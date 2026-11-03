@@ -21,7 +21,7 @@ class PINNConfig:
     rar_lbfgs_iters: int = 10000
     # Stop refining early once the mean |residual| over the candidates is
     # below this (0 = off; rar_cycles is then a cap) -- DeepXDE's
-    # Burgers-RAR example loops until it's below 0.005. Round 66.
+    # Burgers-RAR example loops until it's below 0.005..
     rar_tolerance: float = 0.0
     # Which equation's residual to rank candidate points by when the PDE has
     # more than one governing equation (model.predict(x, operator=pde)
@@ -40,6 +40,38 @@ class PINNConfig:
     ta_step_groups: str = ""
     ta_transfer_learning: bool = False
     ta_transfer_optimizer: str = "adam"
+    # Sequential training on time windows with ONE network (needs transfer
+    # learning, so each window starts from the previous one's weights):
+    # - ta_growing: each window's residual and boundary points cover the whole
+    #   time range so far [t_start, t1], with the true initial condition at
+    #   t_start (Wight & Zhao 2021, "approach I").
+    # - ta_backward: backward-compatible PINN (Mattey & Ghosh 2022): after each
+    #   window the network's prediction on the time range so far is stored
+    #   (ta_backward_points spatial points x ta_backward_times times per window)
+    #   and later windows are held to it, with loss weight ta_backward_weight.
+    # - ta_icgl_fraction: initial-condition guided learning (Mattey & Ghosh):
+    #   before each window's training, fit the window's starting profile, held
+    #   constant over the window, for this fraction of the first Adam phase's
+    #   iterations (0 = off).
+    # - ta_resample_rounds: adaptive resampling in each window (Wight & Zhao's
+    #   approach I + resampling): after the window's training, ta_resample_points
+    #   of ta_resample_candidates random points with the largest PDE residual are
+    #   added to its collocation points and training continues for
+    #   ta_resample_iters Adam iterations, ta_resample_rounds times (0 = off).
+    ta_resample_rounds: int = 0
+    ta_resample_points: int = 200
+    ta_resample_candidates: int = 10000
+    ta_resample_iters: int = 2000
+    ta_growing: bool = False
+    ta_backward: bool = False
+    ta_backward_weight: float = 100.0
+    ta_backward_times: int = 10
+    ta_backward_points: int = 2000
+    # Seed for choosing bc-PINN's stored points: -1 (default) follows the run's
+    # seed setting; the benchmark configurations set 1234 explicitly (the value
+    # their recorded runs used).
+    ta_backward_seed: int = -1
+    ta_icgl_fraction: float = 0.0
 
     parametric_study: bool = False
     parametric_param: str = "none"
@@ -66,7 +98,7 @@ class PINNConfig:
     num_initial: int = 200
     num_test: int = 1000
     point_distribution: str = "Hammersley"
-    # Extra training points ("anchors", DeepXDE's anchors=) -- Round 65.
+    # Extra training points ("anchors", DeepXDE's anchors=)
     # "none", "file" (a points file: one column per input, x[, y[, z]][, t])
     # or "box" (anchors_count random points; anchors_box gives a "lo,hi"
     # range per input column, ';'-separated, blank = that column's domain
@@ -115,7 +147,7 @@ class PINNConfig:
     # kwarg in DeepXDE, so weight_decay is silently not applied when this is
     # "PFNN" (codegen.py suppresses the regularization arg in that case).
     network_type: str = "FNN"
-    # Multi-scale Fourier feature networks (Round 73): network_type "MsFFN"
+    # Multi-scale Fourier feature networks: network_type "MsFFN"
     # (all inputs) or "STMsFFN" (space and time separately); the scales sigma
     # of the random Fourier features, comma-separated.
     msffn_sigmas: str = "1, 10"
@@ -132,7 +164,7 @@ class PINNConfig:
     output_transform_enabled: bool = False
     output_transform_scale: List[float] = field(default_factory=lambda: [1.0])
     output_transform_shift: List[float] = field(default_factory=lambda: [0.0])
-    # Formula mode (Round 62) -- DeepXDE's apply_feature_transform /
+    # Formula mode -- DeepXDE's apply_feature_transform /
     # apply_output_transform with an arbitrary function, as its examples
     # use them: "scale" keeps the scale/shift rows above, "formula" uses:
     #   input_feature_formula   -- the network's input features, ';'-separated,
@@ -163,11 +195,11 @@ class PINNConfig:
 
     # Multi-output
     num_outputs: int = 1
-    # Number of PDE residuals (Round 63); 0 = one per output, as before.
+    # Number of PDE residuals; 0 = one per output, as before.
     num_equations: int = 0
     output_names: str = "u"
     pde_expressions: str = "du_t - 0.4 * du_xx"
-    # Named constants (Round 70): JSON list of {"name", "value"}; each value a
+    # Named constants: JSON list of {"name", "value"}; each value a
     # number or an expression in math functions and earlier constants. Usable
     # by name in every expression of the problem (see core/constants.py).
     constants: str = ""
@@ -207,14 +239,14 @@ class PINNConfig:
     # construction. Built into the input transform by the generators.
     periodic_inputs: bool = False
     loss_weights_multi: str = ""
-    # Round 75: > 0 -> before training, each loss weight becomes
+    # > 0 -> before training, each loss weight becomes
     # c / (that term's initial loss), as in DeepXDE's wave example
     # (loss_weights = 5 / initial_losses); the weights above are ignored.
     loss_weights_from_initial: float = 0.0
-    # Round 76: Gauss-Legendre points for integral(...) terms in the
+    # Gauss-Legendre points for integral(...) terms in the
     # equations (integro-differential ODEs) -- DeepXDE's quad_deg.
     integral_points: int = 20
-    # Round 77: fractional equations -- frac(u) in an equation is DeepXDE's
+    # Fractional equations -- frac(u) in an equation is DeepXDE's
     # discretized fractional operator applied to output u (1D: the sum of
     # the left and right Riemann-Liouville derivatives of order alpha; 2D/3D:
     # the integral over directions of the directional derivative, the
@@ -398,7 +430,8 @@ class PINNConfig:
     # attention, Anagnostopoulos et al., CMAME 2024: lambda <- gamma*lambda
     # + eta*|r|/max|r|) or "SA-PINN" (self-adaptive weights, McClenny &
     # Braga-Neto, JCP 2023: lambda trained by gradient ascent, learning rate
-    # sa_lr). All are held fixed during L-BFGS.
+    # sa_lr). During L-BFGS the causal weights are held; point weights are
+    # dropped ("plain", the default) or held ("keep").
     causal_training: bool = False
     causal_chunks: int = 32
     causal_eps: float = 1.0
@@ -465,7 +498,7 @@ class PINNConfig:
 
     plot_colormap: str = "jet"
     # Multi-output problems: also save every output's own plot, as
-    # solution_plot_<name>.<ext>, besides the selected "Plot output" (Round 69).
+    # solution_plot_<name>.<ext>, besides the selected "Plot output".
     plot_all_outputs: bool = True
     plot_levels: int = 100
     plot_resolution: int = 200
@@ -482,7 +515,7 @@ class PINNConfig:
     plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
-    # Font-size standardization (Round 31): previously every plot across
+    # Font-size standardization: previously every plot across
     # the app hardcoded its own title/axis-label font sizes ad hoc, with
     # real inconsistencies even within the same plot type (e.g. Time-
     # Adaptive's own per-step suptitle was fontsize 11 in one branch and
@@ -503,7 +536,7 @@ class PINNConfig:
     # before this existed); a few minor, previously-inconsistent outlier
     # call sites (e.g. a couple of stray fontsize=11/12 suptitles)
     # intentionally converge onto these single defaults rather than
-    # preserving every prior ad hoc value, same precedent as Round 30's
+    # preserving every prior ad hoc value, same precedent as an earlier
     # plot_resolution unification.
     plot_title_fontsize: float = 13.0
     plot_subplot_title_fontsize: float = 10.0
@@ -559,10 +592,14 @@ class PINNConfig:
     # surfaces (faces get slow to draw above about 40 points per side).
     plot_legend_fontsize: float = 0.0
     plot_resolution_3d: int = 40
+    # The level of the surface drawn in Error Analysis' 3D view of a 3D box
+    # problem ("" = the middle of the reference's range, e.g. 0 for a phase
+    # field between -1 and 1).
+    plot_iso_level: str = ""
     plot_sci_notation: str = "auto"
     plot_sci_style: str = "times"
 
-    # Loss Plot Settings (Round 28): previously every loss plot across the
+    # Loss Plot Settings: previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
     # control, and model.train()'s own display_every -- which doubles as
     # the loss plot's own sampling granularity, since DeepXDE's
@@ -627,7 +664,7 @@ class PINNConfig:
     ea_do_line: bool = True
     ea_do_surface: bool = True
 
-    # Error Metrics to Compute (Round 31): previously the Error Analysis
+    # Error Metrics to Compute: previously the Error Analysis
     # dialog's "L2 Relative"/"MSE"/"Max Error" checkboxes were pure dead
     # UI -- their state was stored but nothing downstream ever read it,
     # so every metric was always computed and shown regardless of what
@@ -644,7 +681,7 @@ class PINNConfig:
     ea_metric_l2: bool = True
     ea_metric_mse: bool = False
     ea_metric_max: bool = False
-    # Reference solution from a formula instead of files (Round 67):
+    # Reference solution from a formula instead of files:
     # ea_ref_mode "files" | "formula"; ea_ref_formula has one expression
     # per output ('|'-separated, blank = no reference for that output) in
     # x, y, z, t with numpy math names plus erf/norm_cdf; ea_ref_times are
@@ -781,14 +818,15 @@ class PINNConfig:
     # "Specified combinations"; every parameter must have the same
     # number of values, checked in validate() below).
     sweep_mode: str = "oat"
-    # Round 75: sweep_mode "bayes" -- Bayesian search (DeepXDE's
+    # Sweep_mode "bayes" -- Bayesian search (DeepXDE's
     # Helmholtz HPO example): the baseline, then sweep_bayes_calls - 1
     # runs each chosen by a Gaussian-process model of the results so far
     # (pinnstudio/core/bayes_opt.py), minimizing the final training loss
     # ("loss") or the Error Analysis L2 error ("l2"). Each swept parameter
     # is a search range: min..max (linear or log scale), or its list of
-    # values as the choices. The first sweep_bayes_initial runs after the
-    # baseline are random.
+    # values as the choices. The first sweep_bayes_initial runs are the
+    # starting runs: a baseline inside the search space counts as one of them,
+    # the others are random.
     sweep_bayes_calls: int = 20
     sweep_bayes_initial: int = 5
     sweep_bayes_objective: str = "loss"
@@ -858,6 +896,14 @@ class PINNConfig:
             if isinstance(_r, dict) and str(_r.get("location", "")).strip() == "False":
                 errors.append(f"BC {_i + 1} picks no part of the boundary (its last edge was taken out): pick its "
                               f"edges in the Geometry view, or delete the BC.")
+            if isinstance(_r, dict):
+                try:
+                    _comp = int(_r.get("component", 0) or 0)
+                except (TypeError, ValueError):
+                    _comp = 0
+                if not 0 <= _comp < int(self.num_outputs or 1):
+                    errors.append(f"BC {_i + 1} applies to output {_comp + 1}, but the problem has "
+                                  f"{int(self.num_outputs or 1)} output(s): pick one of them in the BC's Output box.")
         if self.causal_training:
             if self.steady_state:
                 errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")
@@ -868,7 +914,95 @@ class PINNConfig:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
                 errors.append("Causal training: the causality parameter epsilon must be positive.")
+        if self.time_adaptive and self.problem_dim == "ODE":
+            errors.append("Time-adaptive training isn't available for an ODE (PINNStudio solves it as a problem in t "
+                          "without a separate time axis, so there are no time windows to step through); switch it off.")
+        elif self.time_adaptive and self.steady_state:
+            errors.append("Time-adaptive training needs a time-dependent problem; switch it off for a stationary one.")
+        if self.time_adaptive and str(getattr(self, "problem_type", "Forward")) == "Inverse":
+            errors.append("Time-adaptive training is available for forward problems only (the window removes it in "
+                          "Inverse mode): switch time-adaptive training off, or solve the forward problem.")
+        if self.time_adaptive and (self.ta_growing or self.ta_backward):
+            _which = " and ".join(n for n, on in (("Growing time range", self.ta_growing),
+                                                  ("Backward compatibility", self.ta_backward)) if on)
+            if not self.ta_transfer_learning:
+                errors.append(f"Time-adaptive training: {_which} train one network through all the time windows, "
+                              "so they need 'transfer learning' (each window starts from the previous one's "
+                              "weights) -- tick it, or untick " + _which + ".")
+            if self.ta_backward and (int(self.ta_backward_times) < 1 or int(self.ta_backward_points) < 1):
+                errors.append("Time-adaptive training: backward compatibility needs at least 1 time per window "
+                              "and 1 point.")
+        if self.time_adaptive and int(self.ta_resample_rounds) > 0 and (
+                int(self.ta_resample_points) < 1 or int(self.ta_resample_candidates) < int(self.ta_resample_points)
+                or int(self.ta_resample_iters) < 1):
+            errors.append("Time-adaptive training: resampling needs at least 1 point per round, at least as many "
+                          "candidates as points, and at least 1 Adam iteration per round.")
+        if self.time_adaptive and int(self.ta_resample_rounds) > 0 and self.point_weights not in ("None", "", None):
+            errors.append("Time-adaptive training: resampling adds collocation points, which per-point weights "
+                          f"({self.point_weights}) can't follow -- set Per-point weights to None, or resampling "
+                          "rounds to 0.")
+        if self.point_weights not in ("None", "", None):
+            # per-point weights belong to fixed training points; a point resampler moves
+            # the points every few steps and the weights would start over each time
+            _batched = False
+            try:
+                import json as _json_pw
+                for _e in _json_pw.loads(self.custom_bc_json or "[]") or []:
+                    if (isinstance(_e, dict) and _e.get("type") in ("pointset", "pointset_operator")
+                            and int(_e.get("batch_size", 0) or 0) > 0):
+                        _batched = True
+            except (ValueError, TypeError):
+                pass
+            if self.cb_point_resampler and (self.cb_point_resampler_pde_points or self.cb_point_resampler_bc_points):
+                errors.append(f"Per-point weights ({self.point_weights}) belong to fixed training points, but the "
+                              "Point Resampler callback replaces the points every "
+                              f"{int(self.cb_point_resampler_period)} steps and the weights would start over each "
+                              "time -- turn the Point Resampler off, or set Per-point weights to None.")
+            elif _batched:
+                errors.append(f"Per-point weights ({self.point_weights}) belong to fixed training points, but a "
+                              "Point Set condition with a batch size resamples the points every 100 steps (as in "
+                              "DeepXDE) and the weights would start over each time -- set its batch size to 0, or "
+                              "Per-point weights to None.")
+        if self.time_adaptive and not 0 <= float(self.ta_icgl_fraction) < 1:
+            errors.append("Time-adaptive training: the initial-condition guided learning fraction must be "
+                          "from 0 (off) to below 1.")
         _hard = [h.strip() == "True" for h in (self.ic_hard or "").split(",")]
+        if self.ic_pretrain and not self.steady_state and self.problem_dim != "ODE" and not self.forward_ic_from_file:
+            _act = [h.strip() == "True" for h in (self.ic_active or "").split(",")]
+            if not any(_act[:int(self.num_outputs)]):
+                errors.append("IC pre-training fits the network to the initial conditions given as loss terms, "
+                              "but no output has one (an exact initial condition needs no pre-training) -- "
+                              "untick IC pre-training.")
+        # Loss functions: the residual targets are 0, so a relative or percentage
+        # loss divides by zero (infinite loss); softplus is not a DeepXDE loss
+        # with PyTorch. The window offers MSE and MAE; an older saved problem may
+        # still name one of the others.
+        import json as _json_lf
+        _bad_loss = set()
+        for _lf in [self.loss_type, getattr(self, "ic_pretrain_loss", "MSE")] + [
+                (_p or {}).get("loss", "MSE") for _p in (_json_lf.loads(self.scheduler_phases or "[]")
+                                                         if self.optimizer_scheduler else [])
+                if isinstance(_p, dict)]:
+            if str(_lf) not in ("MSE", "MAE", "mean squared error", "mean absolute error"):
+                _bad_loss.add(str(_lf))
+        if _bad_loss:
+            errors.append(f"Loss function {', '.join(sorted(_bad_loss))}: not usable for a PINN (the equation residuals "
+                          f"have target 0, or the loss does not exist with PyTorch) -- choose MSE or MAE in the "
+                          f"Training phases.")
+        if self.ic_pretrain and (self.steady_state or self.problem_dim == "ODE"):
+            errors.append("IC pre-training needs a time-dependent PDE: "
+                          + ("an ODE's initial values are conditions at t0, not initial-condition loss terms"
+                             if self.problem_dim == "ODE" else "a steady problem has no initial condition")
+                          + " -- untick IC pre-training.")
+        if self.ic_pretrain and self.ic_pretrain_restore:
+            import os as _os_icr
+            _rp = (self.ic_pretrain_restore_path or "").strip()
+            if not _rp:
+                errors.append("IC pre-training: 'Restore' is chosen but no saved pre-training model is given -- "
+                              "browse to the .pt file, or choose to pre-train.")
+            elif not _os_icr.path.isfile(_rp):
+                errors.append(f"IC pre-training: the saved pre-training model {_rp!r} does not exist -- check the "
+                              f"path, or choose to pre-train.")
         if any(_hard):
             _ics = (self.ic_expressions or "").split("|")
             if self.steady_state or self.problem_dim == "ODE":
@@ -894,6 +1028,16 @@ class PINNConfig:
             elif not _periodic_axes(self):
                 errors.append("Exact periodicity: no boundary condition is periodic -- add a periodic BC row "
                               "(or untick 'Exact periodicity' on the Boundary Conditions page).")
+            else:
+                # The periodic input features make every output periodic in that
+                # axis; an output with no periodic condition there would be too.
+                _not_per = _outputs_not_periodic(self)
+                if _not_per:
+                    _nm = [n.strip() for n in (self.output_names or "u").split(",")]
+                    errors.append("Exact periodicity makes every output periodic, but "
+                                  + ", ".join(f"{_nm[o] if o < len(_nm) else o} has no periodic boundary condition in {a}"
+                                              for o, a in _not_per)
+                                  + " -- add a periodic BC row for it, or untick 'Exact periodicity'.")
             if self.input_transform_enabled:
                 errors.append("Exact periodicity can't be combined with the Network page's input transform -- "
                               "turn the input transform off, or write the cos/sin features into its formula yourself.")
@@ -917,6 +1061,40 @@ class PINNConfig:
             if self.network_type == "STMsFFN":
                 errors.append("STMsFFN needs space and time; an ODE has only t -- use MsFFN.")
 
+        # Output names go into both scripts' equations as Python names, next
+        # to the coordinates, the network's own output array (y), the modules
+        # (np, dde, torch) and the math functions: a clash crashed the script
+        # (np, lambda, "my u") or, with y, silently trained a different
+        # problem in Solve (y = y[:, 0:1] replaced the network output).
+        import keyword as _kw_out
+        import re as _re_out
+        from pinnstudio.core.constants import RESERVED as _RES_OUT
+        _onames = [n.strip() for n in (self.output_names or "").split(",")][:int(self.num_outputs or 1)]
+        _seen_out = set()
+        for _on in _onames:
+            if not _on:
+                continue
+            if not _on.isidentifier() or _kw_out.iskeyword(_on):
+                errors.append(f"Output name '{_on}' can't be used in the equations: use letters, digits and _ "
+                              f"(not starting with a digit), and not a Python word such as lambda.")
+            elif (_on in _RES_OUT and _on != "u" and not (self.problem_dim == "ODE" and _on in ("x", "t"))) \
+                    or _re_out.match(r"^d[A-Za-z]\w*_[xyzt]+$", _on):
+                errors.append(f"Output name '{_on}' is already used for something else (a coordinate, the "
+                              f"array y the outputs are read from, a module, a math function or a side name) -- pick another "
+                              f"name (e.g. u1, u2).")
+            if _on in _seen_out:
+                errors.append(f"Output name '{_on}' is used for two outputs -- give each output its own name.")
+            _seen_out.add(_on)
+
+        # Derivative names in the equations: both generators build a fixed set (first
+        # and second derivatives, the third x-derivative in 1D, and fourth-order
+        # ones of the forms xxxx/xxyy/xxtt/...). A name outside it passed here and
+        # stopped both scripts with NameError at the first training step.
+        _bad_d = _unsupported_derivatives(self)
+        if _bad_d:
+            errors.append("Equations: " + ", ".join(_bad_d) + (" is" if len(_bad_d) == 1 else " are")
+                          + " not available (see Derivative syntax on the Equations page) -- write the equation with "
+                          "the derivatives PINNStudio provides, e.g. a third derivative as a new output.")
         if "integral(" in (self.pde_expressions or ""):
             if not (self.problem_dim == "ODE" or (self.problem_dim == "1D" and self.steady_state)):
                 errors.append("integral(...) terms are available for ODE problems (and steady 1D problems): "
@@ -984,6 +1162,15 @@ class PINNConfig:
             if self.network_type == "STMsFFN" and self.steady_state:
                 errors.append("STMsFFN separates space and time, so it needs a time-dependent problem; "
                               "use MsFFN for a steady one.")
+            if (self.network_type == "STMsFFN" and self.input_transform_enabled
+                    and (self.input_transform_mode or "scale") == "formula"):
+                _feats = [f.strip() for f in (self.input_feature_formula or "").split(";") if f.strip()]
+                import re as _re_st
+                _last = _feats[-1] if _feats else ""
+                # the last feature must be a function of t alone (t itself, or e.g. DeepXDE's scaled (t - 0.5)*2*sqrt(3))
+                if _feats and (not _re_st.search(r"\bt\b", _last) or _re_st.search(r"\b[xyz]\b", _last)):
+                    errors.append("STMsFFN takes the network's last input as time: with an input-feature formula, "
+                                  "end it with a feature of t alone (e.g. 'cos(x); sin(x); t') or use MsFFN.")
             if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
                 errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
                               "(half of them are cosine and half sine Fourier features).")
@@ -1455,6 +1642,69 @@ def use_training_phases(config):
             config.optimizer_scheduler = True
             config.scheduler_same_weights = True
     return config
+
+
+_DERIV_SUPPORTED = {
+    # (dimension, steady): derivative suffixes both generators define
+    ("1D", False): {"x", "t", "xx", "tt", "xt", "xxx", "xxxx", "xxtt", "tttt"},
+    ("1D", True): {"x", "xx", "xxx", "xxxx"},
+    ("2D", False): {"x", "y", "t", "xx", "yy", "xy", "tt", "xt", "yt", "xxxx", "yyyy", "xxyy", "xxtt", "yytt"},
+    ("2D", True): {"x", "y", "xx", "yy", "xy", "xxxx", "yyyy", "xxyy"},
+    ("3D", False): {"x", "y", "z", "t", "xx", "yy", "zz", "xy", "xz", "yz", "tt", "xt", "yt", "zt",
+                    "xxxx", "yyyy", "zzzz", "xxyy", "xxzz", "yyzz", "xxtt", "yytt", "zztt"},
+    ("3D", True): {"x", "y", "z", "xx", "yy", "zz", "xy", "xz", "yz", "xxxx", "yyyy", "zzzz", "xxyy", "xxzz", "yyzz"},
+    ("ODE", False): {"t", "tt", "ttt", "tttt"},
+}
+
+
+def _unsupported_derivatives(config):
+    """Derivative names d<output>_<axes> in the equations that the generators do not build."""
+    import re as _re_d
+    dim = config.problem_dim
+    key = ("ODE", False) if dim == "ODE" else (dim, bool(config.steady_state))
+    ok = _DERIV_SUPPORTED.get(key)
+    if ok is None:
+        return []
+    names = [n.strip() for n in (config.output_names or "u").split(",") if n.strip()]
+    text = config.pde_expressions or ""
+    bad = []
+    for n in names:
+        for m in _re_d.finditer(r"(?<![\w.])d" + _re_d.escape(n) + r"_([xyzt]+)(?![\w])", text):
+            if m.group(1) not in ok and m.group(0) not in bad:
+                bad.append(m.group(0))
+    return bad
+
+
+def _outputs_not_periodic(config):
+    """[(output, axis)]: a periodic axis on which the output has no periodic
+    boundary condition (Boundary Conditions rows, or the legacy per-side types)."""
+    import json as _json_np
+    axes = _periodic_axes(config)
+    if not axes:
+        return []
+    n = int(config.num_outputs or 1)
+    try:
+        rows = _json_np.loads(config.custom_bc_json) if (config.custom_bc_json or "").strip() else []
+    except ValueError:
+        rows = []
+    if not rows:
+        lt = [t.strip() for t in (config.bc_left_types or "").split(",")]
+        bt = [t.strip() for t in (config.bc_bottom_types or "").split(",")]
+        out = []
+        for o in range(n):
+            if "x" in axes and (o >= len(lt) or lt[o] != "Periodic"):
+                out.append((o, "x"))
+            if "y" in axes and (o >= len(bt) or bt[o] != "Periodic"):
+                out.append((o, "y"))
+        return out
+    have = set()
+    for r in rows:
+        if isinstance(r, dict) and str(r.get("type", "")).lower() == "periodic":
+            try:
+                have.add((int(r.get("component", 0) or 0), str(r.get("axis", "x") or "x")))
+            except (TypeError, ValueError):
+                pass
+    return [(o, a) for a in axes for o in range(n) if (o, a) not in have]
 
 
 def _periodic_axes(config):

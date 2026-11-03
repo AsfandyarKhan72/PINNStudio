@@ -67,13 +67,13 @@ def steps_taken(log):
 def _env(device):
     env = dict(os.environ, PYTHONUNBUFFERED="1", MPLBACKEND="Agg", DDE_BACKEND="pytorch")
     if device == "cpu":
-        env["CUDA_VISIBLE_DEVICES"] = ""
+        env["CUDA_VISIBLE_DEVICES"] = "-1"
     return env
 
 
 def _window():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
+    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
     app = QApplication.instance() or QApplication(["pinnstudio"])
     QMessageBox.exec = lambda self: 0
     QDialog.exec = lambda self: QDialog.DialogCode.Accepted.value
@@ -136,7 +136,7 @@ def run_window(app, w, cfg, device, quiet=False):
     """Solve in the window, timed from the click until the window shows the
     results (Solve enabled again)."""
     if device == "cpu":
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     else:
         os.environ.pop("CUDA_VISIBLE_DEVICES", None)
     os.environ["PYTHONUNBUFFERED"] = "1"

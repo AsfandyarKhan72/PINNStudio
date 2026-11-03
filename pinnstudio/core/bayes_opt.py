@@ -1,6 +1,6 @@
 """
 Bayesian optimization for Parameter Sweep's "Bayesian search" mode
-(Round 75) -- the hyperparameter search of DeepXDE's
+-- the hyperparameter search of DeepXDE's
 Helmholtz_Dirichlet_2d_HPO.py (scikit-optimize's gp_minimize with
 expected improvement), implemented here with NumPy only so PINNStudio
 needs no extra package.

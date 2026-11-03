@@ -1,0 +1,40 @@
+#0  __pthread_kill_implementation (no_tid=0, signo=6, threadid=<optimized out>) at ./nptl/pthread_kill.c:44
+#1  __pthread_kill_internal (signo=6, threadid=<optimized out>) at ./nptl/pthread_kill.c:78
+#2  __GI___pthread_kill (threadid=<optimized out>, signo=signo@entry=6) at ./nptl/pthread_kill.c:89
+#3  0x00007ffff7c4527e in __GI_raise (sig=sig@entry=6) at ../sysdeps/posix/raise.c:26
+#4  0x00007ffff7c288ff in __GI_abort () at ./stdlib/abort.c:79
+#5  0x00007ffff7c297b6 in __libc_message_impl (fmt=fmt@entry=0x7ffff7dcf8f0 "%s\n") at ../sysdeps/posix/libc_fatal.c:134
+#6  0x00007ffff7ca90d5 in malloc_printerr (str=str@entry=0x7ffff7dd28c0 "malloc_consolidate(): unaligned fastbin chunk detected") at ./malloc/malloc.c:5775
+#7  0x00007ffff7ca9e2c in malloc_consolidate (av=av@entry=0x7ffff7e04ac0 <main_arena>) at ./malloc/malloc.c:4846
+#8  0x00007ffff7cabb70 in _int_malloc (av=av@entry=0x7ffff7e04ac0 <main_arena>, bytes=bytes@entry=1600) at ./malloc/malloc.c:4041
+#9  0x00007ffff7cad7f4 in __GI___libc_malloc (bytes=1600) at ./malloc/malloc.c:3336
+#10 0x00007ffff304bee3 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#11 0x00007ffff304d9be in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#12 0x00007ffff2d6bbf6 in QTextEngine::shapeTextWithHarfbuzzNG(QScriptItem const&, unsigned short const*, int, int, int, QFontEngine*, QSpan<unsigned int, 18446744073709551615ul>, bool, bool, QMap<QFo
+#13 0x00007ffff2d6d509 in QTextEngine::shapeText(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#14 0x00007ffff2d968d7 in QTextLine::layout_helper(int) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#15 0x00007ffff2b838fe in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#16 0x00007ffff2b8443c in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#17 0x00007ffff2ced054 in QFontMetrics::boundingRect(QRect const&, int, QString const&, int, int*) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Gui.so.6
+#18 0x00007ffff372a13e in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#19 0x00007ffff372d14c in QLabel::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#20 0x00007ffff18f2aae in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#21 0x00007ffff35d01f5 in QWidgetItem::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#22 0x00007ffff35d02f4 in QWidgetItemV2::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#23 0x00007ffff35a78a7 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#24 0x00007ffff35a996a in QBoxLayout::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#25 0x00007ffff17a63f2 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#26 0x00007ffff35cb4bf in QLayout::totalHeightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#27 0x00007ffff35d015a in QWidgetItem::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#28 0x00007ffff35d02f4 in QWidgetItemV2::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#29 0x00007ffff35a78a7 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#30 0x00007ffff35a996a in QBoxLayout::heightForWidth(int) const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#31 0x00007ffff17a63f2 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#32 0x00007ffff35cb648 in QLayout::totalSizeHint() const () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#33 0x00007ffff1794894 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#34 0x00007ffff35ce578 in qSmartMinSize(QWidget const*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#35 0x00007ffff37a0da3 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#36 0x00007ffff37a1de2 in QScrollArea::event(QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Widgets.so.6
+#37 0x00007ffff18466aa in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#38 0x00007ffff1847a10 in ?? () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/QtWidgets.abi3.so
+#39 0x00007ffff658fb8e in QCoreApplicationPrivate::sendThroughObjectEventFilters(QObject*, QEvent*) () from /home/claude/venv_pyside/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Core.so.6

@@ -10,9 +10,9 @@ import time
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QPointF, Qt
-from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.ui.sketch_canvas import combined_path, polygon_shape
@@ -46,26 +46,31 @@ def test_sketch_draws_rows_and_rows_redraw_sketch():
     sp = w.sketch_panel
     c = sp.canvas
 
-    def at(x, y):
-        return c.to_screen(QPointF(x, y)).toPoint()
+    def drag(x0, y0, x1, y1):
+        # Let pending layout and resize events finish before mapping world points to the canvas: QTest delivers
+        # mouse events through the window-system queue, which first processes events still pending (for
+        # example the resize that follows adding a shape), so a point mapped before that resize would land
+        # elsewhere (seen intermittently on macOS runners). A real mouse event carries its own position.
+        _settle()
+        p0 = c.to_screen(QPointF(x0, y0)).toPoint()
+        p1 = c.to_screen(QPointF(x1, y1)).toPoint()
+        QTest.mousePress(c, Qt.MouseButton.LeftButton, pos=p0)
+        QTest.mouseMove(c, p1)
+        QTest.mouseRelease(c, Qt.MouseButton.LeftButton, pos=p1)
+        _settle()
 
     sp.clear()
     sp.set_tool("Rectangle")
-    QTest.mousePress(c, Qt.MouseButton.LeftButton, pos=at(0, 0))
-    QTest.mouseMove(c, at(1, 0.8))
-    QTest.mouseRelease(c, Qt.MouseButton.LeftButton, pos=at(1, 0.8))
+    drag(0, 0, 1, 0.8)
     sp.op_combo.setCurrentIndex(1)  # subtract
     sp.set_tool("Circle")
-    QTest.mousePress(c, Qt.MouseButton.LeftButton, pos=at(0.5, 0.4))
-    QTest.mouseMove(c, at(0.7, 0.4))
-    QTest.mouseRelease(c, Qt.MouseButton.LeftButton, pos=at(0.7, 0.4))
-    _settle()
+    drag(0.5, 0.4, 0.7, 0.4)
 
     rows = json.loads(w._build_custom_geom_shapes_json())
     assert [r["type"] for r in rows] == ["Rectangle", "Disk"], rows
     assert rows[1].get("op") == "subtract"
-    assert abs(rows[1]["params"]["r"] - 0.2) < 1e-9
-    assert abs(rows[0]["params"]["y_max"] - 0.8) < 1e-9
+    assert abs(rows[1]["params"]["r"] - 0.2) < 1e-9, rows
+    assert abs(rows[0]["params"]["y_max"] - 0.8) < 1e-9, rows
     # the hole is cut out of the combined region
     path = combined_path(rows)
     assert path.contains(QPointF(0.1, 0.1)) and not path.contains(QPointF(0.5, 0.4))
