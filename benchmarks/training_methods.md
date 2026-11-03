@@ -6,6 +6,25 @@ This study tests which published PINN training techniques improve accuracy, usin
 
 **Run-to-run variation.** Changing only the random seed moves the error by about ±20% (1D Cahn-Hilliard, three seeds), so only differences of about 1.5× or more should be read as real.
 
+> **Status of these results (2026-11-03).** Two corrections made in v1.6.0 affect some runs of the per-problem
+> study below (the sections from *Allen-Cahn* on), which has not been rerun:
+>
+> - **Time-window loss weights.** From the second window on, time-window runs with non-uniform loss weights (the
+>   initial-condition weight of 100) were trained with uniform weights; the logs say so ("configured weights have
+>   7 entries but 8 loss terms are active ... using uniform weights"). Affected rows: 1D Cahn-Hilliard (Wight & Zhao)
+>   *Time windows: exact BC + loss IC*, *+ RBA* and *+ SA-PINN*; 1D Cahn-Hilliard (Mattey & Ghosh) *Time windows:
+>   exact BC + loss IC* (template), *+ RBA* and *+ SA-PINN*; 2D Cahn-Hilliard (Wight & Zhao) *Time windows: exact
+>   BC + loss IC + SA-PINN*; and the *Exact BC + exact IC + RBA* rows of 2D Allen-Cahn (Wight & Zhao) and
+>   (Mattey & Ghosh), whose runs show the same warning. These rows are marked † below.
+> - **Regenerated reference data.** The 2D Allen-Cahn rows (Wight & Zhao and Mattey & Ghosh) are errors against
+>   the earlier reference data, which v1.6.0 replaced (see `records/corrected_2026-10-31/changes.md`).
+>
+> The controlled comparison of paper Figure 7 (next sections) is not affected: its affected runs were rerun
+> (`records/reruns_2026-11-01/`) and panel (c) was re-scored against the regenerated reference; its tables use
+> `figures/fig7_corrected/fig7_corrected.json`. Figure 4, Supplementary Table S2 and the Tuned presets do not use
+> the per-problem study.
+
+
 ## How the study is organised
 
 Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is run with the same ten **core setups**. Each setup is named after what it contains, and a name means the same setup in every table, figure and paragraph (the Figure 7 tables shorten *Exact BC + exact IC* to *Exact BC + IC*, and call *Loss BC + loss IC* the *plain PINN*):
@@ -89,7 +108,7 @@ Every technique is a setting in the interface; none needs code. What each one do
 | 2D Allen-Cahn (Mattey & Ghosh), $t = 1$ | 1.3% | 0.036% | Exact BC + exact IC + SA-PINN |
 | 3D Allen-Cahn (Wight & Zhao), $t = 1$ | 0.033% | 0.027% | Exact BC + loss IC (template) |
 | 1D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 0.52% (42% unscaled) | 0.060% | Exact BC + exact IC + SA-PINN (template) |
-| 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% | Time windows: exact BC + loss IC (template), and + SA-PINN |
+| 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% † | Time windows: exact BC + loss IC (template), and + SA-PINN (affected by the time-window weight defect, see the note above; the rerun of the best setup, `records/reruns_2026-11-01`, gives 0.44% for the same setup with SA-PINN) |
 | 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact BC + loss IC (template) |
 | 2D Cahn-Hilliard (Mattey & Ghosh), $t' = 1$ | 51% | 0.20% | Exact BC + exact IC + SA-PINN (template) |
 | Klein-Gordon, $t = 10$ | 8.1% | 0.22% | Plain + causal + MsFFN |
@@ -156,14 +175,14 @@ The study above uses each example's own settings, which differ from problem to p
 | **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | all 32 runs done (October 2026); the paper's Figure 7 and Fig. S3 |
 | Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | all 20 runs done (October 2026); causal training is in Figure 7, the rest in Fig. S4 |
 
-Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time):
+Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time; values marked ‡ are from the reruns after the time-window loss-weight fix, run one at a time, and the 2D Allen-Cahn row is re-scored against the regenerated reference, `figures/fig7_corrected/`):
 
 | Problem | Plain PINN | Exact BC + IC | + RBA | + SA-PINN | Time windows (5) | bc-PINN windows (6) | Windows, equal compute (5b) | bc-PINN, equal compute (6b) |
 |---|---|---|---|---|---|---|---|---|
 | 1D Allen-Cahn | 10% (8 min) | 1.1% (4 min) | 0.27% (6 min) | **0.14%** (7 min) | 0.65% (13 min) | 0.79% (18 min) | 0.41% (10 min) | 0.54% (10 min) |
-| 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.40% (26 min) | 0.40% (37 min) | 0.44% (20 min) | 0.41% (22 min) |
-| 2D Allen-Cahn | 0.45% (19 min) | 0.042% (14 min) | 0.045% (15 min) | **0.031%** (28 min) | 0.079% (93 min) | 0.095% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
-| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% (232 min) | 1.3% (410 min) | 5.6% (77 min) | 5.4% (75 min) |
+| 1D Cahn-Hilliard | 0.61% (9 min) | 0.16% (9 min) | 0.12% (10 min) | **0.074%** (11 min) | 0.39% ‡ (14 min) | 0.45% ‡ (26 min) | 0.48% ‡ (5 min) | 0.99% ‡ (8 min) |
+| 2D Allen-Cahn | 0.45% (19 min) | 0.031% (14 min) | 0.036% (15 min) | **0.011%** (28 min) | 0.070% (93 min) | 0.091% (159 min) | 0.24% (40 min) | 0.40% (59 min) |
+| 2D Cahn-Hilliard | 52% (40 min) | 0.19% (40 min) | 0.41% (40 min) | **0.17%** (40 min) | 1.3% ‡ (89 min) | 2.0% ‡ (275 min) | 5.3% ‡ (25 min) | 13% ‡ (71 min) |
 
 ![Figure 7: the six main setups, error against time](figures/paper_methods_c.png)
 
@@ -173,14 +192,14 @@ Results of setups 7–10 under the same protocol (error at $t = 1$, seed 2026; S
 |---|---|---|---|---|---|---|
 | 1D Allen-Cahn | **0.14%** (7 min) | 0.37% (5 min) | **0.14%** (7 min) | 0.44% (8 min) | 0.15% (12 min) | 3.9% (19 min) |
 | 1D Cahn-Hilliard | **0.074%** (11 min) | 0.091% (9 min) | 0.21% (8 min) | 0.29% (11 min) | 0.18% (22 min) | 0.20% (58 min) |
-| 2D Allen-Cahn | **0.031%** (28 min) | 0.048% (8 min) | 0.093% (16 min) | 0.047% (15 min) | 0.047% (31 min) | 0.087% (98 min) |
+| 2D Allen-Cahn | **0.011%** (28 min) | 0.039% (8 min) | 0.093% (16 min) | 0.039% (15 min) | 0.039% (31 min) | 0.082% (98 min) |
 | 2D Cahn-Hilliard | 0.17% (40 min) | 0.20% (53 min) | 0.40% (56 min) | 2.1% (40 min) | **0.17%** (82 min) | 1.8% (120 min) |
 
 ![The other techniques against SA-PINN, error against time](figures/paper_methods_c_more.png)
 
 *The growing time range in 2D first stopped at its second window because of a bug in PINNStudio (fixed); both 2D runs were run again after the fix.* In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement (Figs. S3 and S4).
 
-What it shows: exact conditions are the largest single gain on every problem (×4 to ×270), SA-PINN gives the lowest error everywhere (causal + MsFFN ties it on 1D Allen-Cahn), causal training comes close to it on both Cahn-Hilliard problems at the same or lower cost, RAR helps only when run about three times longer (then it ties SA-PINN on 2D Cahn-Hilliard, 0.173% against 0.175%), and time windows, even with four times the training, stay behind the best whole-interval setup (×2.5–8) while taking 2–6 times as long as SA-PINN (bc-PINN up to 10 times); with equal compute they are about as accurate as with four times the steps in 1D and clearly worse in 2D. Backward compatibility changes the windows little.
+What it shows: exact conditions are the largest single gain on every problem (×4 to ×280), SA-PINN gives the lowest error everywhere (causal + MsFFN ties it on 1D Allen-Cahn), causal training comes close to it on both Cahn-Hilliard problems at the same or lower cost, RAR helps only when run about three times longer (then it ties SA-PINN on 2D Cahn-Hilliard, 0.173% against 0.175%), and time windows, even with four times the training, stay behind the best whole-interval setup (×5–8) while taking longer than SA-PINN; with equal compute they are about as accurate as with four times the steps in 1D and clearly worse in 2D. Backward compatibility changes the windows little on Allen-Cahn and makes them worse on both Cahn-Hilliard problems, most with equal compute (0.99% against 0.48% in 1D, 13% against 5.3% in 2D).
 
 Results of the matched-per-problem version (error at $t = 1$, seed 2026):
 
@@ -254,7 +273,7 @@ A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021]
 | Loss BC + loss IC | 177% | 187% | 200% |
 | Exact BC + loss IC | 100% | 100% | 100% |
 | Exact BC + exact IC | 47% | 109% | 141% |
-| Exact BC + exact IC + RBA | 17% | 19% | 33% |
+| Exact BC + exact IC + RBA † | 17% | 19% | 33% |
 | Exact BC + exact IC + SA-PINN | 25% | 37% | 53% |
 | Exact BC + exact IC + causal | 32% | 36% | 47% |
 | Exact BC + exact IC + causal + MsFFN | 45% | 96% | 126% |
@@ -286,7 +305,7 @@ IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t
 | Loss BC + loss IC | 1.2% | 1.3% |
 | Exact BC + loss IC | 0.81% | 0.71% |
 | Exact BC + exact IC | 0.042% | 0.057% |
-| Exact BC + exact IC + RBA | 0.034% | 0.054% |
+| Exact BC + exact IC + RBA † | 0.034% | 0.054% |
 | **Exact BC + exact IC + SA-PINN** | **0.024%** | **0.036%** |
 | Exact BC + exact IC + causal | 0.037% | 0.057% |
 | Exact BC + exact IC + causal + MsFFN | 0.71% | 4.7% |
@@ -353,9 +372,9 @@ Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086
 | **Exact BC + exact IC + SA-PINN (template)** | **0.23%** | **0.060%** |
 | Exact BC + exact IC + causal | 0.50% | 0.10% |
 | Exact BC + exact IC + causal + MsFFN | 1.0% | 0.22% |
-| Time windows: exact BC + loss IC | 3.2% | 0.65% |
-| Time windows: exact BC + loss IC + RBA | 2.0% | 0.40% |
-| Time windows: exact BC + loss IC + SA-PINN | 1.9% | 0.57% |
+| Time windows: exact BC + loss IC † | 3.2% | 0.65% |
+| Time windows: exact BC + loss IC + RBA † | 2.0% | 0.40% |
+| Time windows: exact BC + loss IC + SA-PINN † | 1.9% | 0.57% |
 <!-- /core -->
 
 Seeds: loss BC + loss IC 2.2–3.3% / 0.40–0.52% and the template 0.21–0.23% / 0.051–0.060% (three seeds each, $t = 0.25$ / $t = 1$). The error in $\mu$ with the template is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
@@ -397,9 +416,9 @@ $u_t = (u^3 - u - 0.02 u_{xx})_{xx}$ on $[-1, 1]$ (periodic), $u(x, 0) = \cos(\p
 | Exact BC + exact IC + SA-PINN | 93% | 91% | 51% |
 | Exact BC + exact IC + causal | 74% | 93% | 78% |
 | Exact BC + exact IC + causal + MsFFN | 57% | 90% | 25% |
-| Time windows: exact BC + loss IC (template) | 0.35% | 0.51% | 0.48% |
-| Time windows: exact BC + loss IC + RBA | 2.5% | 2.1% | 2.1% |
-| **Time windows: exact BC + loss IC + SA-PINN** | **1.5%** | **0.27%** | **0.39%** |
+| Time windows: exact BC + loss IC (template) † | 0.35% | 0.51% | 0.48% |
+| Time windows: exact BC + loss IC + RBA † | 2.5% | 2.1% | 2.1% |
+| **Time windows: exact BC + loss IC + SA-PINN †** | **1.5%** | **0.27%** | **0.39%** |
 <!-- /core -->
 
 Every setup on the whole time interval fails (25–90% at $t = 1$), regardless of the exact constraints or the weighting: a network trained on the whole interval at once cannot follow the Gaussian's collapse before $t = 0.05$ and the slow coarsening after it. Time windows succeed, consistent with the paper's bc-PINN: the template's 19 windows, each started from the previous window's network, give 0.35–0.51% at every time. Per-point weights do not improve on that. RBA is about four times worse (2.1%), and SA-PINN is slightly better later on but fits the start much worse (9.4% at $t = 0$, against 0.29%), since its weights grow on the PDE points while the initial condition is a fixed-weight loss term; so the template uses plain windows. The relative error in $\mu$ is larger, 3–13% after the merge, because $\mu$ is nearly zero once the two phases have settled.
@@ -424,7 +443,7 @@ Two bubbles that merge, $u_t = \nabla^2\mu$, $\mu = u^3 - u - 0.0025\nabla^2 u$ 
 | Exact BC + exact IC + causal + MsFFN | 5.8% | 6.3% |
 | Time windows: exact BC + loss IC | – | – |
 | Time windows: exact BC + loss IC + RBA | – | – |
-| Time windows: exact BC + loss IC + SA-PINN | 0.42% | 1.7% |
+| Time windows: exact BC + loss IC + SA-PINN † | 0.42% | 1.7% |
 <!-- /core -->
 
 The time-window setups without weighting and with RBA were not run for this example.
