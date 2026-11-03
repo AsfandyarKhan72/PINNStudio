@@ -72,6 +72,10 @@ is recommended):
 pip install pinnstudio
 ```
 
+> **Note:** version 1.6.0, which this page and the documentation describe, is not on PyPI yet. Until it is,
+> `pip install pinnstudio` and the installers below install the published 1.5.0; to install 1.6.0 now, run
+> `pip install git+https://github.com/AsfandyarKhan72/PINNStudio.git`.
+
 **Or install with one command, without installing Python first.** The installer sets up PINNStudio with its own
 Python and the PyTorch build that matches your computer's GPU (or a CPU-only build), and adds PINNStudio to the
 Start menu and desktop (Windows), the Applications folder in your home folder (macOS) or the app menu (Linux).
@@ -115,7 +119,9 @@ problems from an empty window.
 
 A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
 *Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, PINNStudio's
-best run in its benchmarks: the fastest of the runs within 25% of the lowest error at the last reference time.
+best run in its benchmarks: the fastest of the runs within 25% of the lowest error at the last reference time (for
+Cahn–Hilliard problems, the worse of the two fields' errors), keeping the example's own settings when they are among
+those runs and within 10% of the fastest time.
 
 | Example | Dimension | What it shows |
 |---|---|---|
