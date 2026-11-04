@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software in your research or workflow, please cite it as below."
 type: software
-title: "PINNStudio"
+title: "PINNStudio: A graphical platform for forward and inverse physics-informed neural networks"
 abstract: "A graphical platform for forward and inverse physics-informed neural networks."
 authors:
   - family-names: "Khan"
