@@ -73,7 +73,7 @@ dphi_t - diff_coeff*(dphi_xx + dphi_yy + dphi_zz) + lambda_*(phi**3 - phi)
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/3D/allen_cahn_wight/t_1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/3D/allen_cahn_wight/t_1.txt) → output `phi`, weight 100
+- [`reference_data/3D/allen_cahn_wight/t_1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/3D/allen_cahn_wight/t_1.txt) → output `phi`, weight 100
 
 From the benchmark records: same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient \(\lambda\) and the diffusion coefficient \(\lambda\varepsilon^2\) (initial guesses 1, true values 10 and 0.025), from \(\phi\) measured at \(t = 1\) on every second point of the \(51^3\) reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
 
@@ -136,12 +136,12 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 1.9 × 10⁻⁴ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Forward result: 3D view](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png){ loading=lazy }
+  ![Forward result: 3D view](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: 3D view.</figcaption>
 </figure>
 
@@ -157,26 +157,26 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.22 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error on slices](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error on slices](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png){ loading=lazy }
   <figcaption>Inverse, Default settings: PINN, reference and error on slices.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: interface and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png){ loading=lazy }
+  ![Inverse result: interface and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png){ loading=lazy }
   <figcaption>Inverse, Default settings: interface and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: drop radius](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png){ loading=lazy }
+  ![Inverse result: drop radius](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png){ loading=lazy }
   <figcaption>Inverse, Default settings: drop radius.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-allen-cahn-wight--zhao).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#3d-allen-cahn-wight--zhao).
 
 ## Loading it in PINNStudio
 
@@ -187,19 +187,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/3D/allen_cahn_wight)
+- Reference data files: [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/3D/allen_cahn_wight)
 
 ## Definition and records
 
-- **Definition:** template "3D Allen-Cahn (Wight & Zhao)" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
+- **Definition:** template "3D Allen-Cahn (Wight & Zhao)" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/ui/main_window.py)
     - Inverse mode: `MainWindow.INVERSE_AUTO_VARS["3D Allen-Cahn (Wight & Zhao)"]` (unknowns) and `INVERSE_AUTO_OBS["3D Allen-Cahn (Wight & Zhao)"]` (measured data), same file
-    - Settings: Default (the paper's method): `_ac3d_wz` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/paper_settings.py)
-    - Settings: Tuned: entry "3D Allen-Cahn (Wight & Zhao)" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Default (the paper's method): `_ac3d_wz` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/paper_settings.py)
+    - Settings: Tuned: entry "3D Allen-Cahn (Wight & Zhao)" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/3D/allen_cahn_wight), written by [`tools/make_phase_field_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_phase_field_reference_data.py)
-- **Measured data** (Inverse): [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/3D/allen_cahn_wight), written by [`tools/make_phase_field_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_phase_field_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/allen-cahn-3d-wight-zhao.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/allen-cahn-3d-wight-zhao.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-allen-cahn-wight--zhao), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%203D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json), [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Allen-Cahn%203D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/3D/allen_cahn_wight), written by [`tools/make_phase_field_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_phase_field_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/3D/allen_cahn_wight/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/3D/allen_cahn_wight), written by [`tools/make_phase_field_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_phase_field_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/allen-cahn-3d-wight-zhao.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/allen-cahn-3d-wight-zhao.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#3d-allen-cahn-wight--zhao), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Allen-Cahn%203D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json), [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Allen-Cahn%203D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Wight & Zhao 2021](../../about/references.md#wight2021)
 

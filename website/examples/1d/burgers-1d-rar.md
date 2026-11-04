@@ -83,11 +83,11 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 8.4 × 10⁻⁴ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Burgers_equation_with_RAR/base_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Burgers_equation_with_RAR/base_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-burgers-equation-with-rar).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-burgers-equation-with-rar).
 
 ## Loading it in PINNStudio
 
@@ -97,7 +97,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/burgers)
+- Reference data files: [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/burgers)
 
 ## Notes
 
@@ -105,11 +105,11 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Burgers equation with RAR" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Burgers equation with RAR" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/burgers-1d-rar.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-1d-rar.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-burgers-equation-with-rar), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 1D – RAR (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20RAR%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/burgers-1d-rar.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/burgers-1d-rar.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-burgers-equation-with-rar), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 1D – RAR (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Burgers%201D%20%E2%80%93%20RAR%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [RAR](../../reference/rar.md)
 - **DeepXDE example:** [Burgers_RAR.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)

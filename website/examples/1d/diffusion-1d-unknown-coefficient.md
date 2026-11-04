@@ -52,7 +52,7 @@ du_t - C*du_xx + exp(-t)*(sin(pi*x) - pi**2*sin(pi*x))
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/diffusion_inverse/u_obs_t1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/diffusion_inverse/u_obs_t1.txt) → output `u`, weight 1
+- [`reference_data/deepxde/diffusion_inverse/u_obs_t1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/diffusion_inverse/u_obs_t1.txt) → output `u`, weight 1
 
 ## Settings
 
@@ -93,16 +93,16 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.004 %**.
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-diffusion-equation).
 
 ## Loading it in PINNStudio
 
@@ -120,13 +120,13 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Inverse: diffusion equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
-    - Settings: Tuned: entry "Inverse: diffusion equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Definition:** `EXAMPLES` entry "Inverse: diffusion equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
+    - Settings: Tuned: entry "Inverse: diffusion equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/diffusion_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/diffusion_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/diffusion-1d-unknown-coefficient.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-1d-unknown-coefficient.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20unknown%20coefficient%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/diffusion_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/diffusion_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/diffusion-1d-unknown-coefficient.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/diffusion-1d-unknown-coefficient.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-diffusion-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20unknown%20coefficient%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [diffusion_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_1d_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 

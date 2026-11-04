@@ -56,10 +56,10 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.25.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/diffusion_reaction_inverse/t_0.25.txt) → output `u`, weight 100
-- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.5.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/diffusion_reaction_inverse/t_0.5.txt) → output `u`, weight 100
-- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.75.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/diffusion_reaction_inverse/t_0.75.txt) → output `u`, weight 100
-- [`reference_data/deepxde/diffusion_reaction_inverse/t_1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/diffusion_reaction_inverse/t_1.txt) → output `u`, weight 100
+- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.25.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/diffusion_reaction_inverse/t_0.25.txt) → output `u`, weight 100
+- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.5.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/diffusion_reaction_inverse/t_0.5.txt) → output `u`, weight 100
+- [`reference_data/deepxde/diffusion_reaction_inverse/t_0.75.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/diffusion_reaction_inverse/t_0.75.txt) → output `u`, weight 100
+- [`reference_data/deepxde/diffusion_reaction_inverse/t_1.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/diffusion_reaction_inverse/t_1.txt) → output `u`, weight 100
 
 ## Settings
 
@@ -131,7 +131,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 8.5 × 10⁻⁵ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
@@ -146,16 +146,16 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.012 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-reaction-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-diffusion-reaction-equation).
 
 ## Loading it in PINNStudio
 
@@ -174,14 +174,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Diffusion-reaction equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Diffusion-reaction equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
     - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Diffusion-reaction equation"]`, same file
-    - Settings: Tuned: entry "Diffusion-reaction equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Tuned: entry "Diffusion-reaction equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/diffusion_reaction_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/diffusion_reaction_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/diffusion-reaction-1d.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-reaction-1d.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-reaction-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion-reaction 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%20%28tuned%29.pinn.json), [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion-reaction%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/diffusion_reaction_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/diffusion_reaction_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/diffusion-reaction-1d.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/diffusion-reaction-1d.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-diffusion-reaction-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion-reaction 1D (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Diffusion-reaction%201D%20%28tuned%29.pinn.json), [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Diffusion-reaction%201D%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [diffusion_reaction.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_reaction.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Yu et al. 2022](../../about/references.md#yu2022)

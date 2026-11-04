@@ -70,11 +70,11 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 2.8 × 10⁻³ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-equation-with-hard-ic-and-bc).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-diffusion-equation-with-hard-ic-and-bc).
 
 ## Loading it in PINNStudio
 
@@ -88,11 +88,11 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Diffusion equation with hard IC and BC" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Diffusion equation with hard IC and BC" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Benchmark records:** [`benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-diffusion-equation-with-hard-ic-and-bc), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20hard%20IC%20and%20BCs%20%28tuned%29.pinn.json)
+- **Benchmark records:** [`benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/diffusion-1d-hard-ic-and-bcs.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-diffusion-equation-with-hard-ic-and-bc), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Diffusion 1D – hard IC and BCs (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Diffusion%201D%20%E2%80%93%20hard%20IC%20and%20BCs%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [diffusion_1d_exactBC.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_exactBC.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Wu et al. 2023](../../about/references.md#wu2023rar)

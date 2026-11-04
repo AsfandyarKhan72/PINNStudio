@@ -68,11 +68,11 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 6.5 × 10⁻⁵ |
 
 <figure markdown="span">
-  ![Forward result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Integro_differential_equation/base_line_comparison.png){ loading=lazy }
+  ![Forward result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Integro_differential_equation/base_line_comparison.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN and reference along lines.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-integro-differential-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-integro-differential-equation).
 
 ## Loading it in PINNStudio
 
@@ -90,11 +90,11 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Integro-differential equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Integro-differential equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Benchmark records:** [`benchmarks/problems/integro-differential-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/integro-differential-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-integro-differential-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Integro-differential ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Integro-differential%20ODE%20%28tuned%29.pinn.json)
+- **Benchmark records:** [`benchmarks/problems/integro-differential-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/integro-differential-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-integro-differential-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Integro-differential ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Integro-differential%20ODE%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [ide.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 

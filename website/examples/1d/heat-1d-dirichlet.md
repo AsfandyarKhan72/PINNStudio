@@ -58,9 +58,9 @@ Inverse-mode form (from the benchmark records):
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/1D/heat/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/1D/heat/t_1.0.txt) → output `u`, weight 100
+- [`reference_data/1D/heat/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/1D/heat/t_1.0.txt) → output `u`, weight 100
 
-From the benchmark records: pick the example from the **Inverse** list: the diffusivity \(a\) is unknown (initial guess 1, true value 0.4) and is learned together with \(u\) from \(u\) measured at \(t = 1\) (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/1D/heat/t_1.0.txt)).
+From the benchmark records: pick the example from the **Inverse** list: the diffusivity \(a\) is unknown (initial guess 1, true value 0.4) and is learned together with \(u\) from \(u\) measured at \(t = 1\) (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/1D/heat/t_1.0.txt)).
 
 ## Settings
 
@@ -129,7 +129,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 1.3 × 10⁻² |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Heat_equation/all_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Heat_equation/all_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
@@ -144,16 +144,16 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.1 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Heat_equation_inv/all_surface_comparison.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Heat_equation_inv/all_surface_comparison.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Heat_equation_inv/all_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Heat_equation_inv/all_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-heat-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-heat-equation).
 
 ## Loading it in PINNStudio
 
@@ -173,13 +173,13 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Heat equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
-    - Settings: Tuned: entry "Heat equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Definition:** `EXAMPLES` entry "Heat equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
+    - Settings: Tuned: entry "Heat equation" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/1D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/heat), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/heat-1d-dirichlet.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/heat-1d-dirichlet.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-heat-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Heat 1D – Dirichlet (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Heat%201D%20%E2%80%93%20Dirichlet%20%28tuned%29.pinn.json), [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Heat%201D%20%E2%80%93%20Dirichlet%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/1D/heat/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/heat), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/heat-1d-dirichlet.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/heat-1d-dirichlet.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-heat-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Heat 1D – Dirichlet (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Heat%201D%20%E2%80%93%20Dirichlet%20%28tuned%29.pinn.json), [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Heat%201D%20%E2%80%93%20Dirichlet%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [heat.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 

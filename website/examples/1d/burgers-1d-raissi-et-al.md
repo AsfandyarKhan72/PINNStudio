@@ -64,7 +64,7 @@ Inverse-mode form (from the benchmark records):
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/1D/burgers/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/1D/burgers/t_1.0.txt) → output `u`, weight 100
+- [`reference_data/1D/burgers/t_1.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/1D/burgers/t_1.0.txt) → output `u`, weight 100
 
 From the benchmark records: same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1.
 
@@ -133,7 +133,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | u | 5.2 × 10⁻⁴ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
@@ -149,16 +149,16 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.099 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-burgers).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#1d-burgers).
 
 ## Loading it in PINNStudio
 
@@ -169,19 +169,19 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/burgers)
+- Reference data files: [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/burgers)
 
 ## Definition and records
 
-- **Definition:** template "1D Burgers" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
+- **Definition:** template "1D Burgers" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/ui/main_window.py)
     - Inverse mode: `MainWindow.INVERSE_AUTO_VARS["1D Burgers"]` (unknowns) and `INVERSE_AUTO_OBS["1D Burgers"]` (measured data), same file
-    - Settings: Default (the paper's method): `_burgers1d_raissi` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/paper_settings.py)
-    - Settings: Tuned: entry "1D Burgers" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Default (the paper's method): `_burgers1d_raissi` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/paper_settings.py)
+    - Settings: Tuned: entry "1D Burgers" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Measured data** (Inverse): [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/burgers-1d-raissi-et-al.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/burgers-1d-raissi-et-al.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-burgers), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json), [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/1D/burgers/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/burgers), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/burgers-1d-raissi-et-al.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/burgers-1d-raissi-et-al.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#1d-burgers), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json), [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Cite:** [Raissi et al. 2019](../../about/references.md#raissi2019)
 
 How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).

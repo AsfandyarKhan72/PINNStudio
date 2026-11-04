@@ -63,8 +63,8 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/lotka_volterra/r.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/lotka_volterra/r.txt) → output `r`, weight 100
-- [`reference_data/deepxde/lotka_volterra/p.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/lotka_volterra/p.txt) → output `p`, weight 100
+- [`reference_data/deepxde/lotka_volterra/r.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/lotka_volterra/r.txt) → output `r`, weight 100
+- [`reference_data/deepxde/lotka_volterra/p.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/lotka_volterra/p.txt) → output `p`, weight 100
 
 ## Settings
 
@@ -114,14 +114,14 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | p | 1.4 × 10⁻³ |
 
 <figure markdown="span">
-  ![Forward result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png){ loading=lazy }
+  ![Forward result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN and reference along lines, r.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
-      ![Forward result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_p.png){ loading=lazy }
+      ![Forward result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_p.png){ loading=lazy }
       <figcaption>Forward, Default settings: PINN and reference along lines, p.</figcaption>
     </figure>
 
@@ -137,23 +137,23 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png){ loading=lazy }
+  ![Inverse result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png){ loading=lazy }
   <figcaption>Inverse, Default settings: PINN and reference along lines, r.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
-      ![Inverse result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png){ loading=lazy }
+      ![Inverse result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN and reference along lines, p.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-lotka-volterra-equation).
 
 ## Loading it in PINNStudio
 
@@ -164,7 +164,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra)
+- Reference data files: [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lotka_volterra)
 
 ## Notes
 
@@ -173,13 +173,13 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Lotka-Volterra equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Lotka-Volterra equation" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
     - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Lotka-Volterra equation"]`, same file
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Measured data** (Inverse): [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/lotka-volterra-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lotka-volterra-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json), [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/deepxde/lotka_volterra/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lotka_volterra), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/lotka-volterra-ode.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/lotka-volterra-ode.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-lotka-volterra-equation), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lotka-Volterra ODE (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Lotka-Volterra%20ODE%20%28tuned%29.pinn.json), [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Lotka-Volterra%20ODE%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [Lotka_Volterra.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/lotka.volterra.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)

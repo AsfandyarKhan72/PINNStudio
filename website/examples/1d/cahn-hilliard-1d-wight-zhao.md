@@ -94,18 +94,18 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | abs_mu | 2.3 × 10⁻⁶ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error, μ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_mu.png){ loading=lazy }
+  ![Forward result: PINN, reference and error, μ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_mu.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error, μ.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_u.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_u.png){ loading=lazy }
       <figcaption>Forward, Tuned settings: PINN, reference and error, u.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-cahn-hilliard).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#1d-cahn-hilliard).
 
 ## Loading it in PINNStudio
 
@@ -115,7 +115,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/cahn_hilliard)
+- Reference data files: [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/cahn_hilliard)
 
 ## Notes
 
@@ -123,14 +123,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** template "1D Cahn-Hilliard" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py)
-    - Settings: Default (the paper's method): `_ch1d_wz` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/paper_settings.py)
-    - Settings: Tuned: entry "1D Cahn-Hilliard" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+- **Definition:** template "1D Cahn-Hilliard" in `MainWindow._on_template_selected`, [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/ui/main_window.py)
+    - Settings: Default (the paper's method): `_ch1d_wz` in [`pinnstudio/core/paper_settings.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/paper_settings.py)
+    - Settings: Tuned: entry "1D Cahn-Hilliard" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/cahn_hilliard), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Measured data** (Inverse): [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/1D/cahn_hilliard), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_exact_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/cahn-hilliard-1d-wight-zhao.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/cahn-hilliard-1d-wight-zhao.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-cahn-hilliard), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/cahn_hilliard), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/1D/cahn_hilliard/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/1D/cahn_hilliard), written by [`tools/make_exact_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_exact_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/cahn-hilliard-1d-wight-zhao.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/cahn-hilliard-1d-wight-zhao.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#1d-cahn-hilliard), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Cahn-Hilliard%201D%20%E2%80%93%20Wight%20%26%20Zhao%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [RBA and SA-PINN](../../reference/point-weights.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Wight & Zhao 2021](../../about/references.md#wight2021)
 

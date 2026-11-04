@@ -45,7 +45,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/fractional_inverse_1d/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/fractional_inverse_1d/u_obs.txt) → output `u`, weight 100
+- [`reference_data/deepxde/fractional_inverse_1d/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/fractional_inverse_1d/u_obs.txt) → output `u`, weight 100
 
 ## Settings
 
@@ -77,16 +77,16 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.48 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png){ loading=lazy }
+  ![Inverse result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png){ loading=lazy }
   <figcaption>Inverse, Default settings: PINN and reference along lines.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d).
 
 ## Loading it in PINNStudio
 
@@ -104,12 +104,12 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Inverse: fractional Poisson equation 1D" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Inverse: fractional Poisson equation 1D" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/fractional_inverse_1d/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/fractional_inverse_1d), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/fractional-poisson-1d-unknown-order.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/fractional-poisson-1d-unknown-order.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Fractional%20Poisson%201D%20%E2%80%93%20unknown%20order%20%CE%B1%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/fractional_inverse_1d/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/fractional_inverse_1d), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/fractional-poisson-1d-unknown-order.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/fractional-poisson-1d-unknown-order.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Fractional Poisson 1D – unknown order α (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Fractional%20Poisson%201D%20%E2%80%93%20unknown%20order%20%CE%B1%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [fractional_Poisson_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)

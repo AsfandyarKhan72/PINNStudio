@@ -69,9 +69,9 @@ du_x + dv_y + dw_z
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/beltrami_inverse/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/beltrami_inverse/u_obs.txt) → output `u`, weight 100
-- [`reference_data/deepxde/beltrami_inverse/v_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/beltrami_inverse/v_obs.txt) → output `v`, weight 100
-- [`reference_data/deepxde/beltrami_inverse/w_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/beltrami_inverse/w_obs.txt) → output `w`, weight 100
+- [`reference_data/deepxde/beltrami_inverse/u_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/beltrami_inverse/u_obs.txt) → output `u`, weight 100
+- [`reference_data/deepxde/beltrami_inverse/v_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/beltrami_inverse/v_obs.txt) → output `v`, weight 100
+- [`reference_data/deepxde/beltrami_inverse/w_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/beltrami_inverse/w_obs.txt) → output `w`, weight 100
 
 ## Settings
 
@@ -131,44 +131,44 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | w | 1.1 × 10⁻³ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_u.png){ loading=lazy }
+  ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_u.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN, reference and error, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Forward result: 3D view, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_u.png){ loading=lazy }
+  ![Forward result: 3D view, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_u.png){ loading=lazy }
   <figcaption>Forward, Default settings: 3D view, u.</figcaption>
 </figure>
 
 ??? note "Other outputs (6 figures)"
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_p.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_p.png){ loading=lazy }
       <figcaption>Forward, Default settings: PINN, reference and error, p.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_v.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_v.png){ loading=lazy }
       <figcaption>Forward, Default settings: PINN, reference and error, v.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_w.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_w.png){ loading=lazy }
       <figcaption>Forward, Default settings: PINN, reference and error, w.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: 3D view, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_p.png){ loading=lazy }
+      ![Forward result: 3D view, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_p.png){ loading=lazy }
       <figcaption>Forward, Default settings: 3D view, p.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: 3D view, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_v.png){ loading=lazy }
+      ![Forward result: 3D view, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_v.png){ loading=lazy }
       <figcaption>Forward, Default settings: 3D view, v.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: 3D view, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_w.png){ loading=lazy }
+      ![Forward result: 3D view, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_w.png){ loading=lazy }
       <figcaption>Forward, Default settings: 3D view, w.</figcaption>
     </figure>
 
@@ -183,53 +183,53 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.17 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_u.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_u.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: 3D view, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_u.png){ loading=lazy }
+  ![Inverse result: 3D view, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_u.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: 3D view, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
 ??? note "Other outputs (6 figures)"
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_p.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_p.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: PINN, reference and error, p.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_v.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_v.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: PINN, reference and error, v.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_w.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_w.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: PINN, reference and error, w.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: 3D view, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_p.png){ loading=lazy }
+      ![Inverse result: 3D view, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_p.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: 3D view, p.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: 3D view, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_v.png){ loading=lazy }
+      ![Inverse result: 3D view, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_v.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: 3D view, v.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: 3D view, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_w.png){ loading=lazy }
+      ![Inverse result: 3D view, w](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_w.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: 3D view, w.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-beltrami-flow).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-beltrami-flow).
 
 ## Loading it in PINNStudio
 
@@ -249,14 +249,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Beltrami flow" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Beltrami flow" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
     - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Beltrami flow"]`, same file
-    - Settings: Tuned: entry "Beltrami flow" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Tuned: entry "Beltrami flow" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/beltrami_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/beltrami_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/navier-stokes-3d-beltrami-flow.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/navier-stokes-3d-beltrami-flow.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-beltrami-flow), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%203D%20%E2%80%93%20Beltrami%20flow%20%28tuned%29.pinn.json), [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Navier-Stokes%203D%20%E2%80%93%20Beltrami%20flow%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/beltrami_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/beltrami_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/navier-stokes-3d-beltrami-flow.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/navier-stokes-3d-beltrami-flow.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-beltrami-flow), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Navier-Stokes 3D – Beltrami flow (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Navier-Stokes%203D%20%E2%80%93%20Beltrami%20flow%20%28tuned%29.pinn.json), [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Navier-Stokes%203D%20%E2%80%93%20Beltrami%20flow%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [Beltrami_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Jin et al. 2021](../../about/references.md#jin2021)
 

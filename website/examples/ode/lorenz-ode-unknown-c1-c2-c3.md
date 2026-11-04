@@ -55,9 +55,9 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/lorenz/y1_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/lorenz/y1_obs.txt) → output `y1`, weight 1
-- [`reference_data/deepxde/lorenz/y2_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/lorenz/y2_obs.txt) → output `y2`, weight 1
-- [`reference_data/deepxde/lorenz/y3_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/lorenz/y3_obs.txt) → output `y3`, weight 1
+- [`reference_data/deepxde/lorenz/y1_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/lorenz/y1_obs.txt) → output `y1`, weight 1
+- [`reference_data/deepxde/lorenz/y2_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/lorenz/y2_obs.txt) → output `y2`, weight 1
+- [`reference_data/deepxde/lorenz/y3_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/lorenz/y3_obs.txt) → output `y3`, weight 1
 
 ## Settings
 
@@ -91,28 +91,28 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.032 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png){ loading=lazy }
+  ![Inverse result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png){ loading=lazy }
   <figcaption>Inverse, Default settings: PINN and reference along lines, y1.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
 ??? note "Other outputs (2 figures)"
 
     <figure markdown="span">
-      ![Inverse result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png){ loading=lazy }
+      ![Inverse result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN and reference along lines, y2.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN and reference along lines, y3](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png){ loading=lazy }
+      ![Inverse result: PINN and reference along lines, y3](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN and reference along lines, y3.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-lorenz-system).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-lorenz-system).
 
 ## Loading it in PINNStudio
 
@@ -122,7 +122,7 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Reference solution
 
-- Reference data files: [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz)
+- Reference data files: [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lorenz)
 
 ## Notes
 
@@ -130,12 +130,12 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Inverse: Lorenz system" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Inverse: Lorenz system" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
-- **Reference data:** [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Measured data** (Inverse): [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/lorenz), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/lorenz-ode-unknown-c-c-c.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/lorenz-ode-unknown-c-c-c.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-lorenz-system), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Lorenz%20ODE%20%E2%80%93%20unknown%20C%E2%82%81%2C%20C%E2%82%82%2C%20C%E2%82%83%20%28tuned%29.pinn.json)
+- **Reference data:** [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lorenz), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Measured data** (Inverse): [`reference_data/deepxde/lorenz/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/lorenz), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/lorenz-ode-unknown-c-c-c.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/lorenz-ode-unknown-c-c-c.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-inverse-lorenz-system), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Lorenz ODE – unknown C₁, C₂, C₃ (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Lorenz%20ODE%20%E2%80%93%20unknown%20C%E2%82%81%2C%20C%E2%82%82%2C%20C%E2%82%83%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [Lorenz_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/lorenz.inverse.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
