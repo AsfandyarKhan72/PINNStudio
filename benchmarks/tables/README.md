@@ -20,11 +20,12 @@ from the same study records as Figure 4 (`figures/paper_figure.pdf`), the benchm
 - **Inverse error (unknown function).** For Poisson 1D with an unknown forcing, the relative L₂ error (in %) of the recovered function.
 - **Thresholds.** "Below 1 %" means a relative error below 10⁻² (forward) or a worst parameter error below 0.01 (as a fraction); "below 0.1 %": 10⁻³.
 - **Selection (tuned configuration).** The candidate configurations of each example (its own settings, the tuning study's variants, and for the paper templates the published methods run in PINNStudio) are compared by their median error against the reference; among those within 25 % of the lowest, the fastest (median training time) is chosen; the example's own settings are kept if they are within 25 % of the lowest error and within 10 % of the fastest time. This selection is guided by the reference solutions; the seeds evaluate the selected configuration, they are not themselves tuned.
-- **Coverage.** `forward_per_seed.csv` has 52 of the 53 forward cases on the benchmarks page. The 53rd,
-  *Helmholtz 2D – hyperparameter search*, is a parameter-sweep example that the benchmark runner cannot run as one
-  training run: its record (`records/corrected_2026-10-31/a0e.jsonl`, variant `base`, seed 2026) ended with `rc = 1` and
-  no error. Its value on the pages, 1.3 × 10⁻³, is the best of the 50 runs of its Bayesian search, one run on an
-  RTX 4090 reported in the earlier README and kept in `tuning/readme_results.json`; it has no per-seed record.
+- **Coverage.** `forward_per_seed.csv` has 52 of the 53 forward cases on the benchmarks page: 28 with three seeds and
+  24 with seed 2026. The 53rd, *Helmholtz 2D – hyperparameter search*, is evaluated through its own 50-run Bayesian
+  search, which selects the configuration with the lowest **final training loss** (not the reference error); the
+  selected run's relative L₂ error, 1.28 × 10⁻³ (training seed 2026), is the value on the pages. The benchmark runner
+  lost track of that sweep (its record in `records/corrected_2026-10-31/a0e.jsonl` ends with `rc = 1` and no error),
+  so the sweep's own record is kept separately: [`records/helmholtz_hpo_2026-10-25/`](../records/helmholtz_hpo_2026-10-25/README.md).
   `inverse_per_seed.csv` has all 32 inverse cases with scalar unknowns; the inverse problems that recover an unknown
   function are not in it.
 - **Reference data.** The reference solutions are in `reference_data/` (analytical solutions written at the evaluation points, or numerical reference solutions); the Poisson disk/sphere (exact), Poisson L-shape (refined finite differences) and Burgers 2D (Chebyshev spectral) references were regenerated and validated as described in `benchmarks/reference_regeneration/README.md`.

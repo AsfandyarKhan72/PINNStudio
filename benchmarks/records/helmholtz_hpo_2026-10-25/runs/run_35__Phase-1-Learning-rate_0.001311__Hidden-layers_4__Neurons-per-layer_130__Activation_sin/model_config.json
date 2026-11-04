@@ -1,0 +1,70 @@
+{
+  "layers": [
+    2,
+    130,
+    130,
+    130,
+    130,
+    1
+  ],
+  "activation": "sin",
+  "network_type": "FNN",
+  "msffn_sigmas": "1, 10",
+  "msffn_sigmas_t": "1, 10",
+  "num_outputs": 1,
+  "output_names": "u",
+  "x_min": 0.0,
+  "x_max": 1.0,
+  "y_min": 0.0,
+  "y_max": 1.0,
+  "z_min": 0.0,
+  "z_max": 1.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "line_slice_y_auto": false,
+  "line_slice_y": 0.375,
+  "line_slice_z_auto": true,
+  "line_slice_z": 0.0,
+  "problem_dim": "2D",
+  "ode": false,
+  "steady_state": true,
+  "geometry_type": "Rectangle",
+  "geom_center_x": 0.5,
+  "geom_center_y": 0.5,
+  "geom_center_z": 0.5,
+  "geom_radius": 0.5,
+  "geom_semi_major": 0.5,
+  "geom_semi_minor": 0.3,
+  "geom_angle": 0.0,
+  "geom_triangle_vertices": "0,0;1,0;0,1",
+  "geom_polygon_vertices": "0,0;1,0;1,0.6;0.5,1;0,0.6",
+  "geom_custom_shapes_json": "[]",
+  "pde_expressions": "-du_xx - du_yy - (12.566370614359172)**2*u - (12.566370614359172)**2*sin((12.566370614359172)*x)*sin((12.566370614359172)*y)",
+  "optimizer": "adam",
+  "optimizer2": "none",
+  "loss_type": "MSE",
+  "problem_type": "Forward",
+  "inverse_variables": [],
+  "input_transform_enabled": false,
+  "input_transform_mode": "scale",
+  "input_transform_scale": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "input_transform_shift": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "input_feature_formula": "",
+  "output_transform_enabled": true,
+  "output_transform_mode": "formula",
+  "output_transform_scale": [
+    1.0
+  ],
+  "output_transform_shift": [
+    0.0
+  ],
+  "output_transform_formula": "x*(1 - x)*y*(1 - y)*u"
+}

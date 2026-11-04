@@ -1,0 +1,2 @@
+t,L2_relative,Mean_abs_error
+0.000000,6.285668e-01,2.472174e-01
