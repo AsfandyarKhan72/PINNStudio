@@ -543,8 +543,12 @@ def page(summ, rows, with_files):
       "with its own settings and with the same five changes, and the change that trains best is reported next to "
       "the example's own result. It complements the [training methods study](training_methods.md), which tests "
       "specialised methods (causal training, per-point weights, time windows) on the hardest problems.\n")
-    a(f"{len(summ)} problems are included, chosen as the ones with the largest errors in the "
-      f"[example results](examples.md). {better} of them improve by 1.5× or more; the median improvement is "
+    n_inv = sum(1 for s in summ if s["inverse"])
+    n_var = sum(1 for s in summ if len(s["variants"]) > 1)
+    a(f"{len(summ)} problems are included, counted per example and mode ({len(summ) - n_inv} forward, {n_inv} "
+      f"inverse; the [benchmarks page](README.md) counts examples instead). Each was run with its own settings, "
+      f"and the {n_var} with the largest errors in the [example results](examples.md) also with the changes below. "
+      f"{better} of the {len(summ)} improve by 1.5× or more; the median improvement is "
       f"{statistics.median(ratios):.0f}×." if ratios else "")
     a("")
     a("## How it is done\n")

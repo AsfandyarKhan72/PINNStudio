@@ -1782,7 +1782,7 @@ def page(recs):
     n_t = sum(1 for r in recs if any(len((x or {}).get("variants") or {}) > 1 for x in (r["f_best_s"], r.get("i_s"))))
     a("# PINNStudio benchmarks\n")
     a("*Every example of PINNStudio, forward and inverse, with the result of its reference settings and "
-      "PINNStudio's best. Updated as the runs finish.*\n")
+      "PINNStudio's best.*\n")
     a("**How to read an example.** Each example opens to one table for the forward problem and one for the "
       "inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the "
       "**template's starting settings** for a PINNStudio template (the settings PINNStudio's template was "
@@ -1813,13 +1813,14 @@ def page(recs):
       "the example's reference data; papers report one error over all times, so their rows give that too. Where "
       "a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds "
       "on one RTX 4090.\n")
-    a(f"The sweep was run on the {n_t} examples with the largest errors. The others were already accurate with "
-      "their own settings: their result is the README's, marked **no tuning needed**.\n")
+    a(f"The sweep was run on the {n_t} examples with the largest errors (counted as examples; the "
+      "[tuning study](tuning_study.md) counts the forward and inverse problem of an example separately). The others "
+      "were already accurate with their own settings: their result is the README's, marked **no tuning needed**.\n")
     a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
       f"learned parameter](figures/benchmarks_summary.png{_ver(FIG)})\n")
     a("*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, "
       "or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning "
-      "was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open "
+      "was needed). PINNStudio's own templates have no open "
       "marker: there is no outside reference to compare with. Right: the error of each "
       "learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the "
       "templates taken from a paper.*\n")
@@ -1853,7 +1854,8 @@ def page(recs):
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | "
-      "`tools/check_export_equivalence.py` | done (91 checked; see performance.md) |\n"
+      "`tools/check_export_equivalence.py` | done: 93 example-mode configurations, 89 completed and bitwise identical "
+      "(88 independent comparisons, 1 identical by construction), 4 excluded; [export_check](export_check/README.md) |\n"
       "| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
       "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
       "[performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | done |\n\n"

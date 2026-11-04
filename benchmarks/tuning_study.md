@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-88 problems are included, chosen as the ones with the largest errors in the [example results](examples.md). 36 of them improve by 1.5× or more; the median improvement is 1×.
+88 problems are included, counted per example and mode (63 forward, 25 inverse; the [benchmarks page](README.md) counts examples instead). Each was run with its own settings, and the 55 with the largest errors in the [example results](examples.md) also with the changes below. 36 of the 88 improve by 1.5× or more; the median improvement is 1×.
 
 ## How it is done
 
