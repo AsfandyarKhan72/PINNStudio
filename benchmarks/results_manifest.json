@@ -1,0 +1,2262 @@
+{
+ "generated_by": "tools/make_benchmarks_readme.py",
+ "sources": [
+  "benchmarks/tables/forward_per_seed.csv",
+  "benchmarks/tables/inverse_per_seed.csv",
+  "benchmarks/records/reruns_2026-11-01/final_build/"
+ ],
+ "metric": {
+  "forward": "relative L2 of each output at the last reference time; the main output is the first",
+  "inverse": "per seed, the relative error of each parameter and the largest of them; the median over the seeds"
+ },
+ "examples": [
+  {
+   "example": "Integro-differential ODE",
+   "key": "Integro-differential equation",
+   "record": "benchmarks/examples.md#dx-integro-differential-equation",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 6.5453e-05,
+    "outputs_l2": {
+     "u": 6.5453e-05
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Integro_differential_equation/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Integro-differential ODE – Volterra kernel",
+   "key": "Volterra integro-differential equation",
+   "record": "benchmarks/examples.md#dx-volterra-integro-differential-equation",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0024758,
+    "outputs_l2": {
+     "u": 0.0024758
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Volterra_integro_differential_equation/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Linear ODE system",
+   "key": "ODE system",
+   "record": "benchmarks/examples.md#dx-ode-system",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0036321,
+    "outputs_l2": {
+     "y1": 0.0036321,
+     "y2": 0.003107
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/ODE_system/base_line_comparison_y1.png",
+     "benchmarks/figures/tuning/ODE_system/base_line_comparison_y2.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "w",
+      "true": 1.0,
+      "found_median": 0.999912,
+      "relative_error_median": 8.8e-05
+     }
+    ],
+    "worst_parameter_error_median": 8.8e-05,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y1.png",
+     "benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y2.png",
+     "benchmarks/figures/tuning/ODE_system_inv/all_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Lotka-Volterra ODE",
+   "key": "Lotka-Volterra equation",
+   "record": "benchmarks/examples.md#dx-lotka-volterra-equation",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0020976,
+    "outputs_l2": {
+     "r": 0.0020976,
+     "p": 0.0014404
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png",
+     "benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_p.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "a",
+      "true": 2.0,
+      "found_median": 2.0,
+      "relative_error_median": 0.0
+     },
+     {
+      "name": "d",
+      "true": 1.06,
+      "found_median": 1.06,
+      "relative_error_median": 0.0
+     }
+    ],
+    "worst_parameter_error_median": 0.0,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png",
+     "benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png",
+     "benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Second-order ODE",
+   "key": "Second-order ODE",
+   "record": "benchmarks/examples.md#dx-second-order-ode",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00069274,
+    "outputs_l2": {
+     "u": 0.00069274
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Second_order_ODE/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "a",
+      "true": 10.0,
+      "found_median": 10.0003,
+      "relative_error_median": 3e-05
+     },
+     {
+      "name": "b",
+      "true": 9.0,
+      "found_median": 8.99262,
+      "relative_error_median": 0.00082
+     }
+    ],
+    "worst_parameter_error_median": 0.00082,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Second_order_ODE_inv/net_line_comparison.png",
+     "benchmarks/figures/tuning/Second_order_ODE_inv/net_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Lorenz ODE – unknown C₁, C₂, C₃",
+   "key": "Inverse: Lorenz system",
+   "record": "benchmarks/examples.md#dx-inverse-lorenz-system",
+   "forward": null,
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "C1",
+      "true": 10.0,
+      "found_median": 10.0,
+      "relative_error_median": 0.000318
+     },
+     {
+      "name": "C2",
+      "true": 15.0,
+      "found_median": 14.9998,
+      "relative_error_median": 1.33333e-05
+     },
+     {
+      "name": "C3",
+      "true": 2.66667,
+      "found_median": 2.66664,
+      "relative_error_median": 1.125e-05
+     }
+    ],
+    "worst_parameter_error_median": 0.000318,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y1.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y2.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system/base_line_comparison_y3.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Lorenz ODE – unknown C₁, C₂, C₃, exogenous input",
+   "key": "Inverse: Lorenz system with exogenous input",
+   "record": "benchmarks/examples.md#dx-inverse-lorenz-system-with-exogenous-input",
+   "forward": null,
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "C1",
+      "true": 10.0,
+      "found_median": 9.97389,
+      "relative_error_median": 0.002611
+     },
+     {
+      "name": "C2",
+      "true": 15.0,
+      "found_median": 14.9961,
+      "relative_error_median": 0.00026
+     },
+     {
+      "name": "C3",
+      "true": 2.66667,
+      "found_median": 2.66686,
+      "relative_error_median": 7.12499e-05
+     }
+    ],
+    "worst_parameter_error_median": 0.002611,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y1.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y2.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_line_comparison_y3.png",
+     "benchmarks/figures/tuning/Inverse_Lorenz_system_with_exogenous_input/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Euler beam 1D",
+   "key": "Euler beam",
+   "record": "benchmarks/examples.md#dx-euler-beam",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.00028171,
+    "outputs_l2": {
+     "u": 0.00028171
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Euler_beam/all_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "EI",
+      "true": 1.0,
+      "found_median": 1.00153,
+      "relative_error_median": 0.00153
+     }
+    ],
+    "worst_parameter_error_median": 0.00153,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Euler_beam_inv/net_line_comparison.png",
+     "benchmarks/figures/tuning/Euler_beam_inv/net_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Fractional Poisson 1D",
+   "key": "Fractional Poisson equation 1D",
+   "record": "benchmarks/examples.md#dx-fractional-poisson-equation-1d",
+   "forward": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "main_output_l2": 0.014981,
+    "outputs_l2": {
+     "u": 0.014981
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Fractional_Poisson_equation_1D/net_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – Dirichlet",
+   "key": "Poisson 1D – Dirichlet",
+   "record": "benchmarks/examples.md#dx-poisson-1d-dirichlet",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00036801,
+    "outputs_l2": {
+     "u": 0.00036801
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_Dirichlet/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – Dirichlet/Neumann",
+   "key": "Poisson 1D – Dirichlet/Neumann",
+   "record": "benchmarks/examples.md#dx-poisson-1d-dirichlet-neumann",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00023208,
+    "outputs_l2": {
+     "u": 0.00023208
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_Dirichlet_Neumann/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – Dirichlet/Periodic",
+   "key": "Poisson 1D – Dirichlet/Periodic",
+   "record": "benchmarks/examples.md#dx-poisson-1d-dirichlet-periodic",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 6.4124e-06,
+    "outputs_l2": {
+     "u": 6.4124e-06
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_Dirichlet_Periodic/all_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – Dirichlet/point-set operator",
+   "key": "Poisson 1D – Dirichlet/PointSetOperator",
+   "record": "benchmarks/examples.md#dx-poisson-1d-dirichlet-pointsetoperator",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 2.5791e-05,
+    "outputs_l2": {
+     "u": 2.5791e-05
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_Dirichlet_PointSetOperator/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – Dirichlet/Robin",
+   "key": "Poisson 1D – Dirichlet/Robin",
+   "record": "benchmarks/examples.md#dx-poisson-1d-dirichlet-robin",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00023726,
+    "outputs_l2": {
+     "u": 0.00023726
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_Dirichlet_Robin/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – hard BCs",
+   "key": "Poisson 1D – hard boundary conditions",
+   "record": "benchmarks/examples.md#dx-poisson-1d-hard-boundary-conditions",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 2.2365e-06,
+    "outputs_l2": {
+     "u": 2.2365e-06
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_hard_boundary_conditions/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – multi-scale Fourier features",
+   "key": "Poisson 1D – multi-scale Fourier features",
+   "record": "benchmarks/examples.md#dx-poisson-1d-multi-scale-fourier-features",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0038773,
+    "outputs_l2": {
+     "u": 0.0038773
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_1D_multi_scale_Fourier_features/base_line_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Brinkman-Forchheimer 1D – unknown ν_e, K",
+   "key": "Inverse: Brinkman-Forchheimer model",
+   "record": "benchmarks/examples.md#dx-inverse-brinkman-forchheimer-model",
+   "forward": null,
+   "inverse": {
+    "variant": "iters",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "v_e",
+      "true": 0.001,
+      "found_median": 0.00115135,
+      "relative_error_median": 0.15135
+     },
+     {
+      "name": "K",
+      "true": 0.001,
+      "found_median": 0.00103409,
+      "relative_error_median": 0.03409
+     }
+    ],
+    "worst_parameter_error_median": 0.15135,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png",
+     "benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Diffusion-reaction 1D – unknown rate field",
+   "key": "Inverse: diffusion-reaction with space-dependent rate",
+   "record": "benchmarks/examples.md#dx-inverse-diffusion-reaction-with-space-dependent-rate",
+   "forward": null,
+   "inverse": null
+  },
+  {
+   "example": "Fractional Poisson 1D – unknown order α",
+   "key": "Inverse: fractional Poisson equation 1D",
+   "record": "benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d",
+   "forward": null,
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "alpha",
+      "true": 1.8,
+      "found_median": 1.79135,
+      "relative_error_median": 0.00480556
+     }
+    ],
+    "worst_parameter_error_median": 0.00480556,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png",
+     "benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Poisson 1D – unknown forcing field",
+   "key": "Inverse: Poisson with unknown forcing field",
+   "record": "benchmarks/examples.md#dx-inverse-poisson-with-unknown-forcing-field",
+   "forward": null,
+   "inverse": null
+  },
+  {
+   "example": "Poisson 1D – unknown forcing field (batches)",
+   "key": "Inverse: Poisson with unknown forcing field (batches)",
+   "record": "benchmarks/examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches",
+   "forward": null,
+   "inverse": null
+  },
+  {
+   "example": "Allen-Cahn 1D – Wight & Zhao",
+   "key": "1D Allen-Cahn (whole interval)",
+   "record": "benchmarks/examples.md#1d-allen-cahn",
+   "forward": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "main_output_l2": 0.00070157,
+    "outputs_l2": {
+     "u": 0.00070157
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval/net_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "gamma_1",
+      "true": 0.0001,
+      "found_median": 9.9233e-05,
+      "relative_error_median": 0.00767
+     },
+     {
+      "name": "gamma_2",
+      "true": 5.0,
+      "found_median": 4.99768,
+      "relative_error_median": 0.000464
+     }
+    ],
+    "worst_parameter_error_median": 0.00767,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_1D_Allen_Cahn_whole_interval_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Cahn-Hilliard 1D – Wight & Zhao",
+   "key": "1D Cahn-Hilliard",
+   "record": "benchmarks/examples.md#1d-cahn-hilliard",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0005151,
+    "outputs_l2": {
+     "mu": 0.0016248,
+     "u": 0.0005151,
+     "abs_mu": 2.270864e-06
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Template_1D_Cahn_Hilliard/base_surface_comparison_mu.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Cahn-Hilliard 1D – Mattey & Ghosh",
+   "key": "1D Cahn-Hilliard (Mattey & Ghosh)",
+   "record": "benchmarks/examples.md#1d-cahn-hilliard-mattey--ghosh",
+   "forward": {
+    "variant": "windows2",
+    "label": "2× time windows",
+    "tuned_preset": true,
+    "main_output_l2": 0.00625703,
+    "outputs_l2": {
+     "h": 0.006257031,
+     "mu": 0.06220309,
+     "abs_mu": 7.611332e-05
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_surface_comparison_h.png",
+     "benchmarks/figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/windows2_surface_comparison_mu.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Black-Scholes 1D – American put",
+   "key": "American put option",
+   "record": "benchmarks/examples.md#dx-american-put-option",
+   "forward": null,
+   "inverse": null
+  },
+  {
+   "example": "Black-Scholes 1D – European call",
+   "key": "Black-Scholes equation (call option)",
+   "record": "benchmarks/examples.md#dx-black-scholes-equation-call-option",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00043181,
+    "outputs_l2": {
+     "u": 0.00043181
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Black_Scholes_equation_call_option/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Burgers 1D – Raissi et al.",
+   "key": "1D Burgers",
+   "record": "benchmarks/examples.md#1d-burgers",
+   "forward": {
+    "variant": "paper_raissi",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "main_output_l2": 0.00051764,
+    "outputs_l2": {
+     "u": 0.00051764
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "invall",
+    "label": "10× data weight, 3× L-BFGS and the larger network",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "lambda_1",
+      "true": 1.0,
+      "found_median": 0.999888,
+      "relative_error_median": 0.000112
+     },
+     {
+      "name": "lambda_2",
+      "true": 0.01,
+      "found_median": 0.00999801,
+      "relative_error_median": 0.000621
+     }
+    ],
+    "worst_parameter_error_median": 0.00099,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Burgers 1D – RAR",
+   "key": "Burgers equation with RAR",
+   "record": "benchmarks/examples.md#dx-burgers-equation-with-rar",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00084053,
+    "outputs_l2": {
+     "u": 0.00084053
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Burgers_equation_with_RAR/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Diffusion 1D",
+   "key": "Diffusion equation",
+   "record": "benchmarks/examples.md#dx-diffusion-equation",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.0015491,
+    "outputs_l2": {
+     "u": 0.0015491
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Diffusion_equation/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Diffusion 1D – hard IC and BCs",
+   "key": "Diffusion equation with hard IC and BC",
+   "record": "benchmarks/examples.md#dx-diffusion-equation-with-hard-ic-and-bc",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.002827,
+    "outputs_l2": {
+     "u": 0.002827
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Diffusion_equation_with_hard_IC_and_BC/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Diffusion 1D – resampling",
+   "key": "Diffusion equation with resampling",
+   "record": "benchmarks/examples.md#dx-diffusion-equation-with-resampling",
+   "forward": {
+    "variant": "lbfgs",
+    "label": "L-BFGS phase added",
+    "tuned_preset": true,
+    "main_output_l2": 0.0057938,
+    "outputs_l2": {
+     "u": 0.0057938
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Diffusion_equation_with_resampling/lbfgs_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Diffusion-reaction 1D",
+   "key": "Diffusion-reaction equation",
+   "record": "benchmarks/examples.md#dx-diffusion-reaction-equation",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 8.5187e-05,
+    "outputs_l2": {
+     "u": 8.5187e-05
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "D",
+      "true": 1.0,
+      "found_median": 0.99988,
+      "relative_error_median": 0.00012
+     }
+    ],
+    "worst_parameter_error_median": 0.00012,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png",
+     "benchmarks/figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Fractional diffusion 1D",
+   "key": "Fractional diffusion equation",
+   "record": "benchmarks/examples.md#dx-fractional-diffusion-equation",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0032571,
+    "outputs_l2": {
+     "u": 0.0032571
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Fractional_diffusion_equation/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Heat 1D – Dirichlet",
+   "key": "Heat equation",
+   "record": "benchmarks/examples.md#dx-heat-equation",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.013214,
+    "outputs_l2": {
+     "u": 0.013214
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Heat_equation/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "a",
+      "true": 0.4,
+      "found_median": 0.400406,
+      "relative_error_median": 0.001015
+     }
+    ],
+    "worst_parameter_error_median": 0.001015,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Heat_equation_inv/all_surface_comparison.png",
+     "benchmarks/figures/tuning/Heat_equation_inv/all_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Heat 1D – resampling",
+   "key": "Heat equation with resampling",
+   "record": "benchmarks/examples.md#dx-heat-equation-with-resampling",
+   "forward": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "main_output_l2": 0.0031108,
+    "outputs_l2": {
+     "u": 0.0031108
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Heat_equation_with_resampling/net_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Klein-Gordon 1D",
+   "key": "Klein-Gordon equation",
+   "record": "benchmarks/examples.md#dx-klein-gordon-equation",
+   "forward": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "main_output_l2": 0.0023164,
+    "outputs_l2": {
+     "u": 0.0023164
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Klein_Gordon_equation/net_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "gamma",
+      "true": 1.0,
+      "found_median": 1.00912,
+      "relative_error_median": 0.00912
+     }
+    ],
+    "worst_parameter_error_median": 0.00912,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_surface_comparison.png",
+     "benchmarks/figures/tuning/Klein_Gordon_equation_inv/all_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Schrödinger 1D",
+   "key": "Schrödinger equation",
+   "record": "benchmarks/examples.md#dx-schr-dinger-equation",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0017852,
+    "outputs_l2": {
+     "u": 0.0017852
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Schr_dinger_equation/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "points",
+    "label": "3× training points",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "c",
+      "true": 0.5,
+      "found_median": 0.500121,
+      "relative_error_median": 0.000242
+     }
+    ],
+    "worst_parameter_error_median": 0.000242,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Schr_dinger_equation_inv/points_surface_comparison.png",
+     "benchmarks/figures/tuning/Schr_dinger_equation_inv/points_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Wave 1D – space-time multi-scale Fourier features",
+   "key": "Wave propagation – space-time multi-scale Fourier features",
+   "record": "benchmarks/examples.md#dx-wave-propagation-space-time-multi-scale-fourier-features",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.00147,
+    "outputs_l2": {
+     "u": 0.00147
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "C",
+      "true": 10.0,
+      "found_median": 10.0,
+      "relative_error_median": 0.0
+     }
+    ],
+    "worst_parameter_error_median": 0.0,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_surface_comparison.png",
+     "benchmarks/figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Diffusion 1D – unknown coefficient",
+   "key": "Inverse: diffusion equation",
+   "record": "benchmarks/examples.md#dx-inverse-diffusion-equation",
+   "forward": null,
+   "inverse": {
+    "variant": "iters",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "C",
+      "true": 1.0,
+      "found_median": 1.00004,
+      "relative_error_median": 4e-05
+     }
+    ],
+    "worst_parameter_error_median": 4e-05,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png",
+     "benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Diffusion-reaction 1D – unknown k_f, D",
+   "key": "Inverse: diffusion-reaction system",
+   "record": "benchmarks/examples.md#dx-inverse-diffusion-reaction-system",
+   "forward": null,
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "kf",
+      "true": 0.1,
+      "found_median": 0.0991842,
+      "relative_error_median": 0.008158
+     },
+     {
+      "name": "D",
+      "true": 2.0,
+      "found_median": 1.9933,
+      "relative_error_median": 0.00335
+     }
+    ],
+    "worst_parameter_error_median": 0.008158,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_diffusion_reaction_system/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Fractional Poisson 2D – disk",
+   "key": "Fractional Poisson equation 2D",
+   "record": "benchmarks/examples.md#dx-fractional-poisson-equation-2d",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00092099,
+    "outputs_l2": {
+     "u": 0.00092099
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Fractional_Poisson_equation_2D/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Helmholtz 2D – Dirichlet",
+   "key": "Helmholtz 2D (Dirichlet)",
+   "record": "benchmarks/examples.md#dx-helmholtz-2d-dirichlet",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.01085,
+    "outputs_l2": {
+     "u": 0.01085
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Helmholtz_2D_Dirichlet/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "invall",
+    "label": "10× data weight, 3× L-BFGS and the larger network",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "k0",
+      "true": 12.5663706144,
+      "found_median": 12.5664,
+      "relative_error_median": 2.33843e-06
+     }
+    ],
+    "worst_parameter_error_median": 2.33843e-06,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_surface_comparison.png",
+     "benchmarks/figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Helmholtz 2D – hyperparameter search",
+   "key": "Helmholtz 2D – hyperparameter optimization",
+   "record": "benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization",
+   "forward": {
+    "variant": "search",
+    "label": "the example's Bayesian search, 50 runs; selected: the run with the lowest final training loss (run 49)",
+    "tuned_preset": false,
+    "main_output_l2": 0.001281041,
+    "outputs_l2": {
+     "u": 0.001281041
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "selected by final training loss among the search's runs",
+    "selection": "final training loss (not the reference error)",
+    "record_folder": "benchmarks/records/helmholtz_hpo_2026-10-25",
+    "figures": [
+     "benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Helmholtz 2D – sound-hard scattering",
+   "key": "Helmholtz sound-hard scattering (absorbing BC)",
+   "record": "benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "main_output_l2": 0.079653,
+    "outputs_l2": {
+     "u_re": 0.079653,
+     "u_im": 0.069443
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_im.png",
+     "benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_re.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Helmholtz 2D – square with hole",
+   "key": "Helmholtz 2D with a hole",
+   "record": "benchmarks/examples.md#dx-helmholtz-2d-with-a-hole",
+   "forward": {
+    "variant": "lbfgs",
+    "label": "L-BFGS phase added",
+    "tuned_preset": true,
+    "main_output_l2": 0.00069585,
+    "outputs_l2": {
+     "u": 0.00069585
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Helmholtz_2D_with_a_hole/lbfgs_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Laplace 2D – disk",
+   "key": "Laplace equation on a disk",
+   "record": "benchmarks/examples.md#dx-laplace-equation-on-a-disk",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0011493,
+    "outputs_l2": {
+     "u": 0.0011493
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Laplace_equation_on_a_disk/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Linear elasticity 2D – plate",
+   "key": "Linear elastostatic plate",
+   "record": "benchmarks/examples.md#dx-linear-elastostatic-plate",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.0001281,
+    "outputs_l2": {
+     "ux": 0.0001281,
+     "uy": 0.00026986,
+     "sxx": 0.00017342,
+     "syy": 0.00037571,
+     "sxy": 0.00084077
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxx.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_syy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_ux.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "lmbd",
+      "true": 1.0,
+      "found_median": 0.999548,
+      "relative_error_median": 0.000452
+     },
+     {
+      "name": "mu",
+      "true": 0.5,
+      "found_median": 0.500189,
+      "relative_error_median": 0.000378
+     }
+    ],
+    "worst_parameter_error_median": 0.000452,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [],
+    "figure_note": "no figure of the selected configuration has been recorded"
+   }
+  },
+  {
+   "example": "Linear elasticity 2D – plate, soft BCs",
+   "key": "Linear elastostatic plate (soft BCs)",
+   "record": "benchmarks/examples.md#dx-linear-elastostatic-plate-soft-bcs",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00048944,
+    "outputs_l2": {
+     "ux": 0.00048944,
+     "uy": 0.0011387,
+     "sxx": 0.00064477,
+     "syy": 0.0009623,
+     "sxy": 0.0027472
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_sxx.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_sxy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_syy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_ux.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_soft_BCs/base_surface_comparison_uy.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Navier-Stokes 2D – Kovasznay flow",
+   "key": "Kovasznay flow",
+   "record": "benchmarks/examples.md#dx-kovasznay-flow",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00019669,
+    "outputs_l2": {
+     "u": 0.00019669,
+     "v": 0.00089681,
+     "p": 0.00040892
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_p.png",
+     "benchmarks/figures/tuning/Kovasznay_flow/base_surface_comparison_v.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "Re",
+      "true": 20.0,
+      "found_median": 19.9995,
+      "relative_error_median": 4.5e-05
+     }
+    ],
+    "worst_parameter_error_median": 4.5e-05,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png",
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png"
+    ],
+    "figure_note": "figures from an earlier collection of the same configuration"
+   }
+  },
+  {
+   "example": "Poisson 2D – disk",
+   "key": "2D Poisson (Disk)",
+   "record": "benchmarks/examples.md#2d-poisson-disk",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00027787,
+    "outputs_l2": {
+     "solution": 0.00027787
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Poisson_Disk/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "source_term",
+      "true": 1.0,
+      "found_median": 1.00003,
+      "relative_error_median": 3e-05
+     }
+    ],
+    "worst_parameter_error_median": 3e-05,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Poisson_Disk_inv/base_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_2D_Poisson_Disk_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Poisson 2D – L-shape",
+   "key": "Poisson over an L-shaped domain",
+   "record": "benchmarks/examples.md#dx-poisson-over-an-l-shaped-domain",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.011743,
+    "outputs_l2": {
+     "solution": 0.011743
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Poisson_over_an_L_shaped_domain/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Fractional Poisson 2D – unknown order α",
+   "key": "Inverse: fractional Poisson equation 2D",
+   "record": "benchmarks/examples.md#dx-inverse-fractional-poisson-equation-2d",
+   "forward": null,
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "alpha",
+      "true": 1.8,
+      "found_median": 1.80386,
+      "relative_error_median": 0.00214444
+     }
+    ],
+    "worst_parameter_error_median": 0.00214444,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_surface_comparison.png",
+     "benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_2D/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Allen-Cahn 2D – Wight & Zhao",
+   "key": "2D Allen-Cahn (Wight & Zhao)",
+   "record": "benchmarks/examples.md#2d-allen-cahn-wight--zhao",
+   "forward": {
+    "variant": "base",
+    "label": "the best setup as it is",
+    "tuned_preset": false,
+    "main_output_l2": 5.8662e-05,
+    "outputs_l2": {
+     "u": 5.8662e-05
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "invall",
+    "label": "10× data weight, 3× L-BFGS and the larger network",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "lambda_",
+      "true": 10.0,
+      "found_median": 10.0536,
+      "relative_error_median": 0.00536
+     },
+     {
+      "name": "diff_coeff",
+      "true": 0.00625,
+      "found_median": 0.00628417,
+      "relative_error_median": 0.0054672
+     }
+    ],
+    "worst_parameter_error_median": 0.0054672,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Allen-Cahn 2D – Mattey & Ghosh",
+   "key": "2D Allen-Cahn (Mattey & Ghosh)",
+   "record": "benchmarks/examples.md#2d-allen-cahn-mattey--ghosh",
+   "forward": {
+    "variant": "iters",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "main_output_l2": 0.00012998,
+    "outputs_l2": {
+     "u": 0.00012998
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [],
+    "figure_note": "no figure of the selected configuration has been recorded"
+   },
+   "inverse": {
+    "variant": "setup",
+    "label": "Best whole-interval setup",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "c1_sq",
+      "true": 0.0001,
+      "found_median": 0.000103879,
+      "relative_error_median": 0.03879
+     },
+     {
+      "name": "c2",
+      "true": 1.0,
+      "found_median": 1.00192,
+      "relative_error_median": 0.00192
+     }
+    ],
+    "worst_parameter_error_median": 0.03879,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/setup_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/setup_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Cahn-Hilliard 2D – Wight & Zhao",
+   "key": "2D Cahn-Hilliard (Wight & Zhao)",
+   "record": "benchmarks/examples.md#2d-cahn-hilliard-wight--zhao",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "main_output_l2": 0.010531,
+    "outputs_l2": {
+     "mu": 0.022316,
+     "phi": 0.010531,
+     "abs_mu": 0.00080369825
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_mu.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "eps_sq",
+      "true": 0.0025,
+      "found_median": 0.00251029,
+      "relative_error_median": 0.004116
+     }
+    ],
+    "worst_parameter_error_median": 0.004116,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_mu.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Cahn-Hilliard 2D – Mattey & Ghosh",
+   "key": "2D Cahn-Hilliard (Mattey & Ghosh)",
+   "record": "benchmarks/examples.md#2d-cahn-hilliard-mattey--ghosh",
+   "forward": {
+    "variant": "iters",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "main_output_l2": 0.0010767,
+    "outputs_l2": {
+     "h": 0.0010767,
+     "mu": 0.031473,
+     "abs_mu": 0.0009007874
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/iters_surface_comparison_h.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh/iters_surface_comparison_mu.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "times",
+    "label": "Measured data at every reference time",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "alpha",
+      "true": 0.0002,
+      "found_median": 0.000201912,
+      "relative_error_median": 0.00956
+     },
+     {
+      "name": "kappa",
+      "true": 1.0,
+      "found_median": 0.995857,
+      "relative_error_median": 0.004143
+     }
+    ],
+    "worst_parameter_error_median": 0.00956,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_h.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_mu.png",
+     "benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Burgers 2D – Mathias et al.",
+   "key": "2D Burgers (Mathias)",
+   "record": "benchmarks/examples.md#2d-burgers-mathias",
+   "forward": {
+    "variant": "iters",
+    "label": "3× iterations",
+    "tuned_preset": true,
+    "main_output_l2": 0.0083057,
+    "outputs_l2": {
+     "u": 0.0083057,
+     "v": 0.003855
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_v.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "times",
+    "label": "Measured data at every reference time",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "nu",
+      "true": 0.00318309886184,
+      "found_median": 0.00318823,
+      "relative_error_median": 0.00161199
+     }
+    ],
+    "worst_parameter_error_median": 0.00161199,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_v.png",
+     "benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Heat 2D",
+   "key": "2D Heat",
+   "record": "benchmarks/examples.md#2d-heat",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0061469,
+    "outputs_l2": {
+     "u": 0.0061469
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Heat/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "times",
+    "label": "Measured data at every reference time",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "alpha",
+      "true": 0.4,
+      "found_median": 0.399692,
+      "relative_error_median": 0.0011
+     }
+    ],
+    "worst_parameter_error_median": 0.0011,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [],
+    "figure_note": "no figure of the selected configuration has been recorded"
+   }
+  },
+  {
+   "example": "Fractional Poisson 3D – sphere",
+   "key": "Fractional Poisson equation 3D",
+   "record": "benchmarks/examples.md#dx-fractional-poisson-equation-3d",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0072174,
+    "outputs_l2": {
+     "u": 0.0072174
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Fractional_Poisson_equation_3D/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 3D – cube with spherical cut-out",
+   "key": "3D Poisson (Cube with spherical cut-out)",
+   "record": "benchmarks/examples.md#3d-poisson-cube-with-spherical-cut-out",
+   "forward": {
+    "variant": "all",
+    "label": "all of the changes together",
+    "tuned_preset": true,
+    "main_output_l2": 0.00018728,
+    "outputs_l2": {
+     "u": 0.00018728
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/all_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": null
+  },
+  {
+   "example": "Poisson 3D – sphere",
+   "key": "3D Poisson (Sphere)",
+   "record": "benchmarks/examples.md#3d-poisson-sphere",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0015367,
+    "outputs_l2": {
+     "solution": 0.0015367
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Poisson_Sphere/base_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (no change did better)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "source_term",
+      "true": 1.0,
+      "found_median": 1.00005,
+      "relative_error_median": 5e-05
+     }
+    ],
+    "worst_parameter_error_median": 5e-05,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Poisson_Sphere_inv/base_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Poisson_Sphere_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Allen-Cahn 3D – Wight & Zhao",
+   "key": "3D Allen-Cahn (Wight & Zhao)",
+   "record": "benchmarks/examples.md#3d-allen-cahn-wight--zhao",
+   "forward": {
+    "variant": "net",
+    "label": "Larger network (2× width, one more layer)",
+    "tuned_preset": true,
+    "main_output_l2": 0.00018553,
+    "outputs_l2": {
+     "u": 0.00018553
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "parameters": [
+     {
+      "name": "lambda_",
+      "true": 10.0,
+      "found_median": 9.97804,
+      "relative_error_median": 0.002196
+     },
+     {
+      "name": "diff_coeff",
+      "true": 0.025,
+      "found_median": 0.0249908,
+      "relative_error_median": 0.000368
+     }
+    ],
+    "worst_parameter_error_median": 0.002196,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png",
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png",
+     "benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  },
+  {
+   "example": "Heat 3D",
+   "key": "3D Heat",
+   "record": "benchmarks/examples.md#3d-heat",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.00261,
+    "outputs_l2": {
+     "u": 0.00261
+    },
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Heat/base_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Heat/base_view3d_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "dataw",
+    "label": "10× weight on the measured data",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "alpha",
+      "true": 0.4,
+      "found_median": 0.39911,
+      "relative_error_median": 0.002225
+     }
+    ],
+    "worst_parameter_error_median": 0.002225,
+    "seeds": [
+     2026
+    ],
+    "aggregation": "single run",
+    "figures": [],
+    "figure_note": "no figure of the selected configuration has been recorded"
+   }
+  },
+  {
+   "example": "Navier-Stokes 3D – Beltrami flow",
+   "key": "Beltrami flow",
+   "record": "benchmarks/examples.md#dx-beltrami-flow",
+   "forward": {
+    "variant": "base",
+    "label": "the example's own settings (not in the tuning sweep)",
+    "tuned_preset": false,
+    "main_output_l2": 0.0013533,
+    "outputs_l2": {
+     "u": 0.0013533,
+     "v": 0.00097526,
+     "w": 0.0011312
+    },
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_u.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_p.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_v.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_surface_comparison_w.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_p.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_v.png",
+     "benchmarks/figures/tuning/Beltrami_flow/base_view3d_comparison_w.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   },
+   "inverse": {
+    "variant": "lbfgs3",
+    "label": "3× L-BFGS iterations",
+    "tuned_preset": true,
+    "parameters": [
+     {
+      "name": "nu",
+      "true": 1.0,
+      "found_median": 0.998265,
+      "relative_error_median": 0.001735
+     }
+    ],
+    "worst_parameter_error_median": 0.001735,
+    "seeds": [
+     1,
+     2,
+     2026
+    ],
+    "aggregation": "median over seeds",
+    "figures": [
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_u.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_p.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_v.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_w.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_p.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_v.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_w.png",
+     "benchmarks/figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
+   }
+  }
+ ]
+}

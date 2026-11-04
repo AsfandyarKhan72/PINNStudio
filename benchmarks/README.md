@@ -3502,7 +3502,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| DeepXDE's settings (README) | 1.3 × 10<sup>-3</sup> | – |
+| The example's Bayesian search: 50 runs, the one with the lowest final training loss ([record](records/helmholtz_hpo_2026-10-25/README.md)) | 1.3 × 10<sup>-3</sup> | – |
 | Their best hyper-parameter configuration, as reported (Escapil-Inchauspé & Ruz (2023)) | 1.2 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.3 × 10<sup>-3</sup>** | – |
 
@@ -3511,9 +3511,9 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*DeepXDE's settings (README):*
+*The example's Bayesian search: 50 runs, the one with the lowest final training loss:*
 
-![Helmholtz 2D – hyperparameter search: DeepXDE's settings (README) — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+![Helmholtz 2D – hyperparameter search: The example's Bayesian search: 50 runs, the one with the lowest final training loss — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
 
 </details>
 

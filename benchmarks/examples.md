@@ -2864,11 +2864,19 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Forward problem — DeepXDE's settings (README):*
+*Forward problem — The example's Bayesian search: 50 runs, the one with the lowest final training loss:*
 
-![Helmholtz 2D – hyperparameter search: DeepXDE's settings (README) — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+![Helmholtz 2D – hyperparameter search: The example's Bayesian search: 50 runs, the one with the lowest final training loss — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
 
 </details>
+
+**How this result was obtained.** Unlike the other examples, this result is not one configuration selected against
+the reference solution. The example runs PINNStudio's Bayesian Parameter Sweep: 50 training configurations (the
+baseline, learning rate 10⁻³ with 4 × 50 sin, then 9 random and 40 Gaussian-process choices), and the configuration
+with the **lowest final training loss** is selected (run 49: learning rate 1.5 × 10⁻³, 3 × 87, sin). Only then is
+its relative L₂ error measured against the exact solution: 1.28 × 10⁻³. The baseline run alone reaches 3.3 × 10⁻¹.
+Training seed 2026, search seed 0. The 50 runs, their losses and errors, and how to repeat the search are in
+[the search record](records/helmholtz_hpo_2026-10-25/README.md).
 
 [Full benchmark: every setting tried, the errors the papers report, all figures →](README.md#bench-helmholtz-2d-hyperparameter-search)
 

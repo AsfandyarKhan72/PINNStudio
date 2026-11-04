@@ -256,6 +256,16 @@ def _problem_raw(name):
         return ""
 
 
+# Examples whose reported result is the outcome of their own search rather than a benchmark run of one
+# configuration: the label of that result and its record (selected by the search's own rule, not by the reference).
+SEARCH_RECORDS = {"Helmholtz 2D – hyperparameter search": "benchmarks/records/helmholtz_hpo_2026-10-25"}
+SEARCH_RESULTS = {
+    "Helmholtz 2D – hyperparameter search": (
+        "The example's Bayesian search: 50 runs, the one with the lowest final training loss "
+        "([record](records/helmholtz_hpo_2026-10-25/README.md))"),
+}
+
+
 def _problem_note(name):
     """An extra note for the examples-page entry of an example (benchmarks/problems/notes/<its problem file>), such
     as the paper's reproducibility test case; written by hand and kept when the page is regenerated."""
@@ -1466,8 +1476,8 @@ def _section(r):
         fmark = r["f_best_s"] if not r.get("f_best_paper") else None   # _pick's copy: its "chosen" is PINNStudio best
         rows = _sweep_rows(r["f_plain_s"], ref_name, False, mark=fmark)
         if not r["f_plain_s"] and not paper_rows:
-            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False,
-                     None, {})]
+            rows = [(SEARCH_RESULTS.get(e.name) or (ref_name + (" (README)" if r["f_ref_src"] == "README" else "")),
+                     r["f_ref"], None, None, False, None, {})]
         if r["f_best_s"] and r["f_best_is_setup"]:
             rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False,
                                 prefix="Best setup + ", mark=fmark)
@@ -1611,7 +1621,7 @@ def _section(r):
             if raw:
                 blocks.append((ref + (" (also PINNStudio best)" if same else ""), _figs_md(raw, "base")))
             elif fwd_r:
-                blocks.append((ref + " (README)", fwd_r))
+                blocks.append((SEARCH_RESULTS.get(e.name, ref + " (README)").split(" ([record]")[0], fwd_r))
             if same:
                 best_figs = []
         if best_s and best_figs:
@@ -2461,6 +2471,126 @@ def figure4_values_md(recs, path):
                 + _fig4_table(recs).replace("](#bench-", "](../README.md#bench-").rstrip("\n") + "\n")
 
 
+RESULTS_MANIFEST = os.path.join(_REPO, "benchmarks", "results_manifest.json")
+
+
+def _fig_note(figs, variant):
+    """Where the figures of the selected configuration come from: its own run (files <variant>_*), an earlier
+    collection of the same configuration (own_* for the starting settings, tuned_* for the study's choice), or none."""
+    if not figs:
+        return "no figure of the selected configuration has been recorded"
+    if all(os.path.basename(f).startswith(variant + "_") for f in figs):
+        return "figures of the selected configuration's run"
+    return "figures from an earlier collection of the same configuration"
+
+
+def results_manifest(recs, path=RESULTS_MANIFEST):
+    """benchmarks/results_manifest.json: for every example and mode, the selected (Tuned, or Default where nothing
+    did better) configuration as the benchmark pages report it, its numbers from the per-seed tables
+    (benchmarks/tables/forward_per_seed.csv, inverse_per_seed.csv: the rows marked selected) and the figures of
+    that configuration's run (the same files the benchmark pages show). The website's example pages are written
+    from it (tools/docs/make_gallery.py). Nothing is computed here that the per-seed tables do not hold, and a
+    figure is listed only when it is of the selected configuration."""
+    import csv as _csv
+    tabs = os.path.join(_REPO, "benchmarks", "tables")
+    fwd, inv = {}, {}
+    for row in _csv.DictReader(open(os.path.join(tabs, "forward_per_seed.csv"), encoding="utf-8")):
+        if row["selected"] == "yes":
+            fwd.setdefault(row["example"], []).append(row)
+    for row in _csv.DictReader(open(os.path.join(tabs, "inverse_per_seed.csv"), encoding="utf-8")):
+        if row["selected"] == "yes":
+            inv.setdefault(row["example"], []).append(row)
+    idx = {x["name"]: x for x in _prob_index()}
+    med = lambda xs: statistics.median(xs) if xs else None
+    out = []
+    for r in recs:
+        e = r["entry"]
+        anchor = (idx.get(e.name) or {}).get("anchor")
+        item = dict(example=e.name, key=e.key, record=f"benchmarks/examples.md#{anchor}" if anchor else None,
+                    forward=None, inverse=None)
+        rows = fwd.get(e.name)
+        if rows:
+            variant = rows[0]["variant"]
+            seeds = sorted(int(x["seed"]) for x in rows)
+            outs = {}
+            for x in rows:
+                for o, v in json.loads(x["outputs_relative_L2_last_time"] or "{}").items():
+                    outs.setdefault(o, []).append(float(v))
+            best_s, raw = r.get("f_best_s"), (r.get("f_plain_s") or {})
+            NEEDED_before = len(NEEDED)
+            if r.get("f_best_paper"):
+                figs = _figs_md(None, r["f_best_paper"], slug=ts._slug(r["key"]))
+            elif best_s:
+                bv = best_s["chosen"]
+                braw = raw.get("chosen") if not r["f_best_is_setup"] else best_s.get("_raw_chosen")
+                figs = _figs_md(best_s, bv, braw)
+                if not figs and bv == "base" and raw:
+                    figs = _figs_md(raw, "base")
+            else:
+                figs = []
+            del NEEDED[NEEDED_before:]           # the manifest does not change the pages' figure list
+            figs = [f for f in figs if f.startswith("figures/")]
+            item["forward"] = dict(
+                variant=variant, label=_best_label(r, False) if best_s else "the example's own settings",
+                tuned_preset=bool(best_s and variant != "base") or bool(r.get("f_best_paper")),
+                main_output_l2=med([float(x["main_output_relative_L2_last_time"]) for x in rows]),
+                outputs_l2={o: med(v) for o, v in outs.items()},
+                seeds=seeds, aggregation="median over seeds" if len(seeds) > 1 else "single run",
+                figures=[os.path.join("benchmarks", f).replace(os.sep, "/") for f in figs],
+                figure_note=_fig_note(figs, variant))
+        if not rows and e.name in SEARCH_RECORDS:      # the result of the example's own search (its record)
+            folder = SEARCH_RECORDS[e.name]
+            runs = list(_csv.DictReader(open(os.path.join(_REPO, folder, "runs_summary.csv"), encoding="utf-8")))
+            best = min(runs, key=lambda x: float(x["final_loss"]))
+            fig = f"{folder}/best_run_{int(best['run']):02d}_surface_comparison.png"
+            item["forward"] = dict(
+                variant="search", label=(f"the example's Bayesian search, {len(runs)} runs; selected: the run with the "
+                                         f"lowest final training loss (run {best['run']})"),
+                tuned_preset=False, main_output_l2=float(best["relative_L2"]),
+                outputs_l2={"u": float(best["relative_L2"])}, seeds=[2026],
+                aggregation="selected by final training loss among the search's runs",
+                selection="final training loss (not the reference error)", record_folder=folder,
+                figures=[fig] if os.path.exists(os.path.join(_REPO, fig)) else [],
+                figure_note="figures of the selected configuration's run")
+        irows = inv.get(e.name)
+        if irows:
+            variant = irows[0]["variant"]
+            seeds = sorted({int(x["seed"]) for x in irows})
+            params = {}
+            for x in irows:
+                p = params.setdefault(x["parameter"], dict(name=x["parameter"], true=float(x["true"]), found=[], rel=[]))
+                p["found"].append(float(x["found"]))
+                p["rel"].append(float(x["relative_error"]))
+            worst = {}
+            for x in irows:
+                worst[x["seed"]] = float(x["run_worst_relative_error"])
+            i_s = r.get("i_s")
+            NEEDED_before = len(NEEDED)
+            figs = _figs_md(i_s, i_s["chosen"], i_s.get("_raw_chosen")) if i_s else []
+            del NEEDED[NEEDED_before:]
+            figs = [f for f in figs if f.startswith("figures/")]
+            item["inverse"] = dict(
+                variant=variant, label=_best_label(r, True) if i_s else "the example's own settings",
+                tuned_preset=bool(i_s and variant != "base"),
+                parameters=[dict(name=p["name"], true=p["true"], found_median=med(p["found"]),
+                                 relative_error_median=med(p["rel"])) for p in params.values()],
+                worst_parameter_error_median=med(list(worst.values())),
+                seeds=seeds, aggregation="median over seeds" if len(seeds) > 1 else "single run",
+                figures=[os.path.join("benchmarks", f).replace(os.sep, "/") for f in figs],
+                figure_note=_fig_note(figs, variant))
+        out.append(item)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(dict(generated_by="tools/make_benchmarks_readme.py",
+                       sources=["benchmarks/tables/forward_per_seed.csv", "benchmarks/tables/inverse_per_seed.csv",
+                                "benchmarks/records/reruns_2026-11-01/final_build/"],
+                       metric=dict(forward="relative L2 of each output at the last reference time; the main output "
+                                           "is the first",
+                                   inverse="per seed, the relative error of each parameter and the largest of them; "
+                                           "the median over the seeds"),
+                       examples=out), f, indent=1, ensure_ascii=False)
+        f.write("\n")
+
+
 def _info(rows):
     return "| | |\n|---|---|\n" + "".join(f"| **{k}** | {v} |\n" for k, v in rows) + "\n"
 
@@ -2590,6 +2720,7 @@ def main():
         inverse_per_seed_csv(recs, os.path.join(_REPO, "benchmarks", "tables", "inverse_per_seed.csv"))
         forward_per_seed_csv(recs, os.path.join(_REPO, "benchmarks", "tables", "forward_per_seed.csv"))
         figure4_values_md([by[n] for n in names if n in by], FIG4_VALUES)
+        results_manifest(recs)
     write_front(recs)
     paper_page = os.path.abspath(args.paper_page) if args.paper_page else ""
     md, paper_md = split_paper(page(recs), os.path.dirname(paper_page) if paper_page else None)
