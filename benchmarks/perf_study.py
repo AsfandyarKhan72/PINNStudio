@@ -419,6 +419,26 @@ def _rng(xs):
     return (min(xs), max(xs)) if xs else (None, None)
 
 
+def _agreement(ov):
+    """One sentence on whether, for every problem and seed, the three modes took the same steps and ended at the
+    same errors and learned parameters (as printed), from the records themselves."""
+    groups = {}
+    for r in ov:
+        if r["rc"] == 0:
+            groups.setdefault((r["problem"], r["seed"]), []).append(r)
+    full = [g for g in groups.values() if len({r["mode"] for r in g}) == len(MODES)]
+    same = [g for g in full if len({r["steps"] for r in g}) == 1
+            and len({tuple(sorted(r["l2"].values())) for r in g}) == 1
+            and len({tuple(sorted((r.get("params") or {}).values())) for r in g}) == 1]
+    if full and len(same) == len(full):
+        return (f"For each of the {len(full)} problem-seed pairs, the three modes took the same number of optimization "
+                "steps and ended at the same errors (and learned parameters) to all printed digits.")
+    diff = [f"{g[0]['problem']} seed {g[0]['seed']}" for g in full if g not in same]
+    return (f"The three modes agreed in steps, errors and parameters for {len(same)} of {len(full)} problem-seed pairs; "
+            "they differ for " + ", ".join(diff) + " (on the GPU, runs of the same computation with the same seed "
+            "can end at slightly different values, because some GPU operations do not add numbers in a fixed order).")
+
+
 def tables(a):
     out_dir = a.out_dir
     os.makedirs(out_dir, exist_ok=True)
@@ -445,7 +465,7 @@ def tables(a):
                "Solve script) / Solve script; a negative value is within the run-to-run variation, not a speed-up "
                "caused by the GUI. The same settings in all three execution modes of a problem; the settings each "
                "problem ran with are saved in configs/."
-               " The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*", ""]
+               " The L₂ errors are medians over the seeds. " + _agreement(ov) + "*", ""]
     tp = _done(os.path.join(a.folder, "throughput.jsonl"))
     if tp:
         md += ["### Supplementary Table S3. CPU versus GPU Adam training throughput (CPU: 8 threads)", "",

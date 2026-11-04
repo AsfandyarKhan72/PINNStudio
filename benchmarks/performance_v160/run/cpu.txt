@@ -1,0 +1,2 @@
+CPU(s):                                  32
+Model name:                              13th Gen Intel(R) Core(TM) i9-13900KF

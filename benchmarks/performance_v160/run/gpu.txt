@@ -1,0 +1,2 @@
+name, driver_version, temperature.gpu
+NVIDIA GeForce RTX 4090, 550.144.03, 35

@@ -1,0 +1,1 @@
+Qt platform for the window runs: xcb DISPLAY=:1 WAYLAND_DISPLAY=
