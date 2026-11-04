@@ -348,7 +348,14 @@ def throughput(a):
     for label, key, inverse in PROBLEMS:
         if a.only and a.only.lower() not in label.lower():
             continue
-        cfg0 = load_tuned(app, w, key, inverse)
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_")
+        if a.configs:                         # rerun an earlier study with exactly its settings
+            cfg0, note = load_saved(os.path.join(a.configs, slug + ".json"))
+            print(f"{label}: settings from {a.configs}/{slug}.json {note}", flush=True)
+        else:
+            cfg0 = load_tuned(app, w, key, inverse)
+        cfg_dir = os.path.join(os.path.dirname(os.path.abspath(a.out)), "configs_throughput")
+        os.makedirs(cfg_dir, exist_ok=True)
         lr = next((float(p.get("lr", 1e-3)) for p in phases_of(cfg0) if "adam" in str(p.get("optimizer", "adam")).lower()), 1e-3)
         n = steps.get(label, a.adam)
         ph = [{"optimizer": "adam", "iterations": a.warmup, "lr": lr}, {"optimizer": "adam", "iterations": n, "lr": lr}]
@@ -357,6 +364,8 @@ def throughput(a):
         upd = dict(optimizer_scheduler=True, scheduler_phases=json.dumps(ph), time_adaptive=False,
                    adapt_method="None", ic_pretrain=False, random_seed=0, use_random_seed=True)
         cfg1 = dataclasses.replace(copy.deepcopy(cfg0), **{k: v for k, v in upd.items() if hasattr(cfg0, k)})
+        with open(os.path.join(cfg_dir, slug + ".json"), "w") as f:     # the configuration timed (both devices)
+            json.dump(dataclasses.asdict(cfg1), f, indent=1, default=str)
         for rep in range(a.repeat):
             for device in (["gpu", "cpu"] if rep % 2 == 0 else ["cpu", "gpu"]):
                 if (label, device, rep) in done:
@@ -525,6 +534,8 @@ def main():
     p.add_argument("--adam", type=int, default=2000)
     p.add_argument("--cpu-threads", type=int, default=8)
     p.add_argument("--only", default="")
+    p.add_argument("--configs", default="", help="the problems' settings saved by an earlier study (its configs/ "
+                   "folder, written by overhead from the same Examples-list settings) instead of what the list loads now")
     p.set_defaults(steps={"Allen-Cahn 3D (Wight & Zhao)": 300, "Allen-Cahn 2D (Mattey & Ghosh)": 500})
     p = sub.add_parser("threads")
     p.add_argument("out")
