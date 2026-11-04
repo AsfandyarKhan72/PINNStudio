@@ -16,7 +16,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/AsfandyarKhan72/PINNStudio",
     project_urls={"Source": "https://github.com/AsfandyarKhan72/PINNStudio", "Issues": "https://github.com/AsfandyarKhan72/PINNStudio/issues"},
-    license_expression="MIT AND LGPL-2.1-only",  # SPDX (PEP 639); LGPL-2.1: pinnstudio/core/msffn_lgpl.py only
+    license_expression="MIT",             # SPDX license expression (PEP 639)
     license_files=["LICENSE", "THIRD_PARTY_LICENSES.md", "LICENSES/*"],
     classifiers=["Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),

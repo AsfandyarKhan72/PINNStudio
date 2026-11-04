@@ -217,16 +217,12 @@ Email: [asfandyarkhan@u.boisestate.edu](mailto:asfandyarkhan@u.boisestate.edu)
 ## License
 
 PINNStudio is released under the [MIT License](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE). Copyright (c) 2026 Asfandyar Khan. Every release has
-been published under this license. One file is the exception: [`pinnstudio/core/msffn_lgpl.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/msffn_lgpl.py), the multi-scale
-Fourier feature network class, is under the LGPL-2.1 because it may be derived from DeepXDE's implementation (see
-[`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md)).
+been published under this license.
 
 **Generated scripts.** PINNStudio writes a Python script for each problem: the script *Export script* saves, and the
 script *Solve* runs. You may use, change and share a generated script, including the parts of PINNStudio's code
 templates it contains, under terms of your choice. The libraries it imports (such as DeepXDE, PyTorch, NumPy and
-Matplotlib) keep their own licenses. A script that uses an MsFFN or STMsFFN network also contains the multi-scale
-Fourier feature network class, marked by its LGPL-2.1 notice; that class stays under the LGPL-2.1, so keep its
-notice and give the LGPL-2.1 with the script when you share it.
+Matplotlib) keep their own licenses.
 
 **Your input and your results.** What you enter into PINNStudio (equations, constants, settings, geometry, data) and what you produce by running PINNStudio or a generated script (data files, figures, animations, trained model weights, logs) are not part of PINNStudio, and PINNStudio's copyright holder claims no rights in them.
 

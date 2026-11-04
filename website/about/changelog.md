@@ -82,8 +82,6 @@ Cahn-Hilliard time-window runs. See [Troubleshooting](../help/troubleshooting.md
 - PINNStudio stays under the MIT License: the interface now uses PySide6 (Qt for Python) under the LGPL-3.0
   instead of PyQt6. See [License](license.md), and [Dependencies and attribution](dependencies.md) for the licenses
   of the libraries.
-- The multi-scale Fourier feature network class (MsFFN, STMsFFN) is under the LGPL-2.1, in its own file, because it
-  may be derived from DeepXDE's implementation; the scripts that use these networks carry its notice.
 
 ## v1.5.0 (2026-10-21)
 
