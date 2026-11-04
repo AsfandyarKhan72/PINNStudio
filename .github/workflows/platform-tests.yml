@@ -52,8 +52,9 @@ jobs:
 
       - name: Tests
         shell: bash
-        # every test, spread over the machine's cores
-        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider -n auto --durations=20 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
+        # every test, spread over the machine's cores; two workers on Linux, where the hosted runner was lost
+        # ("The runner has received a shutdown signal", exit 143) twice with one worker per core
+        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider -n ${{ runner.os == 'Linux' && '2' || 'auto' }} --durations=20 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
 
       - name: Report failures
         if: always()
