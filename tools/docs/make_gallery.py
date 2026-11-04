@@ -139,8 +139,9 @@ IMAGES = [
      "Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit"),
     ("assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png",
      "Helmholtz 2D – hyperparameter optimization", "helmholtz-2d-hpo-surface.png",
-     "Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — "
-     "PINN, reference and error.",
+     "The search's starting configuration (run 0: learning rate 10⁻³, 4 × 50, sin; relative L₂ 3.3 × 10⁻¹), before "
+     "the 50-run Bayesian search — PINN, reference and error. The selected run (lowest final training loss) is under "
+     "*Results*.",
      "Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem"),
 ]
 
@@ -1196,7 +1197,11 @@ def _page(rec, images, root_rel):
         head = "Inverse mode" if inv and e.problem != cat.INVERSE else ("Forward mode" if not inv else "")
         if len(modes) > 1:
             L += [f"### {head}", ""]
-        if m["paper_default"]:
+        _search = ((MANIFEST.get(e.name) or {}).get("forward") or {}).get("variant") == "search" and not inv
+        if _search:
+            what = ("a 50-run Bayesian search (Parameter Sweep), the configuration selected by the lowest final "
+                    "training loss; each run starts from DeepXDE's network and training below")
+        elif m["paper_default"]:
             what = f"the paper's method ({m['paper_default']})"
         elif e.source == cat.DEEPXDE and (not inv or e.problem == cat.INVERSE):
             what = "DeepXDE's own settings"
@@ -1219,6 +1224,14 @@ def _page(rec, images, root_rel):
                   "`pinnstudio/resources/tuned_settings.json` does hold a tuned setting for it (under its inverse "
                   "entry), but the example loads as a Forward problem, so the Examples list does not offer it. "
                   "The tuning-study configuration file is linked under *Definition and records*.", ""]
+        elif _search:
+            L += ["No **Tuned** preset: the example is its own search, and its configuration is chosen by the lowest "
+                  "final training loss, not by the error against the reference.", ""]
+        elif (lambda mm, k: (mm.get("forward") or mm.get("inverse")) and not mm.get(k))(
+                MANIFEST.get(e.name) or {}, "inverse" if (inv or e.problem == cat.INVERSE) else "forward"):
+            # the example has benchmark results, but not for this mode
+            L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example (this mode was "
+                  "not part of the benchmarks).", ""]
         else:
             L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example "
                   "(its Default settings are PINNStudio's best).", ""]
@@ -1320,8 +1333,10 @@ def _index(records):
          "Every example is loaded from the toolbar's **Examples:** list: choose **Forward** or **Inverse**, pick the "
          "example under its **ODE**, **1D**, **2D** or **3D** heading, and choose **Default** or **Tuned** "
          "settings. *Default* is DeepXDE's own settings for a DeepXDE example, the paper's method for a template "
-         "taken from a paper, and the template's own settings otherwise; *Tuned* is PINNStudio's best setting from "
-         "the tuning study, where one exists.", "",
+         "taken from a paper, and the template's own settings otherwise; *Tuned* is the run selected in the benchmarks "
+         "(tuning study, training-methods setups and published methods): the most accurate run, or the fastest within "
+         "25% of the lowest error, with Default kept when it is within that margin and within 10% of the fastest "
+         "time.", "",
          "!!! warning \"Scope\"",
          "    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not "
          "guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in "

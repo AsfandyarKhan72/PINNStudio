@@ -142,6 +142,14 @@ def sci(x):
     return f"{m} × 10<sup>{int(p)}</sup>"
 
 
+def sci3(x):
+    """Three significant figures, for the summary statistics (the same precision as the manuscript)."""
+    if x is None:
+        return "–"
+    m, p = f"{x:.2e}".split("e")
+    return f"{m} × 10<sup>{int(p)}</sup>"
+
+
 def _par_txt(params):
     """[(symbol, found, true)] -> "λ = 9.983 (10)"; mathtext symbols to plain text."""
     out = []
@@ -653,6 +661,9 @@ def _fig4_table(recs):
         if r.get("f_best_paper"):
             q = r["paper_runs"][r["f_best_paper"]]
             f_best, n_f = sci(q["l2"]), q.get("n", 1)
+            rows_p = (r.get("_paper_rows") or {}).get(r["f_best_paper"])
+            if rows_p and len(rows_p) > 1:          # the seeds' range, as for the tuning-study rows
+                f_best, n_f = _runs_range(rows_p, mtp._maxl2)
         elif r.get("f_best_s"):
             fs = r["f_best_s"]
             f_best, n_f = _runs_range(fs["variants"][fs["chosen"]], mtp._maxl2)
@@ -853,7 +864,7 @@ def _stats(recs):
 
 def _stats_md(recs, title):
     t = _stats(recs)
-    return (f"**{title}.** {t['n_fwd']} forward problems: median relative L₂ error {sci(t['med_fwd'])} with the "
+    return (f"**{title}.** {t['n_fwd']} forward problems: median relative L₂ error {sci3(t['med_fwd'])} with the "
             f"tuned settings, {t['below_1e2']} below 10⁻² and {t['below_1e3']} below 10⁻³. Of the {t['n_start']} "
             f"with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error "
             f"by more than a factor of 1.25 in {t['n_better']}, by a median factor of {t['med_gain']:.1f} in those "
@@ -1850,22 +1861,28 @@ def page(recs):
     n_par = sum(1 for r in recs if r.get("i_best_par"))
     n_field = sum(1 for r in recs if r.get("i_s") and not r.get("i_best_par"))
     a("# PINNStudio benchmarks\n")
-    a(f"*Every example that ships with PINNStudio ({len(recs)}), run forward and inverse, with the error of its "
-      "Default settings and of its Tuned settings, and the records each number comes from.*\n")
+    a(f"*The examples that ship with PINNStudio ({len(recs)}), in each of their benchmarked modes, with the error of "
+      "their Default and Tuned settings and the records each number comes from.*\n")
     a("## What is evaluated\n")
     a(f"- **{len(recs)} examples**, from ODEs to 3D PDEs: DeepXDE's own examples, templates taken from published "
       "papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.) and PINNStudio's own templates.\n"
       f"- **{st['n_fwd']} forward problems**: the solution is learned from the equation and its initial and boundary "
       "conditions, and compared with reference data.\n"
       f"- **{n_par + n_field} inverse problems**: unknown coefficients ({n_par} problems) or an unknown field "
-      f"({n_field}) are learned together with the solution from measured values of it.\n")
+      f"({n_field}) are learned together with the solution from measured values of it.\n"
+      "- The example gallery lists 54 examples under Forward and 36 under Inverse: the Black-Scholes American put has "
+      "no reference solution and Poisson 2D – L-shape's Inverse mode was not benchmarked, so they are not counted "
+      "here.\n")
     a("## How results are measured\n")
     a("- **Forward:** the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against "
-      "the example's reference data; for a Cahn-Hilliard problem, the worse of φ and the chemical potential μ. "
+      "the example's reference data. For a Cahn-Hilliard problem the value reported is the main output's; the "
+      "selection of the Tuned settings also requires the chemical potential μ to be accurate (the worse of the two). "
       "For the templates from papers, which report one error over all times, the error over all times is given "
       "too.\n"
       "- **Inverse:** for each seed, the largest relative error of the learned parameters; the problem's value is "
-      "the median of that over the seeds. For an unknown field, the relative L₂ error of the recovered field.\n"
+      "the median of that over the seeds. The three unknown-field problems have no parameter error: their settings are "
+      "selected by the solution's fit to the measured data (the L₂ in their tables), and they are not in the "
+      "parameter statistics below.\n"
       "- **Seeds:** where a setting ran with three seeds (1, 2, 2026), the value is their median; otherwise "
       "seed 2026. **Times** are training seconds on one NVIDIA RTX 4090.\n")
     a("## Default and Tuned settings\n")
@@ -1873,10 +1890,12 @@ def page(recs):
       "PINNStudio for a template from a paper, the template's starting settings for a PINNStudio template.\n"
       f"- **Tuned** (*PINNStudio best*): on the {n_t} examples with the largest errors, the tuning study tried a "
       "fixed set of changes (3× the iterations, a larger network, 3× the points, an L-BFGS phase, and for inverse "
-      "problems a heavier data weight and more L-BFGS), one at a time and all together. The selected run is the "
-      "most accurate one, and among runs within 25% of the lowest error the fastest; the Default settings are kept "
-      "when they are within that margin and within 10% of the fastest time. The other examples were already "
-      "accurate, and their Tuned settings are their Default ones (**no tuning needed**).\n"
+      "problems a heavier data weight and more L-BFGS), one at a time and all together. The candidates also include "
+      "the best setups of the training-methods study and the published methods run in PINNStudio. The selected run "
+      "is the most accurate one against the reference, and among runs within 25% of the lowest error the fastest; "
+      "the Default settings are kept when they are within that margin and within 10% of the fastest time. The other "
+      "examples were already accurate and were not tuned (**no tuning needed**); for a template from a paper, Tuned "
+      "can be the template's own settings while Default is the paper's method.\n"
       "- **One exception: Helmholtz 2D – hyperparameter search.** This example runs PINNStudio's Bayesian "
       "parameter sweep (50 configurations), and the configuration is selected by the **lowest final training "
       "loss**, without looking at the reference; its error is measured only afterwards "
@@ -1922,7 +1941,7 @@ def page(recs):
       "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
       "[training_methods.md → The controlled comparison]"
       "(training_methods.md#the-controlled-comparison-paper-figure-7) | "
-      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
+      "`benchmarks/plans/fig7_v2.json` and `fig7_v2b.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
       "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
       "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [export_check](export_check/README.md), [performance.md](performance.md) | "
@@ -2625,6 +2644,7 @@ def results_manifest(recs, path=RESULTS_MANIFEST):
             inv.setdefault(row["example"], []).append(row)
     idx = {x["name"]: x for x in _prob_index()}
     med = lambda xs: statistics.median(xs) if xs else None
+    from pinnstudio.core import example_settings as _es
     out = []
     for r in recs:
         e = r["entry"]
@@ -2653,9 +2673,17 @@ def results_manifest(recs, path=RESULTS_MANIFEST):
                 figs = []
             del NEEDED[NEEDED_before:]           # the manifest does not change the pages' figure list
             figs = [f for f in figs if f.startswith("figures/")]
+            from pinnstudio.core import paper_settings as _ps
+            default_is_paper = bool(_ps.TEMPLATE_PAPER.get(e.key)) and (e.key, _ps.TEMPLATE_PAPER.get(e.key)) in _ps.PAPER
+            if r.get("f_best_paper"):
+                label = PAPER_NAME.get(r["f_best_paper"], r["f_best_paper"])
+            elif default_is_paper and variant == "base":
+                label = "the template's own settings"          # Default is the paper's method, Tuned the template's
+            else:
+                label = _best_label(r, False) if best_s else "the example's own settings"
             item["forward"] = dict(
-                variant=variant, label=_best_label(r, False) if best_s else "the example's own settings",
-                tuned_preset=bool(best_s and variant != "base") or bool(r.get("f_best_paper")),
+                variant=variant, label=label,
+                tuned_preset=bool(_es.has_tuned(e.key, False)),   # as the app's Settings choice decides it
                 main_output_l2=med([float(x["main_output_relative_L2_last_time"]) for x in rows]),
                 outputs_l2={o: med(v) for o, v in outs.items()},
                 seeds=seeds, aggregation="median over seeds" if len(seeds) > 1 else "single run",
@@ -2674,7 +2702,7 @@ def results_manifest(recs, path=RESULTS_MANIFEST):
                 aggregation="selected by final training loss among the search's runs",
                 selection="final training loss (not the reference error)", record_folder=folder,
                 figures=[fig] if os.path.exists(os.path.join(_REPO, fig)) else [],
-                figure_note="figures of the selected configuration's run")
+                figure_note=f"figures of the selected search run (run {best['run']})")
         irows = inv.get(e.name)
         if irows:
             variant = irows[0]["variant"]
@@ -2694,7 +2722,7 @@ def results_manifest(recs, path=RESULTS_MANIFEST):
             figs = [f for f in figs if f.startswith("figures/")]
             item["inverse"] = dict(
                 variant=variant, label=_best_label(r, True) if i_s else "the example's own settings",
-                tuned_preset=bool(i_s and variant != "base"),
+                tuned_preset=bool(_es.has_tuned(e.key, True)),
                 parameters=[dict(name=p["name"], true=p["true"], found_median=med(p["found"]),
                                  relative_error_median=med(p["rel"])) for p in params.values()],
                 worst_parameter_error_median=med(list(worst.values())),
