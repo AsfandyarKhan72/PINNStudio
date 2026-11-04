@@ -762,7 +762,7 @@ def _table_s2(recs):
     return "\n".join(L) + "\n"
 
 
-TEX_SYM = {"mu": r"$\mu$", "phi": r"$\phi$", "psi": r"$\psi$", "theta": r"$\theta$", "rho": r"$\rho$",
+TEX_SYM = {"h": r"$h$", "mu": r"$\mu$", "phi": r"$\phi$", "psi": r"$\psi$", "theta": r"$\theta$", "rho": r"$\rho$",
            "ux": r"$u_x$", "uy": r"$u_y$", "sxx": r"$\sigma_{xx}$", "syy": r"$\sigma_{yy}$", "sxy": r"$\sigma_{xy}$",
            "u_re": r"$u_{\mathrm{re}}$", "u_im": r"$u_{\mathrm{im}}$"}
 
