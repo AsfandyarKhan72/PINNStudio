@@ -10,10 +10,14 @@ fixed set of changes for every example:
     lbfgs   an L-BFGS phase after Adam (only when the example has none)
     all     every change above together
 
-The best variant is chosen by its final training loss, not by the error
-against the reference solution, so the choice does not look at the answer.
-Its L2 errors (and, for inverse problems, the inferred parameters) are
-then reported next to the base run. --seeds runs each variant with several
+--summary reports, for each problem, the variant with the lowest final
+training loss (a choice that does not look at the reference) next to the
+base run, with its L2 errors and, for inverse problems, the inferred
+parameters. The Tuned presets shipped with PINNStudio are chosen
+differently, from these same records, by tools/make_benchmarks_readme.py:
+the lowest median error against the reference, the fastest run within 25 %
+of it, and the example's own settings kept when within that margin and 10 %
+of the fastest time (benchmarks/tables/README.md, Selection). --seeds runs each variant with several
 random seeds.
 
     python tools/tuning_study.py --out runs/tuning --names "Klein-Gordon equation|Heat equation"

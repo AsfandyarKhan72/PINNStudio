@@ -11,7 +11,7 @@ Nothing was retrained for this folder: every value comes from runs already recor
 
 ## What changed and where each value comes from
 
-The protocol is the same for all four panels: seed **2026**, the runs of `benchmarks/plans/fig7_v2.json` (13 configurations per panel, 52 runs), and relative L2 error at each reference time.
+The protocol is the same for all four panels: seed **2026**, the runs of `benchmarks/plans/fig7_v2.json` and `fig7_v2b.json` (13 configurations per panel, 52 runs; the four plain runs of `fig7_v2b.json` are those of `fig7_v2.json`), and relative L2 error at each reference time.
 
 | Panel | Problem (example) | Fields | Reference times | Runs taken from | Changed? |
 |---|---|---|---|---|---|

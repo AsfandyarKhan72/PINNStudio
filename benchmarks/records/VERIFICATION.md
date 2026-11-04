@@ -28,17 +28,17 @@ runs retrained on the regenerated data (`corrected_2026-10-31/changes.md` lists 
 
 All other Table S2 rows are unchanged.
 
-**Summary statistics** (`stats.json` of the build; the 25 Figure 4 examples, then all 64 examples):
+**Summary statistics** (`stats.json` of the build; the 25 Figure 4 examples, then all examples: "All" rows are over the 53 forward problems and the 32 inverse problems with scalar parameters):
 
 | Statistic | Original | Corrected |
 |---|---|---|
 | Figure 4: median improvement over the starting setup, all examples (`med_gain_all`) | 5.22× | 7.91× |
 | Figure 4: median worst relative parameter error, inverse (`med_perr`) | 0.126 % | 0.105 % |
-| All 64: median forward error (`med_fwd`) | 1.30 × 10⁻³ | 1.15 × 10⁻³ |
-| All 64: examples below 10⁻³ (`below_1e3`) | 24 | 25 |
-| All 64: median improvement where improved (`med_gain`) | 14.8× | 15.7× |
-| All 64: median worst parameter error (`med_perr`) | 0.127 % | 0.132 % |
-| All 64: inverse examples below 1 % (`below_1pct`) | 29 | 30 |
+| All (53 forward): median forward error (`med_fwd`) | 1.30 × 10⁻³ | 1.15 × 10⁻³ |
+| All (53 forward): problems below 10⁻³ (`below_1e3`) | 24 | 25 |
+| All (53 forward): median improvement where improved (`med_gain`) | 14.8× | 15.7× |
+| All (32 scalar inverse): median worst parameter error (`med_perr`) | 0.127 % | 0.132 % |
+| All (32 scalar inverse): problems below 1 % (`below_1pct`) | 29 | 30 |
 
 Unchanged: the number of examples, the Figure 4 median forward error (5.16 × 10⁻⁴), the counts below 10⁻² and
 10⁻³ in Figure 4 (20, 13), the number of starting setups improved (12 of 20), the Figure 4 median gain where
@@ -153,3 +153,18 @@ papers' methods raised two starting values while the tuned values stayed the sam
 (u 8.09 × 10⁻³ → 1.06 × 10⁻², gain 15.7× → 20.5×) and Cahn-Hilliard 2D – Wight & Zhao (φ 0.217 → 0.235, gain
 20.6× → 22.3×); see `reruns_2026-11-01/README.md`. The corrected build's statistics were recomputed the same way on
 2026-11-03 to fill the left column.
+
+Statistics of the final build over all examples (53 forward problems, including the Helmholtz search result
+1.281 × 10⁻³, and 32 inverse problems with scalar parameters), recomputed on 2026-11-04 from
+`benchmarks/tables/forward_per_seed.csv` and `inverse_per_seed.csv` (the `selected` rows, median over seeds); they
+are the numbers printed under *Results at a glance* on the benchmarks page:
+
+| Statistic | Final |
+|---|---|
+| Median forward error (`med_fwd`) | 1.149 × 10⁻³ |
+| Forward problems below 10⁻² / 10⁻³ | 47 / 25 |
+| Starting setups improved by more than 1.25× (`n_better` of `n_start`) | 21 of 48 |
+| Median improvement where improved (`med_gain`) | 19.6× |
+| Median improvement over all 48 (`med_gain_all`) | 1.0× |
+| Median worst parameter error (`med_perr`) | 0.1315 % |
+| Inverse problems below 1 % | 30 of 32 |
