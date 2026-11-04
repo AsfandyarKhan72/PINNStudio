@@ -10,6 +10,7 @@ venv/
 !assets/Images/**/*.png
 !benchmarks/figures/*.png
 !benchmarks/figures/tuning/**/*.png
+!benchmarks/records/**/*.png
 !pinnstudio/resources/*.png
 
 # Local patch scratch (apply_*.py / *.patch files kept for review before
