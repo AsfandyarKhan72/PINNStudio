@@ -36,7 +36,7 @@ citation from ``website/about/references.md`` (DeepXDE for a DeepXDE example, an
 author and year is the example's paper, or that names the example). Links to repository files use
 ``extra.repo_blob`` + ``extra.source_ref`` of ``mkdocs.yml``, like ``tools/docs/make_source_links.py``.
 
-Images: only existing result images from the repository (``assets/Images``, ``docs/assets``),
+Images: only existing result images from the repository (``assets/Images``),
 copied to ``website/assets/images/examples/``; the list ``IMAGES`` below says which example
 each one shows and where it comes from. No numerical results are written on the pages.
 """

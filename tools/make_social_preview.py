@@ -1,6 +1,5 @@
 """PINNStudio's cover image: assets/social_preview.png (1280 x 640), for the repository's social preview on GitHub
-(Settings -> General -> Social preview; GitHub has no API for it, so it is uploaded by hand) and for the project
-page's link preview (docs/assets/social_preview.png). Drawn from the application icon (the SVG in
+(Settings -> General -> Social preview; GitHub has no API for it, so it is uploaded by hand). Drawn from the application icon (the SVG in
 pinnstudio/ui/icons.py) and the README's interface screenshot. Run from the repository root:
 
     QT_QPA_PLATFORM=offscreen python tools/make_social_preview.py
@@ -75,8 +74,7 @@ def main():
     d.text((84, 454), "physics-informed neural networks", font=font("medium", 33), fill=(255, 201, 77))
     d.text((84, 530), "ODEs and PDEs in 1D, 2D, 3D  ·  Linux, Windows, macOS",
            font=font("regular", 22), fill=(196, 214, 232))
-    for out in (os.path.join(ROOT, "assets", "social_preview.png"),
-                os.path.join(ROOT, "docs", "assets", "social_preview.png")):
+    for out in (os.path.join(ROOT, "assets", "social_preview.png"),):
         img.save(out, optimize=True)
         print("wrote", out, img.size)
 
