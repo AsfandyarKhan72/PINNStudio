@@ -89,7 +89,10 @@ h 2.04e-2 -> 2.42e-2; mu 0.258 -> 0.421; run time 27,707 s -> 30,133 s.
 Final-time judged error (worse of u and mu at t = 1) 2.06e-2 -> 2.58e-2 (+25 %), while u over all times improves
 (5.25e-2 -> 3.84e-2, -27 %): the two error measures disagree in direction for this row.
 
-## What changes for the paper (to decide; the manuscript is not edited)
+## Effect on the reported values
+
+As assessed when the reruns were made; the final build ([`final_build/`](final_build/README.md)) has since
+applied them, and the current tables and pages come from it.
 
 - **Figure 7 (b), (d)**: the windowed curves (windows, bcpinn, windowsEq, bcpinnEq) change from window 2 on;
   final-time values above. The text's range for the windowed final-time errors needs the new values.
@@ -100,8 +103,9 @@ Final-time judged error (worse of u and mu at t = 1) 2.06e-2 -> 2.58e-2 (+25 %),
 - **Table S2**: one row changes, 1D CH M&G, whose selected configuration changes (paper_mg -> windows2) under the
   stated selection rule (h 6.3e-3, mu 6.2e-2). The 2D CH M&G row (selected: iters) does not change.
 - **Aggregates**: the forward median (5.2e-4 over 22 benchmarks) and the inverse median change only if a rerun row
-  is among the selected configurations they summarize; this is settled by rebuilding the records with these files
-  (not done yet).
+  is among the selected configurations they summarize. Rebuilt with the final build: the forward median of the
+  22 Figure 4 benchmarks is 5.16 × 10⁻⁴ and the median worst parameter error of the 20 inverse benchmarks 0.1045 %,
+  both unchanged (see [`../VERIFICATION.md`](../VERIFICATION.md)).
 - **Conclusions**: PINNStudio's own best setups for the 2D problems and for 1D Wight & Zhao were not affected (they
   do not use the windowed weights or resampling rounds); the 1D Mattey & Ghosh best-setup candidates were (they are
   windowed with an IC weight of 100), which is why they were rerun in rerun 2, so "exact constraints + SA-PINN give the lowest final-time errors" stands; the
