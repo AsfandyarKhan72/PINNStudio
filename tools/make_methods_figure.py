@@ -371,7 +371,7 @@ def main():
     d = json.load(open(DATA, encoding="utf-8"))
     ex = {e["id"]: e for e in d["examples"]}
     fig_a(ex)
-    fig_b(ex)
+    # fig_b (the error against time, an earlier candidate panel for Figure 7) is no longer drawn
     rr = rerun_examples()
     if rr:
         fig_c(rerun_examples(setups=SETUPS_MAIN), SETUPS_MAIN)            # Figure 7: the common protocol

@@ -1928,7 +1928,7 @@ def page(recs):
               "\n> *Caption to start from: Relative L₂ errors for the phase-field and Burgers templates: a plain "
               "PINN, the training method of the original paper set up in PINNStudio, the error reported in that "
               "paper, and the configuration selected in the PINNStudio tuning study.*\n\n</details>\n")
-        fa, fb = (os.path.join(os.path.dirname(PAGE), "figures", f) for f in ("paper_methods_a.png", "paper_methods_b.png"))
+        fa = os.path.join(os.path.dirname(PAGE), "figures", "paper_methods_a.png")
         if os.path.exists(fa):
             fc = os.path.join(os.path.dirname(PAGE), "figures", "paper_methods_c.png")
             a("<details>\n<summary>📄 <em>Figure 7 for the paper — the training-methods study</em></summary>\n\n"
@@ -2081,11 +2081,6 @@ def page(recs):
               "with the improvement factor. Colour gives the method added to exact boundary (and initial) conditions; "
               "squares mark training in successive time windows. W&Z: Wight and Zhao [8]; M&G: Mattey and Ghosh [9]. "
               "Single runs; the setups differ in computational cost.*\n\n"
-              "**Version B — where the error builds up (a second panel or a supplementary figure).** The error against "
-              "time for three problems: the plain PINN, the best setup on the whole interval and the best with time "
-              "windows. It explains *why* windows win on the long problems: on the whole interval the error grows "
-              "with time (or never comes down), while each window starts from an accurate state.\n\n"
-              f"![Figure 7, version B](figures/paper_methods_b.png{_ver(fb)})\n\n"
               "</details>\n\n</details>\n")
         a("<details>\n<summary>📄 <em>Table S2 for the paper — every forward problem, each output</em></summary>\n\n"
           "PINNStudio's tuned result for every forward problem with a reference solution: the relative L₂ of each "
