@@ -1,0 +1,132 @@
+[
+ {
+  "key": "Inverse: Lorenz system",
+  "inverse": true,
+  "settings": "Tuned settings: none for this example (it was already accurate) -- its default settings.",
+  "plot_type": "Parameter Convergence (GIF)",
+  "rc": 0,
+  "seconds": 81.3,
+  "gifs": [
+   "Inverse_Lorenz_system/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "1.7740e-04",
+   "2.0672e-04",
+   "1.0768e-04"
+  ],
+  "params": [
+   [
+    "C1",
+    "10.0034"
+   ],
+   [
+    "C2",
+    "14.9996"
+   ],
+   [
+    "C3",
+    "2.66643"
+   ]
+  ]
+ },
+ {
+  "key": "1D Burgers",
+  "inverse": false,
+  "settings": "Tuned settings: Raissi et al.'s settings (benchmarks: L2 5.2e-04).",
+  "plot_type": "Line Animation (GIF)",
+  "rc": 0,
+  "seconds": 44.7,
+  "gifs": [
+   "1D_Burgers/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "4.2757e-04",
+   "3.1409e-04",
+   "2.5663e-04",
+   "3.8475e-04",
+   "2.0529e-04",
+   "3.4043e-04"
+  ],
+  "params": []
+ },
+ {
+  "key": "Schrödinger equation",
+  "inverse": false,
+  "settings": "Tuned settings: none for this example (it was already accurate) -- its default settings.",
+  "plot_type": "Line Animation (GIF)",
+  "rc": 0,
+  "seconds": 107.8,
+  "gifs": [
+   "Schr_dinger_equation/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "1.0876e-03",
+   "1.3801e-03",
+   "1.3657e-03",
+   "1.0257e-03",
+   "1.7730e-03",
+   "1.3216e-03"
+  ],
+  "params": []
+ },
+ {
+  "key": "2D Heat",
+  "inverse": false,
+  "settings": "Tuned settings: none for this example (it was already accurate) -- its default settings.",
+  "plot_type": "Surface Animation (GIF)",
+  "rc": 0,
+  "seconds": 107.6,
+  "gifs": [
+   "2D_Heat/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "9.8496e-01",
+   "8.8079e-03",
+   "1.1272e-02",
+   "9.2834e-03",
+   "6.7802e-03",
+   "8.1679e-02"
+  ],
+  "params": []
+ },
+ {
+  "key": "2D Allen-Cahn (Mattey & Ghosh)",
+  "inverse": false,
+  "settings": "Tuned settings: exact IC, exact periodicity, the whole time interval, SA-PINN weights; 3× the iterations of every training phase (benchmarks: L2 1.3e-04 vs 6.6e-03 with its own settings).",
+  "plot_type": "Surface Animation (GIF)",
+  "rc": 0,
+  "seconds": 644.4,
+  "gifs": [
+   "2D_Allen_Cahn_Mattey_Ghosh/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "4.8027e-07",
+   "8.9726e-05",
+   "9.9034e-05",
+   "9.5983e-05",
+   "1.2453e-04",
+   "9.7490e-05"
+  ],
+  "params": []
+ },
+ {
+  "key": "3D Heat",
+  "inverse": false,
+  "settings": "Tuned settings: none for this example (it was already accurate) -- its default settings.",
+  "plot_type": "Surface Animation (GIF)",
+  "rc": 0,
+  "seconds": 340.0,
+  "gifs": [
+   "3D_Heat/solution_results/solution_plot.gif"
+  ],
+  "last_l2": [
+   "8.9807e-03",
+   "5.5233e-03",
+   "3.4744e-03",
+   "2.6632e-03",
+   "2.2962e-03",
+   "1.0265e-01"
+  ],
+  "params": []
+ }
+]

@@ -106,8 +106,8 @@ be exported and run on its own.
 
 ## A first look
 
-Six results, each from one PINNStudio run of a built-in example with its **Tuned** settings (seed 2026), drawn by
-PINNStudio itself. Click a title for the example's equations, settings and benchmark errors.
+Six representative PINNStudio results, each from one run of a built-in example, drawn by PINNStudio itself. Click a
+title for the example's equations, settings and benchmark results.
 
 <div class="first-look" markdown>
 
