@@ -409,6 +409,9 @@ def _figure_lines(paths, mode, res, main_out):
         out += [f'??? note "Other outputs ({len(rest)} figure{"s" if len(rest) > 1 else ""})"', ""]
         for p in rest:
             out += ["    " + x if x else "" for x in fig(p)]
+    if "redrawn from" in res.get("figure_note", ""):
+        out += ["*The figure was redrawn from the record run's saved network against the current reference data, "
+                "after that reference was regenerated; its errors are those of the benchmark records.*", ""]
     if res.get("figure_note", "").startswith("figures from an earlier"):
         out += [f"*The figures are from an earlier collection of the same configuration; the numbers are those of "
                 f"the benchmark records.*", ""]

@@ -138,8 +138,12 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 |---|---|
 | u | 1.3 × 10⁻⁴ |
 
-!!! note "No figure"
-    No figure of the selected configuration has been recorded yet; the values above are from the benchmark records.
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/iters_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
+</figure>
+
+*The figure was redrawn from the record run's saved network against the current reference data, after that reference was regenerated; its errors are those of the benchmark records.*
 
 ### Inverse problem
 

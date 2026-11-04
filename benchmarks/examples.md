@@ -3125,6 +3125,32 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 
 ![Linear elasticity 2D – plate: PINNStudio best — all of the changes together — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png)
 
+*Inverse problem — the example's own settings (no change did better):*
+
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σᵧᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png)
+
+<sub>the learned parameters during training</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png)
+
 </details>
 
 [Full benchmark: every setting tried, the errors the papers report, all figures →](README.md#bench-linear-elasticity-2d-plate)
@@ -3268,15 +3294,19 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — p — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_p.png)
 
 <sub>v — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — v — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — v — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_v.png)
 
 <sub>the learned parameters during training</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — the learned parameters during training](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — the learned parameters during training](figures/tuning/Kovasznay_flow_inv/all_param_plot.png)
 
 </details>
 
@@ -3622,9 +3652,11 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 <details>
 <summary>📊 <em>Results — PINNStudio best</em></summary>
 
-*Forward problem — Mattey & Ghosh's bc-PINN, run in PINNStudio:*
+*Forward problem — 3× iterations:*
 
-![Allen-Cahn 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh/paper_mg_surface_comparison.png)
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 3× iterations — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/iters_surface_comparison.png)
+
+*This figure was redrawn from the record run's saved network against the current reference data (benchmarks/reference_regeneration/redraw_from_bundle.py; its errors are the records').*
 
 *Inverse problem — Best whole-interval setup:*
 
@@ -4009,6 +4041,16 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 
 ![Heat 2D: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](figures/tuning/Template_2D_Heat/base_surface_comparison.png)
 
+*Inverse problem — Measured data at every reference time:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 2D: PINNStudio best — Measured data at every reference time — PINN, reference and error over space and time](figures/tuning/Template_2D_Heat_inv/times_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 2D: PINNStudio best — Measured data at every reference time — the learned parameters during training](figures/tuning/Template_2D_Heat_inv/times_param_plot.png)
+
 </details>
 
 [Full benchmark: every setting tried, the errors the papers report, all figures →](README.md#bench-heat-2d)
@@ -4358,6 +4400,20 @@ The full Default settings, and where they come from: [benchmark](README.md#bench
 <sub>3D view: the solution and its error in the domain</sub>
 
 ![Heat 3D: The template's starting settings (also PINNStudio best) — 3D view: the solution and its error in the domain](figures/tuning/Template_3D_Heat/base_view3d_comparison.png)
+
+*Inverse problem — 10× weight on the measured data:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — PINN, reference and error over space and time](figures/tuning/Template_3D_Heat_inv/dataw_surface_comparison.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — 3D view: the solution and its error in the domain](figures/tuning/Template_3D_Heat_inv/dataw_view3d_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — the learned parameters during training](figures/tuning/Template_3D_Heat_inv/dataw_param_plot.png)
 
 </details>
 

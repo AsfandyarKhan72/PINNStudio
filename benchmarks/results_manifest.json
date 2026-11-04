@@ -1499,8 +1499,15 @@
      2026
     ],
     "aggregation": "median over seeds",
-    "figures": [],
-    "figure_note": "no figure of the selected configuration has been recorded"
+    "figures": [
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png",
+     "benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
    }
   },
   {
@@ -1581,11 +1588,12 @@
     ],
     "aggregation": "median over seeds",
     "figures": [
-     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png",
-     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png",
-     "benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png"
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_u.png",
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_p.png",
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_v.png",
+     "benchmarks/figures/tuning/Kovasznay_flow_inv/all_param_plot.png"
     ],
-    "figure_note": "figures from an earlier collection of the same configuration"
+    "figure_note": "figures of the selected configuration's run"
    }
   },
   {
@@ -1760,8 +1768,10 @@
      2026
     ],
     "aggregation": "median over seeds",
-    "figures": [],
-    "figure_note": "no figure of the selected configuration has been recorded"
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/iters_surface_comparison.png"
+    ],
+    "figure_note": "figures of the selected configuration's run, redrawn from the record run's saved network against the current reference data (benchmarks/reference_regeneration/redraw_from_bundle.py; its errors are the records')"
    },
    "inverse": {
     "variant": "setup",
@@ -1997,8 +2007,11 @@
      2026
     ],
     "aggregation": "median over seeds",
-    "figures": [],
-    "figure_note": "no figure of the selected configuration has been recorded"
+    "figures": [
+     "benchmarks/figures/tuning/Template_2D_Heat_inv/times_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_2D_Heat_inv/times_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
    }
   },
   {
@@ -2189,8 +2202,12 @@
      2026
     ],
     "aggregation": "single run",
-    "figures": [],
-    "figure_note": "no figure of the selected configuration has been recorded"
+    "figures": [
+     "benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_surface_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_view3d_comparison.png",
+     "benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_param_plot.png"
+    ],
+    "figure_note": "figures of the selected configuration's run"
    }
   },
   {

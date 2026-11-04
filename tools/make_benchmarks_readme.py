@@ -1651,6 +1651,8 @@ def _section(r):
                 if cap and len(paths) > 1:
                     a(f"<sub>{cap}</sub>\n")
                 a(_img(pth, f"{e.name}: {t}" + (f" — {cap}" if cap else "")) + "\n")
+                if "/".join(pth.split("/")[-2:]) in REDRAWN:
+                    a("*This figure was " + REDRAWN["/".join(pth.split("/")[-2:])] + ".*\n")
         a("</details>\n")
 
     if has_f:
@@ -2529,11 +2531,22 @@ def figure4_values_md(recs, path):
 RESULTS_MANIFEST = os.path.join(_REPO, "benchmarks", "results_manifest.json")
 
 
+# figures not drawn by PINNStudio at run time but redrawn from the run's saved network against the reference
+# data that replaced the one the run was scored against (the corrected records' errors come from the same network)
+REDRAWN = {"Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/iters_surface_comparison.png":
+           "redrawn from the record run's saved network against the current reference data "
+           "(benchmarks/reference_regeneration/redraw_from_bundle.py; its errors are the records')"}
+
+
 def _fig_note(figs, variant):
     """Where the figures of the selected configuration come from: its own run (files <variant>_*), an earlier
     collection of the same configuration (own_* for the starting settings, tuned_* for the study's choice), or none."""
     if not figs:
         return "no figure of the selected configuration has been recorded"
+    for f in figs:
+        key = "/".join(f.replace(os.sep, "/").split("/")[-2:])
+        if key in REDRAWN:
+            return "figures of the selected configuration's run, " + REDRAWN[key]
     if all(os.path.basename(f).startswith(variant + "_") for f in figs):
         return "figures of the selected configuration's run"
     return "figures from an earlier collection of the same configuration"

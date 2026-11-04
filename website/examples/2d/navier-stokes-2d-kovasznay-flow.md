@@ -139,23 +139,26 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.0045 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_u.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN, reference and error, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/all_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-??? note "Other outputs (1 figure)"
+??? note "Other outputs (2 figures)"
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png){ loading=lazy }
-      <figcaption>Inverse, Tuned settings: PINN, reference and error, v.</figcaption>
+      ![Inverse result: PINN, reference and error, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_p.png){ loading=lazy }
+      <figcaption>Inverse, Tuned settings: PINN, reference and error, p.</figcaption>
     </figure>
 
-*The figures are from an earlier collection of the same configuration; the numbers are those of the benchmark records.*
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Kovasznay_flow_inv/all_surface_comparison_v.png){ loading=lazy }
+      <figcaption>Inverse, Tuned settings: PINN, reference and error, v.</figcaption>
+    </figure>
 
 **Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-kovasznay-flow).
 

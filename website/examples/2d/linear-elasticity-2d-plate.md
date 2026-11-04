@@ -167,8 +167,37 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 Worst parameter error: **0.045 %** (the median over the seeds of each seed's largest error).
 
-!!! note "No figure"
-    No figure of the selected configuration has been recorded yet; the values above are from the benchmark records.
+<figure markdown="span">
+  ![Inverse result: PINN, reference and error, σₓₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: PINN, reference and error, σₓₓ.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
+</figure>
+
+??? note "Other outputs (4 figures)"
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, σₓᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN, reference and error, σₓᵧ.</figcaption>
+    </figure>
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, σᵧᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN, reference and error, σᵧᵧ.</figcaption>
+    </figure>
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, uₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN, reference and error, uₓ.</figcaption>
+    </figure>
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, uᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN, reference and error, uᵧ.</figcaption>
+    </figure>
 
 **Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-linear-elastostatic-plate).
 

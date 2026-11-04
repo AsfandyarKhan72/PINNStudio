@@ -147,8 +147,20 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 Worst parameter error: **0.22 %**.
 
-!!! note "No figure"
-    No figure of the selected configuration has been recorded yet; the values above are from the benchmark records.
+<figure markdown="span">
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_surface_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Inverse result: 3D view](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_view3d_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: 3D view.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Heat_inv/dataw_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
+</figure>
 
 **Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-heat).
 
