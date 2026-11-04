@@ -43,7 +43,7 @@ Rebuild the table from the records: `python benchmarks/perf_study.py tables benc
 |---|---|---|---|---|---|
 | Lorenz ODE, inverse | 71.2 | 73.1 | 73.7 | +0.7 % | 22,670 |
 | Wave 1D, MsFFN | 71.3 | 70.7 | 70.9 | +0.2 % | 10,000 |
-| Allen–Cahn 2D (Mattey & Ghosh) | 253.8 | 255.4 | 255.5 | +0.0 % | 30,000 |
+| Allen–Cahn 2D (Mattey & Ghosh) | 253.8 | 255.4 | 255.5 | 0.0 % | 30,000 |
 | Navier–Stokes 2D, Kovasznay | 190.7 | 194.9 | 190.3 | −2.4 % | 34,579 |
 | Allen–Cahn 3D (Wight & Zhao) | 1582.1 | 1605.2 | 1612.9 | +0.5 % | 20,000 |
 

@@ -428,6 +428,12 @@ def _rng(xs):
     return (min(xs), max(xs)) if xs else (None, None)
 
 
+def _pct1(x):
+    """A signed percentage at one decimal, with 0.0 (no sign) for values that round to zero."""
+    s = f"{x:+.1f}"
+    return "0.0" if s in ("+0.0", "-0.0") else s
+
+
 def _agreement(ov):
     """One sentence on whether, for every problem and seed, the three modes took the same steps and ended at the
     same errors and learned parameters (as printed), from the records themselves."""
@@ -464,7 +470,7 @@ def tables(a):
             t = {m: [r["train"] for r in rs if r["mode"] == m] for m in MODES}
             med = {m: _med(t[m]) for m in MODES}
             cell = lambda m: ("–" if med[m] is None else f"{med[m]:.1f} ({_rng(t[m])[0]:.1f}–{_rng(t[m])[1]:.1f})")
-            ovh = (f"{100 * (med['gui'] - med['solve']) / med['solve']:+.1f}" if med["gui"] and med["solve"] else "–")
+            ovh = (_pct1(100 * (med['gui'] - med['solve']) / med['solve']) if med["gui"] and med["solve"] else "–")
             stp = " / ".join(str(_med([r["steps"] for r in rs if r["mode"] == m])) for m in MODES)
             l2 = " / ".join((lambda v: f"{v:.2e}" if v else "–")(_med([next(iter(r["l2"].values()), None) for r in rs if r["mode"] == m and r["l2"]])) for m in MODES)
             md.append(f"| {label} | {cell('export')} | {cell('solve')} | {cell('gui')} | {ovh} | {stp} | {l2} |")
