@@ -1,0 +1,126 @@
+239d925bcba1168c0fcd7f4ff6afb95475cbf1b7 2026-11-03 18:46:33 -0700 perf_study.py throughput: --configs, to time the problems with the settings an earlier study saved (as overhead does); the timed configurations are written to configs_throughput/
+[notice] A new release of pip is available: 23.2.1 -> 26.3
+[notice] To update, run: python -m pip install --upgrade pip
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+Python 3.11.5 | PyTorch 2.6.0+cu124 | CUDA 12.4 | DeepXDE 1.15.0 | NumPy 2.4.6 | PySide6 6.11.3 | PINNStudio 1.6.0 /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/jobs/zzzzzw2_perf_s3_s4_v160/tree/pinnstudio | Linux-6.8.0-138-generic-x86_64-with-glibc2.35
+name, driver_version, temperature.gpu, clocks.current.sm [MHz], power.draw [W]
+NVIDIA GeForce RTX 4090, 550.144.03, 49, 210 MHz, 25.69 W
+pid, process_name, used_gpu_memory [MiB]
+CPU(s):                                  32
+Model name:                              13th Gen Intel(R) Core(TM) i9-13900KF
+ 18:47:47 up 48 days,  9:08,  1 user,  load average: 1.74, 1.45, 1.38
+Using backend: pytorch
+Lorenz ODE, inverse: settings from benchmarks/performance/configs/Lorenz_ODE_inverse.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Lorenz ODE, inverse                      gpu  rep 0: 2.666 s per 1000 Adam steps  rc=0
+Lorenz ODE, inverse                      cpu  rep 0: 1.851 s per 1000 Adam steps  rc=0
+Lorenz ODE, inverse                      cpu  rep 1: 1.856 s per 1000 Adam steps  rc=0
+Lorenz ODE, inverse                      gpu  rep 1: 3.126 s per 1000 Adam steps  rc=0
+Lorenz ODE, inverse                      gpu  rep 2: 2.633 s per 1000 Adam steps  rc=0
+Lorenz ODE, inverse                      cpu  rep 2: 1.822 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features: settings from benchmarks/performance/configs/Wave_1D_multi_scale_Fourier_features.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Wave 1D, multi-scale Fourier features    gpu  rep 0: 0.792 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features    cpu  rep 0: 2.469 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features    cpu  rep 1: 2.385 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features    gpu  rep 1: 0.819 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features    gpu  rep 2: 0.816 s per 1000 Adam steps  rc=0
+Wave 1D, multi-scale Fourier features    cpu  rep 2: 2.433 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh): settings from benchmarks/performance/configs/Allen_Cahn_2D_Mattey_Ghosh.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Allen-Cahn 2D (Mattey & Ghosh)           gpu  rep 0: 6.82 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           cpu  rep 0: 70.412 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           cpu  rep 1: 77.26 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           gpu  rep 1: 7.926 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           gpu  rep 2: 7.69 s per 1000 Adam steps  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           cpu  rep 2: 76.248 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow: settings from benchmarks/performance/configs/Navier_Stokes_2D_Kovasznay_flow.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Navier-Stokes 2D, Kovasznay flow         gpu  rep 0: 5.528 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow         cpu  rep 0: 24.117 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow         cpu  rep 1: 23.844 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow         gpu  rep 1: 5.39 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow         gpu  rep 2: 5.489 s per 1000 Adam steps  rc=0
+Navier-Stokes 2D, Kovasznay flow         cpu  rep 2: 23.739 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao): settings from benchmarks/performance/configs/Allen_Cahn_3D_Wight_Zhao.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Allen-Cahn 3D (Wight & Zhao)             gpu  rep 0: 28.491 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao)             cpu  rep 0: 564.228 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao)             cpu  rep 1: 544.029 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao)             gpu  rep 1: 28.616 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao)             gpu  rep 2: 28.564 s per 1000 Adam steps  rc=0
+Allen-Cahn 3D (Wight & Zhao)             cpu  rep 2: 546.477 s per 1000 Adam steps  rc=0
+ 19:20:25 up 48 days,  9:41,  1 user,  load average: 5.80, 7.85, 7.08
+Using backend: pytorch
+Heat 1D (2k points)          1 threads (torch 1), rep 0: 105.2 it/s
+Heat 1D (2k points)          2 threads (torch 2), rep 0: 171.7 it/s
+Heat 1D (2k points)          4 threads (torch 4), rep 0: 247.6 it/s
+Heat 1D (2k points)          8 threads (torch 8), rep 0: 321.8 it/s
+Heat 1D (2k points)         12 threads (torch 12), rep 0: 243.8 it/s
+Heat 1D (2k points)         16 threads (torch 16), rep 0: 188.7 it/s
+Heat 1D (2k points)         24 threads (torch 24), rep 0: 146.0 it/s
+Heat 1D (2k points)         32 threads (torch 32), rep 0: 1.1 it/s
+Poisson 2D (20k points)      1 threads (torch 1), rep 0: 1.9 it/s
+Poisson 2D (20k points)      2 threads (torch 2), rep 0: 3.3 it/s
+Poisson 2D (20k points)      4 threads (torch 4), rep 0: 5.2 it/s
+Poisson 2D (20k points)      8 threads (torch 8), rep 0: 7.3 it/s
+Poisson 2D (20k points)     12 threads (torch 12), rep 0: 5.8 it/s
+Poisson 2D (20k points)     16 threads (torch 16), rep 0: 6.6 it/s
+Poisson 2D (20k points)     24 threads (torch 24), rep 0: 6.8 it/s
+Poisson 2D (20k points)     32 threads (torch 32), rep 0: 0.5 it/s
+Heat 2D (30k points)         1 threads (torch 1), rep 0: 2.9 it/s
+Heat 2D (30k points)         2 threads (torch 2), rep 0: 4.8 it/s
+Heat 2D (30k points)         4 threads (torch 4), rep 0: 7.8 it/s
+Heat 2D (30k points)         8 threads (torch 8), rep 0: 9.9 it/s
+Heat 2D (30k points)        12 threads (torch 12), rep 0: 8.5 it/s
+Heat 2D (30k points)        16 threads (torch 16), rep 0: 9.1 it/s
+Heat 2D (30k points)        24 threads (torch 24), rep 0: 9.3 it/s
+Heat 2D (30k points)        32 threads (torch 32), rep 0: 0.5 it/s
+Heat 1D (2k points)         32 threads (torch 32), rep 1: 1.2 it/s
+Heat 1D (2k points)         24 threads (torch 24), rep 1: 159.8 it/s
+Heat 1D (2k points)         16 threads (torch 16), rep 1: 153.6 it/s
+Heat 1D (2k points)         12 threads (torch 12), rep 1: 233.9 it/s
+Heat 1D (2k points)          8 threads (torch 8), rep 1: 273.8 it/s
+Heat 1D (2k points)          4 threads (torch 4), rep 1: 256.2 it/s
+Heat 1D (2k points)          2 threads (torch 2), rep 1: 195.9 it/s
+Heat 1D (2k points)          1 threads (torch 1), rep 1: 118.2 it/s
+Poisson 2D (20k points)     32 threads (torch 32), rep 1: 0.5 it/s
+Poisson 2D (20k points)     24 threads (torch 24), rep 1: 7.4 it/s
+Poisson 2D (20k points)     16 threads (torch 16), rep 1: 6.6 it/s
+Poisson 2D (20k points)     12 threads (torch 12), rep 1: 5.8 it/s
+Poisson 2D (20k points)      8 threads (torch 8), rep 1: 7.5 it/s
+Poisson 2D (20k points)      4 threads (torch 4), rep 1: 5.0 it/s
+Poisson 2D (20k points)      2 threads (torch 2), rep 1: 3.2 it/s
+Poisson 2D (20k points)      1 threads (torch 1), rep 1: 1.9 it/s
+Heat 2D (30k points)        32 threads (torch 32), rep 1: 0.5 it/s
+Heat 2D (30k points)        24 threads (torch 24), rep 1: 9.9 it/s
+Heat 2D (30k points)        16 threads (torch 16), rep 1: 10.0 it/s
+Heat 2D (30k points)        12 threads (torch 12), rep 1: 10.0 it/s
+Heat 2D (30k points)         8 threads (torch 8), rep 1: 11.4 it/s
+Heat 2D (30k points)         4 threads (torch 4), rep 1: 8.2 it/s
+Heat 2D (30k points)         2 threads (torch 2), rep 1: 5.3 it/s
+Heat 2D (30k points)         1 threads (torch 1), rep 1: 3.2 it/s
+Heat 1D (2k points)          1 threads (torch 1), rep 2: 119.0 it/s
+Heat 1D (2k points)          2 threads (torch 2), rep 2: 194.4 it/s
+Heat 1D (2k points)          4 threads (torch 4), rep 2: 282.4 it/s
+Heat 1D (2k points)          8 threads (torch 8), rep 2: 393.6 it/s
+Heat 1D (2k points)         12 threads (torch 12), rep 2: 231.7 it/s
+Heat 1D (2k points)         16 threads (torch 16), rep 2: 266.8 it/s
+Heat 1D (2k points)         24 threads (torch 24), rep 2: 163.9 it/s
+Heat 1D (2k points)         32 threads (torch 32), rep 2: 9.1 it/s
+Poisson 2D (20k points)      1 threads (torch 1), rep 2: 2.1 it/s
+Poisson 2D (20k points)      2 threads (torch 2), rep 2: 3.6 it/s
+Poisson 2D (20k points)      4 threads (torch 4), rep 2: 5.5 it/s
+Poisson 2D (20k points)      8 threads (torch 8), rep 2: 8.3 it/s
+Poisson 2D (20k points)     12 threads (torch 12), rep 2: 6.3 it/s
+Poisson 2D (20k points)     16 threads (torch 16), rep 2: 6.6 it/s
+Poisson 2D (20k points)     24 threads (torch 24), rep 2: 7.0 it/s
+Poisson 2D (20k points)     32 threads (torch 32), rep 2: 0.5 it/s
+Heat 2D (30k points)         1 threads (torch 1), rep 2: 3.2 it/s
+Heat 2D (30k points)         2 threads (torch 2), rep 2: 5.1 it/s
+Heat 2D (30k points)         4 threads (torch 4), rep 2: 7.8 it/s
+Heat 2D (30k points)         8 threads (torch 8), rep 2: 10.5 it/s
+Heat 2D (30k points)        12 threads (torch 12), rep 2: 9.0 it/s
+Heat 2D (30k points)        16 threads (torch 16), rep 2: 9.7 it/s
+Heat 2D (30k points)        24 threads (torch 24), rep 2: 10.8 it/s
+Heat 2D (30k points)        32 threads (torch 32), rep 2: 0.5 it/s
+wrote /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/jobs/zzzzzw2_perf_s3_s4_v160/out/tables/tables.md
+2026-11-03T22:29:54-07:00
+exit 0
