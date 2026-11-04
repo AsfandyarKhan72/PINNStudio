@@ -164,7 +164,9 @@ def _math_sym(s):
     if m:
         b = m.group(1)
         return f"${chr(92) + b if len(b) > 1 else b}_{m.group(2)}$"
-    return s
+    named = {"kappa": r"$\kappa$", "alpha": r"$\alpha$", "kf": r"$k_f$", "lambda": r"$\lambda$", "mu": r"$\mu$",
+             "nu": r"$\nu$", "gamma": r"$\gamma$", "omega": r"$\omega$", "epsilon": r"$\varepsilon$"}
+    return named.get(s, s)
 
 
 def _param_errs(params):
@@ -874,7 +876,7 @@ P_FLOOR = 1e-4            # parameter errors below it are drawn at it
 P_XLIM = (3e-5, 1500)     # room for the markers at the floor and the symbols on the right
 
 
-def figure(recs, path, stars=False, paper=False):
+def figure(recs, path, stars=False, paper=False, collection=False):
     """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): open = DeepXDE's settings / the paper's method in PINNStudio
     (the template's own settings where that has not run yet); filled = PINNStudio's best."""
     import matplotlib
@@ -908,10 +910,13 @@ def figure(recs, path, stars=False, paper=False):
             pv = [v for _, _, v in (r["paper"] or []) if v in (r["paper_runs"] or {})]
             v0 = min(pv, key=lambda v: r["paper_runs"][v]["l2"]) if pv else None
             kept = bool(ref_f is not None and v0 and r.get("f_best_paper") == v0)
-        rows.append(dict(kept=kept, label=_paper_label(e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
+        rows.append(dict(kept=kept, label=_paper_label(e.name) if (paper and not collection) else e.name, name=e.name,
+                         group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
                          p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None,
                          field=(r["i_field"][:2] + ((r["i_field"][2] if ext_inv else None),)) if r.get("i_field") else None))
+    if collection:
+        return _paper_figure(rows, path, collection=True)
     if paper:
         return _paper_figure(rows, path)
     # paper: drawn at its printed size (6.5 x 7.5 in, a Word page with 1 in margins and room for a caption)
@@ -1066,7 +1071,7 @@ P_TUNED, P_START, P_LINK = "#0b5394", "#7b8794", "#c5ccd4"     # tuned, starting
 P_BAND = "#f2f4f7"
 
 
-def _paper_figure(rows, path):
+def _paper_figure(rows, path, collection=False):
     """Figure 4 of the paper: the forward error (left) and the inverse error (right) of each example. Filled =
     tuned settings; open = starting settings (DeepXDE's example or the paper's method run in PINNStudio), joined
     to the tuned value by a thin line; a ring around the filled marker = the starting settings were kept. Inverse:
@@ -1077,6 +1082,12 @@ def _paper_figure(rows, path):
     from matplotlib.lines import Line2D
     from matplotlib.legend_handler import HandlerTuple
     F = dict(name=8.0, head=8.2, tick=7.6, axis=8.2, title=8.8, legend=8.0, sym=7.6)
+    nseeds = {}
+    if collection:
+        # every example with a forward or inverse result; how many seeds each value rests on (per-seed tables);
+        # the Helmholtz search result drawn as what it is
+        rows = [r for r in rows if r["f_best"] is not None or r["params"] or r["field"]]
+        nseeds = _seed_counts()
     plt.rcParams.update({"font.size": F["tick"], "axes.linewidth": 0.7, "pdf.fonttype": 42,
                          "xtick.major.width": 0.7, "xtick.minor.width": 0.5})
     ypos, heads, groups, yy = {}, [], [], 0.0
@@ -1090,7 +1101,8 @@ def _paper_figure(rows, path):
         ypos[i] = yy; yy += 1.0
     H = yy
     Y = {i: H - v for i, v in ypos.items()}
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(5.6, 0.168 * H + 0.85), sharey=True,
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(7.0 if collection else 5.6, 0.168 * H + (0.95 if collection else 0.85)),
+                                 sharey=True,
                                  gridspec_kw={"width_ratios": [3.0, 1.55], "wspace": 0.1})
     for gi, (g, a, b) in enumerate(groups):
         if gi % 2 == 0:
@@ -1102,19 +1114,24 @@ def _paper_figure(rows, path):
     S_T, S_S = 28, 24                       # marker areas: tuned, starting
     D_T = 22
 
-    def forward(ref, best, y, kept):
+    def forward(ref, best, y, kept, shape="o"):
         if best and ref and kept:                                    # the starting settings are the tuned ones
-            ax.scatter(best, y, s=S_T * 2.5, marker="o", facecolor="none", edgecolor=P_TUNED, lw=0.8, zorder=2)
+            ax.scatter(best, y, s=S_T * 2.5, marker=shape, facecolor="none", edgecolor=P_TUNED, lw=0.8, zorder=2)
         elif ref:
             if best:
                 ax.plot([ref, best], [y, y], color=P_LINK, lw=1.0, zorder=1, solid_capstyle="butt")
-            ax.scatter(ref, y, s=S_S, marker="o", facecolor="white", edgecolor=P_START, lw=1.0, zorder=2)
+            ax.scatter(ref, y, s=S_S, marker=shape, facecolor="white", edgecolor=P_START, lw=1.0, zorder=2)
         if best:
-            ax.scatter(best, y, s=S_T, marker="o", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+            ax.scatter(best, y, s=S_T, marker=shape, color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
 
     for i, r in enumerate(rows):
         y = Y[i]
-        forward(r["f_ref"], r["f_best"], y, r["kept"])
+        fn, inn = nseeds.get(r.get("name"), (3, 3)) if collection else (3, 3)
+        fshape = "^" if r.get("name") in SEARCH_RECORDS else ("o" if fn != 1 else "s")
+        if collection and r.get("name") in SEARCH_RECORDS:
+            ax.scatter(r["f_best"], y, s=S_T * 1.5, marker="^", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+        else:
+            forward(r["f_ref"], r["f_best"], y, r["kept"], fshape)
         es = [(s, max(100 * e_, P_FLOOR)) for s, e_ in _param_errs(r["params"])]
         if not es and r["field"]:
             sym, fb, _ = r["field"]
@@ -1133,7 +1150,10 @@ def _paper_figure(rows, path):
         for e_, c in zip(es_draw, close):
             dy = (0.17 if n_close % 2 == 0 else -0.17) if c else 0.0
             n_close += bool(c)
-            bx.scatter(e_, y + dy, s=D_T, marker="D", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
+            if inn == 1:      # one run (seed 2026): a hollow-centred diamond
+                bx.scatter(e_, y + dy, s=D_T, marker="D", facecolor="white", edgecolor=P_TUNED, lw=1.1, zorder=3)
+            else:
+                bx.scatter(e_, y + dy, s=D_T, marker="D", color=P_TUNED, edgecolor="white", lw=0.4, zorder=3)
         bx.text(right * 2.6, y, txt, va="center", ha="left", fontsize=F["sym"], color=mtp.C_TEXT)
     ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=F["name"], color=mtp.C_TEXT)
     ax.set_ylim(Y[len(rows) - 1] - 0.65, H + 0.1)
@@ -1143,8 +1163,15 @@ def _paper_figure(rows, path):
     bx.set_xticks([1e-3, 1e-1, 1e1])
     ax.set_xlabel("Relative $L_2$ error\nat the final reference time", fontsize=F["axis"], labelpad=3)
     bx.set_xlabel("Parameter or field\nerror (%)", fontsize=F["axis"], labelpad=3)
-    ax.set_title("Forward problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
-    bx.set_title("Inverse problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+    if collection:
+        nf = sum(1 for r in rows if r["f_best"] is not None)
+        ns = sum(1 for r in rows if r["params"])
+        nfld = sum(1 for r in rows if not r["params"] and r["field"])
+        ax.set_title(f"Forward problems ({nf})", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+        bx.set_title(f"Inverse problems ({ns} + {nfld} fields)", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+    else:
+        ax.set_title("Forward problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
+        bx.set_title("Inverse problems", fontsize=F["title"], color=mtp.C_TEXT, pad=4)
     for axx in (ax, bx):
         axx.grid(axis="x", which="major", color=mtp.C_GRID, lw=0.6, zorder=0)
         axx.set_axisbelow(True)
@@ -1162,14 +1189,41 @@ def _paper_figure(rows, path):
                 mk("o", 5.6, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4))),
          mk("D", 5.0, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4)]
     lab = ["Tuned settings", "Starting settings", "Starting settings kept", "Inverse, each parameter"]
-    fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="upper center", ncol=4, frameon=False,
+    if collection:
+        h += [mk("s", 5.0, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4),
+              mk("D", 4.6, markerfacecolor="white", markeredgecolor=P_TUNED, markeredgewidth=1.1),
+              mk("^", 5.6, color=P_TUNED, markeredgecolor="white", markeredgewidth=0.4)]
+        lab = ["Selected settings (median of 3 seeds)", "Starting settings", "Starting settings kept",
+               "Inverse, each parameter (median of 3 seeds)", "Forward, one run (seed 2026)",
+               "Inverse, each parameter, one run (seed 2026)", "Bayesian search: lowest training loss"]
+        order = [0, 4, 1, 2, 3, 5, 6]
+        h, lab = [h[k] for k in order], [lab[k] for k in order]
+    fig.legend(h, lab, handler_map={_Over: HandlerTuple(ndivide=1)}, loc="upper center", ncol=4 if not collection else 2,
+               frameon=False,
                fontsize=F["legend"], handlelength=1.0, handletextpad=0.35, columnspacing=1.5,
                bbox_to_anchor=(0.5, 1.0), borderaxespad=0.0)
-    fig.subplots_adjust(left=0.30, right=0.93, top=0.928, bottom=0.085)
+    if collection:
+        fig.subplots_adjust(left=0.36, right=0.93, top=1 - 0.95 / fig.get_figheight(), bottom=0.6 / fig.get_figheight())
+    else:
+        fig.subplots_adjust(left=0.30, right=0.93, top=0.928, bottom=0.085)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for out in (path, path.replace(".png", ".pdf")):     # cropped to the drawing, with a hairline margin
         fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
+
+
+def _seed_counts():
+    """{example: (seeds of its selected forward value, seeds of its selected inverse value)} from the per-seed tables."""
+    import csv as _csv
+    tabs = os.path.join(_REPO, "benchmarks", "tables")
+    f, i = {}, {}
+    for row in _csv.DictReader(open(os.path.join(tabs, "forward_per_seed.csv"), encoding="utf-8")):
+        if row["selected"] == "yes":
+            f.setdefault(row["example"], set()).add(row["seed"])
+    for row in _csv.DictReader(open(os.path.join(tabs, "inverse_per_seed.csv"), encoding="utf-8")):
+        if row["selected"] == "yes":
+            i.setdefault(row["example"], set()).add(row["seed"])
+    return {k: (len(f.get(k, ())), len(i.get(k, ()))) for k in set(f) | set(i)}
 
 
 def _same(s, mark):
@@ -2160,6 +2214,7 @@ def write_tuned(recs):
 # with --paper-page, to a path outside this repository (the authors keep it with the manuscript). The numbers it
 # shows that users need are in benchmarks/tables/ (FIG4_VALUES) and on the benchmark pages.
 FIG4_VALUES = os.path.join(_REPO, "benchmarks", "tables", "figure4_values.md")
+COLLECTION_FIG = os.path.join(_REPO, "benchmarks", "figures", "collection_figure.png")
 
 # ---- benchmarks/examples.md (formerly the main README's Examples section), generated from the same data as this page
 EX_START, EX_END = "<!-- examples:start (generated by tools/make_benchmarks_readme.py) -->", "<!-- examples:end -->"
@@ -2720,6 +2775,7 @@ def main():
         inverse_per_seed_csv(recs, os.path.join(_REPO, "benchmarks", "tables", "inverse_per_seed.csv"))
         forward_per_seed_csv(recs, os.path.join(_REPO, "benchmarks", "tables", "forward_per_seed.csv"))
         figure4_values_md([by[n] for n in names if n in by], FIG4_VALUES)
+        figure(recs, COLLECTION_FIG, paper=True, collection=True)      # every benchmark case, Figure 4's style
         results_manifest(recs)
     write_front(recs)
     paper_page = os.path.abspath(args.paper_page) if args.paper_page else ""
