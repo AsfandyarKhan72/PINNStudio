@@ -143,24 +143,43 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Default — the best setup as it is; the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 5.9 × 10⁻⁵ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
+</figure>
+
+### Inverse problem
+
+**Settings:** Tuned — 10× data weight, 3× L-BFGS and the larger network. **Values:** one run, seed 2026.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-3</sup> | **5.9 × 10<sup>-5</sup>** | 1596 |
-| Inverse: parameters found (true) | – | **λ = 10.0536 (10); λε² = 0.00628417 (0.00625)** (worst error 0.55%) | 1939 |
+| λ | 10 | 10.0536 | 0.54 % |
+| λε² | 0.00625 | 0.00628417 | 0.55 % |
+
+Worst parameter error: **0.55 %**.
 
 <figure markdown="span">
-  ![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the best setup as it is — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — the best setup as it is — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-wight--zhao).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-allen-cahn-wight--zhao).
 
 ## Loading it in PINNStudio
 
@@ -187,6 +206,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [RBA and SA-PINN](../../reference/point-weights.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Wight & Zhao 2021](../../about/references.md#wight2021)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

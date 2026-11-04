@@ -59,18 +59,30 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** | 61 |
+### Forward problem
+
+**Settings:** Default — the example's own settings (no change did better); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| u_re | 8.0 × 10⁻² |
+| u_im | 6.9 × 10⁻² |
 
 <figure markdown="span">
-  ![Helmholtz 2D – sound-hard scattering: DeepXDE's settings (also PINNStudio best) — im — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_im.png){ loading=lazy }
-  <figcaption>DeepXDE's settings (also PINNStudio best) — im — PINN, reference and error over space and time</figcaption>
+  ![Forward result: PINN, reference and error, u_re](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_re.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error, u_re.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc).
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Forward result: PINN, reference and error, u_im](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_im.png){ loading=lazy }
+      <figcaption>Forward, Default settings: PINN, reference and error, u_im.</figcaption>
+    </figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-sound-hard-scattering-absorbing-bc).
 
 ## Loading it in PINNStudio
 
@@ -96,6 +108,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [Helmholtz_Sound_hard_ABC_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

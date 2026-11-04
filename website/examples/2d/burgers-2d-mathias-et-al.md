@@ -123,24 +123,57 @@ From the benchmark records: same template, switched to **Inverse**, recovering t
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Tuned — 3× iterations. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 8.3 × 10⁻³ |
+| v | 3.9 × 10⁻³ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: PINN, reference and error, u.</figcaption>
+</figure>
+
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Forward result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_v.png){ loading=lazy }
+      <figcaption>Forward, Tuned settings: PINN, reference and error, v.</figcaption>
+    </figure>
+
+### Inverse problem
+
+**Settings:** Tuned — Measured data at every reference time. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** | 3998 |
-| Inverse: parameters found (true) | – | **ν = 0.00318823 (0.0031831)** (worst error 0.16%) | 4080 |
+| ν | 0.0031831 | 0.00318823 | 0.16 % |
+
+Worst parameter error: **0.16 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png){ loading=lazy }
-  <figcaption>PINNStudio best — 3× iterations — u — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_u.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN, reference and error, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Burgers 2D – Mathias et al.: PINNStudio best — Measured data at every reference time — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_u.png){ loading=lazy }
-  <figcaption>PINNStudio best — Measured data at every reference time — u — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias).
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, v](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Burgers_Mathias_inv/times_surface_comparison_v.png){ loading=lazy }
+      <figcaption>Inverse, Tuned settings: PINN, reference and error, v.</figcaption>
+    </figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-burgers-mathias).
 
 ## Loading it in PINNStudio
 
@@ -167,6 +200,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [Networks and Fourier features](../../reference/networks.md)
 - **Cite:** [Mathias et al. 2022](../../about/references.md#mathias2022)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

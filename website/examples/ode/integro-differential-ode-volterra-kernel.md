@@ -57,18 +57,22 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** | 5 |
+### Forward problem
+
+**Settings:** Default — the example's own settings (not in the tuning sweep); the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 2.5 × 10⁻³ |
 
 <figure markdown="span">
-  ![Integro-differential ODE – Volterra kernel: DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Volterra_integro_differential_equation/base_line_comparison.png){ loading=lazy }
-  <figcaption>DeepXDE's settings (also PINNStudio best) — PINN against the reference along a line, at the reference times</figcaption>
+  ![Forward result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Volterra_integro_differential_equation/base_line_comparison.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN and reference along lines.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-volterra-integro-differential-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-volterra-integro-differential-equation).
 
 ## Loading it in PINNStudio
 
@@ -94,6 +98,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [Volterra_IDE.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

@@ -68,18 +68,22 @@ Constants: `R = 0.7`
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 1096 |
+### Forward problem
+
+**Settings:** Tuned — all of the changes together. **Values:** one run, seed 2026.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 1.9 × 10⁻⁴ |
 
 <figure markdown="span">
-  ![Poisson 3D – cube with spherical cut-out: PINNStudio best — all of the changes together — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/all_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — all of the changes together — PINN, reference and error over space and time</figcaption>
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Poisson_Cube_with_spherical_cut_out/all_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-poisson-cube-with-spherical-cut-out).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-poisson-cube-with-spherical-cut-out).
 
 ## Loading it in PINNStudio
 
@@ -105,6 +109,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Poisson 3D – cube with spherical cut-out (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Poisson%203D%20%E2%80%93%20cube%20with%20spherical%20cut-out%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json)
 - **Cite:** PINNStudio's own problem (no source paper)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

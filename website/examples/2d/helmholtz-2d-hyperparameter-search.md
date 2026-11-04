@@ -59,13 +59,22 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – |
+### Forward problem
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
+**Settings:** Default — the example's Bayesian search, 50 runs; selected: the run with the lowest final training loss (run 49); the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026, selected by its final training loss (not the reference error); the search's 50 runs are in [its record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/records/helmholtz_hpo_2026-10-25/README.md).
+
+| Output | Relative L₂ |
+|---|---|
+| u | 1.3 × 10⁻³ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
+</figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
 
 ## Loading it in PINNStudio
 
@@ -91,6 +100,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Escapil-Inchauspé & Ruz 2023](../../about/references.md#escapil2023)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

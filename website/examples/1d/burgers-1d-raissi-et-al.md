@@ -122,24 +122,43 @@ From the benchmark records: same template, switched to **Inverse**, jointly reco
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Tuned — 3× iterations. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 5.2 × 10⁻⁴ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
+</figure>
+
+### Inverse problem
+
+**Settings:** Tuned — 10× data weight, 3× L-BFGS and the larger network. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 40 |
-| Inverse: parameters found (true) | – | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** (worst error 0.099%) | 119 |
+| lambda_1 | 1 | 0.999888 | 0.011 % |
+| lambda_2 | 0.01 | 0.00999801 | 0.062 % |
+
+Worst parameter error: **0.099 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png){ loading=lazy }
-  <figcaption>Raissi et al.'s settings, run in PINNStudio (also PINNStudio best) — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Burgers 1D – Raissi et al.: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_1D_Burgers_inv/invall_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-burgers).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#1d-burgers).
 
 ## Loading it in PINNStudio
 
@@ -165,6 +184,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%20%28best%20setup%29%20%28tuned%29.pinn.json), [`Burgers 1D – Raissi et al. (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Burgers%201D%20%E2%80%93%20Raissi%20et%20al.%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Cite:** [Raissi et al. 2019](../../about/references.md#raissi2019)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

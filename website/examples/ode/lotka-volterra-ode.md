@@ -102,24 +102,58 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Default — the example's own settings (not in the tuning sweep); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| r | 2.1 × 10⁻³ |
+| p | 1.4 × 10⁻³ |
+
+<figure markdown="span">
+  ![Forward result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN and reference along lines, r.</figcaption>
+</figure>
+
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Forward result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_p.png){ loading=lazy }
+      <figcaption>Forward, Default settings: PINN and reference along lines, p.</figcaption>
+    </figure>
+
+### Inverse problem
+
+**Settings:** Default — the example's own settings (no change did better); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | 219 |
-| Inverse: parameters found (true) | – | **a = 2 (2); d = 1.06 (1.06)** (worst error 0%) | 242 |
+| a | 2 | 2 | 0 % |
+| d | 1.06 | 1.06 | 0 % |
+
+Worst parameter error: **0 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Lotka-Volterra ODE: DeepXDE's settings (also PINNStudio best) — r — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation/base_line_comparison_r.png){ loading=lazy }
-  <figcaption>DeepXDE's settings (also PINNStudio best) — r — PINN against the reference along a line, at the reference times</figcaption>
+  ![Inverse result: PINN and reference along lines, r](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: PINN and reference along lines, r.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better) — r — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (no change did better) — r — PINN against the reference along a line, at the reference times</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation).
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Inverse result: PINN and reference along lines, p](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN and reference along lines, p.</figcaption>
+    </figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-lotka-volterra-equation).
 
 ## Loading it in PINNStudio
 
@@ -150,6 +184,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [Lotka_Volterra.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/lotka.volterra.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

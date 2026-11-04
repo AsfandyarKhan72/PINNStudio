@@ -110,19 +110,35 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 6.1 × 10<sup>-3</sup> | **6.1 × 10<sup>-3</sup>** | 98 |
-| Inverse: parameters found (true) | – | **α = 0.399692 (0.4)** (worst error 0.11%) | 434 |
+### Forward problem
+
+**Settings:** Default — the example's own settings (not in the tuning sweep); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 6.1 × 10⁻³ |
 
 <figure markdown="span">
-  ![Heat 2D: The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Heat/base_surface_comparison.png){ loading=lazy }
-  <figcaption>The template's starting settings (also PINNStudio best) — PINN, reference and error over space and time</figcaption>
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Heat/base_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-heat).
+### Inverse problem
+
+**Settings:** Tuned — Measured data at every reference time. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
+|---|---|---|---|
+| α | 0.4 | 0.399692 | 0.11 % |
+
+Worst parameter error: **0.11 %** (the median over the seeds of each seed's largest error).
+
+!!! note "No figure"
+    No figure of the selected configuration has been recorded yet; the values above are from the benchmark records.
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-heat).
 
 ## Loading it in PINNStudio
 
@@ -147,6 +163,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Heat 2D (PINNStudio template) (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Heat%202D%20%28PINNStudio%20template%29%20%28tuned%29.pinn.json), [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Heat%202D%20%28PINNStudio%20template%29%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Cite:** PINNStudio's own problem (no source paper)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

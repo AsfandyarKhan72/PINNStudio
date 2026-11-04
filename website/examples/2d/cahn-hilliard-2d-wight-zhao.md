@@ -118,24 +118,58 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Default — the example's own settings (no change did better); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| μ | 2.2 × 10⁻² |
+| φ | 1.1 × 10⁻² |
+| abs_mu | 8.0 × 10⁻⁴ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error, μ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_mu.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error, μ.</figcaption>
+</figure>
+
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_u.png){ loading=lazy }
+      <figcaption>Forward, Default settings: PINN, reference and error, u.</figcaption>
+    </figure>
+
+### Inverse problem
+
+**Settings:** Default — the example's own settings (no change did better); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
-| Inverse: parameters found (true) | – | **ε² = 0.00251029 (0.0025)** (worst error 0.41%) | 3793 |
+| ε² | 0.0025 | 0.00251029 | 0.41 % |
+
+Worst parameter error: **0.41 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_u.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_u.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: PINN, reference and error, u.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_u.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-cahn-hilliard-wight--zhao).
+??? note "Other outputs (1 figure)"
+
+    <figure markdown="span">
+      ![Inverse result: PINN, reference and error, μ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_mu.png){ loading=lazy }
+      <figcaption>Inverse, Default settings: PINN, reference and error, μ.</figcaption>
+    </figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#2d-cahn-hilliard-wight--zhao).
 
 ## Loading it in PINNStudio
 
@@ -162,6 +196,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Wight & Zhao 2021](../../about/references.md#wight2021)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)
