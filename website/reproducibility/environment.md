@@ -44,14 +44,16 @@ PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15; script `benchmarks/perf_study.py`) and
   took the same time within 5 %, in no consistent direction, as two runs of the same script do. Starting Python
   and importing PyTorch and DeepXDE adds a few seconds to every run (about 4 s on that PC), either way.
 - **GPU or CPU.** On that PC the GPU was 3 times faster than the CPU for a 1D problem with a few thousand points,
-  4 to 10 times in 2D and about 18 times in 3D. A very small problem (an ODE with a few hundred points) was faster
+  4 to 10 times in 2D and about 19 times in 3D (these five workloads on this hardware; other problems and
+  computers can differ). A very small problem (an ODE with a few hundred points) was faster
   on the CPU, because starting work on the GPU costs more than it saves: **Settings › GPU / Hardware...** ›
   **Train on:** **CPU**.
 - **CPU threads.** On a processor with performance and efficiency cores, about one thread per performance core is
   fastest; past that the slow cores hold every step back, and using every hardware thread was many times slower.
   **CPU threads:** **Automatic** uses half the logical processors, at most 8. A number set there is used as it
-  is; with **Automatic**, the environment variable `OMP_NUM_THREADS`, when set, decides instead. The error is the
-  same with any thread count.
+  is; with **Automatic**, the environment variable `OMP_NUM_THREADS`, when set, decides instead. The result can differ
+  slightly between thread counts, because the order in which parallel sums are added changes; a run is exactly
+  repeatable only with the same thread count and device.
 - **Mac.** PINNStudio trains on the CPU on a Mac. On an M1 MacBook Air, Apple's GPU (MPS) was half the speed of
   the CPU on a small 1D problem (and L-BFGS several times slower), about the same on 2D problems with 20,000 and
   30,000 points, and gave the same accuracy; it also has no float64. A Mac with more GPU cores may do better on

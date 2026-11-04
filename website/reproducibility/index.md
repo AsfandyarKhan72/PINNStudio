@@ -19,5 +19,5 @@ source of the results.
 
 | | What it is | Used for |
 |---|---|---|
-| **PINNStudio 1.6.0** | The software these pages describe ([Installation](../getting-started/installation.md)) | Using PINNStudio; the published software version of the paper's results |
+| **PINNStudio 1.6.0** | The software these pages describe ([Installation](../getting-started/installation.md)) | Using PINNStudio; the software version the paper's results are reported for |
 | **Repository commit** | The source a benchmark run used; every record names the commit or branch it ran on | Repeating a recorded run exactly |

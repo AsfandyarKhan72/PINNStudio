@@ -144,8 +144,9 @@ Plus the per-entry checks (at least one value, Min < Max, at least 2 steps, posi
 
 ## Example
 
-**Helmholtz 2D – hyperparameter search** in **Examples** (a Bayesian search over the learning rate, the
-network size and the activation, as in DeepXDE's HPO example). See
+**Helmholtz 2D – hyperparameter search** in **Examples** (a 50-run Bayesian search over the learning rate, the
+network size and the activation, after DeepXDE's HPO example; the configuration with the lowest final training loss
+is selected, without the reference solution). See
 [Tutorial 13: Comparing configurations](../tutorials/13-compare.md),
 [Tutorial 14: Bayesian hyperparameter search](../tutorials/14-bayesian.md) and the
 [Parameter sweeps guide page](../guide/sweeps.md).

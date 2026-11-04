@@ -26,11 +26,11 @@ generator (`generate_clean_script`), so an identical result compares two indepen
 problem uses time windows with backward compatibility (bc-PINN), a growing time range, IC-guided learning or
 resampling rounds, the export *is* Solve's script (`generate_clean_script` returns `generate_script`, with a header
 saying so): these configurations are identical by construction, and the check shows only that the exported file
-runs on its own and reproduces Solve's training. The records of the check say which configurations are of this
-kind.
+runs on its own and reproduces Solve's training. The record of the check names the one configuration of this kind
+(found by that header; the exported scripts themselves are not kept in the repository).
 
 **Latest result** (v1.6.0 code, commit 2ea54c3; Python 3.11.5, PyTorch 2.5.1 on the CPU, DeepXDE 1.15.0): of 93
-example-mode configurations, 4 were skipped and **all 89 others were bitwise identical**. 88 of them compare two
+example-mode configurations, 4 were excluded and **all 89 others were bitwise identical**. 88 of them compare two
 independently generated scripts; 1 (1D Cahn-Hilliard of Mattey & Ghosh with the bc-PINN windows) is identical by
 construction. No configuration differed or failed. A separate check of that example's current Tuned setting (38 time
 windows with SA-PINN weights), which the exporter writes with its own generator, was also bitwise identical.

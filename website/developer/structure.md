@@ -15,8 +15,8 @@ PINNStudio/
 ├── tools/                   developer scripts: reference-data generators, checks, figures, docs tools
 ├── benchmarks/              recorded benchmark runs, studies and the pages generated from them
 ├── website/                 this documentation site (MkDocs + Material); mkdocs.yml at the root
-├── docs/                    the old single-page website (index.html), kept until this site is published
 ├── assets/                  images used by the README and the benchmark pages
+├── notes/                   development records (PySide6 migration, licensing decision); not shipped
 ├── .github/workflows/       CI: tests, platform matrix, smoke test, documentation
 ├── setup.py, pyproject.toml, MANIFEST.in, requirements.txt     packaging
 ├── install.sh, install.bat, get-pinnstudio.sh, get-pinnstudio.ps1, select_torch_index.py   installers

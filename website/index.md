@@ -106,8 +106,8 @@ be exported and run on its own.
 
 ## A first look
 
-Six representative PINNStudio results, each from one run of a built-in example, drawn by PINNStudio itself. Click a
-title for the example's equations, settings and benchmark results.
+Six results drawn by PINNStudio itself, each from one illustrative run of a built-in example. They are not the
+benchmark runs: click a title for the example's equations, settings and benchmark results.
 
 <div class="first-look" markdown>
 
@@ -143,7 +143,7 @@ title for the example's equations, settings and benchmark results.
 ![Animation: the order parameter h(x, y, t) of the 2D Allen-Cahn equation evolving from sin(4πx)cos(4πy)](assets/images/home/first-look/allen-cahn-2d-mattey-ghosh.gif){ loading=lazy }
 <p class="fl-tags"><span>2D PDE</span><span>phase field</span></p>
 <p class="fl-title" markdown>[Allen–Cahn equation](examples/2d/allen-cahn-2d-mattey-ghosh.md)</p>
-<p class="fl-text">The order parameter evolving from sin(4πx)cos(4πy), after Mattey & Ghosh (2022).</p>
+<p class="fl-text">The order parameter evolving from sin(4πx)cos(4πy), the problem of Mattey & Ghosh (2022), with the Tuned settings.</p>
 </div>
 
 <div class="fl-card" markdown>

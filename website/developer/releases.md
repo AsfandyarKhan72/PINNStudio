@@ -74,7 +74,7 @@ Before the version commit:
 - [ ] **README and citation.** The README's version-specific lines and `CITATION.cff` name the same version (the
   README is also the PyPI description).
 - [ ] **Strict build and link check pass** on the pull request (the `docs.yml` workflow).
-- [ ] **Deploy** after the release is tagged (`tools/docs/DEPLOY.md`, step 5) and check the live site.
+- [ ] **Deploy** after the release is tagged (`tools/docs/DEPLOY.md`, *Deploying*) and check the live site.
 
 ## After a release
 

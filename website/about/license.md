@@ -4,10 +4,8 @@ PINNStudio is released under the **MIT License**. Copyright (c) 2026 Asfandyar K
 [`LICENSE`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE) file is the authoritative statement;
 this page only summarizes it.
 
-| Version | License |
-|---|---|
-| Releases up to and including **v1.5.0** (PyPI and tag `v1.5.0`) | MIT License, as stated in those releases' own `LICENSE` file |
-| **v1.6.0**, the version these pages describe (the source in the repository) | MIT License |
+Every release of PINNStudio, including v1.6.0, the version these pages describe, is published under the MIT
+License.
 
 ## Generated scripts
 

@@ -198,8 +198,8 @@ Upgrade `pip` first (`"<path to python>" -m pip install --upgrade pip`): an old 
 newer, `cu126` for CUDA 12.0 to 12.7, and `cu118` for CUDA 11.8 to 11.x; with an older driver it tells you to
 update the driver. For an installer copy, the message tells you to run the installer again instead.
 
-A GPU is optional. It pays off for larger 2D and 3D problems and inverse runs; small problems (a few hundred to a few
-thousand points) often train as fast or faster on the CPU. See
+A GPU is optional. It pays off for larger 2D and 3D problems; very small problems (for example an ODE with a few
+hundred points) often train as fast or faster on the CPU. See
 [Seeds, precision and hardware](../reproducibility/environment.md) and the
 [Settings menu](../guide/settings.md) (**Settings › GPU / Hardware...**).
 

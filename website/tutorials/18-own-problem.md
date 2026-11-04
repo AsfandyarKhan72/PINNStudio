@@ -1,6 +1,6 @@
 # 18. Your own PDE (Fisher-KPP)
 
-The examples cover 64 specific problems, but every setting in them can be changed, and a problem of your own is
+The examples cover 64 specific examples, but every setting in them can be changed, and a problem of your own is
 set up the same way. This tutorial goes through a PDE that is not one of the examples, from a blank problem to
 an error against a reference solution, to show the general path from "I have an equation" to "I have a trained
 PINN".

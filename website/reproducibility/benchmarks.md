@@ -25,7 +25,7 @@ error of each learned parameter. Papers that report one error over all times are
 ## Seeds and selection
 
 Runs use seed 2026 unless a study states more; repeated runs use seeds 1, 2 and 2026, and their median is reported.
-Two selection rules are used, for two different purposes:
+Three selection rules are used, for different purposes:
 
 - **The Tuned presets** (what **Settings › Tuned** loads, and the filled markers of the benchmark summary) use, for
   each example, the run with the lowest error at the last reference time (for Cahn–Hilliard problems the worse of
@@ -37,8 +37,12 @@ Two selection rules are used, for two different purposes:
 - **The tuning-study page's "Chosen" column**
   ([`tuning_study.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning_study.md)) is the
   variant with the lowest final *training loss*, a choice that does not use the reference solution. It is not
-  always the Tuned preset, and its problem files are labelled accordingly. Both the starting and the selected configuration
-of each example are recorded, so the effect of the selection can be separated from that of the problem.
+  always the Tuned preset, and its problem files are labelled accordingly.
+- **Helmholtz 2D – hyperparameter search** is its own search: PINNStudio's Bayesian search runs 50 configurations
+  and selects the one with the lowest final training loss, without the reference solution; its error is measured
+  only afterwards ([the search record](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/benchmarks/records/helmholtz_hpo_2026-10-25)).
+
+Both the starting and the selected configuration of each example are recorded, so the effect of the selection can be separated from that of the problem.
 
 ## Known limitations of the comparisons
 

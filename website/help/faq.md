@@ -26,8 +26,7 @@ category, which also offers inverse versions of many forward examples. See the [
 
 **What is the difference between Default and Tuned settings?**
 *Default* loads an example as its source solves it: a DeepXDE example with DeepXDE's settings, an example from a
-paper with the paper's method (forward mode; in inverse mode, the template's own settings). *Tuned* loads the settings that gave the lowest error in PINNStudio's benchmarks (and of
-those about as accurate, the fastest). See
+paper with the paper's method (forward mode; in inverse mode, the template's own settings). *Tuned* loads the run selected in the benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error; the Default settings are kept when they are within that margin and within 10% of the fastest time. See
 [First run](../getting-started/first-run.md#load-an-example).
 
 **Can I solve my own equation, not only the examples?**
@@ -97,7 +96,7 @@ analysis for the next run.
 By default every run uses the random seed 2026 (**Settings › Random Seed...**, **Fix random seed for reproducible
 runs**), which fixes the network's initial weights and the sampled points. Results on the same computer and device
 are then repeatable up to the nondeterminism of floating-point computation (mostly on GPUs); results on another
-device or with other library versions can differ slightly. See
+device, with another CPU thread count or with other library versions can differ slightly. See
 [Seeds, precision and hardware](../reproducibility/environment.md).
 
 **Why is float32 the default precision?**
