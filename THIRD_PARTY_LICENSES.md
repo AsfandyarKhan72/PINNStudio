@@ -1,8 +1,9 @@
 # Third-party software and licenses
 
 PINNStudio's own code is licensed under the MIT License; see [`LICENSE`](LICENSE) and the
-[License section of the README](README.md#license). PINNStudio uses other free
-software, which keeps its own license. This file lists it in two groups:
+[License section of the README](README.md#license). The one exception is
+[`pinnstudio/core/msffn_lgpl.py`](pinnstudio/core/msffn_lgpl.py), which is under the LGPL-2.1 (group 1 below).
+PINNStudio uses other free software, which keeps its own license. This file lists it in two groups:
 
 1. **Included in this repository** (and in the PINNStudio package on PyPI): material from other projects that is
    part of PINNStudio's own files. Its notices are reproduced here and in [`LICENSES/`](LICENSES).
@@ -18,15 +19,21 @@ DeepXDE, PyTorch, The Qt Company (Qt, Qt for Python) or the other projects liste
 | Component | Where | Source | License |
 |---|---|---|---|
 | Icon path data for some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`); the other icons were drawn for PINNStudio in the same style | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev) ([repository](https://github.com/lucide-icons/lucide)), derived for these icons from [Feather](https://feathericons.com) ([repository](https://github.com/feathericons/feather)) | ISC (Lucide) and MIT (Feather); full texts in [`LICENSES/Lucide-ISC.txt`](LICENSES/Lucide-ISC.txt) and [`LICENSES/Feather-MIT.txt`](LICENSES/Feather-MIT.txt), reproduced below. Their notices must stay with the copies. |
+| The multi-scale Fourier feature network class (MsFFN, STMsFFN) that PINNStudio writes into generated scripts using these networks | [`pinnstudio/core/msffn_lgpl.py`](pinnstudio/core/msffn_lgpl.py) (`MSFFN_CODE`), and the generated scripts that contain it | Method: Wang, Wang & Perdikaris (2021), *Comput. Methods Appl. Mech. Eng.* 384, 113938. Implementation: follows the interface and structure of DeepXDE's `MsFFN`/`STMsFFN` ([`deepxde/nn/pytorch/msffn.py`](https://github.com/lululxvi/deepxde/blob/master/deepxde/nn/pytorch/msffn.py), the DeepXDE developers) and may be derived from it (see below) | **LGPL-2.1**, not MIT; full text in [`LICENSES/LGPL-2.1.txt`](LICENSES/LGPL-2.1.txt). The file and every generated script that contains the class carry its notice, which must stay with the class. |
 
 Not included from other projects:
 
-- **No DeepXDE source code is copied into PINNStudio.** PINNStudio imports DeepXDE as an installed library. The
+- **DeepXDE's source files are not included in PINNStudio**; PINNStudio imports DeepXDE as a separately installed
+  library. The
   *DeepXDE examples* in PINNStudio (`pinnstudio/core/deepxde_examples.py`) are written as PINNStudio settings that
   reproduce the problems of DeepXDE's documented examples (equations, domains, conditions, network sizes, training
   schedules); each one links to DeepXDE's original script, and any difference is stated in the example. The
-  multi-scale Fourier feature networks in `pinnstudio/core/codegen.py` follow the method of Wang, Wang & Perdikaris
-  (2021) and DeepXDE's `MsFFN` interface, and were written for PINNStudio.
+  multi-scale Fourier feature network class is the exception listed in group 1: it was generated with an AI
+  assistant during PINNStudio's development to match DeepXDE's `MsFFN`/`STMsFFN`, and it is not known whether
+  DeepXDE's source was consulted. It is therefore treated as possibly derived from DeepXDE's
+  `deepxde/nn/pytorch/msffn.py` and distributed under DeepXDE's license, the LGPL-2.1. This is a precaution; it does
+  not state that DeepXDE code was copied. It differs from DeepXDE's code in how the fixed Fourier matrices are
+  stored (buffers), in the size of the output layer (any number of scales) and in having no dropout.
 - **No dataset is copied from DeepXDE's repository or from published papers.** The reference and measured data
   under `reference_data/` were computed for PINNStudio by the scripts in `tools/`: `make_exact_reference_data.py`,
   `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`, `make_poisson_reference_data.py`
@@ -81,11 +88,19 @@ The one-command installers (`get-pinnstudio.sh`, `get-pinnstudio.ps1`) download 
   no GPL-only Qt module (for example Qt Charts or Qt Data Visualization) is used.
 - **DeepXDE (LGPL-2.1)** is used the same way: unchanged, as a separately installed package, and attributed
   (README, *Acknowledgment* and *References*).
+- **The multi-scale Fourier feature network class (LGPL-2.1)** is kept in its own file,
+  `pinnstudio/core/msffn_lgpl.py`, under the LGPL-2.1, with a notice that names the method, DeepXDE's implementation
+  and PINNStudio's changes. It is kept separate so that the rest of PINNStudio's code can stay under the MIT
+  License: `codegen.py` only reads the class's source text and writes it, unchanged and with its notice, into the
+  scripts that use MsFFN or STMsFFN.
 - **The BSD, MIT, Apache-2.0 and PSF-style licenses** of the other packages ask for their notices to be kept with
   copies of those packages, which their own packages do.
 - **The scripts PINNStudio writes** import DeepXDE, PyTorch, NumPy and Matplotlib, not PySide6. They contain code
   from PINNStudio's own templates, which PINNStudio's copyright holder allows to be used under any terms (README,
-  *License*); the libraries they import keep their own licenses.
+  *License*); the libraries they import keep their own licenses. A script that uses an MsFFN or STMsFFN network
+  also contains the multi-scale Fourier feature network class, marked by an LGPL-2.1 notice at its start and an end
+  line. That class stays under the LGPL-2.1: keep its notice, and give the LGPL-2.1 with the script when you share
+  it. Scripts with other networks contain no LGPL code.
 
 ### If PINNStudio is ever distributed as a bundled application
 
@@ -109,6 +124,11 @@ A notice template for such a bundle is in `notes/licensing-proposal/drafts/LGPL-
 ---
 
 ## License texts of the material in group 1
+
+### Multi-scale Fourier feature networks (LGPL-2.1)
+
+The GNU Lesser General Public License version 2.1 is in [`LICENSES/LGPL-2.1.txt`](LICENSES/LGPL-2.1.txt). It
+applies to `pinnstudio/core/msffn_lgpl.py` and to the class it writes into generated scripts.
 
 ### Lucide (ISC)
 

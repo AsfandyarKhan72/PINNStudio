@@ -48,26 +48,30 @@ libraries, under the LGPL-3.0; the license texts (LGPL-3.0 and the GPL-3.0 it re
 `LICENSES/` folder, and THIRD_PARTY_LICENSES.md lists what a bundled distribution of PINNStudio would have to add.
 
 The scripts PINNStudio writes import DeepXDE, PyTorch, NumPy, SciPy and Matplotlib, not PySide6; these libraries keep
-their own licenses when you use or share a script.
+their own licenses when you use or share a script. Scripts that use an MsFFN or STMsFFN network also contain the
+LGPL-2.1 class listed below.
 
 ## Third-party material included in PINNStudio
 
 | Component | Where | Source | License |
 |---|---|---|---|
 | Path data of some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`) | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev), derived for these icons from [Feather](https://feathericons.com) | ISC (Lucide) and MIT (Feather) |
+| The multi-scale Fourier feature network class (MsFFN, STMsFFN) written into the generated scripts that use these networks | `pinnstudio/core/msffn_lgpl.py` | Method: [Wang, Wang & Perdikaris (2021)](references.md#wang2021fourier); implementation: follows DeepXDE's `MsFFN`/`STMsFFN` (`deepxde/nn/pytorch/msffn.py`) and may be derived from it | LGPL-2.1 (`LICENSES/LGPL-2.1.txt`); the notice stays with the class in every script |
 
 The other icons were drawn for PINNStudio in the same style. The full license texts are in the repository's
 [`LICENSES/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/LICENSES) folder
-(`Lucide-ISC.txt`, `Feather-MIT.txt`) and in THIRD_PARTY_LICENSES.md; their notices must stay with the copies.
+(`Lucide-ISC.txt`, `Feather-MIT.txt`, `LGPL-2.1.txt`) and in THIRD_PARTY_LICENSES.md; their notices must stay with the
+copies.
 
 Not included from other projects:
 
-- **DeepXDE source code.** PINNStudio imports DeepXDE as an installed library. Its *DeepXDE examples*
+- **DeepXDE's source files.** PINNStudio imports DeepXDE as a separately installed library. Its *DeepXDE examples*
   (`pinnstudio/core/deepxde_examples.py`) are PINNStudio settings that reproduce the problems of DeepXDE's documented
   examples; each links to DeepXDE's original script, and any difference is stated in the example. The multi-scale
-  Fourier feature networks follow the method of
-  [Wang, Wang & Perdikaris (2021)](references.md#wang2021fourier) and DeepXDE's `MsFFN` interface, and were written for
-  PINNStudio.
+  Fourier feature network class is the exception in the table above. It was generated with an AI assistant during
+  PINNStudio's development to match DeepXDE's `MsFFN`/`STMsFFN`, and it is not known whether DeepXDE's source was
+  consulted, so it is treated as possibly derived from DeepXDE and distributed under the LGPL-2.1. This is a
+  precaution; it does not state that DeepXDE code was copied.
 - **Datasets.** The reference and measured data in `reference_data/` were computed for PINNStudio; none was copied
   from DeepXDE or from the published papers whose problems the examples follow. See
   [Reference data](../reproducibility/reference-data.md).

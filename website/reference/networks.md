@@ -72,8 +72,9 @@ trainable weights), the \( K \) results are concatenated and a linear layer give
 the outputs. **STMsFFN** builds space features from all inputs but the last and time features from the last
 input (\( t \)) with the time scales, passes each through the shared hidden layers, multiplies every
 (space, time) pair point-wise, and concatenates the products. The matrices \( B_k \) are stored with the
-model, so a restored model has the same features. These networks are PINNStudio's own implementation in
-the generated script, written to match DeepXDE's `MsFFN`/`STMsFFN`.
+model, so a restored model has the same features. The class is written into the generated script. It follows
+DeepXDE's `MsFFN`/`STMsFFN` and may be derived from it, so it is under the LGPL-2.1, with a notice in the script
+(see [Dependencies and attribution](../about/dependencies.md)).
 
 **Input transform.** Scale/shift: \( \tilde{\mathbf{x}} = \mathbf{a}\odot\mathbf{x} + \mathbf{b} \).
 Formula: the network's input is the list of feature expressions (DeepXDE's `apply_feature_transform`);

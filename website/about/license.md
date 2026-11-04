@@ -5,14 +5,19 @@ PINNStudio is released under the **MIT License**. Copyright (c) 2026 Asfandyar K
 this page only summarizes it.
 
 Every release of PINNStudio, including v1.6.0, the version these pages describe, is published under the MIT
-License.
+License. One file is the exception: `pinnstudio/core/msffn_lgpl.py`, the multi-scale Fourier feature network class,
+is under the LGPL-2.1 because it may be derived from DeepXDE's implementation (see
+[Dependencies and attribution](dependencies.md)).
 
 ## Generated scripts
 
 PINNStudio writes a Python script for each problem: the script *Export script* saves, and the script *Solve* runs.
 You may use, change and share a generated script, including the parts of PINNStudio's code templates it contains,
 under terms of your choice. The libraries it imports (such as DeepXDE, PyTorch, NumPy and Matplotlib) keep their own
-licenses.
+licenses. A script that uses an MsFFN or STMsFFN network also contains the multi-scale Fourier feature network class,
+marked by its LGPL-2.1 notice; that class stays under the LGPL-2.1, so keep its notice and give the
+[LGPL-2.1](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSES/LGPL-2.1.txt) with the script when you
+share it.
 
 ## Your input and your results
 

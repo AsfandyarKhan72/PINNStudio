@@ -1158,62 +1158,9 @@ def _parse_sigmas(text):
     return out
 
 
-# Multi-scale Fourier feature networks (Wang, Wang & Perdikaris, CMAME 2021),
-# as in DeepXDE's dde.nn.MsFFN / STMsFFN, written here so they work with the
-# released DeepXDE (whose PyTorch backend doesn't have them yet) and keep one
-# checkpoint format for Restore. The random Fourier matrices are buffers, so
-# a saved model restores with exactly the features it was trained with.
-_MSFFN_CODE = """
-class _MsFFN(dde.nn.NN):
-    # Input -> [cos(x B_k), sin(x B_k)] for each scale sigma_k (B_k ~ N(0, sigma_k^2),
-    # fixed) -> the same hidden layers for every scale -> concatenated -> linear output.
-    # Space-time version (sigmas_t given): x and t get their own features,
-    # and every (space, time) pair of branches is multiplied point-wise.
-    def __init__(self, layer_sizes, activation, kernel_initializer, sigmas, sigmas_t=None):
-        super().__init__()
-        self.activation = dde.nn.activations.get(activation)
-        _init = dde.nn.initializers.get(kernel_initializer)
-        _zero = dde.nn.initializers.get("zeros")
-        self.space_time = bool(sigmas_t)
-        _n_ff = layer_sizes[1] // 2
-        _n_x = layer_sizes[0] - (1 if self.space_time else 0)
-        self.n_x_scales = len(sigmas)
-        for _k, _s in enumerate(sigmas):
-            self.register_buffer(f"B_x{_k}", torch.randn(_n_x, _n_ff) * float(_s))
-        self.n_t_scales = len(sigmas_t or [])
-        for _k, _s in enumerate(sigmas_t or []):
-            self.register_buffer(f"B_t{_k}", torch.randn(1, _n_ff) * float(_s))
-        self.linears = torch.nn.ModuleList()
-        for _i in range(2, len(layer_sizes) - 1):
-            _lin = torch.nn.Linear(layer_sizes[_i - 1], layer_sizes[_i])
-            _init(_lin.weight); _zero(_lin.bias)
-            self.linears.append(_lin)
-        _n_branches = self.n_x_scales * (self.n_t_scales if self.space_time else 1)
-        self.dense = torch.nn.Linear(layer_sizes[-2] * _n_branches, layer_sizes[-1])
-        _init(self.dense.weight); _zero(self.dense.bias)
-
-    def _branch(self, _x, _B):
-        _p = _x @ _B
-        _y = torch.cat([torch.cos(_p), torch.sin(_p)], dim=1)
-        for _lin in self.linears:
-            _y = self.activation(_lin(_y))
-        return _y
-
-    def forward(self, inputs):
-        x = inputs
-        if self._input_transform is not None:
-            x = self._input_transform(x)
-        if self.space_time:
-            _yx = [self._branch(x[:, :-1], getattr(self, f"B_x{_k}")) for _k in range(self.n_x_scales)]
-            _yt = [self._branch(x[:, -1:], getattr(self, f"B_t{_k}")) for _k in range(self.n_t_scales)]
-            _ys = [_a * _b for _a in _yx for _b in _yt]
-        else:
-            _ys = [self._branch(x, getattr(self, f"B_x{_k}")) for _k in range(self.n_x_scales)]
-        y = self.dense(torch.cat(_ys, dim=1))
-        if self._output_transform is not None:
-            y = self._output_transform(inputs, y)
-        return y
-"""
+# Multi-scale Fourier feature networks (MsFFN, STMsFFN): the class written into generated scripts is in
+# msffn_lgpl.py, under the LGPL-2.1 (not MIT), with its provenance and notice; see THIRD_PARTY_LICENSES.md.
+from pinnstudio.core.msffn_lgpl import MSFFN_CODE as _MSFFN_CODE  # noqa: E402
 
 
 def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"):
