@@ -62,12 +62,14 @@ The other icons were drawn for PINNStudio in the same style. The full license te
 
 Not included from other projects:
 
-- **DeepXDE source code.** PINNStudio imports DeepXDE as an installed library. Its *DeepXDE examples*
+- **DeepXDE source code.** PINNStudio imports DeepXDE as a separately installed dependency and does not bundle
+  DeepXDE's original source files. Its *DeepXDE examples*
   (`pinnstudio/core/deepxde_examples.py`) are PINNStudio settings that reproduce the problems of DeepXDE's documented
   examples; each links to DeepXDE's original script, and any difference is stated in the example. The multi-scale
-  Fourier feature networks follow the method of
-  [Wang, Wang & Perdikaris (2021)](references.md#wang2021fourier) and DeepXDE's `MsFFN` interface, and were written for
-  PINNStudio.
+  Fourier feature networks implement the method of
+  [Wang, Wang & Perdikaris (2021)](references.md#wang2021fourier) and follow the interface and architecture of
+  DeepXDE's `MsFFN`/`STMsFFN`. They were developed with AI assistance, and whether DeepXDE's source code was consulted
+  could not be established; this provenance question is pending a licensing review.
 - **Datasets.** The reference and measured data in `reference_data/` were computed for PINNStudio; none was copied
   from DeepXDE or from the published papers whose problems the examples follow. See
   [Reference data](../reproducibility/reference-data.md).

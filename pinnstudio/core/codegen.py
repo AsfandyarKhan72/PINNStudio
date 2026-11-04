@@ -1158,11 +1158,15 @@ def _parse_sigmas(text):
     return out
 
 
-# Multi-scale Fourier feature networks (Wang, Wang & Perdikaris, CMAME 2021),
-# as in DeepXDE's dde.nn.MsFFN / STMsFFN, written here so they work with the
-# released DeepXDE (whose PyTorch backend doesn't have them yet) and keep one
-# checkpoint format for Restore. The random Fourier matrices are buffers, so
-# a saved model restores with exactly the features it was trained with.
+# Multi-scale Fourier feature networks based on the method of
+# Wang, Wang & Perdikaris (2021), CMAME 384, 113938.
+#
+# This implementation follows DeepXDE's MsFFN/STMsFFN
+# interface and architecture, with differences supporting
+# PINNStudio's code generation and checkpoint restoration.
+#
+# Developed with AI assistance. Whether DeepXDE source code
+# was consulted during its development could not be established.
 _MSFFN_CODE = """
 class _MsFFN(dde.nn.NN):
     # Input -> [cos(x B_k), sin(x B_k)] for each scale sigma_k (B_k ~ N(0, sigma_k^2),

@@ -21,12 +21,16 @@ DeepXDE, PyTorch, The Qt Company (Qt, Qt for Python) or the other projects liste
 
 Not included from other projects:
 
-- **No DeepXDE source code is copied into PINNStudio.** PINNStudio imports DeepXDE as an installed library. The
+- **PINNStudio imports DeepXDE as a separately installed dependency and does not bundle DeepXDE's original source
+  files.** The
   *DeepXDE examples* in PINNStudio (`pinnstudio/core/deepxde_examples.py`) are written as PINNStudio settings that
   reproduce the problems of DeepXDE's documented examples (equations, domains, conditions, network sizes, training
   schedules); each one links to DeepXDE's original script, and any difference is stated in the example. The
-  multi-scale Fourier feature networks in `pinnstudio/core/codegen.py` follow the method of Wang, Wang & Perdikaris
-  (2021) and DeepXDE's `MsFFN` interface, and were written for PINNStudio.
+  multi-scale Fourier feature networks in `pinnstudio/core/codegen.py` (`_MSFFN_CODE`) implement the method of
+  Wang, Wang & Perdikaris (2021) and follow the interface and architecture of DeepXDE's `MsFFN`/`STMsFFN`
+  (`deepxde/nn/pytorch/msffn.py`). They were developed with AI assistance, and whether DeepXDE's source code was
+  consulted during their development could not be established; they have been shown neither to be independent of
+  DeepXDE's implementation nor to be derived from it. This provenance question is pending a licensing review.
 - **No dataset is copied from DeepXDE's repository or from published papers.** The reference and measured data
   under `reference_data/` were computed for PINNStudio by the scripts in `tools/`: `make_exact_reference_data.py`,
   `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`, `make_poisson_reference_data.py`
