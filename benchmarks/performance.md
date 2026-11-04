@@ -1,8 +1,10 @@
 # Performance and checks
 
-*How fast PINNStudio trains, whether training from the GUI takes longer, how to choose CPU threads, and the check that an exported script trains the same model. The paper's versions of these tables (Table 2, Supplementary Tables S3 and S4) are on [paper.md](paper.md).*
+*How fast PINNStudio trains, whether training from the GUI takes longer, how to choose CPU threads, and the check that an exported script trains the same model.*
 
-**The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090, Ubuntu, Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15. Every run records the PINNStudio commit and these versions. Script: [`perf_study.py`](perf_study.py).
+**The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090 (driver 550.144.03), Ubuntu, Python 3.11.5, PyTorch 2.6.0 with CUDA 12.4, DeepXDE 1.15.0, PySide6 6.11.3. Script: [`perf_study.py`](perf_study.py).
+
+**The measurements below are those of PINNStudio v1.6.0** (PySide6), made on 2026-11-03 with the settings and protocol of the first study: records, configurations, raw measurements, environment and rebuild commands in [`performance_v160/`](performance_v160/README.md) (Table 2) and [`performance_v160/section_5_2/`](performance_v160/section_5_2/README.md) (the CPU/GPU and thread tables), each with a comparison with the first study. The first study (2026-10-26, the PyQt6 code before v1.6.0) is kept unchanged in [`performance/`](performance/tables.md) as the historical record; its findings are the same.
 
 ## Does the PINNStudio GUI slow training down?
 
@@ -16,31 +18,31 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 | Problem (settings) | Exported script (s) | Solve script (s) | PINNStudio GUI (s) | GUI vs. Solve (%) |
 |---|---|---|---|---|
-| Lorenz ODE, inverse (Default = best) | 71.5 | 76.7 | 72.8 | −5.0 |
-| Wave 1D, multi-scale Fourier features (Default) | 75.5 | 74.7 | 75.0 | +0.5 |
-| Allen-Cahn 2D, Mattey & Ghosh (Tuned) | 266.3 | 265.7 | 259.4 | −2.4 |
-| Navier-Stokes 2D, Kovasznay flow (Default = best) | 204.0 | 207.4 | 204.4 | −1.5 |
-| Allen-Cahn 3D, Wight & Zhao (Default) | 1563.2 | 1615.3 | 1553.7 | −3.8 |
+| Lorenz ODE, inverse (Default = best) | 71.2 | 73.1 | 73.7 | +0.7 |
+| Wave 1D, multi-scale Fourier features (Default) | 71.3 | 70.7 | 70.9 | +0.2 |
+| Allen-Cahn 2D, Mattey & Ghosh (fixed best setup: exact IC and periodicity, SA-PINN, 20,000 Adam + 10,000 L-BFGS) | 253.8 | 255.4 | 255.5 | 0.0 |
+| Navier-Stokes 2D, Kovasznay flow (Default = best) | 190.7 | 194.9 | 190.3 | −2.4 |
+| Allen-Cahn 3D, Wight & Zhao (Default) | 1582.1 | 1605.2 | 1612.9 | +0.5 |
 
-*Training duration (s) reported by DeepXDE, summed over the optimization phases, median of 3 seeds. It is not the total wall-clock time: building the data and network before training and the plots and error analysis after it are not included. GUI vs. Solve = 100 × (GUI − Solve script) / Solve script; the negative values are within the run-to-run variation (ranges in [`performance/tables.md`](performance/tables.md)), not a speed-up caused by the GUI. The same settings and number of optimizer steps in all three modes. "Default" for Wave 1D and Allen-Cahn 3D: these two ran with their Default settings because of a bug in loading Settings: Tuned after an example without Tuned settings (fixed); the comparison of the three modes is the same either way.*
+*Training duration (s) reported by DeepXDE, summed over the optimization phases, median of seeds 1, 2 and 3. It is not the total wall-clock time: building the data and network before training and the plots and error analysis after it are not included. GUI vs. Solve = 100 × (GUI − Solve script) / Solve script; the negative value is within the run-to-run variation (ranges in [`performance_v160/tables.md`](performance_v160/tables.md)), not a speed-up caused by the GUI. The same settings in all three modes; for every problem and seed the three modes took the same number of optimizer steps and ended at the same errors and parameters. "Default" for Wave 1D and Allen-Cahn 3D: these two ran with their Default settings because of a bug in loading Settings: Tuned after an example without Tuned settings (fixed); the comparison of the three modes is the same either way.*
 
-**What this means for you.** Use the GUI: watching training live did not make it slower. The GUI runs were within 5% of the same Solve script run on its own, and differences this small also appear between two runs of the same script, so there was no systematic increase in training time from the GUI in these tests.
+**What this means for you.** Use the GUI: watching training live did not make it slower. The GUI runs were within −2.4% to +0.7% of the same Solve script run on its own, and differences this small also appear between two runs of the same script, so there was no systematic increase in the training time DeepXDE reports from the GUI in these tests.
 
 ## How much faster is the GPU?
 
-*Paper: Supplementary Table S3.* The same five problems, Adam only: 200 warm-up steps, then a fixed number of timed Adam steps, on the CPU (8 threads) and on the GPU, with the same network, points and float precision. Reported: seconds per 1,000 Adam steps and the GPU speed-up, median of 3 repeats.
+*Paper: Supplementary Table S3.* The same five problems, Adam only: 200 warm-up steps, then a fixed number of timed Adam steps (2,000; 500 for Allen-Cahn 2D, 300 for Allen-Cahn 3D), on the CPU (8 threads) and on the GPU, with the same network, points and float precision. Reported: seconds per 1,000 Adam steps and the GPU speed-up, median of 3 repeats.
 
 | Problem | CPU, 8 threads (s per 1,000 Adam steps) | GPU (s per 1,000 Adam steps) | GPU speed-up |
 |---|---|---|---|
-| Lorenz ODE, inverse | 1.79 | 2.96 | CPU 1.7× faster |
-| Wave 1D, multi-scale Fourier features | 2.43 | 0.81 | 3.0× |
-| Navier-Stokes 2D, Kovasznay flow | 22.5 | 5.46 | 4.1× |
-| Allen-Cahn 2D, Mattey & Ghosh | 73.4 | 7.14 | 10.3× |
-| Allen-Cahn 3D, Wight & Zhao | 526 | 28.5 | 18.5× |
+| Lorenz ODE, inverse | 1.85 | 2.67 | CPU 1.4× faster |
+| Wave 1D, multi-scale Fourier features | 2.43 | 0.82 | 3.0× |
+| Navier-Stokes 2D, Kovasznay flow | 23.8 | 5.49 | 4.3× |
+| Allen-Cahn 2D, Mattey & Ghosh | 76.2 | 7.69 | 9.9× |
+| Allen-Cahn 3D, Wight & Zhao | 546 | 28.6 | 19.1× |
 
 *Adam only, same network, points and float precision on both; a 200-step warm-up timed separately; median of 3 repeats.*
 
-**What this means for you.** A GPU pays off as soon as a problem has a few thousand points or more: about 3× for a 1D problem, 4–10× in 2D and close to 20× in 3D. For a very small problem (an ODE with a few hundred points) the CPU is faster, because starting work on the GPU costs more than it saves.
+**What this means for you.** On this machine, the GPU was faster for every tested problem except the smallest: about 3× for the 1D wave problem, 4–10× for the 2D problems and about 19× for the 3D problem. For the Lorenz ODE (a few hundred points and a small network) the CPU was faster, because starting work on the GPU costs more than it saves. These speed-ups belong to these five workloads, this CPU and this GPU: they are not a general threshold. Where a GPU starts to pay off depends on the network size, the number of points, the derivatives in the equations and the hardware, so for a new problem compare a short run on each device (*Settings → GPU / Hardware*).
 
 ## How many CPU threads?
 
@@ -48,13 +50,15 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 | Threads | 1 | 2 | 4 | 8 | 12 | 16 | 24 | 32 |
 |---|---|---|---|---|---|---|---|---|
-| Heat 1D (2k points) | 123 | 189 | 311 | **330** | 241 | 174 | 216 | 2.0 |
-| Poisson 2D (20k points) | 2.0 | 3.3 | 5.3 | **7.2** | 6.4 | 6.7 | 7.0 | 0.6 |
-| Heat 2D (30k points) | 3.1 | 4.9 | 7.5 | **10.0** | 8.8 | 9.2 | 9.7 | 0.5 |
+| Heat 1D (2k points) | 118 | 194 | 256 | **322** | 234 | 189 | 160 | 1.2 |
+| Poisson 2D (20k points) | 1.9 | 3.3 | 5.2 | **7.5** | 5.8 | 6.6 | 7.0 | 0.5 |
+| Heat 2D (30k points) | 3.2 | 5.1 | 7.8 | **10.5** | 9.0 | 9.7 | 9.9 | 0.5 |
 
 *Adam steps per second on the CPU only, median of 3 repeats (the second in reverse order of thread count), each thread count in a fresh process.*
 
-**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine. The error is the same with any thread count; only the speed changes.
+**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine.
+
+**The thread count can change the result slightly.** These workloads are short timing runs (seed 0, 2,000 Adam steps for Heat 1D and 300 for the others, not trained to convergence), and their records also hold the error reached (`adam_l2` in [`threads.jsonl`](performance_v160/section_5_2/threads.jsonl)). For one thread count, the error is identical in all three repeats and in the first study too. Between thread counts it differs: Poisson 2D 0.1140–0.1141, Heat 2D 0.2215–0.2243, and Heat 1D 0.0074–0.0117 except 0.0552 at 12 threads. The most likely cause, consistent with these records: on the CPU, the number of threads decides how sums inside the network's operations are split, so the rounding differs and the training follows a slightly different path. That effect is usually small but can be larger early in training, as in the Heat 1D run at 12 threads. It is the same kind of difference as between CPU and GPU, not an error, but it means a result is exactly repeatable only with the same thread count (and device).
 
 ## Apple GPU (MPS) on a Mac
 

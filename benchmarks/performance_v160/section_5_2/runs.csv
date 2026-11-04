@@ -1,0 +1,103 @@
+adam,adam_it_per_s,adam_l2,adam_steps,device,gpu_mem_mib,problem,rc,rep,s_per_1000,setup,threads,timed_s,torch_threads,total,warmup,warmup_s,workdir
+,,,2000,gpu,491.0,"Lorenz ODE, inverse",0,0,2.666,,,5.331805,,9.63,200,0.614944,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_gpu_0
+,,,2000,cpu,,"Lorenz ODE, inverse",0,0,1.851,,8,3.701485,,7.51,200,0.39264,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_cpu_0
+,,,2000,cpu,,"Lorenz ODE, inverse",0,1,1.856,,8,3.711683,,7.6,200,0.402979,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_cpu_1
+,,,2000,gpu,513.0,"Lorenz ODE, inverse",0,1,3.126,,,6.251839,,10.72,200,0.758194,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_gpu_1
+,,,2000,gpu,497.0,"Lorenz ODE, inverse",0,2,2.633,,,5.266049,,9.56,200,0.618556,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_gpu_2
+,,,2000,cpu,,"Lorenz ODE, inverse",0,2,1.822,,8,3.644873,,7.47,200,0.370954,/tmp/pinnstudio_tp_kkeylrxg/Lorenz_ODE_inverse_cpu_2
+,,,2000,gpu,1028.0,"Wave 1D, multi-scale Fourier features",0,0,0.792,,,1.583328,,21.52,200,0.064319,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_gpu_0
+,,,2000,cpu,,"Wave 1D, multi-scale Fourier features",0,0,2.469,,8,4.9377,,58.91,200,0.13735,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_cpu_0
+,,,2000,cpu,,"Wave 1D, multi-scale Fourier features",0,1,2.385,,8,4.770633,,56.3,200,0.110418,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_cpu_1
+,,,2000,gpu,1090.0,"Wave 1D, multi-scale Fourier features",0,1,0.819,,,1.6384,,21.88,200,0.060214,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_gpu_1
+,,,2000,gpu,1093.0,"Wave 1D, multi-scale Fourier features",0,2,0.816,,,1.63154,,22.06,200,0.062066,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_gpu_2
+,,,2000,cpu,,"Wave 1D, multi-scale Fourier features",0,2,2.433,,8,4.865438,,54.78,200,0.093734,/tmp/pinnstudio_tp_kkeylrxg/Wave_1D_multi_scale_Fourier_features_cpu_2
+,,,500,gpu,885.0,Allen-Cahn 2D (Mattey & Ghosh),0,0,6.82,,,3.409856,,13.77,200,1.57219,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__gpu_0
+,,,500,cpu,,Allen-Cahn 2D (Mattey & Ghosh),0,0,70.412,,8,35.205862,,57.93,200,13.875255,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__cpu_0
+,,,500,cpu,,Allen-Cahn 2D (Mattey & Ghosh),0,1,77.26,,8,38.630072,,64.83,200,17.227805,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__cpu_1
+,,,500,gpu,945.0,Allen-Cahn 2D (Mattey & Ghosh),0,1,7.926,,,3.963172,,14.86,200,1.689952,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__gpu_1
+,,,500,gpu,890.0,Allen-Cahn 2D (Mattey & Ghosh),0,2,7.69,,,3.844902,,14.65,200,1.619006,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__gpu_2
+,,,500,cpu,,Allen-Cahn 2D (Mattey & Ghosh),0,2,76.248,,8,38.123755,,62.97,200,15.824548,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_2D_Mattey_Ghosh__cpu_2
+,,,2000,gpu,2025.0,"Navier-Stokes 2D, Kovasznay flow",0,0,5.528,,,11.055902,,19.61,200,1.263322,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_gpu_0
+,,,2000,cpu,,"Navier-Stokes 2D, Kovasznay flow",0,0,24.117,,8,48.234079,,60.16,200,5.10777,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_cpu_0
+,,,2000,cpu,,"Navier-Stokes 2D, Kovasznay flow",0,1,23.844,,8,47.687128,,59.56,200,5.121227,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_cpu_1
+,,,2000,gpu,2056.0,"Navier-Stokes 2D, Kovasznay flow",0,1,5.39,,,10.779389,,19.1,200,1.168096,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_gpu_1
+,,,2000,gpu,2024.0,"Navier-Stokes 2D, Kovasznay flow",0,2,5.489,,,10.978471,,19.26,200,1.177624,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_gpu_2
+,,,2000,cpu,,"Navier-Stokes 2D, Kovasznay flow",0,2,23.739,,8,47.478661,,59.29,200,5.087628,/tmp/pinnstudio_tp_kkeylrxg/Navier_Stokes_2D_Kovasznay_flow_cpu_2
+,,,300,gpu,2865.0,Allen-Cahn 3D (Wight & Zhao),0,0,28.491,,,8.547273,,70.6,200,5.789034,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__gpu_0
+,,,300,cpu,,Allen-Cahn 3D (Wight & Zhao),0,0,564.228,,8,169.268443,,334.75,200,110.523923,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__cpu_0
+,,,300,cpu,,Allen-Cahn 3D (Wight & Zhao),0,1,544.029,,8,163.208794,,325.13,200,106.56856,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__cpu_1
+,,,300,gpu,2870.0,Allen-Cahn 3D (Wight & Zhao),0,1,28.616,,,8.584749,,70.34,200,5.829119,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__gpu_1
+,,,300,gpu,2837.0,Allen-Cahn 3D (Wight & Zhao),0,2,28.564,,,8.569275,,70.08,200,5.772882,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__gpu_2
+,,,300,cpu,,Allen-Cahn 3D (Wight & Zhao),0,2,546.477,,8,163.943201,,329.5,200,110.754127,/tmp/pinnstudio_tp_kkeylrxg/Allen_Cahn_3D_Wight_Zhao__cpu_2
+2000,105.2044321672322,0.00735145313196512,,,,Heat 1D (2k points),,0,,cpu,1,,1,,,,
+2000,171.73278929967452,0.008290474448927705,,,,Heat 1D (2k points),,0,,cpu,2,,2,,,,
+2000,247.58796502207,0.007902827631721393,,,,Heat 1D (2k points),,0,,cpu,4,,4,,,,
+2000,321.7878416279282,0.00798033593807594,,,,Heat 1D (2k points),,0,,cpu,8,,8,,,,
+2000,243.78768515866975,0.05521267413988098,,,,Heat 1D (2k points),,0,,cpu,12,,12,,,,
+2000,188.72560774822645,0.011734078895274336,,,,Heat 1D (2k points),,0,,cpu,16,,16,,,,
+2000,145.98680017199314,0.008020183050227156,,,,Heat 1D (2k points),,0,,cpu,24,,24,,,,
+2000,1.116258815657788,0.007935429886350246,,,,Heat 1D (2k points),,0,,cpu,32,,32,,,,
+300,1.8834426457119025,0.11404097373356416,,,,Poisson 2D (20k points),,0,,cpu,1,,1,,,,
+300,3.327503291206116,0.11404325816913721,,,,Poisson 2D (20k points),,0,,cpu,2,,2,,,,
+300,5.234007276703775,0.11404434107663837,,,,Poisson 2D (20k points),,0,,cpu,4,,4,,,,
+300,7.272345611458884,0.11402850969643595,,,,Poisson 2D (20k points),,0,,cpu,8,,8,,,,
+300,5.811094950544417,0.11404692674788958,,,,Poisson 2D (20k points),,0,,cpu,12,,12,,,,
+300,6.594075057740947,0.11402854277617949,,,,Poisson 2D (20k points),,0,,cpu,16,,16,,,,
+300,6.78157515320085,0.11402916218459198,,,,Poisson 2D (20k points),,0,,cpu,24,,24,,,,
+300,0.4717594471012559,0.1140813604034668,,,,Poisson 2D (20k points),,0,,cpu,32,,32,,,,
+300,2.943846700844702,0.22432742899969194,,,,Heat 2D (30k points),,0,,cpu,1,,1,,,,
+300,4.782944695405585,0.2238360687242506,,,,Heat 2D (30k points),,0,,cpu,2,,2,,,,
+300,7.834044320796593,0.22352276973346724,,,,Heat 2D (30k points),,0,,cpu,4,,4,,,,
+300,9.925055473340636,0.2215401545226279,,,,Heat 2D (30k points),,0,,cpu,8,,8,,,,
+300,8.510352688713857,0.2232901528581169,,,,Heat 2D (30k points),,0,,cpu,12,,12,,,,
+300,9.14448327598336,0.22206254375317577,,,,Heat 2D (30k points),,0,,cpu,16,,16,,,,
+300,9.256183166301692,0.22344237020753321,,,,Heat 2D (30k points),,0,,cpu,24,,24,,,,
+300,0.4548516296519,0.22190353785260727,,,,Heat 2D (30k points),,0,,cpu,32,,32,,,,
+2000,1.1546626062299281,0.007935429886350246,,,,Heat 1D (2k points),,1,,cpu,32,,32,,,,
+2000,159.82881284044805,0.008020183050227156,,,,Heat 1D (2k points),,1,,cpu,24,,24,,,,
+2000,153.6189415164343,0.011734078895274336,,,,Heat 1D (2k points),,1,,cpu,16,,16,,,,
+2000,233.86283748489726,0.05521267413988098,,,,Heat 1D (2k points),,1,,cpu,12,,12,,,,
+2000,273.80408878581585,0.00798033593807594,,,,Heat 1D (2k points),,1,,cpu,8,,8,,,,
+2000,256.24810996599786,0.007902827631721393,,,,Heat 1D (2k points),,1,,cpu,4,,4,,,,
+2000,195.91141802153786,0.008290474448927705,,,,Heat 1D (2k points),,1,,cpu,2,,2,,,,
+2000,118.22790942138424,0.00735145313196512,,,,Heat 1D (2k points),,1,,cpu,1,,1,,,,
+300,0.48541397717777884,0.1140813604034668,,,,Poisson 2D (20k points),,1,,cpu,32,,32,,,,
+300,7.353404703776579,0.11402916218459198,,,,Poisson 2D (20k points),,1,,cpu,24,,24,,,,
+300,6.628873637764379,0.11402854277617949,,,,Poisson 2D (20k points),,1,,cpu,16,,16,,,,
+300,5.848663075076126,0.11404692674788958,,,,Poisson 2D (20k points),,1,,cpu,12,,12,,,,
+300,7.4759929438192945,0.11402850969643595,,,,Poisson 2D (20k points),,1,,cpu,8,,8,,,,
+300,5.046039583095693,0.11404434107663837,,,,Poisson 2D (20k points),,1,,cpu,4,,4,,,,
+300,3.1709288962448534,0.11404325816913721,,,,Poisson 2D (20k points),,1,,cpu,2,,2,,,,
+300,1.9260431879749507,0.11404097373356416,,,,Poisson 2D (20k points),,1,,cpu,1,,1,,,,
+300,0.4505113331967578,0.22190353785260727,,,,Heat 2D (30k points),,1,,cpu,32,,32,,,,
+300,9.947214713306877,0.22344237020753321,,,,Heat 2D (30k points),,1,,cpu,24,,24,,,,
+300,10.038543069009807,0.22206254375317577,,,,Heat 2D (30k points),,1,,cpu,16,,16,,,,
+300,10.012095729429475,0.2232901528581169,,,,Heat 2D (30k points),,1,,cpu,12,,12,,,,
+300,11.389715873982462,0.2215401545226279,,,,Heat 2D (30k points),,1,,cpu,8,,8,,,,
+300,8.165063913653809,0.22352276973346724,,,,Heat 2D (30k points),,1,,cpu,4,,4,,,,
+300,5.272561632940334,0.2238360687242506,,,,Heat 2D (30k points),,1,,cpu,2,,2,,,,
+300,3.241010558929567,0.22432742899969194,,,,Heat 2D (30k points),,1,,cpu,1,,1,,,,
+2000,119.03671893347808,0.00735145313196512,,,,Heat 1D (2k points),,2,,cpu,1,,1,,,,
+2000,194.44421059778344,0.008290474448927705,,,,Heat 1D (2k points),,2,,cpu,2,,2,,,,
+2000,282.408314213735,0.007902827631721393,,,,Heat 1D (2k points),,2,,cpu,4,,4,,,,
+2000,393.59362169390283,0.00798033593807594,,,,Heat 1D (2k points),,2,,cpu,8,,8,,,,
+2000,231.6956638747399,0.05521267413988098,,,,Heat 1D (2k points),,2,,cpu,12,,12,,,,
+2000,266.7556582740561,0.011734078895274336,,,,Heat 1D (2k points),,2,,cpu,16,,16,,,,
+2000,163.8874778167118,0.008020183050227156,,,,Heat 1D (2k points),,2,,cpu,24,,24,,,,
+2000,9.096707103292989,0.007935429886350246,,,,Heat 1D (2k points),,2,,cpu,32,,32,,,,
+300,2.0544712727655474,0.11404097373356416,,,,Poisson 2D (20k points),,2,,cpu,1,,1,,,,
+300,3.628718002144904,0.11404325816913721,,,,Poisson 2D (20k points),,2,,cpu,2,,2,,,,
+300,5.501959016020978,0.11404434107663837,,,,Poisson 2D (20k points),,2,,cpu,4,,4,,,,
+300,8.289532528622157,0.11402850969643595,,,,Poisson 2D (20k points),,2,,cpu,8,,8,,,,
+300,6.327338741743012,0.11404692674788958,,,,Poisson 2D (20k points),,2,,cpu,12,,12,,,,
+300,6.618451712746558,0.11402854277617949,,,,Poisson 2D (20k points),,2,,cpu,16,,16,,,,
+300,6.964829977105249,0.11402916218459198,,,,Poisson 2D (20k points),,2,,cpu,24,,24,,,,
+300,0.49919880713251275,0.1140813604034668,,,,Poisson 2D (20k points),,2,,cpu,32,,32,,,,
+300,3.1606414489435966,0.22432742899969194,,,,Heat 2D (30k points),,2,,cpu,1,,1,,,,
+300,5.057626923899076,0.2238360687242506,,,,Heat 2D (30k points),,2,,cpu,2,,2,,,,
+300,7.75956434617937,0.22352276973346724,,,,Heat 2D (30k points),,2,,cpu,4,,4,,,,
+300,10.531221010134814,0.2215401545226279,,,,Heat 2D (30k points),,2,,cpu,8,,8,,,,
+300,8.979661591366396,0.2232901528581169,,,,Heat 2D (30k points),,2,,cpu,12,,12,,,,
+300,9.674617222405827,0.22206254375317577,,,,Heat 2D (30k points),,2,,cpu,16,,16,,,,
+300,10.79008026979784,0.22344237020753321,,,,Heat 2D (30k points),,2,,cpu,24,,24,,,,
+300,0.47576623464162887,0.22190353785260727,,,,Heat 2D (30k points),,2,,cpu,32,,32,,,,

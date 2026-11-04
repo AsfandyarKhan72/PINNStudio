@@ -207,6 +207,25 @@ def load_tuned(app, w, key, inverse):
     return w._build_config()
 
 
+def load_saved(cfg_file):
+    """A configuration saved by an earlier run of this study (configs/<problem>.json), with only its reference-data
+    paths moved to this checkout: the settings are the ones that study ran, not what the Examples list loads now.
+    Fields added to PINNConfig since then keep their defaults (listed in the returned note)."""
+    from pinnstudio.core.config import PINNConfig
+    text = open(cfg_file, encoding="utf-8").read()
+    ref = os.path.join(ROOT, "reference_data").replace("\\", "/")
+    text = re.sub(r"(?:[A-Za-z]:)?[^\"'\s\[\](){},]*?/reference_data(?=/)", ref, text)
+    saved = json.loads(text)
+    fields = {f.name for f in dataclasses.fields(PINNConfig)}
+    default = dataclasses.asdict(PINNConfig())
+    for k, v in saved.items():         # lists the study wrote with str() (json.dump(default=str)), e.g. ea_files
+        if k in default and isinstance(default[k], (list, tuple)) and isinstance(v, str) and v[:1] in "[(":
+            import ast
+            saved[k] = ast.literal_eval(v)
+    cfg = PINNConfig(**{k: v for k, v in saved.items() if k in fields})
+    return cfg, dict(added_fields=sorted(fields - set(saved)), unknown_fields=sorted(set(saved) - fields))
+
+
 def run_script(text, workdir, device="auto", threads=None, sample=True):
     path = os.path.join(workdir, "run.py")
     with open(path, "w", encoding="utf-8") as f:
@@ -280,7 +299,12 @@ def overhead(a):
     for label, key, inverse in PROBLEMS:
         if a.only and a.only.lower() not in label.lower():
             continue
-        cfg0 = load_tuned(app, w, key, inverse)
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_")
+        if a.configs:                         # rerun an earlier study with exactly its settings
+            cfg0, note = load_saved(os.path.join(a.configs, slug + ".json"))
+            print(f"{label}: settings from {a.configs}/{slug}.json {note}", flush=True)
+        else:
+            cfg0 = load_tuned(app, w, key, inverse)
         with open(os.path.join(cfg_dir, re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_") + ".json"), "w") as f:
             json.dump(dataclasses.asdict(cfg0), f, indent=1, default=str)
         for k, seed in enumerate(seeds):
@@ -324,7 +348,14 @@ def throughput(a):
     for label, key, inverse in PROBLEMS:
         if a.only and a.only.lower() not in label.lower():
             continue
-        cfg0 = load_tuned(app, w, key, inverse)
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_")
+        if a.configs:                         # rerun an earlier study with exactly its settings
+            cfg0, note = load_saved(os.path.join(a.configs, slug + ".json"))
+            print(f"{label}: settings from {a.configs}/{slug}.json {note}", flush=True)
+        else:
+            cfg0 = load_tuned(app, w, key, inverse)
+        cfg_dir = os.path.join(os.path.dirname(os.path.abspath(a.out)), "configs_throughput")
+        os.makedirs(cfg_dir, exist_ok=True)
         lr = next((float(p.get("lr", 1e-3)) for p in phases_of(cfg0) if "adam" in str(p.get("optimizer", "adam")).lower()), 1e-3)
         n = steps.get(label, a.adam)
         ph = [{"optimizer": "adam", "iterations": a.warmup, "lr": lr}, {"optimizer": "adam", "iterations": n, "lr": lr}]
@@ -333,6 +364,8 @@ def throughput(a):
         upd = dict(optimizer_scheduler=True, scheduler_phases=json.dumps(ph), time_adaptive=False,
                    adapt_method="None", ic_pretrain=False, random_seed=0, use_random_seed=True)
         cfg1 = dataclasses.replace(copy.deepcopy(cfg0), **{k: v for k, v in upd.items() if hasattr(cfg0, k)})
+        with open(os.path.join(cfg_dir, slug + ".json"), "w") as f:     # the configuration timed (both devices)
+            json.dump(dataclasses.asdict(cfg1), f, indent=1, default=str)
         for rep in range(a.repeat):
             for device in (["gpu", "cpu"] if rep % 2 == 0 else ["cpu", "gpu"]):
                 if (label, device, rep) in done:
@@ -395,8 +428,34 @@ def _rng(xs):
     return (min(xs), max(xs)) if xs else (None, None)
 
 
+def _pct1(x):
+    """A signed percentage at one decimal, with 0.0 (no sign) for values that round to zero."""
+    s = f"{x:+.1f}"
+    return "0.0" if s in ("+0.0", "-0.0") else s
+
+
+def _agreement(ov):
+    """One sentence on whether, for every problem and seed, the three modes took the same steps and ended at the
+    same errors and learned parameters (as printed), from the records themselves."""
+    groups = {}
+    for r in ov:
+        if r["rc"] == 0:
+            groups.setdefault((r["problem"], r["seed"]), []).append(r)
+    full = [g for g in groups.values() if len({r["mode"] for r in g}) == len(MODES)]
+    same = [g for g in full if len({r["steps"] for r in g}) == 1
+            and len({tuple(sorted(r["l2"].values())) for r in g}) == 1
+            and len({tuple(sorted((r.get("params") or {}).values())) for r in g}) == 1]
+    if full and len(same) == len(full):
+        return (f"For each of the {len(full)} problem-seed pairs, the three modes took the same number of optimization "
+                "steps and ended at the same errors (and learned parameters) to all printed digits.")
+    diff = [f"{g[0]['problem']} seed {g[0]['seed']}" for g in full if g not in same]
+    return (f"The three modes agreed in steps, errors and parameters for {len(same)} of {len(full)} problem-seed pairs; "
+            "they differ for " + ", ".join(diff) + " (on the GPU, runs of the same computation with the same seed "
+            "can end at slightly different values, because some GPU operations do not add numbers in a fixed order).")
+
+
 def tables(a):
-    out_dir = os.path.join(ROOT, "benchmarks", "performance")
+    out_dir = a.out_dir
     os.makedirs(out_dir, exist_ok=True)
     md = []
     ov = _done(os.path.join(a.folder, "overhead.jsonl"))
@@ -411,7 +470,7 @@ def tables(a):
             t = {m: [r["train"] for r in rs if r["mode"] == m] for m in MODES}
             med = {m: _med(t[m]) for m in MODES}
             cell = lambda m: ("–" if med[m] is None else f"{med[m]:.1f} ({_rng(t[m])[0]:.1f}–{_rng(t[m])[1]:.1f})")
-            ovh = (f"{100 * (med['gui'] - med['solve']) / med['solve']:+.1f}" if med["gui"] and med["solve"] else "–")
+            ovh = (_pct1(100 * (med['gui'] - med['solve']) / med['solve']) if med["gui"] and med["solve"] else "–")
             stp = " / ".join(str(_med([r["steps"] for r in rs if r["mode"] == m])) for m in MODES)
             l2 = " / ".join((lambda v: f"{v:.2e}" if v else "–")(_med([next(iter(r["l2"].values()), None) for r in rs if r["mode"] == m and r["l2"]])) for m in MODES)
             md.append(f"| {label} | {cell('export')} | {cell('solve')} | {cell('gui')} | {ovh} | {stp} | {l2} |")
@@ -421,7 +480,7 @@ def tables(a):
                "Solve script) / Solve script; a negative value is within the run-to-run variation, not a speed-up "
                "caused by the GUI. The same settings in all three execution modes of a problem; the settings each "
                "problem ran with are saved in configs/."
-               " The L₂ errors are medians over the seeds; on the GPU, two runs of the same script with the same seed can end at slightly different errors, because some GPU operations do not add numbers in a fixed order (Allen-Cahn 3D: 4.04e-4 against 4.28e-4). The CPU check in the Export check section, where runs are repeatable, is the one that compares the two scripts.*", ""]
+               " The L₂ errors are medians over the seeds. " + _agreement(ov) + "*", ""]
     tp = _done(os.path.join(a.folder, "throughput.jsonl"))
     if tp:
         md += ["### Supplementary Table S3. CPU versus GPU Adam training throughput (CPU: 8 threads)", "",
@@ -472,6 +531,8 @@ def main():
     p.add_argument("--only", default="")
     p.add_argument("--offscreen", action="store_true")
     p.add_argument("--scale", type=float, default=1.0, help="multiply every phase's steps (a quick check only)")
+    p.add_argument("--configs", default="", help="run the configurations saved by an earlier study (a configs/ "
+                   "folder) instead of loading each example with Settings: Tuned")
     p = sub.add_parser("throughput")
     p.add_argument("out")
     p.add_argument("--repeat", type=int, default=3)
@@ -479,6 +540,8 @@ def main():
     p.add_argument("--adam", type=int, default=2000)
     p.add_argument("--cpu-threads", type=int, default=8)
     p.add_argument("--only", default="")
+    p.add_argument("--configs", default="", help="the problems' settings saved by an earlier study (its configs/ "
+                   "folder, written by overhead from the same Examples-list settings) instead of what the list loads now")
     p.set_defaults(steps={"Allen-Cahn 3D (Wight & Zhao)": 300, "Allen-Cahn 2D (Mattey & Ghosh)": 500})
     p = sub.add_parser("threads")
     p.add_argument("out")
@@ -489,6 +552,8 @@ def main():
     p.add_argument("--adam", type=int)
     p = sub.add_parser("tables")
     p.add_argument("folder")
+    p.add_argument("--out-dir", default=os.path.join(ROOT, "benchmarks", "performance"),
+                   help="where tables.md and runs.csv are written")
     a = ap.parse_args()
     {"overhead": overhead, "throughput": throughput, "threads": threads, "_thread_worker": _thread_worker,
      "tables": tables}[a.cmd](a)

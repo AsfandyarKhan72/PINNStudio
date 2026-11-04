@@ -1,0 +1,81 @@
+6dfab1cdd3e63c665115521316afcca7a24a66f2 2026-11-03 12:17:18 -0700 perf_study.py: rerun an earlier study with exactly its saved settings (--configs); tables --out-dir
+[notice] A new release of pip is available: 23.2.1 -> 26.3
+[notice] To update, run: python -m pip install --upgrade pip
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+Python 3.11.5 | PyTorch 2.6.0+cu124 | CUDA 12.4 | DeepXDE 1.15.0 | NumPy 2.4.6 | PySide6 6.11.3 | PINNStudio 1.6.0 /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/jobs/zzzzzw1_perf_table2_v160/tree/pinnstudio | Linux-6.8.0-138-generic-x86_64-with-glibc2.35
+name, driver_version, temperature.gpu
+NVIDIA GeForce RTX 4090, 550.144.03, 35
+CPU(s):                                  32
+Model name:                              13th Gen Intel(R) Core(TM) i9-13900KF
+Qt platform for the window runs: xcb DISPLAY=:1 WAYLAND_DISPLAY=
+Using backend: pytorch
+Lorenz ODE, inverse: settings from benchmarks/performance/configs/Lorenz_ODE_inverse.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Lorenz ODE, inverse                      export seed 1: train     71.16 s  total     75.11 s  steps 22670  L2 {'out0': 9.5256e-05, 'out1': 7.4009e-05, 'out2': 3.0163e-05}  rc=0
+Lorenz ODE, inverse                      solve  seed 1: train     73.12 s  total     76.81 s  steps 22670  L2 {'y1_ref': 9.5256e-05, 'y2_ref': 7.4009e-05, 'y3_ref': 3.0163e-05}  rc=0
+Generated script at: /tmp/tmpn1drvpd7.py
+Lorenz ODE, inverse                      gui    seed 1: train     73.66 s  total     77.62 s  steps 22670  L2 {'y1_ref': 9.5256e-05, 'y2_ref': 7.4009e-05, 'y3_ref': 3.0163e-05}  rc=0
+Lorenz ODE, inverse                      solve  seed 2: train     76.78 s  total     80.35 s  steps 23413  L2 {'y1_ref': 0.00010985, 'y2_ref': 0.00011411, 'y3_ref': 5.5542e-05}  rc=0
+Generated script at: /tmp/tmpnpnbr0u8.py
+Lorenz ODE, inverse                      gui    seed 2: train     74.33 s  total     77.90 s  steps 23413  L2 {'y1_ref': 0.00010985, 'y2_ref': 0.00011411, 'y3_ref': 5.5542e-05}  rc=0
+Lorenz ODE, inverse                      export seed 2: train     72.27 s  total     75.67 s  steps 23413  L2 {'out0': 0.00010985, 'out1': 0.00011411, 'out2': 5.5542e-05}  rc=0
+Generated script at: /tmp/tmpcjtcn9_a.py
+Lorenz ODE, inverse                      gui    seed 3: train     67.77 s  total     71.32 s  steps 22424  L2 {'y1_ref': 0.00013775, 'y2_ref': 0.0001448, 'y3_ref': 7.1849e-05}  rc=0
+Lorenz ODE, inverse                      export seed 3: train     65.69 s  total     69.06 s  steps 22424  L2 {'out0': 0.00013775, 'out1': 0.0001448, 'out2': 7.1849e-05}  rc=0
+Lorenz ODE, inverse                      solve  seed 3: train     65.21 s  total     68.63 s  steps 22424  L2 {'y1_ref': 0.00013775, 'y2_ref': 0.0001448, 'y3_ref': 7.1849e-05}  rc=0
+Wave 1D, multi-scale Fourier features: settings from benchmarks/performance/configs/Wave_1D_multi_scale_Fourier_features.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Wave 1D, multi-scale Fourier features    export seed 1: train     71.25 s  total     75.20 s  steps 10000  L2 {'out0': 0.30384}  rc=0
+Wave 1D, multi-scale Fourier features    solve  seed 1: train     70.72 s  total     74.63 s  steps 10000  L2 {'u': 0.30384}  rc=0
+Generated script at: /tmp/tmp0jgthlrp.py
+Wave 1D, multi-scale Fourier features    gui    seed 1: train     70.86 s  total     75.13 s  steps 10000  L2 {'u': 0.30384}  rc=0
+Wave 1D, multi-scale Fourier features    solve  seed 2: train     70.49 s  total     74.55 s  steps 10000  L2 {'u': 0.75701}  rc=0
+Generated script at: /tmp/tmplwvooxtu.py
+Wave 1D, multi-scale Fourier features    gui    seed 2: train     71.06 s  total     75.35 s  steps 10000  L2 {'u': 0.75701}  rc=0
+Wave 1D, multi-scale Fourier features    export seed 2: train     71.06 s  total     75.07 s  steps 10000  L2 {'out0': 0.75701}  rc=0
+Generated script at: /tmp/tmpkmq5peb_.py
+Wave 1D, multi-scale Fourier features    gui    seed 3: train     70.54 s  total     74.79 s  steps 10000  L2 {'u': 0.094272}  rc=0
+Wave 1D, multi-scale Fourier features    export seed 3: train     72.03 s  total     76.03 s  steps 10000  L2 {'out0': 0.094272}  rc=0
+Wave 1D, multi-scale Fourier features    solve  seed 3: train     72.38 s  total     76.35 s  steps 10000  L2 {'u': 0.094272}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh): settings from benchmarks/performance/configs/Allen_Cahn_2D_Mattey_Ghosh.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Allen-Cahn 2D (Mattey & Ghosh)           export seed 1: train    257.47 s  total    266.31 s  steps 30000  L2 {'out0': 0.0002073}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           solve  seed 1: train    255.44 s  total    264.22 s  steps 30000  L2 {'u': 0.0002073}  rc=0
+Generated script at: /tmp/tmpe440v4tw.py
+Allen-Cahn 2D (Mattey & Ghosh)           gui    seed 1: train    256.99 s  total    266.16 s  steps 30000  L2 {'u': 0.0002073}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           solve  seed 2: train    255.50 s  total    264.25 s  steps 30000  L2 {'u': 0.00021892}  rc=0
+Generated script at: /tmp/tmpcsypggbv.py
+Allen-Cahn 2D (Mattey & Ghosh)           gui    seed 2: train    252.60 s  total    261.73 s  steps 30000  L2 {'u': 0.00021892}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           export seed 2: train    253.84 s  total    262.55 s  steps 30000  L2 {'out0': 0.00021892}  rc=0
+Generated script at: /tmp/tmpf6l8e2eb.py
+Allen-Cahn 2D (Mattey & Ghosh)           gui    seed 3: train    255.47 s  total    264.55 s  steps 30000  L2 {'u': 0.00019322}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           export seed 3: train    253.43 s  total    262.06 s  steps 30000  L2 {'out0': 0.00019322}  rc=0
+Allen-Cahn 2D (Mattey & Ghosh)           solve  seed 3: train    253.20 s  total    261.79 s  steps 30000  L2 {'u': 0.00019322}  rc=0
+Navier-Stokes 2D, Kovasznay flow: settings from benchmarks/performance/configs/Navier_Stokes_2D_Kovasznay_flow.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Navier-Stokes 2D, Kovasznay flow         export seed 1: train    190.69 s  total    197.54 s  steps 34579  L2 {'out0': 0.00019669, 'out1': 0.00099608, 'out2': 0.00040892}  rc=0
+Navier-Stokes 2D, Kovasznay flow         solve  seed 1: train    194.91 s  total    201.72 s  steps 34579  L2 {'u': 0.00019669, 'v': 0.00099608, 'p': 0.00040892}  rc=0
+Generated script at: /tmp/tmp3ryqwlfm.py
+Navier-Stokes 2D, Kovasznay flow         gui    seed 1: train    190.10 s  total    196.98 s  steps 34579  L2 {'u': 0.00019669, 'v': 0.00099608, 'p': 0.00040892}  rc=0
+Navier-Stokes 2D, Kovasznay flow         solve  seed 2: train    191.95 s  total    198.59 s  steps 34546  L2 {'u': 0.00015304, 'v': 0.00084797, 'p': 0.0003279}  rc=0
+Generated script at: /tmp/tmpl6urrk_y.py
+Navier-Stokes 2D, Kovasznay flow         gui    seed 2: train    190.26 s  total    197.10 s  steps 34546  L2 {'u': 0.00015304, 'v': 0.00084797, 'p': 0.0003279}  rc=0
+Navier-Stokes 2D, Kovasznay flow         export seed 2: train    189.83 s  total    196.58 s  steps 34546  L2 {'out0': 0.00015304, 'out1': 0.00084797, 'out2': 0.0003279}  rc=0
+Generated script at: /tmp/tmpk6pmkui0.py
+Navier-Stokes 2D, Kovasznay flow         gui    seed 3: train    204.79 s  total    211.64 s  steps 35970  L2 {'u': 0.00025564, 'v': 0.0012427, 'p': 0.00069005}  rc=0
+Navier-Stokes 2D, Kovasznay flow         export seed 3: train    201.75 s  total    208.47 s  steps 35970  L2 {'out0': 0.00025564, 'out1': 0.0012427, 'out2': 0.00069005}  rc=0
+Navier-Stokes 2D, Kovasznay flow         solve  seed 3: train    202.38 s  total    208.93 s  steps 35970  L2 {'u': 0.00025564, 'v': 0.0012427, 'p': 0.00069005}  rc=0
+Allen-Cahn 3D (Wight & Zhao): settings from benchmarks/performance/configs/Allen_Cahn_3D_Wight_Zhao.json {'added_fields': ['ta_backward_seed'], 'unknown_fields': []}
+Allen-Cahn 3D (Wight & Zhao)             export seed 1: train   1582.08 s  total   1627.87 s  steps 20000  L2 {'out0': 0.0004605}  rc=0
+Allen-Cahn 3D (Wight & Zhao)             solve  seed 1: train   1579.25 s  total   1657.38 s  steps 20000  L2 {'u': 0.0004605}  rc=0
+Generated script at: /tmp/tmph68hbl7f.py
+Allen-Cahn 3D (Wight & Zhao)             gui    seed 1: train   1583.88 s  total   1662.14 s  steps 20000  L2 {'u': 0.0004605}  rc=0
+Allen-Cahn 3D (Wight & Zhao)             solve  seed 2: train   1605.22 s  total   1686.10 s  steps 20000  L2 {'u': 0.00042845}  rc=0
+Generated script at: /tmp/tmp7jfpaa26.py
+Allen-Cahn 3D (Wight & Zhao)             gui    seed 2: train   1612.93 s  total   1691.27 s  steps 20000  L2 {'u': 0.00042845}  rc=0
+Allen-Cahn 3D (Wight & Zhao)             export seed 2: train   1580.33 s  total   1625.47 s  steps 20000  L2 {'out0': 0.00042845}  rc=0
+Generated script at: /tmp/tmpgpoxbyw2.py
+Allen-Cahn 3D (Wight & Zhao)             gui    seed 3: train   1635.06 s  total   1717.37 s  steps 20000  L2 {'u': 0.00039692}  rc=0
+Allen-Cahn 3D (Wight & Zhao)             export seed 3: train   1644.07 s  total   1692.82 s  steps 20000  L2 {'out0': 0.00039692}  rc=0
+Allen-Cahn 3D (Wight & Zhao)             solve  seed 3: train   1640.29 s  total   1722.13 s  steps 20000  L2 {'u': 0.00039692}  rc=0
+wrote /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/jobs/zzzzzw1_perf_table2_v160/out/tables/tables.md
+2026-11-03T18:14:30-07:00
+exit 0
