@@ -4,6 +4,9 @@ The five-problem execution-mode study (manuscript Section 5.1, Table 2) repeated
 PySide6 interface. The earlier run of the same study, on the PyQt6 code of 2026-10-26 (`594d295`), is kept unchanged
 in [`../performance/`](../performance/) as the historical record.
 
+The CPU-versus-GPU and CPU-thread studies of Section 5.2 (Supplementary Tables S3 and S4), repeated the same way, are in
+[`section_5_2/`](section_5_2/README.md).
+
 ## What was run
 
 - **Problems:** the five problems of the earlier study: Lorenz ODE (inverse), Wave 1D with multi-scale Fourier
