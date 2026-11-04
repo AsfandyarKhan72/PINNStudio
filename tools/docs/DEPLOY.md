@@ -1,75 +1,58 @@
 # Publishing the documentation site
 
-The site is published at **https://asfandyarkhan72.github.io/PINNStudio/**, the same address as today's
-single-page site. Nothing below has been done yet; every step needs the maintainers' approval.
+The documentation site is published at **https://asfandyarkhan72.github.io/PINNStudio/**. It is the MkDocs
+Material site built from `website/` and `mkdocs.yml` by `.github/workflows/docs.yml` and deployed with the
+"GitHub Actions" Pages source. It is the project's only website; the earlier single-page site that was served from
+`main`'s `docs/` folder has been retired (see *Rollback*).
 
-## What serves that address today
+## Current state (checked 2026-11-03)
 
-- `main` contains `docs/index.html` (one hand-written landing page) and `docs/assets/` (its images).
-- `main` has no Pages workflow and the repository has no `gh-pages` branch, so the page is served by
-  **Settings → Pages → Build and deployment → Source: Deploy from a branch, `main`, folder `/docs`**.
-  (Inferred from the repository; the Pages settings themselves can only be read by a maintainer.
-  Check this first, step 1 below.)
-- Links to the address found in the repository: the README's "Website" link (to the root) and the landing
-  page's own `og:image` (`/PINNStudio/assets/interface.png`). No other page paths are linked from
-  the repository, `setup.py`, `pyproject.toml` or `CITATION.cff`.
+- **Live:** the MkDocs site (generator `mkdocs-1.6.1, mkdocs-material-9.7.7`), deployed by the Documentation
+  workflow from `main`. Deployments to the `github-pages` environment: `b05ef50` (2026-11-03 18:26 UTC), `2ea54c3`
+  (2026-11-03 04:25 UTC). `pages-build-deployment` (the branch source) last ran on 2026-11-03 02:52 on `2ea54c3`
+  and did not run for later `main` commits that changed `docs/index.html`, so the branch source is no longer used.
+- **Pages source:** "GitHub Actions" (inferred: `actions/deploy-pages` succeeds only with that source; the setting
+  itself is visible only to a maintainer, under Settings → Pages).
+- `site_url` in `mkdocs.yml` is `https://asfandyarkhan72.github.io/PINNStudio/`, so pages, assets, search and the
+  404 page work under `/PINNStudio/`; `edit_uri` is `edit/main/website/`.
 
-## What will serve it
-
-The MkDocs Material site built from `website/` by `.github/workflows/docs.yml`, deployed with GitHub's
-"GitHub Actions" Pages source. `site_url` in `mkdocs.yml` is
-`https://asfandyarkhan72.github.io/PINNStudio/`, so all pages, assets, search and the 404 page work
-under the `/PINNStudio/` base path (checked by serving the built site under `/PINNStudio/` locally and
-by the workflow's link check).
-
-There is one site: the old landing page is replaced, not run alongside. `docs/index.html` stays in
-the repository until the new site has been live for a while, because it is the rollback.
-
-## Why nothing can deploy by accident
+## Why nothing deploys by accident
 
 The deploy job runs only if **all** of these hold:
 
 1. the workflow is started by hand (Actions → Documentation → Run workflow), and
 2. on the `main` branch, and
 3. with the input `deploy` ticked, and
-4. the repository variable `DOCS_PUBLISH_APPROVED` is `true` (it does not exist yet), and
-5. the Pages source is "GitHub Actions" (with "Deploy from a branch" the deploy step is refused by GitHub).
+4. the repository variable `DOCS_PUBLISH_APPROVED` is `true`, and
+5. the Pages source is "GitHub Actions".
 
-Pushes, pull requests, releases and tags never deploy: the workflow has no `release` or `push: main`
-trigger, and on a push to `docs/official-site` it only builds, checks links and uploads a preview.
+Keep `DOCS_PUBLISH_APPROVED` at `false` between approved deployments (Settings → Secrets and variables → Actions →
+Variables), so that each deployment is a deliberate act. Pushes, pull requests, releases and tags never deploy:
+pull requests that touch `website/**`, `mkdocs.yml` or the workflow run the strict build and the link checks only.
 
-## Deployment, step by step (after approval)
+## Deploying (each time, after approval)
 
-1. **Check the current settings.** Settings → Pages: note the source (expected: branch `main`, `/docs`)
-   and whether a custom domain is set (expected: none). Take a screenshot for the record.
-2. **Merge.** Merge `docs/official-site` into `main` through a pull request. The pull request runs the
-   strict build and link check; merging changes nothing on the live site (the source is still the
-   `/docs` folder, which the merge does not touch). In the same pull request (or right after it), change
-   `edit_uri` in `mkdocs.yml` from `edit/docs/official-site/website/` to `edit/main/website/`, so that
-   **Edit this page** and **View source of this page** open the files on `main`.
-3. **Allow deployment.** Settings → Secrets and variables → Actions → Variables → New repository
-   variable `DOCS_PUBLISH_APPROVED` = `true`.
-4. **Switch the source.** Settings → Pages → Source: **GitHub Actions**. From this moment until step 5
-   finishes, the address shows GitHub's 404 page (normally a few minutes), so do 4 and 5 together.
-5. **Deploy.** Actions → Documentation → Run workflow → branch `main`, tick `deploy` → Run. The `deploy`
-   job prints the published URL.
-6. **Check the live site.** Home page, one page of each section, search, an equation page, a gallery page,
-   the 404 page (any wrong path), on a desktop and a phone browser.
-7. **Turn deployment off again** if you want each later deployment to be a deliberate act: set
-   `DOCS_PUBLISH_APPROVED` to `false` (re-enable it for the next release).
+1. Merge the documentation changes into `main` through a pull request (it runs `mkdocs build --strict`, the
+   source-link and settings-index checks and the link check).
+2. Set `DOCS_PUBLISH_APPROVED` to `true`.
+3. Actions → Documentation → Run workflow → branch `main`, tick `deploy` → Run. The `deploy` job prints the URL.
+4. Check the live site: the home page, one page of each section, search, an equation page, an example page, the
+   404 page (any wrong path), on a desktop and a phone browser.
+5. Set `DOCS_PUBLISH_APPROVED` back to `false`.
 
 ## Rollback
 
-- **Back to the old landing page (minutes):** Settings → Pages → Source: Deploy from a branch, `main`,
-  `/docs`. The old `docs/index.html` is still in `main`, so it is served again as before.
-- **Back to an earlier version of the new site:** Actions → Documentation → Run workflow with `deploy` on
-  a commit of `main` that had the earlier site (or revert the docs commit on `main` and deploy).
-- Keep `docs/index.html` and `docs/assets/` in `main` until the new site is accepted; remove them in a
-  later, separate commit.
+- **To an earlier version of the site:** revert the documentation commit(s) on `main` (`git revert`, through a pull
+  request), then deploy as above. Every deployment is built from `main`, so the site always matches a commit of
+  `main`.
+- **To the retired single-page site (only if ever needed):** its files are in the history; restore them with
+  `git checkout 78bf1a9 -- docs/` (the last commit with them; 78bf1a9 has the corrected funding line), commit, and
+  set Settings → Pages → Source to "Deploy from a branch", `main`, `/docs`. Switching the source back to "GitHub
+  Actions" and deploying returns to the MkDocs site.
 
-## Later releases
+## Releases
 
-Each release: set `extra.source_ref` to the release tag once it exists (so the source-code links point at the
-released code; rerun `tools/docs/make_source_links.py` and `tools/docs/make_gallery.py`), update the installation
-page and the changelog page, merge, then run step 5 again. See
-"Documentation" in the release checklist (`website/developer/releases.md`).
+At each release: set `extra.source_ref` in `mkdocs.yml` to the release tag once it exists (so the source-code links
+point at the released code; rerun `tools/docs/make_source_links.py` and `tools/docs/make_gallery.py`), update the
+installation page and the changelog page, merge, and deploy as above. See "Documentation" in the release checklist
+(`website/developer/releases.md`).
