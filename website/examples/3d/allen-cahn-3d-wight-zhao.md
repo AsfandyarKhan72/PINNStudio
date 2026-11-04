@@ -17,12 +17,12 @@ search:
 
 <figure markdown="span">
   ![Spherical interface of the 3D Allen-Cahn PINN shrinking at five times, and the error inside the cube](../../assets/images/examples/allen-cahn-3d-wight-zhao-isosurface.png){ loading=lazy }
-  <figcaption>Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by `tools/plot_3d_allen_cahn_isosurface.py`): a run of this example in Inverse mode — the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).</figcaption>
 </figure>
 
 <figure markdown="span">
   ![Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit](../../assets/images/examples/allen-cahn-3d-wight-zhao-radius.png){ loading=lazy }
-  <figcaption>Figure from the repository's benchmark notes (benchmarks/paper.md): the same Inverse-mode run, the drop's radius over time — PINN, reference and the sharp-interface limit.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by `tools/plot_3d_allen_cahn_radius.py`): the same Inverse-mode run, the drop's radius over time — PINN, reference and the sharp-interface limit.</figcaption>
 </figure>
 
 ## Governing equations

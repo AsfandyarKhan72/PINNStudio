@@ -128,11 +128,13 @@ IMAGES = [
      "Figure from the repository's figures (`assets/Images/1D-Burgers/`): the same Burgers 1D RAR run, PINN, reference and error after round 2.",
      "PINN solution, reference solution and error over (t, x) of a Burgers 1D RAR run after round 2"),
     ("assets/Images/3D_AllenCahn-Wight/isosurface.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-isosurface.png",
-     "Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — "
+     "Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by "
+     "`tools/plot_3d_allen_cahn_isosurface.py`): a run of this example in Inverse mode — "
      "the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).",
      "Spherical interface of the 3D Allen-Cahn PINN shrinking at five times, and the error inside the cube"),
     ("assets/Images/3D_AllenCahn-Wight/radius.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-radius.png",
-     "Figure from the repository's benchmark notes (benchmarks/paper.md): the same Inverse-mode run, the drop's radius "
+     "Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by "
+     "`tools/plot_3d_allen_cahn_radius.py`): the same Inverse-mode run, the drop's radius "
      "over time — PINN, reference and the sharp-interface limit.",
      "Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit"),
     ("assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png",

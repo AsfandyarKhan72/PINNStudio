@@ -75,7 +75,7 @@ current pages use the final build's argument files instead, as in
 B=benchmarks/records/corrected_2026-10-31
 # benchmarks/tuning_study.md, figures/tuning_summary.png and the tuned problem files in benchmarks/tuning/
 python tools/make_tuning_page.py $(sed "s#^#$B/#" $B/results_args.txt) --primary $B/primary.json
-# benchmarks/README.md, benchmarks/examples.md, benchmarks/paper.md, figures/benchmarks_summary.* and paper_figure.*
+# benchmarks/README.md, benchmarks/examples.md, benchmarks/tables/figure4_values.md, figures/benchmarks_summary.* and paper_figure.*
 python tools/make_benchmarks_readme.py $(sed "s#^#$B/#" $B/results_args.txt) --primary $B/primary.json \
     --papers "$(sed "s#^#$B/#" $B/papers_arg.txt | paste -sd,)" \
     --spacetime "$(sed "s#^#$B/#" $B/spacetime_arg.txt | paste -sd,)"

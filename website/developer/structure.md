@@ -72,7 +72,7 @@ PINNStudio/
   scripts, and `tools/docs/` for this site (`WRITING.md`, `make_screenshots.py`, `make_config_reference.py`,
   `make_gallery.py`, which writes the example gallery from `benchmarks/examples.md` and the example definitions, and
   `make_source_links.py` with its mapping `source_map.py` for the source links [below](#where-each-feature-is-in-the-code)).
-- **`benchmarks/`** — the recorded runs and studies behind the benchmark pages (`README.md`, `examples.md`, `paper.md`,
+- **`benchmarks/`** — the recorded runs and studies behind the benchmark pages (`README.md`, `examples.md`,
   `tuning_study.md`, `training_methods.md`, `performance.md`) and their scripts; see
   [Benchmark collection](../reproducibility/benchmarks.md).
 

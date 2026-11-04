@@ -1,6 +1,6 @@
 # Performance and checks
 
-*How fast PINNStudio trains, whether training from the GUI takes longer, how to choose CPU threads, and the check that an exported script trains the same model. The paper's versions of these tables (Table 2, Supplementary Tables S3 and S4) are on [paper.md](paper.md).*
+*How fast PINNStudio trains, whether training from the GUI takes longer, how to choose CPU threads, and the check that an exported script trains the same model.*
 
 **The machine.** One desktop PC: Intel Core i9-13900KF (24 cores: 8 performance and 16 efficiency, 32 hardware threads), NVIDIA RTX 4090, Ubuntu, Python 3.11, PyTorch 2.6 with CUDA 12.4, DeepXDE 1.15. Every run records the PINNStudio commit and these versions. Script: [`perf_study.py`](perf_study.py).
 
