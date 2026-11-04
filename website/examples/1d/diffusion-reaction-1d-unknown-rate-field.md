@@ -68,21 +68,6 @@ This example learns an unknown **field** as an extra network output (it has no s
     |---|---|---|---|---|
     | 1 | Adam | 20,000 | 0.001 | none |
 
-## Results
-
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
-
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Inverse: learned field | – | **see the benchmark** | 61 |
-
-<figure markdown="span">
-  ![Diffusion-reaction 1D – unknown rate field: PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/net_line_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — Larger network (2× width, one more layer) — PINN against the reference along a line, at the reference times</figcaption>
-</figure>
-
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-reaction-with-space-dependent-rate).
-
 ## Loading it in PINNStudio
 
 - Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Diffusion-reaction 1D – unknown rate field** › **Default** or **Tuned**, then **Solve**.
@@ -108,6 +93,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [diffusion_reaction_rate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Yu et al. 2022](../../about/references.md#yu2022)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

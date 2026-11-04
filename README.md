@@ -18,16 +18,21 @@
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/help/faq/">FAQ</a></strong>
 </p>
 
-PINNStudio is a desktop application for solving ordinary and partial differential equations with
-physics-informed neural networks (PINNs). You set up a problem in one window: the equations, the domain, the
-boundary and initial conditions, the network and how it is trained. PINNStudio writes a DeepXDE/PyTorch script
-from these settings, trains it while showing the loss, and compares the solution with reference data or an exact
-formula. The same script can be exported, so every run can be read, rerun and shared outside the program.
+PINNStudio is an open-source desktop application for building, training, and evaluating physics-informed neural
+networks (PINNs) through a graphical interface. It supports forward and inverse problems involving ordinary and
+partial differential equations, including coupled systems in up to three spatial dimensions. Users can define
+governing equations, computational domains, initial and boundary conditions, neural network architectures, and
+training strategies without writing problem-specific Python code.
 
-It is meant for researchers and students in science and engineering who want to use PINNs without writing a new
-script for every problem, including people who are new to scientific machine learning. It handles forward
-problems, where the equation is known and the solution is wanted, and inverse problems, where unknown coefficients
-or fields are learned from measured data.
+Using a PINN usually means writing a new script for every problem, which makes a setup hard to check, compare
+with others and repeat. In PINNStudio the problem is set up once in the interface, and the same settings produce
+the training script, the results and the plots, so a study can be saved, rerun and shared.
+
+Built on DeepXDE and PyTorch, PINNStudio generates executable Python scripts from the configured problem, runs
+training with live monitoring, and provides solution visualization, reference-based error analysis, and model
+restoration. The generated scripts can also be exported for independent execution and further customization.
+PINNStudio is intended for researchers, engineers, and students who want to apply PINNs while retaining access to
+the underlying numerical implementation.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
@@ -56,7 +61,8 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
 - **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
-  model as **Solve** for the built-in examples (see Reproducibility), and a saved model can be reloaded and plotted again without retraining. Learn more:
+  model as **Solve** (89 of 93 example configurations identical, 4 excluded;
+  [export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
   PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact
@@ -72,8 +78,7 @@ is recommended):
 pip install pinnstudio
 ```
 
-> **Note:** version 1.6.0, which this page and the documentation describe, is not on PyPI yet. Until it is,
-> `pip install pinnstudio` and the installers below install the published 1.5.0; to install 1.6.0 now, run
+> **Note:** PINNStudio 1.6.0 is not on PyPI yet. Until it is, install it with
 > `pip install git+https://github.com/AsfandyarKhan72/PINNStudio.git`.
 
 **Or install with one command, without installing Python first.** The installer sets up PINNStudio with its own
@@ -94,9 +99,14 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Asf
 You can read the scripts before running them: [`get-pinnstudio.sh`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.sh)
 and [`get-pinnstudio.ps1`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/get-pinnstudio.ps1).
 The install takes a few minutes, and at the end it says which version was installed and whether training will run
-on the GPU. Running the same command again updates PINNStudio. Both `pip install pinnstudio` and the installer
-install the latest release from PyPI; the [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md)
-lists what each release changed.
+on the GPU. Running the same command again updates PINNStudio. The installer installs the latest release from
+PyPI; the [CHANGELOG](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CHANGELOG.md) lists what each release
+changed.
+
+A GPU is optional. On the test PC (RTX 4090) the GPU trained four of the five timed problems 3 to 19 times faster than the
+CPU, but a small ODE problem trained faster on the CPU
+([training speed](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/environment/#training-speed)).
+PINNStudio is tested on GitHub Actions on Linux, Windows and macOS (x64 and ARM) with Python 3.11 to 3.14.
 
 The [installation guide](https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/) covers
 choosing a CUDA build of PyTorch, the source install for development, the systems PINNStudio is tested on, Intel
@@ -118,10 +128,11 @@ problems from an empty window.
 ## Examples
 
 A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
-*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, PINNStudio's
-best run in its benchmarks: the fastest of the runs within 25% of the lowest error at the last reference time (for
-Cahn–Hilliard problems, the worse of the two fields' errors), keeping the example's own settings when they are among
-those runs and within 10% of the fastest time.
+*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the run
+selected in PINNStudio's benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error
+(relative L₂ at the last reference time; for Cahn–Hilliard problems the worse of the two fields; for inverse problems
+the worst parameter error), keeping the Default settings when they are within that margin and within 10% of the
+fastest time.
 
 | Example | Dimension | What it shows |
 |---|---|---|
@@ -155,8 +166,9 @@ equations, domain, conditions and settings. The results and figures of each exam
 
 ## Reproducibility and benchmarks
 
-The examples were trained with their *Default* settings and with the changes tried in the tuning study, and the
-records are kept in the repository, together with problem files that load the tuned setups.
+The examples were trained with their *Default* settings and, for the 41 examples with the largest errors, with the
+changes tried in the tuning study, and the records are kept in the repository, together with problem files that load
+the tuned setups.
 [benchmarks/README.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) compares, for
 each example, the source's settings with PINNStudio's best and, for templates taken from a paper, with the error
 the paper reports. The [Reproducibility](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/) section of
@@ -187,9 +199,9 @@ PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al.
 
 The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://doi.org/10.1007/978-3-031-21689-3_28); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); and *Poisson 2D – L-shape* is the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed on the website's [Scientific references](https://asfandyarkhan72.github.io/PINNStudio/about/references/) page.
 
-Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
+Authors: Asfandyar Khan and Mahmood Mamivand. Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 
-The authors appreciate the support of the National Science Foundation grant 2602175. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
+The authors acknowledge support from the National Science Foundation under Award No. 2602175. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
 
 ## Contributing
 

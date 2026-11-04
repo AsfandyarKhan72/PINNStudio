@@ -76,23 +76,30 @@ Measured data (**Inverse** page, measured-data files):
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Inverse problem
+
+**Settings:** Tuned — 3× iterations. **Values:** one run, seed 2026.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Inverse: parameters found (true) | – | **νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001)** (worst error 15%) | 234 |
+| v_e | 0.001 | 0.00115135 | 15 % |
+| K | 0.001 | 0.00103409 | 3.4 % |
+
+Worst parameter error: **15 %**.
 
 <figure markdown="span">
-  ![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — 3× iterations — PINN against the reference along a line, at the reference times</figcaption>
+  ![Inverse result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN and reference along lines.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png){ loading=lazy }
-  <figcaption>PINNStudio best — 3× iterations — the learned parameters during training</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-brinkman-forchheimer-model).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-brinkman-forchheimer-model).
 
 ## Loading it in PINNStudio
 
@@ -121,6 +128,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [brinkman_forchheimer.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Yu et al. 2022](../../about/references.md#yu2022)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

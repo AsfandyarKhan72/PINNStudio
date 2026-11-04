@@ -64,23 +64,29 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Inverse problem
+
+**Settings:** Default — the example's own settings (not in the tuning sweep); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Inverse: parameters found (true) | – | **α = 1.79135 (1.8)** (worst error 0.48%) | 255 |
+| α | 1.8 | 1.79135 | 0.48 % |
+
+Worst parameter error: **0.48 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (not in the tuning sweep) — PINN against the reference along a line, at the reference times</figcaption>
+  ![Inverse result: PINN and reference along lines](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_line_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: PINN and reference along lines.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Fractional Poisson 1D – unknown order α: PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (not in the tuning sweep) — the learned parameters during training</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_fractional_Poisson_equation_1D/base_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-fractional-poisson-equation-1d).
 
 ## Loading it in PINNStudio
 
@@ -108,6 +114,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [fractional_Poisson_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

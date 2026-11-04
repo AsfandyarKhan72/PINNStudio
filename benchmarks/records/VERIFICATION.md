@@ -6,9 +6,9 @@ each with the code of the commit that produced it, and compared byte for byte wi
 | Build | Code | Primary file | `table_s2.tex` | `forward_per_seed.csv` | `inverse_per_seed.csv` |
 |---|---|---|---|---|---|
 | original_2026-10-30 | `af321c1` | `primary_final.json` | identical | identical | identical |
-| corrected_2026-10-31 | `a2c5292` (this branch) | `primary.json` | identical | identical | identical |
+| corrected_2026-10-31 | `a2c5292` | `primary.json` | identical | identical | identical |
 
-Both result sets reproduce their committed tables exactly. (With the original folder's older `primary.json`
+Both result sets reproduce the tables committed with them exactly. (With the original folder's older `primary.json`
 the original build differs in 16 rows of `forward_per_seed.csv`, the seed-1/seed-2 runs of the papers'
 methods, which that file lacks; Table S2 is the same either way.)
 
@@ -28,17 +28,17 @@ runs retrained on the regenerated data (`corrected_2026-10-31/changes.md` lists 
 
 All other Table S2 rows are unchanged.
 
-**Summary statistics** (`stats.json` of the build; the 25 Figure 4 examples, then all 64 examples):
+**Summary statistics** (`stats.json` of the build; the 25 Figure 4 examples, then all examples: "All" rows are over the 53 forward problems and the 32 inverse problems with scalar parameters):
 
 | Statistic | Original | Corrected |
 |---|---|---|
 | Figure 4: median improvement over the starting setup, all examples (`med_gain_all`) | 5.22× | 7.91× |
 | Figure 4: median worst relative parameter error, inverse (`med_perr`) | 0.126 % | 0.105 % |
-| All 64: median forward error (`med_fwd`) | 1.30 × 10⁻³ | 1.15 × 10⁻³ |
-| All 64: examples below 10⁻³ (`below_1e3`) | 24 | 25 |
-| All 64: median improvement where improved (`med_gain`) | 14.8× | 15.7× |
-| All 64: median worst parameter error (`med_perr`) | 0.127 % | 0.132 % |
-| All 64: inverse examples below 1 % (`below_1pct`) | 29 | 30 |
+| All (53 forward): median forward error (`med_fwd`) | 1.30 × 10⁻³ | 1.15 × 10⁻³ |
+| All (53 forward): problems below 10⁻³ (`below_1e3`) | 24 | 25 |
+| All (53 forward): median improvement where improved (`med_gain`) | 14.8× | 15.7× |
+| All (32 scalar inverse): median worst parameter error (`med_perr`) | 0.127 % | 0.132 % |
+| All (32 scalar inverse): problems below 1 % (`below_1pct`) | 29 | 30 |
 
 Unchanged: the number of examples, the Figure 4 median forward error (5.16 × 10⁻⁴), the counts below 10⁻² and
 10⁻³ in Figure 4 (20, 13), the number of starting setups improved (12 of 20), the Figure 4 median gain where
@@ -125,3 +125,46 @@ relative parameter error, inverse):
 | Heat 3D | invall |  | 2026 | alpha | ('0.396365', '0.0090875') | ('0.358028', '0.10493') |
 
 45 inverse rows differ
+
+## Final build (corrected records with the 2026-11-01 reruns)
+
+Rebuilt independently on 2026-11-03 from `reruns_2026-11-01/final_build/` (the corrected set with the rerun rows
+taking precedence) with `tools/build_benchmark_records.py` at `main` 78bf1a9 (Python 3.13, CPU), and compared byte
+for byte with the current tables:
+
+| Build | Code | Primary files | `table_s2.tex` | `forward_per_seed.csv` | `inverse_per_seed.csv` |
+|---|---|---|---|---|---|
+| final (`final_build/`) | `78bf1a9` | `corrected_2026-10-31/primary.json`, then `reruns_2026-11-01/primary_reruns.json` | identical | identical | identical |
+
+Summary statistics of this build (`stats.json`; the 25 Figure 4 examples), with the corrected build for comparison:
+
+| Statistic | Corrected | Final |
+|---|---|---|
+| Forward problems; median forward error (`med_fwd`) | 22; 5.16 × 10⁻⁴ | 22; 5.16 × 10⁻⁴ |
+| Forward errors below 10⁻² / 10⁻³ | 20 / 13 | 20 / 13 |
+| Starting setups improved by more than 1.25× (`n_better` of `n_start`) | 12 of 20 | 12 of 20 |
+| Median gain where improved (`med_gain`) | 20.1× | 21.4× |
+| Median gain over all 20 (`med_gain_all`) | 7.91× | 7.91× |
+| Inverse problems; median worst parameter error (`med_perr`) | 20; 0.1045 % | 20; 0.1045 % |
+| Inverse problems below 1 % | 19 | 19 |
+
+The only Figure 4 statistic the reruns change is the median gain where improved (20.1× → 21.4×). The reruns of the
+papers' methods raised two starting values while the tuned values stayed the same: Cahn-Hilliard 1D – Wight & Zhao
+(u 8.09 × 10⁻³ → 1.06 × 10⁻², gain 15.7× → 20.5×) and Cahn-Hilliard 2D – Wight & Zhao (φ 0.217 → 0.235, gain
+20.6× → 22.3×); see `reruns_2026-11-01/README.md`. The corrected build's statistics were recomputed the same way on
+2026-11-03 to fill the left column.
+
+Statistics of the final build over all examples (53 forward problems, including the Helmholtz search result
+1.281 × 10⁻³, and 32 inverse problems with scalar parameters), recomputed on 2026-11-04 from
+`benchmarks/tables/forward_per_seed.csv` and `inverse_per_seed.csv` (the `selected` rows, median over seeds); they
+are the numbers printed under *Results at a glance* on the benchmarks page:
+
+| Statistic | Final |
+|---|---|
+| Median forward error (`med_fwd`) | 1.149 × 10⁻³ |
+| Forward problems below 10⁻² / 10⁻³ | 47 / 25 |
+| Starting setups improved by more than 1.25× (`n_better` of `n_start`) | 21 of 48 |
+| Median improvement where improved (`med_gain`) | 19.6× |
+| Median improvement over all 48 (`med_gain_all`) | 1.0× |
+| Median worst parameter error (`med_perr`) | 0.1315 % |
+| Inverse problems below 1 % | 30 of 32 |

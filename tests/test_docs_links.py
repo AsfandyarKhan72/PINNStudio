@@ -63,7 +63,7 @@ def test_no_links_to_removed_readme_sections():
     """README.md keeps only Installation, Quick start, Examples (a short table), Documentation, Reproducibility,
     Citation, Acknowledgment, Contributing, Contact and License."""
     readme = _anchors(_read("README.md"))
-    pages = {"benchmarks/README.md": "../README.md#", "benchmarks/paper.md": "../README.md#",
+    pages = {"benchmarks/README.md": "../README.md#",
              "benchmarks/tuning_study.md": "../README.md#", "benchmarks/examples.md": "../README.md#",
              "CONTRIBUTING.md": "README.md#", "THIRD_PARTY_LICENSES.md": "README.md#"}
     for page, prefix in pages.items():

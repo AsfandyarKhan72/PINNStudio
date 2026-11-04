@@ -1,0 +1,5 @@
+📁 Sweep results will be saved under: /home/asfandyarkhan/pinnstudio_save_load_test/pinnstudio_gpu_test/.gpu_runner/done/a0e_base/out/Helmholtz_2D_hyperparameter_optimization/base_s2026/Helmholtz_2D-hyperparameter_optimization_sweep__2026-10-25_19-19-21
+▶ Run 1/50: baseline
+[Sweep 1/50] Using backend: pytorch
+[Sweep 1/50] Set the default float type to float32
+--- stderr ---

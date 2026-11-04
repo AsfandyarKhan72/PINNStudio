@@ -36,7 +36,7 @@ citation from ``website/about/references.md`` (DeepXDE for a DeepXDE example, an
 author and year is the example's paper, or that names the example). Links to repository files use
 ``extra.repo_blob`` + ``extra.source_ref`` of ``mkdocs.yml``, like ``tools/docs/make_source_links.py``.
 
-Images: only existing result images from the repository (``assets/Images``, ``docs/assets``),
+Images: only existing result images from the repository (``assets/Images``),
 copied to ``website/assets/images/examples/``; the list ``IMAGES`` below says which example
 each one shows and where it comes from. No numerical results are written on the pages.
 """
@@ -128,17 +128,20 @@ IMAGES = [
      "Figure from the repository's figures (`assets/Images/1D-Burgers/`): the same Burgers 1D RAR run, PINN, reference and error after round 2.",
      "PINN solution, reference solution and error over (t, x) of a Burgers 1D RAR run after round 2"),
     ("assets/Images/3D_AllenCahn-Wight/isosurface.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-isosurface.png",
-     "Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — "
+     "Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by "
+     "`tools/plot_3d_allen_cahn_isosurface.py`): a run of this example in Inverse mode — "
      "the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).",
      "Spherical interface of the 3D Allen-Cahn PINN shrinking at five times, and the error inside the cube"),
     ("assets/Images/3D_AllenCahn-Wight/radius.png", "3D Allen-Cahn (Wight & Zhao)", "allen-cahn-3d-wight-zhao-radius.png",
-     "Figure from the repository's benchmark notes (benchmarks/paper.md): the same Inverse-mode run, the drop's radius "
+     "Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by "
+     "`tools/plot_3d_allen_cahn_radius.py`): the same Inverse-mode run, the drop's radius "
      "over time — PINN, reference and the sharp-interface limit.",
      "Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit"),
     ("assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png",
      "Helmholtz 2D – hyperparameter optimization", "helmholtz-2d-hpo-surface.png",
-     "Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — "
-     "PINN, reference and error.",
+     "The search's starting configuration (run 0: learning rate 10⁻³, 4 × 50, sin; relative L₂ 3.3 × 10⁻¹), before "
+     "the 50-run Bayesian search — PINN, reference and error. The selected run (lowest final training loss) is under "
+     "*Results*.",
      "Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem"),
 ]
 
@@ -326,41 +329,137 @@ def _results_sections():
     return out
 
 
+MANIFEST_PATH = REPO / "benchmarks" / "results_manifest.json"
+MANIFEST = {}      # example name -> its entry of benchmarks/results_manifest.json (filled in main)
+_SYM = {"mu": "μ", "phi": "φ", "sxx": "σₓₓ", "syy": "σᵧᵧ", "sxy": "σₓᵧ", "ux": "uₓ", "uy": "uᵧ", "psi": "ψ",
+        "u_re": "u_re", "u_im": "u_im"}
+_PARAM = {"lambda_": "λ", "diff_coeff": "λε²", "eps_sq": "ε²", "c1_sq": "c₁²", "c2": "c₂", "source_term": "f",
+          "alpha": "α", "nu": "ν", "lambda1": "λ₁", "lambda2": "λ₂", "lam": "λ", "mu": "μ", "gamma1": "γ₁",
+          "gamma2": "γ₂", "k0": "k₀", "Re": "Re", "C1": "C₁", "C2": "C₂", "C3": "C₃"}
+
+
+def _pct(frac):
+    """A relative error given as a fraction, in percent with two significant digits (as the benchmark pages)."""
+    if frac is None:
+        return "–"
+    p = 100 * frac
+    return "0 %" if p == 0 else f"{float(f'{p:.2g}'):g} %"
+
+
+def _sci(v):
+    """A relative error as on the benchmark pages: two significant digits, a × 10⁻ⁿ."""
+    if v is None:
+        return "–"
+    if v == 0:
+        return "0"
+    m, e = f"{v:.1e}".split("e")
+    e = int(e)
+    sup = str(e).translate(str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹"))
+    return m if e == 0 else f"{m} × 10{sup}"
+
+
+def _fig_output(path):
+    """The output a result figure shows, from its file name (…_comparison_<output>.png), or '' for the first output."""
+    b = os.path.basename(path)
+    if b.endswith("param_plot.png"):
+        return "parameters"
+    m = re.search(r"comparison_([A-Za-z0-9_]+)\.png$", b)
+    return m.group(1) if m else ""
+
+
+def _fig_kind(path):
+    b = os.path.basename(path)
+    for k, t in (("param_plot", "parameter convergence"), ("surface_comparison", "PINN, reference and error"),
+                 ("slice_comparison", "PINN, reference and error on slices"), ("view3d", "3D view"),
+                 ("isosurface", "interface and error"), ("radius", "drop radius"),
+                 ("line_comparison", "PINN and reference along lines")):
+        if k in b:
+            return t
+    return "result"
+
+
+def _settings_name(res):
+    return (f"Tuned — {res['label']}" if res["tuned_preset"]
+            else f"Default — {res['label']}; the example has no separate Tuned preset for this mode")
+
+
+def _seeds_text(res):
+    if res.get("selection"):
+        return (f"one run, seed 2026, selected by its {res['selection']}; the search's 50 runs are in "
+                f"[its record]({GH_BLOB}{res['record_folder']}/README.md)")
+    s = ", ".join(str(x) for x in sorted(res["seeds"], key=lambda v: (v != 2026, v)))
+    return (f"median over seeds {s}" if len(res["seeds"]) > 1 else f"one run, seed {s}")
+
+
+def _figure_lines(paths, mode, res, main_out):
+    """Main-output figure(s) shown; the other outputs' figures in a collapsed block."""
+    L, rest = [], []
+    for p in paths:
+        out = _fig_output(p)
+        (rest if out not in ("", main_out, "parameters") else L).append(p)
+    def fig(p):
+        out = _fig_output(p)
+        what = _fig_kind(p) + ("" if out in ("", "parameters") else f", {_SYM.get(out, out)}")
+        cap = f"{mode}, {_settings_name(res).split(' — ')[0]} settings: {what}."
+        return ['<figure markdown="span">', f"  ![{mode} result: {what}]({GH_RAW}{p}){{ loading=lazy }}",
+                f"  <figcaption>{cap}</figcaption>", "</figure>", ""]
+    out = []
+    for p in L:
+        out += fig(p)
+    if rest:
+        out += [f'??? note "Other outputs ({len(rest)} figure{"s" if len(rest) > 1 else ""})"', ""]
+        for p in rest:
+            out += ["    " + x if x else "" for x in fig(p)]
+    if "redrawn from" in res.get("figure_note", ""):
+        out += ["*The figure was redrawn from the record run's saved network against the current reference data, "
+                "after that reference was regenerated; its errors are those of the benchmark records.*", ""]
+    if res.get("figure_note", "").startswith("figures from an earlier"):
+        out += [f"*The figures are from an earlier collection of the same configuration; the numbers are those of "
+                f"the benchmark records.*", ""]
+    return out
+
+
 def _results_block(rec, root_rel):
-    """The page's "Results" section, or [] when the benchmark records have none for the example."""
-    b = rec.get("bench")
-    res = RESULTS.get(b["anchor"]) if b else None
-    if not res or not res[0]:
+    """The page's "Results" section: the selected configuration of each benchmarked mode, written from
+    benchmarks/results_manifest.json (generated from the per-seed benchmark records). Nothing is computed here,
+    and a figure is shown only if it is of the selected configuration."""
+    man = MANIFEST.get(rec["entry"].name)
+    if not man or not (man.get("forward") or man.get("inverse")):
         return []
-    table, figs = res
-    L = ["## Results", "", "From the benchmark records: one RTX 4090; relative L₂ error of the main output at the "
-         "last reference time, and for an inverse problem the parameters it found (true value in brackets). "
-         "*PINNStudio best* is what **Settings: Tuned** loads.", ""]
-    L += [ln for ln in table[1:] if ln.strip()] + [""]
-    # shown from the repository (benchmarks/figures/), as the benchmark pages show them, not copied: the main
-    # output's figure of each mode (the surface or line comparison of the first output, and an
-    # inverse problem's parameter plot), at most two
-    chosen, seen = [], set()
-    for path, alt in figs:
-        base = os.path.basename(path)
-        kind = ("param" if "param" in base else "other")
-        mode = "inv" if "_inv/" in path else "fwd"
-        if (mode, kind) in seen or re.search(r"_(mu|v|w|p|q|phi_y)\.png$", base):
-            continue
-        seen.add((mode, kind))
-        chosen.append((path, alt))
-        if len(chosen) == 2:
-            break
-    for path, alt in chosen:
-        if not (REPO / "benchmarks" / path).exists():
-            raise SystemExit(f"{rec['entry'].name}: benchmarks/{path} (named in examples.md) does not exist")
-        cap = alt.split(": ", 1)[-1] if ": " in alt else alt
-        L += ['<figure markdown="span">',
-              f"  ![{alt}]({GH_RAW}benchmarks/{path}){{ loading=lazy }}",
-              f"  <figcaption>{cap}</figcaption>",
-              "</figure>", ""]
-    L += [f"Every setting tried, the papers' reported errors and all figures: "
-          f"[the benchmark records]({GH_BLOB}benchmarks/examples.md#{b['anchor']}).", ""]
+    rec_link = f"{GH_BLOB}{man['record']}" if man.get("record") else f"{GH_BLOB}benchmarks/examples.md"
+    L = ["## Results", "",
+         "The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ "
+         "error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, "
+         "the largest of them (worst parameter error).", ""]
+    f = man.get("forward")
+    if f:
+        outs = list(f["outputs_l2"].items())
+        main_out = outs[0][0] if outs else ""
+        L += ["### Forward problem", "", f"**Settings:** {_settings_name(f)}. **Values:** {_seeds_text(f)}.", ""]
+        L += ["| Output | Relative L₂ |", "|---|---|"]
+        L += [f"| {_SYM.get(o, o)} | {_sci(v)} |" for o, v in outs] + [""]
+        if f["figures"]:
+            L += _figure_lines(f["figures"], "Forward", f, main_out)
+        else:
+            L += ['!!! note "No figure"', "    No figure of the selected configuration has been recorded yet; "
+                  "the values above are from the benchmark records.", ""]
+    i = man.get("inverse")
+    if i:
+        L += ["### Inverse problem", "", f"**Settings:** {_settings_name(i)}. **Values:** {_seeds_text(i)}.", ""]
+        L += ["| Parameter | True value | Recovered | Relative error |", "|---|---|---|---|"]
+        for p in i["parameters"]:
+            L.append(f"| {_PARAM.get(p['name'], p['name'])} | {_num(p['true'])} | {_num(p['found_median'])} | "
+                     f"{_pct(p['relative_error_median'])} |")
+        L += ["", f"Worst parameter error: **{_pct(i['worst_parameter_error_median'])}**"
+              + (" (the median over the seeds of each seed's largest error)." if len(i["seeds"]) > 1 else "."), ""]
+        if i["figures"]:
+            first = next((_fig_output(p) for p in i["figures"] if _fig_output(p) != "parameters"), "")
+            L += _figure_lines(i["figures"], "Inverse", i, first)
+        else:
+            L += ['!!! note "No figure"', "    No figure of the selected configuration has been recorded yet; "
+                  "the values above are from the benchmark records.", ""]
+    L += [f"**Full benchmark record:** every setting tried, the per-seed values and all figures are in "
+          f"[the benchmark records on GitHub]({rec_link}).", ""]
     return L
 
 
@@ -1098,7 +1197,11 @@ def _page(rec, images, root_rel):
         head = "Inverse mode" if inv and e.problem != cat.INVERSE else ("Forward mode" if not inv else "")
         if len(modes) > 1:
             L += [f"### {head}", ""]
-        if m["paper_default"]:
+        _search = ((MANIFEST.get(e.name) or {}).get("forward") or {}).get("variant") == "search" and not inv
+        if _search:
+            what = ("a 50-run Bayesian search (Parameter Sweep), the configuration selected by the lowest final "
+                    "training loss; each run starts from DeepXDE's network and training below")
+        elif m["paper_default"]:
             what = f"the paper's method ({m['paper_default']})"
         elif e.source == cat.DEEPXDE and (not inv or e.problem == cat.INVERSE):
             what = "DeepXDE's own settings"
@@ -1121,6 +1224,14 @@ def _page(rec, images, root_rel):
                   "`pinnstudio/resources/tuned_settings.json` does hold a tuned setting for it (under its inverse "
                   "entry), but the example loads as a Forward problem, so the Examples list does not offer it. "
                   "The tuning-study configuration file is linked under *Definition and records*.", ""]
+        elif _search:
+            L += ["No **Tuned** preset: the example is its own search, and its configuration is chosen by the lowest "
+                  "final training loss, not by the error against the reference.", ""]
+        elif (lambda mm, k: (mm.get("forward") or mm.get("inverse")) and not mm.get(k))(
+                MANIFEST.get(e.name) or {}, "inverse" if (inv or e.problem == cat.INVERSE) else "forward"):
+            # the example has benchmark results, but not for this mode
+            L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example (this mode was "
+                  "not part of the benchmarks).", ""]
         else:
             L += ["No separate **Tuned** preset: the **Tuned** item is greyed out for this example "
                   "(its Default settings are PINNStudio's best).", ""]
@@ -1179,8 +1290,8 @@ def _page(rec, images, root_rel):
 
     # definition and records: where the example is defined, its data, records and citation
     L += ["## Definition and records", ""] + _records_list(rec, paper_line, after_line, root_rel)
-    L += ["", "Verified error values are reported in the [Reproducibility](" + root_rel +
-          "reproducibility/benchmarks.md) section, not on this page.", ""]
+    L += ["", "How the benchmark values were measured and checked: [Reproducibility](" + root_rel +
+          "reproducibility/benchmarks.md).", ""]
     L += ["[← Back to the example gallery](../index.md)", ""]
     return "\n".join(L)
 
@@ -1222,8 +1333,10 @@ def _index(records):
          "Every example is loaded from the toolbar's **Examples:** list: choose **Forward** or **Inverse**, pick the "
          "example under its **ODE**, **1D**, **2D** or **3D** heading, and choose **Default** or **Tuned** "
          "settings. *Default* is DeepXDE's own settings for a DeepXDE example, the paper's method for a template "
-         "taken from a paper, and the template's own settings otherwise; *Tuned* is PINNStudio's best setting from "
-         "the tuning study, where one exists.", "",
+         "taken from a paper, and the template's own settings otherwise; *Tuned* is the run selected in the benchmarks "
+         "(tuning study, training-methods setups and published methods): the most accurate run, or the fastest within "
+         "25% of the lowest error, with Default kept when it is within that margin and within 10% of the fastest "
+         "time.", "",
          "!!! warning \"Scope\"",
          "    An example is a starting point. PINNStudio sets up, trains and evaluates the PINN; it does not "
          "guarantee convergence or accuracy, and results vary from run to run. How the examples' errors are measured and recorded is described in "
@@ -1276,6 +1389,7 @@ def main():
     print(f"example sections from {_use_examples_source(args.examples)}")
     readme = _readme_sections()
     RESULTS.update(_results_sections())
+    MANIFEST.update({x["example"]: x for x in json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))["examples"]})
     bench_index = {b["name"]: b for b in json.loads((REPO / "benchmarks/problems/index.json").read_text())}
     tuned_files = _tuned_file_map([e.name for e in entries])
     bc_labels = {k: lbl for lbl, k in MainWindow.CUSTOM_BC_TYPES}

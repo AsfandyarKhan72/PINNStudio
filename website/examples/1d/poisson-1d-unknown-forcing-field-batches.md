@@ -67,21 +67,6 @@ This example learns an unknown **field** as an extra network output (it has no s
     | 1 | Adam | 60,000 | 0.0001 | none |
     | 2 | L-BFGS | 15,000 | — | none |
 
-## Results
-
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
-
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Inverse: learned field | – | **see the benchmark** | 215 |
-
-<figure markdown="span">
-  ![Poisson 1D – unknown forcing field (batches): PINNStudio best — all of the changes together — u — PINN against the reference along a line, at the reference times](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/all_line_comparison_u.png){ loading=lazy }
-  <figcaption>PINNStudio best — all of the changes together — u — PINN against the reference along a line, at the reference times</figcaption>
-</figure>
-
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-poisson-with-unknown-forcing-field-batches).
-
 ## Loading it in PINNStudio
 
 - Inverse: toolbar **Examples:** › **Inverse** › under the **── 1D ──** heading, **Poisson 1D – unknown forcing field (batches)** › **Default** or **Tuned**, then **Solve**.
@@ -107,6 +92,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [elliptic_inverse_field_batch.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

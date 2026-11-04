@@ -170,10 +170,10 @@ The study above uses each example's own settings, which differ from problem to p
 
 | Version | Settings | Time windows | Status |
 |---|---|---|---|
-| Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done; Supplementary Fig. S1 |
+| Original study (the sections below) | each example's own (from its paper) | full steps in every window (4–5 windows) | done |
 | Matched per problem ([`plans/fig7_confirm.json`](plans/fig7_confirm.json)) | each example's own, the same for all setups of a problem | steps shared out (1/k per window), all points; 4–5 windows | done except time windows on 2D Cahn-Hilliard (stopped) |
-| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | all 32 runs done (October 2026); the paper's Figure 7 and Fig. S3 |
-| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | all 20 runs done (October 2026); causal training is in Figure 7, the rest in Fig. S4 |
+| **Common protocol** ([`plans/fig7_v2.json`](plans/fig7_v2.json)) | one per dimension, table above | full (5, 6) and equal compute (5b, 6b), 4 windows | all 32 runs done (October 2026; the windowed Cahn-Hilliard runs repeated on 2026-11-01, marked ‡); Figure 7 and the time-window comparison below |
+| Common protocol, more techniques ([`plans/fig7_v2b.json`](plans/fig7_v2b.json)) | the same | setups 7–10 (the plain runs are shared) | all 20 runs done (October 2026); causal training is in Figure 7, the rest in the table below |
 
 Results of the common protocol, the paper's Figure 7 (error at $t = 1$, seed 2026; training time on one RTX 4090, two runs at a time; values marked ‡ are from the reruns after the time-window loss-weight fix, run one at a time, and the 2D Allen-Cahn row is re-scored against the regenerated reference, `figures/fig7_corrected/`):
 
@@ -197,7 +197,7 @@ Results of setups 7–10 under the same protocol (error at $t = 1$, seed 2026; S
 
 ![The other techniques against SA-PINN, error against time](figures/paper_methods_c_more.png)
 
-*The growing time range in 2D first stopped at its second window because of a bug in PINNStudio (fixed); both 2D runs were run again after the fix.* In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR go in the supplement (Figs. S3 and S4).
+*The growing time range in 2D first stopped at its second window because of a bug in PINNStudio (fixed); both 2D runs were run again after the fix.* In the paper, causal training takes the place of bc-PINN windows in Figure 7; bc-PINN, the equal-compute windows, the growing range, causal + MsFFN and RAR are compared in the tables on this page.
 
 What it shows: exact conditions are the largest single gain on every problem (×4 to ×280), SA-PINN gives the lowest error everywhere (causal + MsFFN ties it on 1D Allen-Cahn), causal training comes close to it on both Cahn-Hilliard problems at the same or lower cost, RAR helps only when run about three times longer (then it ties SA-PINN on 2D Cahn-Hilliard, 0.173% against 0.175%), and time windows, even with four times the training, stay behind the best whole-interval setup (×5–8) while taking longer than SA-PINN; with equal compute they are about as accurate as with four times the steps in 1D and clearly worse in 2D. Backward compatibility changes the windows little on Allen-Cahn and makes them worse on both Cahn-Hilliard problems, most with equal compute (0.99% against 0.48% in 1D, 13% against 5.3% in 2D).
 

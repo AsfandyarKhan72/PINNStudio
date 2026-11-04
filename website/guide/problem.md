@@ -20,8 +20,8 @@ The quickest way to a working setup is an example that is close to your problem:
 3. In the third list, choose **Default** or **Tuned**:
     - **Default** — a DeepXDE example with DeepXDE's own settings; a template taken from a paper with that
       paper's network, points and training (forward mode; in inverse mode, the template's own settings); PINNStudio's own templates as they are.
-    - **Tuned** — PINNStudio's best settings for that example from its benchmarks: the most accurate run,
-      and among runs about as accurate, the fastest. The Training Log says what these settings change.
+    - **Tuned** — the run selected for that example in the benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error; the Default settings are kept when they are within that margin and within 10% of the fastest time. The Training Log says
+      what these settings change.
 
 Loading an example sets every page: dimension, equations, domain, conditions, network, training and,
 where reference data ships with the example, Error Analysis. Everything stays editable. When you then

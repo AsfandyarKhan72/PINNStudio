@@ -36,7 +36,7 @@ The main changes, by theme:
 
 - A **Settings** list next to the **Examples** list: **Default** loads an example as its source solves it (DeepXDE's
   settings, or the paper's method for Wight & Zhao, Mattey & Ghosh's bc-PINN and Raissi et al.), **Tuned** loads
-  PINNStudio's most accurate settings from the benchmarks. The Training Log says what the chosen settings change.
+  the run selected in the benchmarks (the most accurate, or the fastest within 25% of the lowest error). The Training Log says what the chosen settings change.
 - Inverse versions of 12 more DeepXDE forward examples, each finding physical constants from measured data.
 - A new example, *Poisson 3D – cube with spherical cut-out*; 64 examples in all.
 - Six phase-field examples name their outputs as their papers do (`phi`, `h`, `mu` instead of `u`); problems saved

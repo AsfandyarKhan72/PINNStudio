@@ -8,9 +8,9 @@ build/
 solution_data/
 venv/
 !assets/Images/**/*.png
-!docs/assets/*.png
 !benchmarks/figures/*.png
 !benchmarks/figures/tuning/**/*.png
+!benchmarks/records/**/*.png
 !pinnstudio/resources/*.png
 
 # Local patch scratch (apply_*.py / *.patch files kept for review before

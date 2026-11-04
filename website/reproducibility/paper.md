@@ -10,7 +10,7 @@ three record sets and what changed between them).
 |---|---|---|
 | Example accuracy (forward and inverse) | `tools/tuning_study.py` (reference runs, tuning study) | `tools/make_tuning_page.py`, `tools/make_benchmarks_readme.py` |
 | Published methods (base PINN vs. the paper's method vs. PINNStudio) | `tools/tuning_study.py --variants plain,paper_*` | [`benchmarks/paper_comparison.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/paper_comparison.md) |
-| Controlled comparison of training methods | `python benchmarks/study_runner.py benchmarks/plans/fig7_v2.json OUT --jobs 1` | `tools/make_methods_figure.py` |
+| Controlled comparison of training methods | `python benchmarks/study_runner.py benchmarks/plans/fig7_v2.json OUT --jobs 1`, then the same with `fig7_v2b.json` | `tools/make_methods_figure.py` |
 | Example figures | the examples' Tuned runs | `tools/make_paper_examples.py` |
 | Export equivalence | `tools/check_export_equivalence.py` | [Export equivalence](export-equivalence.md) |
 | Performance | `benchmarks/perf_study.py` | [`benchmarks/performance.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/performance.md) |
@@ -22,5 +22,5 @@ three record sets and what changed between them).
 2. Run the study script; each writes one folder per run with the generated script, its log and a `result.json`.
 3. Run the table or figure script on those folders.
 
-GPU runs reproduce the published values up to the run-to-run variation described in
+GPU runs reproduce the recorded values up to the run-to-run variation described in
 [Seeds, precision and hardware](environment.md); CPU runs with the same seed are repeatable on the same machine.

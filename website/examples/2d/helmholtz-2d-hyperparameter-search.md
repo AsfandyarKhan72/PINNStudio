@@ -17,7 +17,7 @@ search:
 
 <figure markdown="span">
   ![Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem](../../assets/images/examples/helmholtz-2d-hpo-surface.png){ loading=lazy }
-  <figcaption>Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — PINN, reference and error.</figcaption>
+  <figcaption>The search's starting configuration (run 0: learning rate 10⁻³, 4 × 50, sin; relative L₂ 3.3 × 10⁻¹), before the 50-run Bayesian search — PINN, reference and error. The selected run (lowest final training loss) is under *Results*.</figcaption>
 </figure>
 
 ## Governing equations
@@ -44,7 +44,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 ## Settings
 
-**Settings: Default** — DeepXDE's own settings
+**Settings: Default** — a 50-run Bayesian search (Parameter Sweep), the configuration selected by the lowest final training loss; each run starts from DeepXDE's network and training below
 
 - **Network:** FNN, hidden layers 4 × 50, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
 - **Points:** 400 domain, 80 boundary, 3,600 test
@@ -55,17 +55,26 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 |---|---|---|---|---|
 | 1 | Adam | 10,000 | 0.001 | none |
 
-No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
+No **Tuned** preset: the example is its own search, and its configuration is chosen by the lowest final training loss, not by the error against the reference.
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
-|---|---|---|---|
-| Forward: relative L₂ at the last reference time | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – |
+### Forward problem
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
+**Settings:** Default — the example's Bayesian search, 50 runs; selected: the run with the lowest final training loss (run 49); the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026, selected by its final training loss (not the reference error); the search's 50 runs are in [its record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/records/helmholtz_hpo_2026-10-25/README.md).
+
+| Output | Relative L₂ |
+|---|---|
+| u | 1.3 × 10⁻³ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
+</figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
 
 ## Loading it in PINNStudio
 
@@ -91,6 +100,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Escapil-Inchauspé & Ruz 2023](../../about/references.md#escapil2023)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

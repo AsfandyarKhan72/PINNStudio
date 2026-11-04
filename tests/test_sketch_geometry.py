@@ -79,8 +79,14 @@ def test_sketch_draws_rows_and_rows_redraw_sketch():
     assert cfg.geometry_type == "Custom" and cfg.geom_sketch
     assert not cfg.validate()
 
+    _settle(0.5)          # let the sketch finish rewriting the rows from the last drag before editing a row
     w.custom_geom_shape_rows[1]["disk_r"].setValue(0.15)
-    _settle(0.5)
+    # the row edit reaches the sketch through a 120 ms timer; a slow runner (macOS CI under xdist) can need
+    # longer than a fixed wait, so wait for it, up to 5 s
+    t_end = time.time() + 5
+    while abs(c.shapes[1]["params"]["r"] - 0.15) >= 1e-9 and time.time() < t_end:
+        _settle(0.1)
+    assert abs(w.custom_geom_shape_rows[1]["disk_r"].value() - 0.15) < 1e-9
     assert abs(c.shapes[1]["params"]["r"] - 0.15) < 1e-9
 
     w2 = MainWindow()

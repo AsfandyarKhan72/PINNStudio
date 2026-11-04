@@ -15,8 +15,8 @@ PINNStudio/
 ├── tools/                   developer scripts: reference-data generators, checks, figures, docs tools
 ├── benchmarks/              recorded benchmark runs, studies and the pages generated from them
 ├── website/                 this documentation site (MkDocs + Material); mkdocs.yml at the root
-├── docs/                    the old single-page website (index.html), kept until this site is published
 ├── assets/                  images used by the README and the benchmark pages
+├── notes/                   development records (PySide6 migration, licensing decision); not shipped
 ├── .github/workflows/       CI: tests, platform matrix, smoke test, documentation
 ├── setup.py, pyproject.toml, MANIFEST.in, requirements.txt     packaging
 ├── install.sh, install.bat, get-pinnstudio.sh, get-pinnstudio.ps1, select_torch_index.py   installers
@@ -72,7 +72,7 @@ PINNStudio/
   scripts, and `tools/docs/` for this site (`WRITING.md`, `make_screenshots.py`, `make_config_reference.py`,
   `make_gallery.py`, which writes the example gallery from `benchmarks/examples.md` and the example definitions, and
   `make_source_links.py` with its mapping `source_map.py` for the source links [below](#where-each-feature-is-in-the-code)).
-- **`benchmarks/`** — the recorded runs and studies behind the benchmark pages (`README.md`, `examples.md`, `paper.md`,
+- **`benchmarks/`** — the recorded runs and studies behind the benchmark pages (`README.md`, `examples.md`,
   `tuning_study.md`, `training_methods.md`, `performance.md`) and their scripts; see
   [Benchmark collection](../reproducibility/benchmarks.md).
 

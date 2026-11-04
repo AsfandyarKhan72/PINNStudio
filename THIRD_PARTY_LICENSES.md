@@ -43,8 +43,7 @@ Not included from other projects:
   `pinnstudio/ui/icons.py`) was created for PINNStudio, with the assistance of Claude (Anthropic), in October 2026,
   replacing an earlier icon. It is part of PINNStudio and is licensed with it; `tools/make_app_icon.py` renders the
   icon files from its SVG source.
-- **No fonts are bundled.** The interface uses the system's fonts. The project page (`docs/index.html`) loads its
-  web fonts from Google Fonts at viewing time.
+- **No fonts are bundled.** The interface uses the system's fonts.
 
 ## 2. Installed separately
 

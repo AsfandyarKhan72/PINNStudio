@@ -543,8 +543,14 @@ def page(summ, rows, with_files):
       "with its own settings and with the same five changes, and the change that trains best is reported next to "
       "the example's own result. It complements the [training methods study](training_methods.md), which tests "
       "specialised methods (causal training, per-point weights, time windows) on the hardest problems.\n")
-    a(f"{len(summ)} problems are included, chosen as the ones with the largest errors in the "
-      f"[example results](examples.md). {better} of them improve by 1.5× or more; the median improvement is "
+    n_inv = sum(1 for s in summ if s["inverse"])
+    n_var = sum(1 for s in summ if len(s["variants"]) > 1)
+    a(f"{len(summ)} entries are included, one per example and mode of the Examples list ({len(summ) - n_inv} in "
+      f"Forward mode, which includes DeepXDE's inverse-only examples and the templates' best-setup starts, and "
+      f"{n_inv} in Inverse mode; the [benchmarks page](README.md) counts 53 forward and 35 inverse problems "
+      f"instead). Each was run with its own settings, "
+      f"and the {n_var} with the largest errors in the [example results](examples.md) also with the changes below. "
+      f"{better} of the {len(summ)} improve by 1.5× or more; the median improvement is "
       f"{statistics.median(ratios):.0f}×." if ratios else "")
     a("")
     a("## How it is done\n")
@@ -566,7 +572,7 @@ def page(summ, rows, with_files):
     a(f"- **Seeds.** The example's own settings and the chosen variant are run with up to {n_seeds} random seeds "
       "(1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses "
       "seed 2026.")
-    a("- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5. Times are wall-clock training time "
+    a("- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5 to 1.6 (each record names its commit). Times are wall-clock training time "
       "per run.")
     a("- **Reproducing a result.** Each problem's section links the tuned settings as a problem file in "
       "[`tuning/`](tuning/): open it in PINNStudio (*Open a saved problem…*) and press Solve. The runs were made "
@@ -580,7 +586,7 @@ def page(summ, rows, with_files):
       "each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: "
       "the filled marker is the chosen run, and an open grey marker the example's own settings where a change "
       "helped. Rows without † show the README's result (kept in "
-      "[`tuning/readme_results.json`](tuning/readme_results.json)) until they are run here. For a template "
+      "[`tuning/readme_results.json`](tuning/readme_results.json)); they were not part of this study. For a template "
       "run from the training methods study's best setup, the grey marker is the template as it loads.\n")
     a("![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)\n")
     a("| Problem | Own settings: $L_2$ | Tuned: $L_2$ | Improvement | Chosen variant | Parameter error: own → tuned | "

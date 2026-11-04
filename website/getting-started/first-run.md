@@ -45,7 +45,7 @@ version of the example.
 |---|---|---|
 | Category | **Forward**, **Inverse** | **Forward**: every example, solving for the field. **Inverse**: the examples that learn unknown parameters or fields from measured data. |
 | Example | the examples of the category, under ODE / 1D / 2D / 3D headings | Loads the example. **None** when nothing is loaded. |
-| Settings | **Default**, **Tuned** | **Default**: a DeepXDE example with DeepXDE's own settings; an example taken from a paper solved the way the paper solves it (network, points, training; forward mode — in inverse mode, the template's own settings); PINNStudio's own examples as they are. **Tuned**: PINNStudio's best settings for the example from the project's benchmarks (the most accurate run, and of runs about as accurate, the fastest). |
+| Settings | **Default**, **Tuned** | **Default**: a DeepXDE example with DeepXDE's own settings; an example taken from a paper solved the way the paper solves it (network, points, training; forward mode — in inverse mode, the template's own settings); PINNStudio's own examples as they are. **Tuned**: the run selected in the benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error; the Default settings are kept when they are within that margin and within 10% of the fastest time. |
 
 Leave the category on **Forward** and the settings on **Default**, and choose **Burgers 1D – Raissi et al.** from
 the example list.

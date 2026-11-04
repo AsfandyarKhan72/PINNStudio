@@ -1,6 +1,69 @@
 # PINNStudio benchmarks
 
-*Every example of PINNStudio, forward and inverse, with the result of its reference settings and PINNStudio's best. Updated as the runs finish.*
+*The examples that ship with PINNStudio (64), in each of their benchmarked modes, with the error of their Default and Tuned settings and the records each number comes from.*
+
+## What is evaluated
+
+- **64 examples**, from ODEs to 3D PDEs: DeepXDE's own examples, templates taken from published papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.) and PINNStudio's own templates.
+- **53 forward problems**: the solution is learned from the equation and its initial and boundary conditions, and compared with reference data.
+- **35 inverse problems**: unknown coefficients (32 problems) or an unknown field (3) are learned together with the solution from measured values of it.
+- The example gallery lists 54 examples under Forward and 36 under Inverse: the Black-Scholes American put has no reference solution and Poisson 2D – L-shape's Inverse mode was not benchmarked, so they are not counted here.
+
+## How results are measured
+
+- **Forward:** the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data. For a Cahn-Hilliard problem the value reported is the main output's; the selection of the Tuned settings also requires the chemical potential μ to be accurate (the worse of the two). For the templates from papers, which report one error over all times, the error over all times is given too.
+- **Inverse:** for each seed, the largest relative error of the learned parameters; the problem's value is the median of that over the seeds. The three unknown-field problems have no parameter error: their settings are selected by the solution's fit to the measured data (the L₂ in their tables), and they are not in the parameter statistics below.
+- **Seeds:** where a setting ran with three seeds (1, 2, 2026), the value is their median; otherwise seed 2026. **Times** are training seconds on one NVIDIA RTX 4090.
+
+## Default and Tuned settings
+
+- **Default:** the source's own settings: DeepXDE's for a DeepXDE example, the paper's method run in PINNStudio for a template from a paper, the template's starting settings for a PINNStudio template.
+- **Tuned** (*PINNStudio best*): on the 41 examples with the largest errors, the tuning study tried a fixed set of changes (3× the iterations, a larger network, 3× the points, an L-BFGS phase, and for inverse problems a heavier data weight and more L-BFGS), one at a time and all together. The candidates also include the best setups of the training-methods study and the published methods run in PINNStudio. The selected run is the most accurate one against the reference, and among runs within 25% of the lowest error the fastest; the Default settings are kept when they are within that margin and within 10% of the fastest time. The other examples were already accurate and were not tuned (**no tuning needed**); for a template from a paper, Tuned can be the template's own settings while Default is the paper's method.
+- **One exception: Helmholtz 2D – hyperparameter search.** This example runs PINNStudio's Bayesian parameter sweep (50 configurations), and the configuration is selected by the **lowest final training loss**, without looking at the reference; its error is measured only afterwards ([the search record](records/helmholtz_hpo_2026-10-25/README.md)).
+- Both settings ship with every example: choose *Default* or *Tuned* when loading it from the toolbar's **Examples** list, so each number can be loaded and run again.
+
+## Results at a glance
+
+**All 64 examples.** 53 forward problems: median relative L₂ error 1.15 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 25 below 10⁻³. Of the 48 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than a factor of 1.25 in 21, by a median factor of 19.6 in those (median over all 48: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.13% (each problem's worst parameter error per seed, its median over the seeds), 30 below 1%.
+
+
+**Figure A — 25 representative problems,** one of each kind, from ODEs to 3D PDEs. Left: forward relative L₂ error with the Default settings (open circle, where there is an outside starting point) joined to the Tuned settings (filled); a ring marks an example whose Default settings were kept. Right: the error of each learned parameter. Medians over the seeds where three were run. ([PDF](figures/paper_figure.pdf); values: [`tables/figure4_values.md`](tables/figure4_values.md); the examples: [`paper_figure_examples.txt`](paper_figure_examples.txt).)
+
+![Figure A: 25 representative examples, forward and inverse](figures/paper_figure.png?v=6f479fbb)
+
+**Figure B — every case:** the 53 forward problems (left, relative L₂ error) and the 32 inverse problems with scalar parameters (right, the error of every parameter), grouped by dimension, with the same markers as Figure A. Values from one run (seed 2026) and the Helmholtz search result are marked apart from three-seed medians. ([PDF](figures/collection_figure.pdf); the values are in [`tables/`](tables/README.md).)
+
+![Figure B: every benchmark case, forward and inverse](figures/collection_figure.png?v=8692b083)
+
+## The studies
+
+What was run, how, and where each study is written up.
+
+| Study | What it answers | How it is run | Written up in | Plans and scripts | Status |
+|---|---|---|---|---|---|
+| Reference runs | the error of every example with its own settings (DeepXDE's, or the template's) | each example as shipped, seed 2026 | this page, first row of every example | `tools/tuning_study.py`, variant `base` | done |
+| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | [tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, `tools/make_tuning_page.py` | done |
+| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the paper's section and table) | [paper_comparison.md](paper_comparison.md) | `tools/tuning_study.py --variants plain,paper_*` | done |
+| Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, time windows) help on the phase-field and other hard problems | each example's own settings, the technique changed, 10 core setups | [training_methods.md](training_methods.md) | `benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |
+| Controlled comparison of training methods | the same question under one protocol: same network, points and steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7) | `benchmarks/plans/fig7_v2.json` and `fig7_v2b.json`, `tools/make_methods_figure.py` | done (all 52 runs) |
+| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history and identified parameters compared line by line | [export_check](export_check/README.md), [performance.md](performance.md) | `tools/check_export_equivalence.py` | done: 93 example-mode configurations, 89 completed and bitwise identical (88 independent comparisons, 1 identical by construction), 4 excluded |
+| Performance | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | [performance.md](performance.md) | `benchmarks/perf_study.py` | done |
+
+All runs are on one RTX 4090 unless stated.
+
+
+## Reproducing the results
+
+- **One example:** load it from PINNStudio's **Examples** list with the *Default* or *Tuned* settings and press *Solve* (or *Export as DeepXDE script* and run the script). The settings files are also in [`tuning/`](tuning/).
+- **The tuning study:** `python tools/tuning_study.py --out runs/tuning --names "<example>" --seeds 1,2,2026`; the variants and rules are in [tuning_study.md](tuning_study.md).
+- **The tables and pages from the records:** every table, figure and page here is generated from the run records in [`records/`](records/README.md) (the final build: [`records/reruns_2026-11-01/final_build/`](records/reruns_2026-11-01/final_build/README.md)); [`records/VERIFICATION.md`](records/VERIFICATION.md) gives the commands and the byte-for-byte checks.
+
+## Every example
+
+<details>
+<summary>📖 <em>How to read an example</em></summary>
+
+*Every example of PINNStudio, forward and inverse, with the result of its reference settings and PINNStudio's best.*
 
 **How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's starting settings** for a PINNStudio template (the settings PINNStudio's template was written with, before the tuning study; for a template from a paper this is not the paper's method, which has its own row). The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time is repeated in the last row; the starting settings are kept when they are within that margin and within 10% of the fastest time. Accuracy is the main output's error at the last reference time (for a Cahn-Hilliard problem the worse of that and the chemical potential μ's); for an inverse problem, the median over seeds of each seed's largest parameter error. These are the **Tuned** settings. Above the tables, two ⚙️ toggles list the settings themselves, each with how to load it: **Default** — the source's own settings, DeepXDE's or the paper's method, for the problems the source solves (an inverse problem PINNStudio added appears only under PINNStudio best) — and **PINNStudio best** (Settings: Tuned). Below the tables, two toggles hold the figures: **Forward results** (DeepXDE's settings, or for a template from a paper the paper's method run in PINNStudio, then PINNStudio's best) and **Inverse results** (PINNStudio's best; for DeepXDE's own inverse examples DeepXDE's settings first).
 
@@ -8,29 +71,9 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 **The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows give that too. Where a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds on one RTX 4090.
 
-The sweep was run on the 41 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
-
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=b73c3a41)
-
-*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
-
-<details>
-<summary>🗂️ <em>The studies behind this page — what was run, how, and where it is written up</em></summary>
-
-| Study | What it answers | How it is run | Written up in | Plans and scripts | Status |
-|---|---|---|---|---|---|
-| Reference runs | the error of every example with its own settings (DeepXDE's, or the template's) | each example as shipped, seed 2026 | this page, first row of every example | `tools/tuning_study.py`, variant `base` | done |
-| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | [tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, `tools/make_tuning_page.py` | done |
-| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the paper's section and table) | [paper_comparison.md](paper_comparison.md); for the paper: [paper.md](paper.md) | `tools/tuning_study.py --variants plain,paper_*` | done |
-| Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, time windows) help on the phase-field and other hard problems | each example's own settings, the technique changed, 10 core setups | [training_methods.md](training_methods.md) | `benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |
-| Controlled comparison (paper Figure 7) | the same question under one protocol: same network, points and steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | [training_methods.md → The controlled comparison](training_methods.md#the-controlled-comparison-paper-figure-7); for the paper: [paper.md](paper.md) | `benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |
-| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history and identified parameters compared line by line | [performance.md](performance.md); for the paper: [paper.md](paper.md) | `tools/check_export_equivalence.py` | done (91 checked; see performance.md) |
-| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | [performance.md](performance.md); for the paper: [paper.md](paper.md) | `benchmarks/perf_study.py` | done |
-
-All runs are on one RTX 4090 unless stated.
+The sweep was run on the 41 examples with the largest errors (counted as examples; the [tuning study](tuning_study.md) counts the forward and inverse problem of an example separately). The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
 </details>
-
 
 <details>
 <summary>📋 <em>All results — one table</em></summary>
@@ -105,8 +148,6 @@ All runs are on one RTX 4090 unless stated.
 | [Navier-Stokes 3D – Beltrami flow](#bench-navier-stokes-3d-beltrami-flow) | DeepXDE | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | 2325 | ν = 0.998265 (1) | 0.17% | 2451 |
 
 </details>
-
-**📄 For the paper.** The paper's figures, tables, captions and draft text (Figure 3, Figure 4, the forward and inverse examples, the published methods, Figure 7, Table S2, Section 4.6, and Section 5 with Table 2 and Supplementary Tables S3 and S4) are on their own page: [paper.md](paper.md).
 
 ## ODEs
 
@@ -3504,7 +3545,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| DeepXDE's settings (README) | 1.3 × 10<sup>-3</sup> | – |
+| The example's Bayesian search: 50 runs, the one with the lowest final training loss ([record](records/helmholtz_hpo_2026-10-25/README.md)) | 1.3 × 10<sup>-3</sup> | – |
 | Their best hyper-parameter configuration, as reported (Escapil-Inchauspé & Ruz (2023)) | 1.2 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.3 × 10<sup>-3</sup>** | – |
 
@@ -3513,9 +3554,9 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
 
-*DeepXDE's settings (README):*
+*The example's Bayesian search: 50 runs, the one with the lowest final training loss:*
 
-![Helmholtz 2D – hyperparameter search: DeepXDE's settings (README) — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+![Helmholtz 2D – hyperparameter search: The example's Bayesian search: 50 runs, the one with the lowest final training loss — PINN, reference and error over space and time](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
 
 </details>
 
@@ -3831,6 +3872,37 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 </details>
 
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+<sub>σₓₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png)
+
+<sub>σₓᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σₓᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png)
+
+<sub>σᵧᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — σᵧᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png)
+
+<sub>uₓ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uₓ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png)
+
+<sub>uᵧ — PINN, reference and error over space and time</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — uᵧ — PINN, reference and error over space and time](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png)
+
+<sub>the learned parameters during training</sub>
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png)
+
+</details>
+
 </details>
 
 <details id="bench-linear-elasticity-2d-plate-soft-bcs">
@@ -4000,15 +4072,19 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — u — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_u.png)
+
+<sub>p — PINN, reference and error over space and time</sub>
+
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — p — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_p.png)
 
 <sub>v — PINN, reference and error over space and time</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — v — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — v — PINN, reference and error over space and time](figures/tuning/Kovasznay_flow_inv/all_surface_comparison_v.png)
 
 <sub>the learned parameters during training</sub>
 
-![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — the learned parameters during training](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — all of the changes together — the learned parameters during training](figures/tuning/Kovasznay_flow_inv/all_param_plot.png)
 
 </details>
 
@@ -4453,6 +4529,12 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 *Mattey & Ghosh's bc-PINN, run in PINNStudio:*
 
 ![Allen-Cahn 2D – Mattey & Ghosh: Mattey & Ghosh's bc-PINN, run in PINNStudio — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh/paper_mg_surface_comparison.png)
+
+*PINNStudio best — 3× iterations:*
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — 3× iterations — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/iters_surface_comparison.png)
+
+*This figure was redrawn from the record run's saved network against the current reference data (benchmarks/reference_regeneration/redraw_from_bundle.py; its errors are the records').*
 
 </details>
 
@@ -5001,6 +5083,21 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 </details>
 
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — Measured data at every reference time:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 2D: PINNStudio best — Measured data at every reference time — PINN, reference and error over space and time](figures/tuning/Template_2D_Heat_inv/times_surface_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 2D: PINNStudio best — Measured data at every reference time — the learned parameters during training](figures/tuning/Template_2D_Heat_inv/times_param_plot.png)
+
+</details>
+
 </details>
 
 ## 3D
@@ -5428,6 +5525,25 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 <sub>3D view: the solution and its error in the domain</sub>
 
 ![Heat 3D: The template's starting settings (also PINNStudio best) — 3D view: the solution and its error in the domain](figures/tuning/Template_3D_Heat/base_view3d_comparison.png)
+
+</details>
+
+<details>
+<summary>📊 <em>Inverse results — figures</em></summary>
+
+*PINNStudio best — 10× weight on the measured data:*
+
+<sub>PINN, reference and error over space and time</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — PINN, reference and error over space and time](figures/tuning/Template_3D_Heat_inv/dataw_surface_comparison.png)
+
+<sub>3D view: the solution and its error in the domain</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — 3D view: the solution and its error in the domain](figures/tuning/Template_3D_Heat_inv/dataw_view3d_comparison.png)
+
+<sub>the learned parameters during training</sub>
+
+![Heat 3D: PINNStudio best — 10× weight on the measured data — the learned parameters during training](figures/tuning/Template_3D_Heat_inv/dataw_param_plot.png)
 
 </details>
 

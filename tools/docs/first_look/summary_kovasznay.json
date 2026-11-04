@@ -1,0 +1,17 @@
+[
+ {
+  "key": "Kovasznay flow",
+  "inverse": false,
+  "settings": "Tuned settings: none for this example (it was already accurate) -- its default settings.",
+  "plot_type": "Surface",
+  "rc": 0,
+  "seconds": 200.8,
+  "gifs": [],
+  "last_l2": [
+   "2.1760e-04",
+   "9.7904e-04",
+   "5.5602e-04"
+  ],
+  "params": []
+ }
+]

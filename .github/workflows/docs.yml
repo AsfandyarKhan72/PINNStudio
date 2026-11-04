@@ -5,7 +5,7 @@
 #  - Deployment to GitHub Pages is explicitly controlled and OFF until the maintainers approve publication.
 #    It runs only when ALL of these hold: the workflow is started by hand (Actions > Documentation > Run
 #    workflow) on the main branch with deploy=true, AND the repository variable DOCS_PUBLISH_APPROVED is
-#    set to "true" (Settings > Secrets and variables > Actions > Variables; it does not exist yet), AND the
+#    set to "true" (Settings > Secrets and variables > Actions > Variables; keep it "false" between approved deployments), AND the
 #    Pages source is "GitHub Actions" (Settings > Pages). Releases, pushes and pull requests never deploy.
 name: Documentation
 
@@ -59,7 +59,8 @@ jobs:
             --exclude '^https://doi\.org/10\.1137/'
             --exclude '^https://github\.com/AsfandyarKhan72/PINNStudio/(edit/|issues/new)'
             --remap '^file://(.*)/_site/PINNStudio(/.*)?$ file://$1/_site$2'
-            --remap 'https://github.com/AsfandyarKhan72/PINNStudio/(blob|tree)/main/ https://github.com/AsfandyarKhan72/PINNStudio/$1/${{ github.ref_name }}/'
+            --remap 'https://github.com/AsfandyarKhan72/PINNStudio/(blob|tree)/main/ https://github.com/AsfandyarKhan72/PINNStudio/$1/${{ github.head_ref || github.ref_name }}/'
+            --remap 'https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/ https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/${{ github.head_ref || github.ref_name }}/'
             "_site/**/*.html"
           fail: true
       - name: Upload preview

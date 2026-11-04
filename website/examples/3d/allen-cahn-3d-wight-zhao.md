@@ -17,12 +17,12 @@ search:
 
 <figure markdown="span">
   ![Spherical interface of the 3D Allen-Cahn PINN shrinking at five times, and the error inside the cube](../../assets/images/examples/allen-cahn-3d-wight-zhao-isosurface.png){ loading=lazy }
-  <figcaption>Figure from the repository's benchmark notes (benchmarks/paper.md): a run of this example in Inverse mode — the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by `tools/plot_3d_allen_cahn_isosurface.py`): a run of this example in Inverse mode — the PINN interface phi = 0 at five times (top) and the error on the cube with one corner cut away (bottom).</figcaption>
 </figure>
 
 <figure markdown="span">
   ![Radius of the 3D Allen-Cahn drop over time: PINN, reference and sharp-interface limit](../../assets/images/examples/allen-cahn-3d-wight-zhao-radius.png){ loading=lazy }
-  <figcaption>Figure from the repository's benchmark notes (benchmarks/paper.md): the same Inverse-mode run, the drop's radius over time — PINN, reference and the sharp-interface limit.</figcaption>
+  <figcaption>Figure from the repository's figures (`assets/Images/3D_AllenCahn-Wight/`, drawn by `tools/plot_3d_allen_cahn_radius.py`): the same Inverse-mode run, the drop's radius over time — PINN, reference and the sharp-interface limit.</figcaption>
 </figure>
 
 ## Governing equations
@@ -125,24 +125,58 @@ No separate **Tuned** preset: the **Tuned** item is greyed out for this example 
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Forward problem
+
+**Settings:** Tuned — Larger network (2× width, one more layer). **Values:** median over seeds 2026, 1, 2.
+
+| Output | Relative L₂ |
+|---|---|
+| u | 1.9 × 10⁻⁴ |
+
+<figure markdown="span">
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Forward result: 3D view](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_view3d_comparison.png){ loading=lazy }
+  <figcaption>Forward, Tuned settings: 3D view.</figcaption>
+</figure>
+
+### Inverse problem
+
+**Settings:** Default — the example's own settings (not in the tuning sweep); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Forward: relative L₂ at the last reference time | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 2595 |
-| Inverse: parameters found (true) | – | **λ = 9.97804 (10); λε² = 0.0249908 (0.025)** (worst error 0.22%) | 1547 |
+| λ | 10 | 9.97804 | 0.22 % |
+| λε² | 0.025 | 0.0249908 | 0.037 % |
+
+Worst parameter error: **0.22 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao/net_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — Larger network (2× width, one more layer) — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error on slices](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: PINN, reference and error on slices.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (not in the tuning sweep) — PINN, reference and error on slices through the domain](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — the example's own settings (not in the tuning sweep) — PINN, reference and error on slices through the domain</figcaption>
+  ![Inverse result: interface and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: interface and error.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-allen-cahn-wight--zhao).
+<figure markdown="span">
+  ![Inverse result: drop radius](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: drop radius.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
+</figure>
+
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#3d-allen-cahn-wight--zhao).
 
 ## Loading it in PINNStudio
 
@@ -169,6 +203,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **Methods** (Default and Tuned settings): [Time windows and bc-PINN](../../reference/time-windows.md), [Exact constraints](../../reference/exact-constraints.md)
 - **Cite:** [Wight & Zhao 2021](../../about/references.md#wight2021)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

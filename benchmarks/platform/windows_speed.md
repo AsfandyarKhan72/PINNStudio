@@ -2,8 +2,8 @@
 
 Measured on one Windows laptop, October 2026, with PINNStudio from the `cleanup` branch installed the way
 the one-command installer installs it (uv, Python 3.12, `--torch-backend auto`), in a test folder of its
-own. Short runs, best of 2–3 repeats unless noted. The Linux numbers to compare with are in the README
-("Speed: PINNStudio and a plain script"): RTX 4090 and Core i9-13900KF.
+own. Short runs, best of 2–3 repeats unless noted. The Linux numbers to compare with are in
+[`benchmarks/performance.md`](../performance.md): RTX 4090 and Core i9-13900KF.
 
 ## Summary
 

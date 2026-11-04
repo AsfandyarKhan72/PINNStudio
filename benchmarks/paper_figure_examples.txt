@@ -1,4 +1,4 @@
-# The examples of the paper's figure (benchmarks/README.md -> Figure for the paper), in order:
+# The examples of the representative-benchmark figure (figures/paper_figure.*, values in tables/figure4_values.md), in order:
 # one per kind of problem, most with both forward and inverse. One name per line, as the Examples list shows it.
 Lotka-Volterra ODE
 Lorenz ODE – unknown C₁, C₂, C₃

@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-88 problems are included, chosen as the ones with the largest errors in the [example results](examples.md). 36 of them improve by 1.5× or more; the median improvement is 1×.
+88 entries are included, one per example and mode of the Examples list (63 in Forward mode, which includes DeepXDE's inverse-only examples and the templates' best-setup starts, and 25 in Inverse mode; the [benchmarks page](README.md) counts 53 forward and 35 inverse problems instead). Each was run with its own settings, and the 55 with the largest errors in the [example results](examples.md) also with the changes below. 36 of the 88 improve by 1.5× or more; the median improvement is 1×.
 
 ## How it is done
 
@@ -29,12 +29,12 @@ DeepXDE's examples are written to show how the library is used, so many train br
 - **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant. (The *Tuned* settings shipped with the examples and shown on the [benchmarks page](README.md) use a second rule: the variant with the lowest error against the reference, the fastest one where several are within 25% of it. The two rules agree for most problems.)
 - **The error** is the relative $L_2$ error from PINNStudio's Error Analysis of the main output (u, c, phi, ...) at the last reference time, against the reference data the example ships with, the same measure as the paper's Fig. 4. (The worst over all outputs and times would often be an output such as a chemical potential at t = 0, where the reference is close to zero and a relative error says little.) For inverse problems the worst relative error of the learned parameters is given as well.
 - **Seeds.** The example's own settings and the chosen variant are run with up to 3 random seeds (1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses seed 2026.
-- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5. Times are wall-clock training time per run.
+- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5 to 1.6 (each record names its commit). Times are wall-clock training time per run.
 - **Reproducing a result.** Each problem's section links the tuned settings as a problem file in [`tuning/`](tuning/): open it in PINNStudio (*Open a saved problem…*) and press Solve. The runs were made with [`tools/tuning_study.py`](../tools/tuning_study.py) and this page is written from its results by [`tools/make_tuning_page.py`](../tools/make_tuning_page.py).
 
 ## Summary
 
-The figure has the layout of the paper's Fig. 4 and lists every example of PINNStudio, in the order of the README: one row per problem, the forward (circles) and inverse (diamonds) results on one axis, and each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: the filled marker is the chosen run, and an open grey marker the example's own settings where a change helped. Rows without † show the README's result (kept in [`tuning/readme_results.json`](tuning/readme_results.json)) until they are run here. For a template run from the training methods study's best setup, the grey marker is the template as it loads.
+The figure has the layout of the paper's Fig. 4 and lists every example of PINNStudio, in the order of the README: one row per problem, the forward (circles) and inverse (diamonds) results on one axis, and each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: the filled marker is the chosen run, and an open grey marker the example's own settings where a change helped. Rows without † show the README's result (kept in [`tuning/readme_results.json`](tuning/readme_results.json)); they were not part of this study. For a template run from the training methods study's best setup, the grey marker is the template as it loads.
 
 ![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)
 

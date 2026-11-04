@@ -80,23 +80,29 @@ Measured data (**Inverse** page, measured-data files):
 
 ## Results
 
-From the benchmark records: one RTX 4090; relative L₂ error of the main output at the last reference time, and for an inverse problem the parameters it found (true value in brackets). *PINNStudio best* is what **Settings: Tuned** loads.
+The configuration selected in PINNStudio's benchmark study, run on one RTX 4090. Forward: relative L₂ error of each output at the last reference time. Inverse: each parameter's relative error and, per seed, the largest of them (worst parameter error).
 
-| | Default | PINNStudio best | Training time of the best (s) |
+### Inverse problem
+
+**Settings:** Tuned — 3× iterations. **Values:** one run, seed 2026.
+
+| Parameter | True value | Recovered | Relative error |
 |---|---|---|---|
-| Inverse: parameters found (true) | – | **C = 1.00004 (1)** (worst error 0.004%) | 311 |
+| C | 1 | 1.00004 | 0.004 % |
+
+Worst parameter error: **0.004 %**.
 
 <figure markdown="span">
-  ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — PINN, reference and error over space and time](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png){ loading=lazy }
-  <figcaption>PINNStudio best — 3× iterations — PINN, reference and error over space and time</figcaption>
+  ![Inverse result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations — the learned parameters during training](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png){ loading=lazy }
-  <figcaption>PINNStudio best — 3× iterations — the learned parameters during training</figcaption>
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Inverse_diffusion_equation/iters_param_plot.png){ loading=lazy }
+  <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
-Every setting tried, the papers' reported errors and all figures: [the benchmark records](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-equation).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-inverse-diffusion-equation).
 
 ## Loading it in PINNStudio
 
@@ -124,6 +130,6 @@ Loading an example fills in every setting; anything you change before **Solve** 
 - **DeepXDE example:** [diffusion_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_1d_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 
-Verified error values are reported in the [Reproducibility](../../reproducibility/benchmarks.md) section, not on this page.
+How the benchmark values were measured and checked: [Reproducibility](../../reproducibility/benchmarks.md).
 
 [← Back to the example gallery](../index.md)

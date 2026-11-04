@@ -8,7 +8,7 @@ Same tool and settings as the run below, on the commit merged into `main` (PySid
 - Commit `2ea54c363fd68d14476ad436684644d0496727ca`. Python 3.11.5, PyTorch 2.5.1+cu121 (run on the CPU),
   DeepXDE 1.15.0, NumPy 2.4.6, PySide6 6.11.3, Linux 6.8 (x86_64), 32 CPUs. Started 2026-11-02 19:52 MT, finished
   2026-11-03 00:59 MT (5 h 07 min), exit 0.
-- Result: 93 example-mode configurations (64 forward, 29 inverse); **89 completed, all 89 bitwise identical**
+- Result: 93 example-mode configurations (the 64 examples in the mode each loads in, which includes DeepXDE's inverse-only examples, and 29 Inverse-mode entries, 3 of which do not exist and are skipped); **89 completed, all 89 bitwise identical**
   (loss histories, weight hashes after every training call, trained unknowns); 0 differ, 0 failed; 4 skipped (the
   same four as below).
 
@@ -27,7 +27,7 @@ settings, on the review commit `05c1047` (records in
 training calls (38 windows, Adam then L-BFGS), loss histories and weight hashes; Python 3.11.5, PyTorch 2.5.1+cu121
 on the CPU, 45 min. This is reported separately and does not change the counts of the 93-configuration run above.
 
-The by-construction configuration is the only `export.py` of the run with the header "This problem uses time
+The by-construction configuration was identified as the only `export.py` of the run with the header "This problem uses time
 windows with ...". The run below (af321c1) had the same Tuned setting for that example, so it also has 88
 independent comparisons and one by construction.
 
@@ -43,7 +43,7 @@ weights after the call, and the trained unknowns.
 - Tested commit: `af321c1` (integration/final; the release candidate `release/v1.6.0-prep` adds only the scipy
   dependency declaration). Environment: Python 3.11.5, PyTorch 2.6.0+cu124 (run on the CPU), DeepXDE 1.15.0,
   NumPy 2.4.6, Linux 6.8 (x86_64). Run 2026-10-30, about 4.6 h.
-- Result: 93 example-mode configurations (64 forward, 29 inverse); 4 skipped; **89 completed, all 89 identical
+- Result: 93 example-mode configurations (the 64 examples in the mode each loads in, which includes DeepXDE's inverse-only examples, and 29 Inverse-mode entries, 3 of which do not exist and are skipped); 4 skipped; **89 completed, all 89 identical
   at full precision** (loss histories, weight hashes after every training call, and the values of the 33 sets of
   trained unknowns). No configuration differed and none failed. GUI smoke test passed (`smoke_gui.log`).
 - Skipped: Helmholtz 2D hyperparameter search (a parameter-sweep example), and the three templates without an
