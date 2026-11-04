@@ -686,8 +686,8 @@
    "record": "benchmarks/examples.md#1d-cahn-hilliard",
    "forward": {
     "variant": "base",
-    "label": "the example's own settings (no change did better)",
-    "tuned_preset": false,
+    "label": "the template's own settings",
+    "tuned_preset": true,
     "main_output_l2": 0.0005151,
     "outputs_l2": {
      "mu": 0.0016248,
@@ -772,7 +772,7 @@
    "record": "benchmarks/examples.md#1d-burgers",
    "forward": {
     "variant": "paper_raissi",
-    "label": "3× iterations",
+    "label": "Raissi et al.'s settings",
     "tuned_preset": true,
     "main_output_l2": 0.00051764,
     "outputs_l2": {
@@ -1364,7 +1364,7 @@
     "figures": [
      "benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png"
     ],
-    "figure_note": "figures of the selected configuration's run"
+    "figure_note": "figures of the selected search run (run 49)"
    },
    "inverse": null
   },
@@ -1705,8 +1705,8 @@
    "record": "benchmarks/examples.md#2d-allen-cahn-wight--zhao",
    "forward": {
     "variant": "base",
-    "label": "the best setup as it is",
-    "tuned_preset": false,
+    "label": "the template's own settings",
+    "tuned_preset": true,
     "main_output_l2": 5.8662e-05,
     "outputs_l2": {
      "u": 5.8662e-05
@@ -1811,8 +1811,8 @@
    "record": "benchmarks/examples.md#2d-cahn-hilliard-wight--zhao",
    "forward": {
     "variant": "base",
-    "label": "the example's own settings (no change did better)",
-    "tuned_preset": false,
+    "label": "the template's own settings",
+    "tuned_preset": true,
     "main_output_l2": 0.010531,
     "outputs_l2": {
      "mu": 0.022316,

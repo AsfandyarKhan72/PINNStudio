@@ -17,7 +17,7 @@ search:
 
 <figure markdown="span">
   ![Heat maps of the PINN solution, the reference solution and the error of the 2D Helmholtz problem](../../assets/images/examples/helmholtz-2d-hpo-surface.png){ loading=lazy }
-  <figcaption>Figure from the benchmark records (`benchmarks/examples.md`, this example's results): a run with DeepXDE's settings (Default) — PINN, reference and error.</figcaption>
+  <figcaption>The search's starting configuration (run 0: learning rate 10⁻³, 4 × 50, sin; relative L₂ 3.3 × 10⁻¹), before the 50-run Bayesian search — PINN, reference and error. The selected run (lowest final training loss) is under *Results*.</figcaption>
 </figure>
 
 ## Governing equations
@@ -44,7 +44,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 ## Settings
 
-**Settings: Default** — DeepXDE's own settings
+**Settings: Default** — a 50-run Bayesian search (Parameter Sweep), the configuration selected by the lowest final training loss; each run starts from DeepXDE's network and training below
 
 - **Network:** FNN, hidden layers 4 × 50, inputs (x, y), 1 output; activation sin, initializer Glorot uniform
 - **Points:** 400 domain, 80 boundary, 3,600 test
@@ -55,7 +55,7 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 |---|---|---|---|---|
 | 1 | Adam | 10,000 | 0.001 | none |
 
-No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
+No **Tuned** preset: the example is its own search, and its configuration is chosen by the lowest final training loss, not by the error against the reference.
 
 ## Results
 

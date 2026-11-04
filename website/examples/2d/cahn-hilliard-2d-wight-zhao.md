@@ -122,7 +122,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 ### Forward problem
 
-**Settings:** Default — the example's own settings (no change did better); the example has no separate Tuned preset for this mode. **Values:** median over seeds 2026, 1, 2.
+**Settings:** Tuned — the template's own settings. **Values:** median over seeds 2026, 1, 2.
 
 | Output | Relative L₂ |
 |---|---|
@@ -132,14 +132,14 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 <figure markdown="span">
   ![Forward result: PINN, reference and error, μ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_mu.png){ loading=lazy }
-  <figcaption>Forward, Default settings: PINN, reference and error, μ.</figcaption>
+  <figcaption>Forward, Tuned settings: PINN, reference and error, μ.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
       ![Forward result: PINN, reference and error, u](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/base_surface_comparison_u.png){ loading=lazy }
-      <figcaption>Forward, Default settings: PINN, reference and error, u.</figcaption>
+      <figcaption>Forward, Tuned settings: PINN, reference and error, u.</figcaption>
     </figure>
 
 ### Inverse problem

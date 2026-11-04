@@ -147,7 +147,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 ### Forward problem
 
-**Settings:** Default — the best setup as it is; the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026.
+**Settings:** Tuned — the template's own settings. **Values:** one run, seed 2026.
 
 | Output | Relative L₂ |
 |---|---|
@@ -155,7 +155,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 <figure markdown="span">
   ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png){ loading=lazy }
-  <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
+  <figcaption>Forward, Tuned settings: PINN, reference and error.</figcaption>
 </figure>
 
 ### Inverse problem

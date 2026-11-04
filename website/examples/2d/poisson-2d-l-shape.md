@@ -92,7 +92,7 @@ From the benchmark records: the source term \(f\) learned from \(u\) measured at
 | 1 | Adam | 50,000 | 0.001 | none |
 | 2 | L-BFGS | 15,000 | — | none |
 
-No separate **Tuned** preset: the **Tuned** item is greyed out for this example (its Default settings are PINNStudio's best).
+No separate **Tuned** preset: the **Tuned** item is greyed out for this example (this mode was not part of the benchmarks).
 
 ## Results
 

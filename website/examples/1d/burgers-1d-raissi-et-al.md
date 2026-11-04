@@ -126,7 +126,7 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 ### Forward problem
 
-**Settings:** Tuned — 3× iterations. **Values:** median over seeds 2026, 1, 2.
+**Settings:** Tuned — Raissi et al.'s settings. **Values:** median over seeds 2026, 1, 2.
 
 | Output | Relative L₂ |
 |---|---|

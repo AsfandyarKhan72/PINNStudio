@@ -13,7 +13,7 @@ Relative L₂ at the last reference time. *Starting settings* is given only wher
 | Poisson 1D – Dirichlet/Periodic | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup> (3.2 × 10<sup>-6</sup> – 8.8 × 10<sup>-6</sup>)** | 3 | – | **–** | – |
 | Poisson 1D – unknown forcing | – | **–** | – | field q(x) (relative L₂) | **1.2%** | 3 |
 | Fractional Poisson 1D | – | **–** | – | α = 1.79135 (1.8) | **0.48% (0.45% – 0.56%)** | 3 |
-| Burgers 1D – Raissi et al. | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 3 | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | **0.099% (0.02% – 0.1%)** | 3 |
+| Burgers 1D – Raissi et al. | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup> (3.3 × 10<sup>-4</sup> – 1.1 × 10<sup>-3</sup>)** | 3 | λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01) | **0.099% (0.02% – 0.1%)** | 3 |
 | Allen-Cahn 1D – Wight & Zhao | 2.4 × 10<sup>-3</sup> | **7.0 × 10<sup>-4</sup> (6.3 × 10<sup>-4</sup> – 1.5 × 10<sup>-3</sup>)** | 3 | γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99768 (5) | **0.77% (0.39% – 1.1%)** | 3 |
 | Cahn-Hilliard 1D – Wight & Zhao | 1.1 × 10<sup>-2</sup> | **5.2 × 10<sup>-4</sup> (5.1 × 10<sup>-4</sup> – 6.0 × 10<sup>-4</sup>)** | 3 | – | **–** | – |
 | Schrödinger 1D | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup> (1.6 × 10<sup>-3</sup> – 1.8 × 10<sup>-3</sup>)** | 3 | c = 0.500121 (0.5) | **0.024% (0.023% – 0.035%)** | 3 |
