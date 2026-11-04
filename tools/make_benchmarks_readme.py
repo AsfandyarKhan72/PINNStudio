@@ -1846,7 +1846,104 @@ def page(recs):
     L = []
     a = L.append
     n_t = sum(1 for r in recs if any(len((x or {}).get("variants") or {}) > 1 for x in (r["f_best_s"], r.get("i_s"))))
+    st = _stats(recs)
+    n_par = sum(1 for r in recs if r.get("i_best_par"))
+    n_field = sum(1 for r in recs if r.get("i_s") and not r.get("i_best_par"))
     a("# PINNStudio benchmarks\n")
+    a(f"*Every example that ships with PINNStudio ({len(recs)}), run forward and inverse, with the error of its "
+      "Default settings and of its Tuned settings, and the records each number comes from.*\n")
+    a("## What is evaluated\n")
+    a(f"- **{len(recs)} examples**, from ODEs to 3D PDEs: DeepXDE's own examples, templates taken from published "
+      "papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.) and PINNStudio's own templates.\n"
+      f"- **{st['n_fwd']} forward problems**: the solution is learned from the equation and its initial and boundary "
+      "conditions, and compared with reference data.\n"
+      f"- **{n_par + n_field} inverse problems**: unknown coefficients ({n_par} problems) or an unknown field "
+      f"({n_field}) are learned together with the solution from measured values of it.\n")
+    a("## How results are measured\n")
+    a("- **Forward:** the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against "
+      "the example's reference data; for a Cahn-Hilliard problem, the worse of φ and the chemical potential μ. "
+      "For the templates from papers, which report one error over all times, the error over all times is given "
+      "too.\n"
+      "- **Inverse:** for each seed, the largest relative error of the learned parameters; the problem's value is "
+      "the median of that over the seeds. For an unknown field, the relative L₂ error of the recovered field.\n"
+      "- **Seeds:** where a setting ran with three seeds (1, 2, 2026), the value is their median; otherwise "
+      "seed 2026. **Times** are training seconds on one NVIDIA RTX 4090.\n")
+    a("## Default and Tuned settings\n")
+    a("- **Default:** the source's own settings: DeepXDE's for a DeepXDE example, the paper's method run in "
+      "PINNStudio for a template from a paper, the template's starting settings for a PINNStudio template.\n"
+      f"- **Tuned** (*PINNStudio best*): on the {n_t} examples with the largest errors, the tuning study tried a "
+      "fixed set of changes (3× the iterations, a larger network, 3× the points, an L-BFGS phase, and for inverse "
+      "problems a heavier data weight and more L-BFGS), one at a time and all together. The selected run is the "
+      "most accurate one, and among runs within 25% of the lowest error the fastest; the Default settings are kept "
+      "when they are within that margin and within 10% of the fastest time. The other examples were already "
+      "accurate, and their Tuned settings are their Default ones (**no tuning needed**).\n"
+      "- **One exception: Helmholtz 2D – hyperparameter search.** This example runs PINNStudio's Bayesian "
+      "parameter sweep (50 configurations), and the configuration is selected by the **lowest final training "
+      "loss**, without looking at the reference; its error is measured only afterwards "
+      "([the search record](records/helmholtz_hpo_2026-10-25/README.md)).\n"
+      "- Both settings ship with every example: choose *Default* or *Tuned* when loading it from the toolbar's "
+      "**Examples** list, so each number can be loaded and run again.\n")
+    a("## Results at a glance\n")
+    a(_stats_md(recs, f"All {len(recs)} examples"))
+    a("**Figure A — 25 representative problems,** one of each kind, from ODEs to 3D PDEs. Left: forward relative "
+      "L₂ error with the Default settings (open circle, where there is an outside starting point) joined to the "
+      "Tuned settings (filled); a ring marks an example whose Default settings were kept. Right: the error of each "
+      "learned parameter. Medians over the seeds where three were run. "
+      "([PDF](figures/paper_figure.pdf); values: [`tables/figure4_values.md`](tables/figure4_values.md); the "
+      "examples: [`paper_figure_examples.txt`](paper_figure_examples.txt).)\n")
+    a(f"![Figure A: 25 representative examples, forward and inverse](figures/paper_figure.png{_ver(PAPER_FIG)})\n")
+    a(f"**Figure B — every case:** the {st['n_fwd']} forward problems (left, relative L₂ error) and the {n_par} "
+      "inverse problems with scalar parameters (right, the error of every parameter), grouped by dimension, with "
+      "the same markers as Figure A. Values from one run (seed 2026) and the Helmholtz search result are marked "
+      "apart from three-seed medians. ([PDF](figures/collection_figure.pdf); the values are in "
+      "[`tables/`](tables/README.md).)\n")
+    a(f"![Figure B: every benchmark case, forward and inverse](figures/collection_figure.png{_ver(COLLECTION_FIG)})\n")
+    a("## The studies\n\nWhat was run, how, and where each study is written up.\n\n"
+      "| Study | What it answers | How it is run | Written up in | Plans and scripts | Status |\n"
+      "|---|---|---|---|---|---|\n"
+      "| Reference runs | the error of every example with its own settings (DeepXDE's, or the template's) | "
+      "each example as shipped, seed 2026 | this page, first row of every example | `tools/tuning_study.py`, variant "
+      "`base` | done |\n"
+      "| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve "
+      "the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time "
+      "from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | "
+      "[tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, "
+      "`tools/make_tuning_page.py` | done |\n"
+      "| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes "
+      "from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme "
+      "as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the "
+      "paper's section and table) | [paper_comparison.md](paper_comparison.md) | `tools/tuning_study.py --variants plain,paper_*` | done |\n"
+      "| Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, "
+      "time windows) help on the phase-field and other hard problems | each example's own settings, the "
+      "technique changed, 10 core setups | [training_methods.md](training_methods.md) | "
+      "`benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |\n"
+      "| Controlled comparison of training methods | the same question under one protocol: same network, points and "
+      "steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 "
+      "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
+      "[training_methods.md → The controlled comparison]"
+      "(training_methods.md#the-controlled-comparison-paper-figure-7) | "
+      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
+      "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
+      "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
+      "and identified parameters compared line by line | [export_check](export_check/README.md), [performance.md](performance.md) | "
+      "`tools/check_export_equivalence.py` | done: 93 example-mode configurations, 89 completed and bitwise identical "
+      "(88 independent comparisons, 1 identical by construction), 4 excluded |\n"
+      "| Performance | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
+      "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
+      "[performance.md](performance.md) | `benchmarks/perf_study.py` | done |\n\n"
+      "All runs are on one RTX 4090 unless stated.\n\n")
+    a("## Reproducing the results\n")
+    a("- **One example:** load it from PINNStudio's **Examples** list with the *Default* or *Tuned* settings and "
+      "press *Solve* (or "
+      "*Export as DeepXDE script* and run the script). The settings files are also in [`tuning/`](tuning/).\n"
+      "- **The tuning study:** `python tools/tuning_study.py --out runs/tuning --names \"<example>\" --seeds 1,2,2026`; "
+      "the variants and rules are in [tuning_study.md](tuning_study.md).\n"
+      "- **The tables and pages from the records:** every table, figure and page here is generated from the run "
+      "records in [`records/`](records/README.md) (the final build: "
+      "[`records/reruns_2026-11-01/final_build/`](records/reruns_2026-11-01/final_build/README.md)); "
+      "[`records/VERIFICATION.md`](records/VERIFICATION.md) gives the commands and the byte-for-byte checks.\n")
+    a("## Every example\n")
+    a("<details>\n<summary>📖 <em>How to read an example</em></summary>\n")
     a("*Every example of PINNStudio, forward and inverse, with the result of its reference settings and "
       "PINNStudio's best.*\n")
     a("**How to read an example.** Each example opens to one table for the forward problem and one for the "
@@ -1882,49 +1979,7 @@ def page(recs):
     a(f"The sweep was run on the {n_t} examples with the largest errors (counted as examples; the "
       "[tuning study](tuning_study.md) counts the forward and inverse problem of an example separately). The others "
       "were already accurate with their own settings: their result is the README's, marked **no tuning needed**.\n")
-    a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
-      f"learned parameter](figures/benchmarks_summary.png{_ver(FIG)})\n")
-    a("*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, "
-      "or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning "
-      "was needed). PINNStudio's own templates have no open "
-      "marker: there is no outside reference to compare with. Right: the error of each "
-      "learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the "
-      "templates taken from a paper.*\n")
-    a("<details>\n<summary>🗂️ <em>The studies behind this page — what was run, how, and where it is written up</em>"
-      "</summary>\n\n"
-      "| Study | What it answers | How it is run | Written up in | Plans and scripts | Status |\n"
-      "|---|---|---|---|---|---|\n"
-      "| Reference runs | the error of every example with its own settings (DeepXDE's, or the template's) | "
-      "each example as shipped, seed 2026 | this page, first row of every example | `tools/tuning_study.py`, variant "
-      "`base` | done |\n"
-      "| Tuning study | how far simple changes (more steps, a bigger network, more points, L-BFGS, …) improve "
-      "the examples with the largest errors; the best becomes the example's *Tuned* settings | one change at a time "
-      "from the example's settings, seed 2026; repeats with seeds 1 and 2 for the close calls | "
-      "[tuning_study.md](tuning_study.md) (variants and rules under *How it is done*) | `tools/tuning_study.py`, "
-      "`tools/make_tuning_page.py` | done |\n"
-      "| Published methods in PINNStudio | whether PINNStudio reproduces the method of the paper each template comes "
-      "from, and how its base PINN and PINNStudio's best compare | the paper's network, points and training scheme "
-      "as far as the paper states them (`pinnstudio/core/paper_settings.py`, one comment per problem with the "
-      "paper's section and table) | [paper_comparison.md](paper_comparison.md) | `tools/tuning_study.py --variants plain,paper_*` | done |\n"
-      "| Training-methods study | which training techniques (exact BC / IC, RBA, SA-PINN, causal training, MsFFN, "
-      "time windows) help on the phase-field and other hard problems | each example's own settings, the "
-      "technique changed, 10 core setups | [training_methods.md](training_methods.md) | "
-      "`benchmarks/study_runner.py`, `benchmarks/plans/*.json` | done |\n"
-      "| Controlled comparison (paper Figure 7) | the same question under one protocol: same network, points and "
-      "steps for every technique and every problem of a dimension | 1D: 4 × 128, 10,000 points; 2D: 6 × 128, 20,000 "
-      "points; 20,000 Adam + 10,000 L-BFGS; 4 time windows with full or equal compute | "
-      "[training_methods.md → The controlled comparison]"
-      "(training_methods.md#the-controlled-comparison-paper-figure-7) | "
-      "`benchmarks/plans/fig7_v2.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
-      "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
-      "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
-      "and identified parameters compared line by line | [export_check](export_check/README.md), [performance.md](performance.md) | "
-      "`tools/check_export_equivalence.py` | done: 93 example-mode configurations, 89 completed and bitwise identical "
-      "(88 independent comparisons, 1 identical by construction), 4 excluded |\n"
-      "| Performance (paper Section 5) | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
-      "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
-      "[performance.md](performance.md) | `benchmarks/perf_study.py` | done |\n\n"
-      "All runs are on one RTX 4090 unless stated.\n\n</details>\n\n")
+    a("</details>\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
       "*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own "
       "settings. L₂ at the last reference time; all times where computed. Each name links to its section below.*\n\n"
