@@ -42,7 +42,7 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 *Adam only, same network, points and float precision on both; a 200-step warm-up timed separately; median of 3 repeats.*
 
-**What this means for you.** A GPU pays off as soon as a problem has a few thousand points or more: about 3× for a 1D problem, 4–10× in 2D and close to 20× in 3D. For a very small problem (an ODE with a few hundred points) the CPU is faster, because starting work on the GPU costs more than it saves.
+**What this means for you.** On this machine, the GPU was faster for every tested problem except the smallest: about 3× for the 1D wave problem, 4–10× for the 2D problems and about 19× for the 3D problem. For the Lorenz ODE (a few hundred points and a small network) the CPU was faster, because starting work on the GPU costs more than it saves. These speed-ups belong to these five workloads, this CPU and this GPU: they are not a general threshold. Where a GPU starts to pay off depends on the network size, the number of points, the derivatives in the equations and the hardware, so for a new problem compare a short run on each device (*Settings → GPU / Hardware*).
 
 ## How many CPU threads?
 
@@ -56,7 +56,9 @@ Each with three seeds; the order of the three rotates with the seed so that none
 
 *Adam steps per second on the CPU only, median of 3 repeats (the second in reverse order of thread count), each thread count in a fresh process.*
 
-**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine. The error is the same with any thread count; only the speed changes.
+**What this means for you.** On a processor with performance and efficiency cores, use about one thread per performance core. Past that the work spreads onto the slower cores and every step waits for them, and using every hardware thread can make training many times slower. PINNStudio's *Settings → GPU / Hardware → CPU threads: Automatic* does this for you (one thread per two logical cores, at most 8); set a number there only if you have measured something better on your machine.
+
+**The thread count can change the result slightly.** These workloads are short timing runs (seed 0, 2,000 Adam steps for Heat 1D and 300 for the others, not trained to convergence), and their records also hold the error reached (`adam_l2` in [`threads.jsonl`](performance_v160/section_5_2/threads.jsonl)). For one thread count, the error is identical in all three repeats and in the first study too. Between thread counts it differs: Poisson 2D 0.1140–0.1141, Heat 2D 0.2215–0.2243, and Heat 1D 0.0074–0.0117 except 0.0552 at 12 threads. The most likely cause, consistent with these records: on the CPU, the number of threads decides how sums inside the network's operations are split, so the rounding differs and the training follows a slightly different path. That effect is usually small but can be larger early in training, as in the Heat 1D run at 12 threads. It is the same kind of difference as between CPU and GPU, not an error, but it means a result is exactly repeatable only with the same thread count (and device).
 
 ## Apple GPU (MPS) on a Mac
 
