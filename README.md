@@ -78,9 +78,6 @@ is recommended):
 pip install pinnstudio
 ```
 
-> **Note:** PINNStudio 1.6.0 is not on PyPI yet. Until it is, install it with
-> `pip install git+https://github.com/AsfandyarKhan72/PINNStudio.git`.
-
 **Or install with one command, without installing Python first.** The installer sets up PINNStudio with its own
 Python and the PyTorch build that matches your computer's GPU (or a CPU-only build), and adds PINNStudio to the
 Start menu and desktop (Windows), the Applications folder in your home folder (macOS) or the app menu (Linux).

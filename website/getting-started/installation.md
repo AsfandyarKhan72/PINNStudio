@@ -11,8 +11,7 @@ There are three ways to install it:
 | **pip** | The latest PINNStudio release from PyPI, into a Python environment of your own | [`pip install pinnstudio`](#with-pip){ .nowrap } |
 | **From source** | The code in the GitHub repository | [From source](#development-version-from-source) |
 
-These pages describe PINNStudio 1.6.0. Until 1.6.0 is published on PyPI, install it from source (see below);
-`pip install pinnstudio` and the one-command installer install the latest published release.
+These pages describe PINNStudio 1.6.0.
 
 ## Supported systems
 

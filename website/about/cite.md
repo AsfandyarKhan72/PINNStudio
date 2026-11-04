@@ -1,8 +1,8 @@
 # Citing PINNStudio
 
 If PINNStudio is useful in your work, please cite the software. The repository's
-[`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff) has the same authors and
-repository address, with the title `PINNStudio` and the subtitle below as its abstract, and GitHub's **Cite this
+[`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff) has the same authors, title and
+repository address, with the version and its release date, and GitHub's **Cite this
 repository** button formats it for you. It gives the version number and no DOI.
 
 ```bibtex
