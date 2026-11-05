@@ -4,7 +4,7 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.6.0] - 2026-11-04
+## [1.6.0] - YYYY-MM-DD
 
 ### Upgrading from 1.5.0
 - **Python 3.11 or newer is required** (Python 3.9 and 3.10 are no longer supported). Tested on Python 3.11 to 3.14 on Linux, Windows and macOS.

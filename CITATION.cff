@@ -12,7 +12,7 @@ authors:
     affiliation: "Boise State University"
 repository-code: "https://github.com/AsfandyarKhan72/PINNStudio"
 version: "1.6.0"
-date-released: "2026-11-04"
+date-released: "YYYY-MM-DD"
 license: MIT
 keywords:
   - physics-informed neural networks
