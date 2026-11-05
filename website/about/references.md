@@ -54,7 +54,7 @@ time-adaptive training.
 
 ### Mathias et al. 2022 {#mathias2022}
 
-Mathias, M. S., de Almeida, W. P., de Barros, M. R., Coelho, J. F., et al. (2022). Augmenting a physics-informed
+Mathias, M. S., de Almeida, W. P., Coelho, J. F., de Freitas, L. P., et al. (2022). Augmenting a physics-informed
 neural network for the 2D Burgers equation by addition of solution data points. In *Intelligent Systems: 11th
 Brazilian Conference, BRACIS 2022, Proceedings, Part II*, Lecture Notes in Computer Science 13654. Springer, Cham.
 <https://doi.org/10.1007/978-3-031-21689-3_28>
@@ -74,7 +74,7 @@ follow problems studied in this paper.
 ### Ethier & Steinman 1994 {#ethier1994}
 
 Ethier, C. R., & Steinman, D. A. (1994). Exact fully 3D Navier-Stokes solutions for benchmarking. *International
-Journal for Numerical Methods in Fluids*, 19(5), 369–375.
+Journal for Numerical Methods in Fluids*, 19(5), 369–375. <https://doi.org/10.1002/fld.1650190502>
 
 The exact three-dimensional unsteady solution of the incompressible Navier-Stokes equations used by the Beltrami
 flow example.
@@ -109,7 +109,8 @@ this paper.
 ### Escapil-Inchauspé & Ruz 2023 {#escapil2023}
 
 Escapil-Inchauspé, P., & Ruz, G. A. (2023). Hyper-parameter tuning of physics-informed neural networks: Application
-to Helmholtz problems. *Neurocomputing*, 561. ([arXiv:2205.06704](https://arxiv.org/abs/2205.06704))
+to Helmholtz problems. *Neurocomputing*, 561. <https://doi.org/10.1016/j.neucom.2023.126826>
+([arXiv:2205.06704](https://arxiv.org/abs/2205.06704))
 
 DeepXDE's examples *Helmholtz 2D – Dirichlet* and *Helmholtz 2D – hyperparameter search* follow problems studied in
 this paper. The **Bayesian search** mode of **Parameter sweep** uses the same kind of search as the hyperparameter
@@ -120,7 +121,7 @@ search example (a Gaussian process model with expected improvement).
 ### Jones, Schonlau & Welch 1998 {#jones1998}
 
 Jones, D. R., Schonlau, M., & Welch, W. J. (1998). Efficient global optimization of expensive black-box functions.
-*Journal of Global Optimization*, 13, 455–492.
+*Journal of Global Optimization*, 13(4), 455–492. <https://doi.org/10.1023/A:1008306431147>
 
 The expected-improvement criterion that the **Bayesian search** mode of **Parameter sweep** maximises to choose its
 next run ([Bayesian search](../theory/bayesian.md)).
@@ -168,7 +169,8 @@ Lagaris, I. E., Likas, A., & Fotiadis, D. I. (1998). Artificial neural networks 
 differential equations. *IEEE Transactions on Neural Networks*, 9(5), 987–1000.
 <https://doi.org/10.1109/72.712178> ([arXiv:physics/9705023](https://arxiv.org/abs/physics/9705023))
 
-Exact (hard) initial conditions built into the network output.
+Exact (hard) constraints built into the network output: the exact initial condition, and boundary conditions
+written by hand as an output-transform formula (for example `x*(1-x)*u`).
 
 ### Dong & Ni 2021 {#dong2021}
 

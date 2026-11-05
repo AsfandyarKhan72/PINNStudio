@@ -57,6 +57,7 @@ jobs:
             --exclude-path _site/search --accept 200,202,206,429 --max-retries 2
             --exclude '^https://asfandyarkhan72\.github\.io/PINNStudio/'
             --exclude '^https://doi\.org/10\.1137/'
+            --exclude '^https://doi\.org/10\.1002/fld\.1650190502$'
             --exclude '^https://github\.com/AsfandyarKhan72/PINNStudio/(edit/|issues/new)'
             --remap '^file://(.*)/_site/PINNStudio(/.*)?$ file://$1/_site$2'
             --remap 'https://github.com/AsfandyarKhan72/PINNStudio/(blob|tree)/main/ https://github.com/AsfandyarKhan72/PINNStudio/$1/${{ github.head_ref || github.ref_name }}/'

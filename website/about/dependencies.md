@@ -54,9 +54,10 @@ their own licenses when you use or share a script.
 
 | Component | Where | Source | License |
 |---|---|---|---|
-| Path data of some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`) | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev), derived for these icons from [Feather](https://feathericons.com) | ISC (Lucide) and MIT (Feather) |
+| Path data of some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), *undo* (`undo-2`), *redo* (`redo-2`), *warning* (Feather `alert-triangle`) and part of *sketch* (Feather `edit-3`) | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev), derived for these icons from [Feather](https://feathericons.com) | ISC (Lucide) and MIT (Feather) |
 
-The other icons were drawn for PINNStudio in the same style. The full license texts are in the repository's
+The other icons were drawn for PINNStudio in the same style, some with simple strokes (such as arrowheads) that also
+occur in these sets. The full license texts are in the repository's
 [`LICENSES/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/LICENSES) folder
 (`Lucide-ISC.txt`, `Feather-MIT.txt`) and in THIRD_PARTY_LICENSES.md; their notices must stay with the copies.
 
@@ -70,9 +71,8 @@ Not included from other projects:
   [Wang, Wang & Perdikaris (2021)](references.md#wang2021fourier) and follow the interface and architecture of
   DeepXDE's `MsFFN`/`STMsFFN`. They were developed with AI assistance, and whether DeepXDE's source code was consulted
   could not be established; this provenance question is pending a licensing review.
-- **Datasets.** The reference and measured data in `reference_data/` were computed for PINNStudio; none was copied
-  from DeepXDE or from the published papers whose problems the examples follow. See
-  [Reference data](../reproducibility/reference-data.md).
+- **Datasets.** The reference and measured data in `reference_data/` were generated for PINNStudio with the
+  numerical methods and scripts listed on [Reference data](../reproducibility/reference-data.md).
 - **Fonts.** None are bundled; the interface uses the system's fonts.
 
 ## This documentation site
