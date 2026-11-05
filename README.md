@@ -40,6 +40,24 @@ the underlying numerical implementation.
 <p align="center"><sub>The Burgers 1D example after training: the model tree on the left, the equation in the middle,
 the loss and the solution on the right, and the Training Log below.</sub></p>
 
+## See PINNStudio in Action
+
+Results drawn by PINNStudio itself, each from one illustrative run of a built-in example (not the benchmark runs).
+Click an example for its equations, settings and benchmark results.
+
+<table>
+<tr>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/ode/lorenz-ode-unknown-c1-c2-c3/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/lorenz-inverse.gif" alt="Animation: the three Lorenz coefficients C1, C2, C3 converging to their true values during training" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/ode/lorenz-ode-unknown-c1-c2-c3/"><b>Lorenz system</b></a><br><sub>ODE · inverse</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/burgers-1d-raissi-et-al/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/burgers-1d.gif" alt="Animation: the PINN solution u(x, t) of the 1D Burgers equation steepening into a shock at x = 0" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/burgers-1d-raissi-et-al/"><b>Burgers equation</b></a><br><sub>1D PDE · time-dependent</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/schrodinger-1d/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/schrodinger-1d.gif" alt="Animation: the magnitude |h|(x, t) of the 1D nonlinear Schrödinger solution over time" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/schrodinger-1d/"><b>Schrödinger equation</b></a><br><sub>1D PDE · coupled system</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/navier-stokes-2d-kovasznay-flow/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/navier-stokes-2d-kovasznay.png" alt="The velocity component u(x, y) of the 2D Kovasznay flow computed by the PINN" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/navier-stokes-2d-kovasznay-flow/"><b>Navier–Stokes, Kovasznay flow</b></a><br><sub>2D PDE · steady</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/allen-cahn-2d-mattey-ghosh/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/allen-cahn-2d-mattey-ghosh.gif" alt="Animation: the order parameter h(x, y, t) of the 2D Allen-Cahn equation evolving from sin(4πx)cos(4πy)" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/allen-cahn-2d-mattey-ghosh/"><b>Allen–Cahn equation</b></a><br><sub>2D PDE · phase field</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/3d/heat-3d/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/heat-3d.gif" alt="Animation: temperature u(x, y, z, t) in a unit cube heated from one face" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/3d/heat-3d/"><b>Heat equation in 3D</b></a><br><sub>3D PDE · time-dependent</sub></td>
+</tr>
+</table>
+
 ## Key capabilities
 
 - **Forward and inverse problems.** Solve a known equation, or learn unknown coefficients or a whole unknown field
