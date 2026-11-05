@@ -18,27 +18,40 @@
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/help/faq/">FAQ</a></strong>
 </p>
 
-PINNStudio is an open-source desktop application for building, training, and evaluating physics-informed neural
-networks (PINNs) through a graphical interface. It supports forward and inverse problems involving ordinary and
+PINNStudio is an open-source desktop application for configuring, training, and evaluating physics-informed
+neural networks (PINNs) through a graphical interface. It supports forward and inverse problems for ordinary and
 partial differential equations, including coupled systems in up to three spatial dimensions. Users can define
-governing equations, computational domains, initial and boundary conditions, neural network architectures, and
-training strategies without writing problem-specific Python code.
+governing equations, geometries, initial and boundary conditions, neural network architectures, and training
+strategies without writing problem-specific Python scripts.
 
-Using a PINN usually means writing a new script for every problem, which makes a setup hard to check, compare
-with others and repeat. In PINNStudio the problem is set up once in the interface, and the same settings produce
-the training script, the results and the plots, so a study can be saved, rerun and shared.
-
-Built on DeepXDE and PyTorch, PINNStudio generates executable Python scripts from the configured problem, runs
-training with live monitoring, and provides solution visualization, reference-based error analysis, and model
-restoration. The generated scripts can also be exported for independent execution and further customization.
-PINNStudio is intended for researchers, engineers, and students who want to apply PINNs while retaining access to
-the underlying numerical implementation.
+Built on DeepXDE and PyTorch, PINNStudio generates executable training scripts and provides live training
+monitoring, solution visualization, reference-based error analysis, and model restoration. Scripts can also be
+exported and run independently, making numerical workflows easier to inspect, reproduce, and extend.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
 </p>
 <p align="center"><sub>The Burgers 1D example after training: the model tree on the left, the equation in the middle,
 the loss and the solution on the right, and the Training Log below.</sub></p>
+
+## See PINNStudio in Action
+
+Explore solutions and parameter-estimation results generated with PINNStudio's built-in examples. These illustrative
+runs are separate from the benchmark experiments. Select an example to view its equations, configuration, and
+reported results.
+
+<table>
+<tr>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/ode/lorenz-ode-unknown-c1-c2-c3/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/lorenz-inverse.gif" alt="Animation: the three Lorenz coefficients C1, C2, C3 converging to their true values during training" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/ode/lorenz-ode-unknown-c1-c2-c3/"><b>Lorenz system</b></a><br><sub>ODE · inverse</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/burgers-1d-raissi-et-al/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/burgers-1d.gif" alt="Animation: the PINN solution u(x, t) of the 1D Burgers equation steepening into a shock at x = 0" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/burgers-1d-raissi-et-al/"><b>Burgers equation</b></a><br><sub>1D PDE · time-dependent</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/schrodinger-1d/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/schrodinger-1d.gif" alt="Animation: the magnitude |h|(x, t) of the 1D nonlinear Schrödinger solution over time" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/1d/schrodinger-1d/"><b>Schrödinger equation</b></a><br><sub>1D PDE · coupled system</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/navier-stokes-2d-kovasznay-flow/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/navier-stokes-2d-kovasznay.png" alt="The velocity component u(x, y) of the 2D Kovasznay flow computed by the PINN" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/navier-stokes-2d-kovasznay-flow/"><b>Navier–Stokes, Kovasznay flow</b></a><br><sub>2D PDE · steady</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/allen-cahn-2d-mattey-ghosh/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/allen-cahn-2d-mattey-ghosh.gif" alt="Animation: the order parameter h(x, y, t) of the 2D Allen-Cahn equation evolving from sin(4πx)cos(4πy)" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/2d/allen-cahn-2d-mattey-ghosh/"><b>Allen–Cahn equation</b></a><br><sub>2D PDE · phase field</sub></td>
+<td align="center" width="33%"><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/3d/heat-3d/"><img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/website/assets/images/home/first-look/heat-3d.gif" alt="Animation: temperature u(x, y, z, t) in a unit cube heated from one face" height="170"></a><br><a href="https://asfandyarkhan72.github.io/PINNStudio/examples/3d/heat-3d/"><b>Heat equation in 3D</b></a><br><sub>3D PDE · time-dependent</sub></td>
+</tr>
+</table>
 
 ## Key capabilities
 
@@ -61,8 +74,9 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
 - **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
-  model as **Solve** (89 of 93 example configurations identical, 4 excluded;
-  [export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
+  model as **Solve**: in shortened CPU runs with fixed seeds, 88 example configurations gave bitwise-identical
+  losses and weights, one more is identical by construction, and 4 were skipped
+  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
   PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact
@@ -124,12 +138,12 @@ problems from an empty window.
 
 ## Examples
 
-A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
-*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the run
-selected in PINNStudio's benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error
-(relative L₂ at the last reference time; for Cahn–Hilliard problems the worse of the two fields; for inverse problems
-the worst parameter error), keeping the Default settings when they are within that margin and within 10% of the
-fastest time.
+A selection of the 64 built-in examples: DeepXDE's documented examples, templates that follow published papers,
+and PINNStudio's own templates. Each loads from the toolbar's **Examples** list with one of two settings: *Default*,
+the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the setup selected from
+the benchmarked alternatives by the accuracy and run-time rules in
+[benchmarks/README.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md). When the
+Default settings are within those margins, Tuned keeps them.
 
 | Example | Dimension | What it shows |
 |---|---|---|
@@ -164,7 +178,8 @@ equations, domain, conditions and settings. The results and figures of each exam
 ## Reproducibility and benchmarks
 
 The examples were trained with their *Default* settings and, for the 41 examples with the largest errors, with the
-changes tried in the tuning study, and the records are kept in the repository, together with problem files that load
+changes tried in the tuning study (55 entries there, which counts an example's forward and inverse modes, and the
+templates' best-setup starts, separately), and the records are kept in the repository, together with problem files that load
 the tuned setups.
 [benchmarks/README.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) compares, for
 each example, the source's settings with PINNStudio's best and, for templates taken from a paper, with the error
@@ -206,9 +221,9 @@ Bug reports, feature requests, and pull requests are welcome — see [`CONTRIBUT
 
 ## Contact
 
-Asfandyar Khan
-PhD Candidate, Materials Science and Engineering
-Boise State University
+Asfandyar Khan<br>
+PhD Candidate, Materials Science and Engineering<br>
+Boise State University<br>
 Email: [asfandyarkhan@u.boisestate.edu](mailto:asfandyarkhan@u.boisestate.edu)
 
 ## License
@@ -225,4 +240,4 @@ Matplotlib) keep their own licenses.
 
 **Third-party software.** PINNStudio's interface is built on Qt for Python (PySide6-Essentials, with shiboken6 and the Qt 6 libraries), used under the GNU Lesser General Public License version 3 ([`LICENSES/LGPL-3.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSES/LGPL-3.0.txt), which refers to [`LICENSES/GPL-3.0.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSES/GPL-3.0.txt)). PINNStudio also runs on DeepXDE (LGPL-2.1), PyTorch (BSD-3-Clause), NumPy, SciPy, Matplotlib and pandas. All of these are installed as separate packages and keep their own licenses; some of the interface's icons are derived from Lucide (ISC) and Feather (MIT). PINNStudio is an independent project, not affiliated with or endorsed by the developers of these packages. See [`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md).
 
-**Application icon and reference data.** The PINNStudio application icon was created for PINNStudio, with the assistance of Claude (Anthropic), and is part of PINNStudio under the same license. The reference solutions in [`reference_data/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data) were computed for PINNStudio by its author, with the scripts in [`tools/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/tools) (see [`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md)); none were copied from DeepXDE or from published papers.
+**Application icon and reference data.** The PINNStudio application icon was created for PINNStudio, with the assistance of Claude (Anthropic), and is part of PINNStudio under the same license. The reference solutions in [`reference_data/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data) were computed for PINNStudio by its author, with the scripts in [`tools/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/tools) (see [`THIRD_PARTY_LICENSES.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/THIRD_PARTY_LICENSES.md)), using the numerical methods documented on the website's [Reference data](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/reference-data/) page.

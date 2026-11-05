@@ -1,4 +1,4 @@
-# Home page, "A first look": where the six pictures come from
+# Home page, "See PINNStudio in Action" (formerly "A first look"): where the six pictures come from
 
 The six pictures in `website/assets/images/home/first-look/` are representative results, each the solution figure
 that PINNStudio's own Solve script wrote in one run of a built-in example. They illustrate what PINNStudio
@@ -20,7 +20,8 @@ for the steady Kovasznay flow), sets the seed to 2026 and runs the script `gener
 Animation settings: 30 time frames, 100 dpi, 60 parameter frames; nothing else is changed. The runs were made on
 commit `b7f2108`, on an RTX 4090, in an environment with Python 3.11.5, PyTorch 2.5.1+cu121, DeepXDE 1.15.0 and
 PySide6 6.11.3. The figures were then scaled to 480 px wide (360 px for the tall Lorenz figure) and saved with a
-smaller colour palette. `summary_animations.json` and `summary_kovasznay.json` are the scripts' own summaries
+smaller colour palette. The PNGs in `still/` are the last frame of each GIF, unchanged (Pillow: last frame, saved as PNG); the home page
+shows them instead of the animations to visitors whose system asks for reduced motion. `summary_animations.json` and `summary_kovasznay.json` are the scripts' own summaries
 (settings message, run time, the last errors printed and, for Lorenz, the recovered coefficients).
 
 To make them again from a checkout (needs a GPU for the times above):

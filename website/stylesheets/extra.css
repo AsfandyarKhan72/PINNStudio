@@ -50,7 +50,8 @@
 /* A short command that should not break inside a narrow table cell (installation page, "How to install") */
 .md-typeset a.nowrap, .md-typeset a.nowrap code { white-space: nowrap; }
 
-/* Home page, "A first look": six result animations in cards; 3 columns on wide screens, 2 on tablets, 1 on phones */
+/* Home page, "See PINNStudio in Action": six result animations in cards; 3 columns on wide screens, 2 on tablets, 1 on phones;
+   with reduced motion the <picture> shows each GIF's last frame (still/) */
 .md-typeset .first-look {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0 1.4rem;
 }
@@ -63,8 +64,9 @@
 }
 .md-typeset .first-look .fl-card > p { margin: 0; }
 /* the animations are drawn on white: keep that background in dark mode too, framed by the card */
+.md-typeset .first-look .fl-card picture { display: block; }
 .md-typeset .first-look .fl-card img {
-  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain;
+  display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: contain;
   background: #fff; border-radius: 4px;
 }
 .md-typeset .first-look .fl-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .5rem 0 .25rem; }
