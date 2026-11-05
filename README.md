@@ -18,21 +18,15 @@
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/help/faq/">FAQ</a></strong>
 </p>
 
-PINNStudio is an open-source desktop application for building, training, and evaluating physics-informed neural
-networks (PINNs) through a graphical interface. It supports forward and inverse problems involving ordinary and
+PINNStudio is an open-source desktop application for configuring, training, and evaluating physics-informed
+neural networks (PINNs) through a graphical interface. It supports forward and inverse problems for ordinary and
 partial differential equations, including coupled systems in up to three spatial dimensions. Users can define
-governing equations, computational domains, initial and boundary conditions, neural network architectures, and
-training strategies without writing problem-specific Python code.
+governing equations, geometries, initial and boundary conditions, neural network architectures, and training
+strategies without writing problem-specific Python scripts.
 
-Using a PINN usually means writing a new script for every problem, which makes a setup hard to check, compare
-with others and repeat. In PINNStudio the problem is set up once in the interface, and the same settings produce
-the training script, the results and the plots, so a study can be saved, rerun and shared.
-
-Built on DeepXDE and PyTorch, PINNStudio generates executable Python scripts from the configured problem, runs
-training with live monitoring, and provides solution visualization, reference-based error analysis, and model
-restoration. The generated scripts can also be exported for independent execution and further customization.
-PINNStudio is intended for researchers, engineers, and students who want to apply PINNs while retaining access to
-the underlying numerical implementation.
+Built on DeepXDE and PyTorch, PINNStudio generates executable training scripts and provides live training
+monitoring, solution visualization, reference-based error analysis, and model restoration. Scripts can also be
+exported and run independently, making numerical workflows easier to inspect, reproduce, and extend.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
@@ -42,8 +36,9 @@ the loss and the solution on the right, and the Training Log below.</sub></p>
 
 ## See PINNStudio in Action
 
-Results drawn by PINNStudio itself, each from one illustrative run of a built-in example (not the benchmark runs).
-Click an example for its equations, settings and benchmark results.
+Explore solutions and parameter-estimation results generated with PINNStudio's built-in examples. These illustrative
+runs are separate from the benchmark experiments. Select an example to view its equations, configuration, and
+reported results.
 
 <table>
 <tr>
@@ -79,8 +74,9 @@ Click an example for its equations, settings and benchmark results.
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
 - **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
-  model as **Solve** (89 of 93 example configurations identical, 4 excluded;
-  [export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
+  model as **Solve**: in shortened CPU runs with fixed seeds, 88 example configurations gave bitwise-identical
+  losses and weights, one more is identical by construction, and 4 were skipped
+  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
   PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact
@@ -95,9 +91,6 @@ is recommended):
 ```bash
 pip install pinnstudio
 ```
-
-> **Note:** PINNStudio 1.6.0 is not on PyPI yet. Until it is, install it with
-> `pip install git+https://github.com/AsfandyarKhan72/PINNStudio.git`.
 
 **Or install with one command, without installing Python first.** The installer sets up PINNStudio with its own
 Python and the PyTorch build that matches your computer's GPU (or a CPU-only build), and adds PINNStudio to the
@@ -145,12 +138,12 @@ problems from an empty window.
 
 ## Examples
 
-A selection of the 64 built-in examples. Each loads from the toolbar's **Examples** list with one of two settings:
-*Default*, the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the run
-selected in PINNStudio's benchmarks: the most accurate run, or the fastest of the runs within 25% of the lowest error
-(relative L₂ at the last reference time; for Cahn–Hilliard problems the worse of the two fields; for inverse problems
-the worst parameter error), keeping the Default settings when they are within that margin and within 10% of the
-fastest time.
+A selection of the 64 built-in examples: DeepXDE's documented examples, templates that follow published papers,
+and PINNStudio's own templates. Each loads from the toolbar's **Examples** list with one of two settings: *Default*,
+the source's own settings (DeepXDE's, the paper's method or the template's), or *Tuned*, the setup selected from
+the benchmarked alternatives by the accuracy and run-time rules in
+[benchmarks/README.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md). When the
+Default settings are within those margins, Tuned keeps them.
 
 | Example | Dimension | What it shows |
 |---|---|---|
@@ -185,7 +178,8 @@ equations, domain, conditions and settings. The results and figures of each exam
 ## Reproducibility and benchmarks
 
 The examples were trained with their *Default* settings and, for the 41 examples with the largest errors, with the
-changes tried in the tuning study, and the records are kept in the repository, together with problem files that load
+changes tried in the tuning study (55 entries there, which counts an example's forward and inverse modes, and the
+templates' best-setup starts, separately), and the records are kept in the repository, together with problem files that load
 the tuned setups.
 [benchmarks/README.md](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md) compares, for
 each example, the source's settings with PINNStudio's best and, for templates taken from a paper, with the error
@@ -227,9 +221,9 @@ Bug reports, feature requests, and pull requests are welcome — see [`CONTRIBUT
 
 ## Contact
 
-Asfandyar Khan
-PhD Candidate, Materials Science and Engineering
-Boise State University
+Asfandyar Khan<br>
+PhD Candidate, Materials Science and Engineering<br>
+Boise State University<br>
 Email: [asfandyarkhan@u.boisestate.edu](mailto:asfandyarkhan@u.boisestate.edu)
 
 ## License
