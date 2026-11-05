@@ -24,6 +24,57 @@ be exported and run on its own.
 
 </div>
 
+## See PINNStudio in Action
+
+Six results drawn by PINNStudio itself, each from one illustrative run of a built-in example. They are not the
+benchmark runs: click a title for the example's equations, settings and benchmark results.
+
+<div class="first-look" markdown>
+
+<div class="fl-card" markdown>
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/images/home/first-look/still/lorenz-inverse.png"><img class="no-zoom" src="assets/images/home/first-look/lorenz-inverse.gif" alt="Animation: the three Lorenz coefficients C1, C2, C3 converging to their true values during training" width="360" height="576" loading="lazy"></picture>
+<p class="fl-tags"><span>ODE</span><span>inverse</span></p>
+<p class="fl-title" markdown>[Lorenz system](examples/ode/lorenz-ode-unknown-c1-c2-c3.md)</p>
+<p class="fl-text">C₁, C₂ and C₃ learned from data, approaching their true values as training proceeds.</p>
+</div>
+
+<div class="fl-card" markdown>
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/images/home/first-look/still/burgers-1d.png"><img class="no-zoom" src="assets/images/home/first-look/burgers-1d.gif" alt="Animation: the PINN solution u(x, t) of the 1D Burgers equation steepening into a shock at x = 0" width="480" height="343" loading="lazy"></picture>
+<p class="fl-tags"><span>1D PDE</span><span>time-dependent</span></p>
+<p class="fl-title" markdown>[Burgers equation](examples/1d/burgers-1d-raissi-et-al.md)</p>
+<p class="fl-text">A shock forming at x = 0, with the settings of Raissi et al. (2019).</p>
+</div>
+
+<div class="fl-card" markdown>
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/images/home/first-look/still/schrodinger-1d.png"><img class="no-zoom" src="assets/images/home/first-look/schrodinger-1d.gif" alt="Animation: the magnitude |h|(x, t) of the 1D nonlinear Schrödinger solution over time" width="480" height="343" loading="lazy"></picture>
+<p class="fl-tags"><span>1D PDE</span><span>coupled system</span></p>
+<p class="fl-title" markdown>[Schrödinger equation](examples/1d/schrodinger-1d.md)</p>
+<p class="fl-text">The nonlinear Schrödinger equation, solved for its real and imaginary parts; |h| shown.</p>
+</div>
+
+<div class="fl-card" markdown>
+![The velocity component u(x, y) of the 2D Kovasznay flow computed by the PINN](assets/images/home/first-look/navier-stokes-2d-kovasznay.png){ loading=lazy }
+<p class="fl-tags"><span>2D PDE</span><span>steady</span><span>coupled system</span></p>
+<p class="fl-title" markdown>[Navier–Stokes, Kovasznay flow](examples/2d/navier-stokes-2d-kovasznay-flow.md)</p>
+<p class="fl-text">Steady laminar flow at Re = 20; velocity u shown (v and p are solved with it).</p>
+</div>
+
+<div class="fl-card" markdown>
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/images/home/first-look/still/allen-cahn-2d-mattey-ghosh.png"><img class="no-zoom" src="assets/images/home/first-look/allen-cahn-2d-mattey-ghosh.gif" alt="Animation: the order parameter h(x, y, t) of the 2D Allen-Cahn equation evolving from sin(4πx)cos(4πy)" width="480" height="343" loading="lazy"></picture>
+<p class="fl-tags"><span>2D PDE</span><span>phase field</span></p>
+<p class="fl-title" markdown>[Allen–Cahn equation](examples/2d/allen-cahn-2d-mattey-ghosh.md)</p>
+<p class="fl-text">The order parameter evolving from sin(4πx)cos(4πy), the problem of Mattey & Ghosh (2022), with the Tuned settings.</p>
+</div>
+
+<div class="fl-card" markdown>
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/images/home/first-look/still/heat-3d.png"><img class="no-zoom" src="assets/images/home/first-look/heat-3d.gif" alt="Animation: temperature u(x, y, z, t) in a unit cube heated from one face" width="480" height="343" loading="lazy"></picture>
+<p class="fl-tags"><span>3D PDE</span><span>time-dependent</span></p>
+<p class="fl-title" markdown>[Heat equation in 3D](examples/3d/heat-3d.md)</p>
+<p class="fl-text">A cube heated from the face x = 1 (u = 1), the other faces insulated.</p>
+</div>
+
+</div>
+
 ![The PINNStudio main window: the model tree on the left, the settings of the selected page in the middle, and the Start tab with the example list on the right](assets/screenshots/start.png){ .screenshot loading=lazy }
 
 ## What PINNStudio does
@@ -101,57 +152,6 @@ be exported and run on its own.
     PINN benchmarks and DeepXDE's examples. Most come with reference data or an exact solution.
 
     [:octicons-arrow-right-24: Example gallery](examples/index.md) · [Reproducibility](reproducibility/index.md)
-
-</div>
-
-## A first look
-
-Six results drawn by PINNStudio itself, each from one illustrative run of a built-in example. They are not the
-benchmark runs: click a title for the example's equations, settings and benchmark results.
-
-<div class="first-look" markdown>
-
-<div class="fl-card" markdown>
-![Animation: the three Lorenz coefficients C1, C2, C3 converging to their true values during training](assets/images/home/first-look/lorenz-inverse.gif){ loading=lazy }
-<p class="fl-tags"><span>ODE</span><span>inverse</span></p>
-<p class="fl-title" markdown>[Lorenz system](examples/ode/lorenz-ode-unknown-c1-c2-c3.md)</p>
-<p class="fl-text">C₁, C₂ and C₃ learned from data, approaching their true values as training proceeds.</p>
-</div>
-
-<div class="fl-card" markdown>
-![Animation: the PINN solution u(x, t) of the 1D Burgers equation steepening into a shock at x = 0](assets/images/home/first-look/burgers-1d.gif){ loading=lazy }
-<p class="fl-tags"><span>1D PDE</span><span>time-dependent</span></p>
-<p class="fl-title" markdown>[Burgers equation](examples/1d/burgers-1d-raissi-et-al.md)</p>
-<p class="fl-text">A shock forming at x = 0, with the settings of Raissi et al. (2019).</p>
-</div>
-
-<div class="fl-card" markdown>
-![Animation: the magnitude |h|(x, t) of the 1D nonlinear Schrödinger solution over time](assets/images/home/first-look/schrodinger-1d.gif){ loading=lazy }
-<p class="fl-tags"><span>1D PDE</span><span>coupled system</span></p>
-<p class="fl-title" markdown>[Schrödinger equation](examples/1d/schrodinger-1d.md)</p>
-<p class="fl-text">The nonlinear Schrödinger equation, solved for its real and imaginary parts; |h| shown.</p>
-</div>
-
-<div class="fl-card" markdown>
-![The velocity component u(x, y) of the 2D Kovasznay flow computed by the PINN](assets/images/home/first-look/navier-stokes-2d-kovasznay.png){ loading=lazy }
-<p class="fl-tags"><span>2D PDE</span><span>steady</span><span>coupled system</span></p>
-<p class="fl-title" markdown>[Navier–Stokes, Kovasznay flow](examples/2d/navier-stokes-2d-kovasznay-flow.md)</p>
-<p class="fl-text">Steady laminar flow at Re = 20; velocity u shown (v and p are solved with it).</p>
-</div>
-
-<div class="fl-card" markdown>
-![Animation: the order parameter h(x, y, t) of the 2D Allen-Cahn equation evolving from sin(4πx)cos(4πy)](assets/images/home/first-look/allen-cahn-2d-mattey-ghosh.gif){ loading=lazy }
-<p class="fl-tags"><span>2D PDE</span><span>phase field</span></p>
-<p class="fl-title" markdown>[Allen–Cahn equation](examples/2d/allen-cahn-2d-mattey-ghosh.md)</p>
-<p class="fl-text">The order parameter evolving from sin(4πx)cos(4πy), the problem of Mattey & Ghosh (2022), with the Tuned settings.</p>
-</div>
-
-<div class="fl-card" markdown>
-![Animation: temperature u(x, y, z, t) in a unit cube heated from one face](assets/images/home/first-look/heat-3d.gif){ loading=lazy }
-<p class="fl-tags"><span>3D PDE</span><span>time-dependent</span></p>
-<p class="fl-title" markdown>[Heat equation in 3D](examples/3d/heat-3d.md)</p>
-<p class="fl-text">A cube heated from the face x = 1 (u = 1), the other faces insulated.</p>
-</div>
 
 </div>
 

@@ -17,7 +17,7 @@ DeepXDE, PyTorch, The Qt Company (Qt, Qt for Python) or the other projects liste
 
 | Component | Where | Source | License |
 |---|---|---|---|
-| Icon path data for some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), and part of *sketch* (Feather `edit-3`); the other icons were drawn for PINNStudio in the same style | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev) ([repository](https://github.com/lucide-icons/lucide)), derived for these icons from [Feather](https://feathericons.com) ([repository](https://github.com/feathericons/feather)) | ISC (Lucide) and MIT (Feather); full texts in [`LICENSES/Lucide-ISC.txt`](LICENSES/Lucide-ISC.txt) and [`LICENSES/Feather-MIT.txt`](LICENSES/Feather-MIT.txt), reproduced below. Their notices must stay with the copies. |
+| Icon path data for some of the interface's line icons: *log* (Lucide/Feather `terminal`), *fit* (`maximize`), *delete* (`x`), *add* (`plus`), *code* (`code`), *down* (`chevron-down`), *undo* (`undo-2`), *redo* (`redo-2`), *warning* (Feather `alert-triangle`) and part of *sketch* (Feather `edit-3`); the other icons were drawn for PINNStudio in the same style, some with simple strokes (such as arrowheads) that also occur in these sets | `pinnstudio/ui/icons.py` | [Lucide](https://lucide.dev) ([repository](https://github.com/lucide-icons/lucide)), derived for these icons from [Feather](https://feathericons.com) ([repository](https://github.com/feathericons/feather)) | ISC (Lucide) and MIT (Feather); full texts in [`LICENSES/Lucide-ISC.txt`](LICENSES/Lucide-ISC.txt) and [`LICENSES/Feather-MIT.txt`](LICENSES/Feather-MIT.txt), reproduced below. Their notices must stay with the copies. |
 
 Not included from other projects:
 
@@ -31,8 +31,8 @@ Not included from other projects:
   (`deepxde/nn/pytorch/msffn.py`). They were developed with AI assistance, and whether DeepXDE's source code was
   consulted during their development could not be established; they have been shown neither to be independent of
   DeepXDE's implementation nor to be derived from it. This provenance question is pending a licensing review.
-- **No dataset is copied from DeepXDE's repository or from published papers.** The reference and measured data
-  under `reference_data/` were computed for PINNStudio by the scripts in `tools/`: `make_exact_reference_data.py`,
+- **Reference data.** The reference and measured data under `reference_data/` were generated for PINNStudio by the
+  scripts in `tools/`, with the numerical methods documented on the website's *Reference data* page: `make_exact_reference_data.py`,
   `make_deepxde_reference_data.py`, `make_phase_field_reference_data.py`, `make_poisson_reference_data.py`
   (Poisson disk, L-shape, sphere), `make_burgers2d_reference_data.py` (Burgers 2D of Mathias et al.),
   `make_heat_reference_data.py` (Heat 2D and 3D), `make_allen_cahn_mattey_reference_data.py` and
