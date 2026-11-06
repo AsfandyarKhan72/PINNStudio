@@ -28,7 +28,7 @@ fraction, CPU threads). On a Mac it always trains on the CPU.
 
 ## Training time
 
-Reported times are the training times recorded by the benchmark scripts. They depend on the GPU, the driver, the PyTorch and CUDA versions and other load on the machine, and are meant for
+The times in the benchmark and tuning tables are wall-clock run times recorded by the benchmark scripts: the whole run, including start-up and post-processing, not only the optimizer steps (the performance study reports DeepXDE's training time separately). They depend on the GPU, the driver, the PyTorch and CUDA versions and other load on the machine, and are meant for
 comparison within one study.
 
 ## Training speed

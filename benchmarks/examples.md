@@ -132,7 +132,7 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.5 × 10<sup>-5</sup> | **6.5 × 10<sup>-5</sup>** | 23 |
 
@@ -183,7 +183,7 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** | 5 |
 
@@ -231,7 +231,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** | 42 |
 | Inverse: parameters found (true) | – | **ω = 0.999912 (1)** (worst error 0.0088%) | 135 |
@@ -311,7 +311,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | 219 |
 | Inverse: parameters found (true) | – | **a = 2 (2); d = 1.06 (1.06)** (worst error 0%) | 242 |
@@ -391,7 +391,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** | 28 |
 | Inverse: parameters found (true) | – | **a = 10.0003 (10); b = 8.99262 (9)** (worst error 0.082%) | 30 |
@@ -462,7 +462,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667)** (worst error 0.032%) | 84 |
 
@@ -526,7 +526,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **C₁ = 9.97389 (10); C₂ = 14.9961 (15); C₃ = 2.66686 (2.66667)** (worst error 0.26%) | 196 |
 
@@ -593,7 +593,7 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.5 × 10<sup>-3</sup> | **2.8 × 10<sup>-4</sup>** | 217 |
 | Inverse: parameters found (true) | – | **EI = 1.00153 (1)** (worst error 0.15%) | 80 |
@@ -673,7 +673,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** | 21 |
 
@@ -727,7 +727,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.7 × 10<sup>-4</sup> | **3.7 × 10<sup>-4</sup>** | 23 |
 
@@ -774,7 +774,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-4</sup> | **2.3 × 10<sup>-4</sup>** | 27 |
 
@@ -821,7 +821,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup>** | 67 |
 
@@ -874,7 +874,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.6 × 10<sup>-5</sup> | **2.6 × 10<sup>-5</sup>** | 44 |
 
@@ -921,7 +921,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-4</sup> | **2.4 × 10<sup>-4</sup>** | 27 |
 
@@ -970,7 +970,7 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.2 × 10<sup>-6</sup> | **2.2 × 10<sup>-6</sup>** | 76 |
 
@@ -1023,7 +1023,7 @@ A plain network of the same size learns the slow wave and largely misses the fas
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | 70 |
 
@@ -1074,7 +1074,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001)** (worst error 15%) | 234 |
 
@@ -1139,7 +1139,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: learned field | – | **see the benchmark** | 61 |
 
@@ -1193,7 +1193,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **α = 1.79135 (1.8)** (worst error 0.48%) | 255 |
 
@@ -1249,7 +1249,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: learned field | – | **see the benchmark** | 221 |
 
@@ -1308,7 +1308,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: learned field | – | **see the benchmark** | 215 |
 
@@ -1372,7 +1372,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 359 |
 | Inverse: parameters found (true) | – | **γ₁ = 9.9233e-05 (0.0001); γ₂ = 4.99768 (5)** (worst error 0.77%) | 253 |
@@ -1464,7 +1464,7 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **5.2 × 10<sup>-4</sup>** | 350 |
 
@@ -1535,7 +1535,7 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 7.5 × 10<sup>-3</sup> | **6.3 × 10<sup>-3</sup>** | 1684 |
 
@@ -1638,7 +1638,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | 59 |
 
@@ -1700,7 +1700,7 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 5.2 × 10<sup>-4</sup> | **5.2 × 10<sup>-4</sup>** | 40 |
 | Inverse: parameters found (true) | – | **λ₁ = 0.999888 (1); λ₂ = 0.00999801 (0.01)** (worst error 0.099%) | 119 |
@@ -1799,7 +1799,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** | 170 |
 
@@ -1855,7 +1855,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** | 76 |
 
@@ -1916,7 +1916,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** | 40 |
 
@@ -1970,7 +1970,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** | 12 |
 
@@ -2031,7 +2031,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | 290 |
 | Inverse: parameters found (true) | – | **D = 0.99988 (1)** (worst error 0.012%) | 334 |
@@ -2121,7 +2121,7 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.3 × 10<sup>-3</sup> | **3.3 × 10<sup>-3</sup>** | 39 |
 
@@ -2182,7 +2182,7 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 5.0 × 10<sup>-2</sup> | **1.3 × 10<sup>-2</sup>** | 128 |
 | Inverse: parameters found (true) | – | **a = 0.400406 (0.4)** (worst error 0.1%) | 146 |
@@ -2269,7 +2269,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.4 × 10<sup>-2</sup> | **3.1 × 10<sup>-3</sup>** | 558 |
 
@@ -2330,7 +2330,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | 151 |
 | Inverse: parameters found (true) | – | **γ = 1.00912 (1)** (worst error 0.91%) | 1259 |
@@ -2425,7 +2425,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | 108 |
 | Inverse: parameters found (true) | – | **c = 0.500121 (0.5)** (worst error 0.024%) | 324 |
@@ -2509,7 +2509,7 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** | 645 |
 | Inverse: parameters found (true) | – | **C = 10 (10)** (worst error 0%) | 4354 |
@@ -2596,7 +2596,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **C = 1.00004 (1)** (worst error 0.004%) | 311 |
 
@@ -2664,7 +2664,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **kf = 0.0991842 (0.1); D = 1.9933 (2)** (worst error 0.82%) | 747 |
 
@@ -2719,7 +2719,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 9.2 × 10<sup>-4</sup> | **9.2 × 10<sup>-4</sup>** | 184 |
 
@@ -2770,7 +2770,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup>** | 26 |
 | Inverse: parameters found (true) | – | **k₀ = 12.5664 (12.5664)** (worst error 0.00023%) | 64 |
@@ -2841,7 +2841,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – |
 
@@ -2896,7 +2896,7 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** | 61 |
 
@@ -2951,7 +2951,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | 24 |
 
@@ -3005,7 +3005,7 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | 72 |
 
@@ -3058,7 +3058,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | 1147 |
 | Inverse: parameters found (true) | – | **λ = 0.999548 (1); μ = 0.500189 (0.5)** (worst error 0.045%) | 542 |
@@ -3172,7 +3172,7 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | 654 |
 
@@ -3241,7 +3241,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.0 × 10<sup>-4</sup> | **2.0 × 10<sup>-4</sup>** | 213 |
 | Inverse: parameters found (true) | – | **Re = 19.9995 (20)** (worst error 0.0045%) | 924 |
@@ -3329,7 +3329,7 @@ A companion to the L-shape example, on a smooth (curved, non-singular) boundary 
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | 156 |
 | Inverse: parameters found (true) | – | **f = 1.00003 (1)** (worst error 0.003%) | 167 |
@@ -3404,7 +3404,7 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | 500 |
 
@@ -3458,7 +3458,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Inverse: parameters found (true) | – | **α = 1.80386 (1.8)** (worst error 0.21%) | 1395 |
 
@@ -3523,7 +3523,7 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-3</sup> | **5.9 × 10<sup>-5</sup>** | 1596 |
 | Inverse: parameters found (true) | – | **λ = 10.0536 (10); λε² = 0.00628417 (0.00625)** (worst error 0.55%) | 1939 |
@@ -3607,7 +3607,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.5 × 10<sup>-3</sup> | **1.3 × 10<sup>-4</sup>** | 632 |
 | Inverse: parameters found (true) | – | **c₁² = 0.000103879 (0.0001); c₂ = 1.00192 (1)** (worst error 3.9%) | 1473 |
@@ -3692,7 +3692,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.3 × 10<sup>-1</sup> | **1.1 × 10<sup>-2</sup>** | 872 |
 | Inverse: parameters found (true) | – | **ε² = 0.00251029 (0.0025)** (worst error 0.41%) | 3793 |
@@ -3785,7 +3785,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.4 × 10<sup>-2</sup> | **1.1 × 10<sup>-3</sup>** | 1964 |
 | Inverse: parameters found (true) | – | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** (worst error 0.96%) | 5306 |
@@ -3909,7 +3909,7 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.6 × 10<sup>-1</sup> | **8.3 × 10<sup>-3</sup>** | 3998 |
 | Inverse: parameters found (true) | – | **ν = 0.00318823 (0.0031831)** (worst error 0.16%) | 4080 |
@@ -3999,7 +3999,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 6.1 × 10<sup>-3</sup> | **6.1 × 10<sup>-3</sup>** | 98 |
 | Inverse: parameters found (true) | – | **α = 0.399692 (0.4)** (worst error 0.11%) | 434 |
@@ -4075,7 +4075,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 7.2 × 10<sup>-3</sup> | **7.2 × 10<sup>-3</sup>** | 1343 |
 
@@ -4125,7 +4125,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** | 76 |
 | Inverse: parameters found (true) | – | **f = 1.00005 (1)** (worst error 0.005%) | 83 |
@@ -4196,7 +4196,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 3.7 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 1096 |
 
@@ -4254,7 +4254,7 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 **Results (RTX 4090).** *Default* is the paper's method; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 4.6 × 10<sup>-4</sup> | **1.9 × 10<sup>-4</sup>** | 2595 |
 | Inverse: parameters found (true) | – | **λ = 9.97804 (10); λε² = 0.0249908 (0.025)** (worst error 0.22%) | 1547 |
@@ -4353,7 +4353,7 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 **Results (RTX 4090).** *Default* is the template's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | 323 |
 | Inverse: parameters found (true) | – | **α = 0.39911 (0.4)** (worst error 0.22%) | 694 |
@@ -4435,7 +4435,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 **Results (RTX 4090).** *Default* is DeepXDE's settings; *PINNStudio best* is the *Tuned* setting.
 
-| | Default | PINNStudio best | Training time of the best (s) |
+| | Default | PINNStudio best | Run time of the best (s, wall-clock) |
 |---|---|---|---|
 | Forward: relative L₂ at the last reference time | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | 2325 |
 | Inverse: parameters found (true) | – | **ν = 0.998265 (1)** (worst error 0.17%) | 2451 |
