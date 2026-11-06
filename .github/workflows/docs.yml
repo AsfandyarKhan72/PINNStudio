@@ -54,7 +54,7 @@ jobs:
         with:
           args: >-
             --no-progress --root-dir "${{ github.workspace }}/_site"
-            --exclude-path _site/search --accept 200,202,206,429 --max-retries 2
+            --exclude-path _site/search --accept 200,202,206,429 --timeout 60 --max-retries 3
             --exclude '^https://asfandyarkhan72\.github\.io/PINNStudio/'
             --exclude '^https://doi\.org/10\.1137/'
             --exclude '^https://doi\.org/10\.1002/fld\.1650190502$'
