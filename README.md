@@ -29,10 +29,11 @@ monitoring, solution visualization, reference-based error analysis, and model re
 exported and run independently, making numerical workflows easier to inspect, reproduce, and extend.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
+<img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/demos/burgers-1d/pinnstudio_burgers_readme.gif" alt="Screen recording of PINNStudio: choosing the Burgers 1D example, viewing its equation, clicking Solve, the live loss plot and Training Log during training, then the loss history, the solution u(x, t) and the error analysis" width="100%">
 </p>
-<p align="center"><sub>The Burgers 1D example after training: the model tree on the left, the equation in the middle,
-the loss and the solution on the right, and the Training Log below.</sub></p>
+<p align="center"><sub>Solving the Burgers 1D example (Raissi et al.) in PINNStudio: choose the example, check the equation, click Solve,
+and inspect the loss, the solution and the error against the reference. A real run on an NVIDIA RTX 4090; the training
+(about 40 s) is shown at 2× speed.</sub></p>
 
 ## See PINNStudio in Action
 
