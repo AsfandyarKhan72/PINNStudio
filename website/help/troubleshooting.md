@@ -461,7 +461,8 @@ reference times inside the model's time range.
   written into the script. To force the CPU, set `CUDA_VISIBLE_DEVICES=-1` in the environment, or export the script
   with **Train on: CPU**.
 - **Different results from Solve**: on the CPU and with the same seed, the export trained the same model as
-  **Solve** for every built-in example in the project's check (Tuned settings, shortened training; see
+  **Solve** in all 89 configurations of the built-in examples that the project's check compared (Tuned settings,
+  shortened training; the parameter-sweep example is not included; see
   [Export equivalence](../reproducibility/export-equivalence.md)). Small
   differences between runs on a GPU, or between CPU and GPU, are normal floating-point nondeterminism. A large
   difference is a bug: please [report it](../getting-started/reporting-bugs.md) with the `.pinn.json` file and the

@@ -30,7 +30,8 @@ runs on its own and reproduces Solve's training. The record of the check names t
 (found by that header; the exported scripts themselves are not kept in the repository).
 
 **Latest result** (v1.6.0 code, commit 2ea54c3; Python 3.11.5, PyTorch 2.5.1 on the CPU, DeepXDE 1.15.0): of 93
-example-mode configurations, 4 were excluded and **all 89 others were bitwise identical**. 88 of them compare two
+example-mode configurations, 89 were compared and **all 89 were bitwise identical**; the other 4 do not apply to the
+comparison (three inverse modes that the templates do not have, and the parameter-sweep example). 88 of the 89 compare two
 independently generated scripts; 1 (1D Cahn-Hilliard of Mattey & Ghosh with the bc-PINN windows) is identical by
 construction. No configuration differed or failed. A separate check of that example's current Tuned setting (38 time
 windows with SA-PINN weights), which the exporter writes with its own generator, was also bitwise identical.
