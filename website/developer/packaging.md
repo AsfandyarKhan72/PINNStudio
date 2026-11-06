@@ -40,8 +40,8 @@ from PyPI; a CUDA build matching the machine is chosen by the installers below.
 | File | What it does |
 |---|---|
 | `get-pinnstudio.sh` (macOS, Linux), `get-pinnstudio.ps1` (Windows) | the one-command installers of the README: install [uv](https://docs.astral.sh/uv/) if needed, then `uv tool install` PINNStudio with its own Python and the PyTorch build that matches the NVIDIA driver (CPU-only otherwise), put `pinnstudio` on the PATH and add a menu entry or shortcut. Running them again updates. `PINNSTUDIO_SOURCE` installs from a local checkout or a wheel instead of PyPI (the CI workflows use this) |
-| `install.sh`, `install.bat` | from a checkout: create `venv/`, `pip install .`, then reinstall the PyTorch build chosen by `select_torch_index.py` and check that it landed |
-| `select_torch_index.py` | prints the PyTorch wheel tag (`cu126`, ..., or `cpu`) for this machine's driver; the table is in `pinnstudio/core/torch_index.py` |
+| `install.sh`, `install.bat` | from a checkout: create `venv/`, `pip install .`, then reinstall the PyTorch build chosen by `select_torch_index.py` and check that it landed and runs on the GPU |
+| `select_torch_index.py` | prints the PyTorch wheel tag (`cu126`, ..., or `cpu`) for this machine's GPU and driver, and with `--check TAG` tests that the installed build can compute on every GPU; the rules are in `pinnstudio/core/torch_index.py` |
 | `pinnstudio/shortcut.py` | `python -m pinnstudio --create-shortcut` / `--remove-shortcut`: desktop and menu shortcuts |
 
 The installers install the latest release from PyPI by default. To install the code of a checkout, use

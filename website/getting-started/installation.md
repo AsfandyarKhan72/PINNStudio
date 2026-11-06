@@ -193,9 +193,20 @@ reports, and the path is that of the Python PINNStudio runs in):
 ```
 
 Upgrade `pip` first (`"<path to python>" -m pip install --upgrade pip`): an old `pip` can fail on PyTorch's package index with a `flit_core` or
-"Could not find a version that satisfies" error. PINNStudio chooses `cu128` for drivers that report CUDA 12.8 or
-newer, `cu126` for CUDA 12.0 to 12.7, and `cu118` for CUDA 11.8 to 11.x; with an older driver it tells you to
-update the driver. For an installer copy, the message tells you to run the installer again instead.
+"Could not find a version that satisfies" error. PINNStudio chooses the build from the GPU's architecture as well
+as the driver's CUDA version, because each PyTorch CUDA build has kernels only for some GPUs:
+
+| GPU | Driver reports CUDA 13.0 or newer | CUDA 12.8 or 12.9 | CUDA 12.0 to 12.7 |
+|---|---|---|---|
+| Blackwell (RTX 50 series, B100/B200) | `cu130` | `cu128` | (not supported by the driver) |
+| Turing, Ampere, Ada, Hopper (RTX 20/30/40, A100, H100, ...) | `cu130` | `cu126` | `cu126` |
+| Maxwell, Pascal, Volta (GTX 9xx/10xx, P100, V100, ...) | `cu126` | `cu126` | `cu126` |
+| architecture can't be read | `cu126` | `cu126` | `cu126` |
+
+A driver that reports CUDA 11.8 to 11.x gets `cu118`. With several NVIDIA GPUs the build must run on all of them, so
+the oldest GPU counts too (a Pascal next to an RTX 40 gets `cu126`); a Blackwell GPU next to a Maxwell, Pascal or
+Volta one has no common build and gets the CPU build. With an older driver, or a GPU older than Maxwell, it tells
+you to update the driver or use the CPU. For an installer copy, the message tells you to run the installer again instead.
 
 A GPU is optional. It pays off for larger 2D and 3D problems; very small problems (for example an ODE with a few
 hundred points) often train as fast or faster on the CPU. See
@@ -224,9 +235,9 @@ cd PINNStudio
 
 Then run the source installer. It creates a virtual environment `venv` inside the `PINNStudio` folder, installs
 PINNStudio and its dependencies into it, and installs the PyTorch build that fits the NVIDIA driver: it reads the
-driver's CUDA version from `nvidia-smi` (`select_torch_index.py`), installs the matching CUDA build of PyTorch last,
-checks that this build is the one installed, and falls back to the CPU-only build if not (or if there is no NVIDIA
-GPU).
+driver's CUDA version and the GPU's architecture from `nvidia-smi` (`select_torch_index.py`), installs the matching CUDA build of PyTorch last,
+checks that this build is the one installed and can run a small calculation on every GPU, and falls back to the
+CPU-only build if not (or if there is no NVIDIA GPU).
 
 === "Linux / macOS"
 
