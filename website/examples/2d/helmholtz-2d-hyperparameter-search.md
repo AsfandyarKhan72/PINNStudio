@@ -63,18 +63,18 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 
 ### Forward problem
 
-**Settings:** Default — the example's Bayesian search, 50 runs; selected: the run with the lowest final training loss (run 49); the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026, selected by its final training loss (not the reference error); the search's 50 runs are in [its record](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/records/helmholtz_hpo_2026-10-25/README.md).
+**Settings:** Default — the example's Bayesian search, 50 runs; selected: the run with the lowest final training loss (run 49); the example has no separate Tuned preset for this mode. **Values:** one run, seed 2026, selected by its final training loss (not the reference error); the search's 50 runs are in [its record](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/records/helmholtz_hpo_2026-10-25/README.md).
 
 | Output | Relative L₂ |
 |---|---|
 | u | 1.3 × 10⁻³ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png){ loading=lazy }
+  ![Forward result: PINN, reference and error](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/records/helmholtz_hpo_2026-10-25/best_run_49_surface_comparison.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN, reference and error.</figcaption>
 </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization).
 
 ## Loading it in PINNStudio
 
@@ -92,10 +92,10 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Helmholtz 2D – hyperparameter optimization" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Helmholtz 2D – hyperparameter optimization" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Benchmark records:** [`benchmarks/problems/helmholtz-2d-hyperparameter-search.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/helmholtz-2d-hyperparameter-search.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
+- **Benchmark records:** [`benchmarks/problems/helmholtz-2d-hyperparameter-search.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/helmholtz-2d-hyperparameter-search.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-helmholtz-2d-hyperparameter-optimization), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Escapil-Inchauspé & Ruz 2023](../../about/references.md#escapil2023)

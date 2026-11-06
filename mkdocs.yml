@@ -82,7 +82,7 @@ extra:
   # source_ref is a branch now; at a release set it to the release tag (e.g. v1.6.0) once the tag exists, and
   # rerun both generators (see website/developer/releases.md).
   repo_blob: https://github.com/AsfandyarKhan72/PINNStudio/blob/
-  source_ref: main
+  source_ref: v1.6.0
   # "Report a documentation problem" (site footer, help/index.md): .github/ISSUE_TEMPLATE/documentation.md
   docs_issue_url: https://github.com/AsfandyarKhan72/PINNStudio/issues/new?template=documentation.md&labels=documentation
   social:

@@ -2,20 +2,20 @@
 
 **Entry points**
 
-- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py): Adaptive training page
-- `_gs_rar_loop_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): the RAR loop of the Solve script
+- `MainWindow._build_adaptive_and_sweep_panels` in [`pinnstudio/ui/main_window.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/ui/main_window.py): Adaptive training page
+- `_gs_rar_loop_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/codegen.py): the RAR loop of the Solve script
 
 **Helpers**
 
-- `_rar_phase` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): loss and weights of an RAR round
-- `_rar_tolerance_check` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): stop on a residual tolerance
-- `_rar_optimizer` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): the optimizer and learning rate of each round
-- `_clean_rar_diagnostics_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py): RAR in the exported script, with per-round figures
+- `_rar_phase` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/codegen.py): loss and weights of an RAR round
+- `_rar_tolerance_check` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/codegen.py): stop on a residual tolerance
+- `_rar_optimizer` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/codegen.py): the optimizer and learning rate of each round
+- `_clean_rar_diagnostics_code` in [`pinnstudio/core/codegen.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/codegen.py): RAR in the exported script, with per-round figures
 
 **Tests**
 
-- [`tests/test_rar_round_diagnostics.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_rar_round_diagnostics.py): per-round diagnostics
-- [`tests/test_round66_rar_tolerance.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_round66_rar_tolerance.py): residual tolerance
-- [`tests/test_steady_state_rar_gating.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tests/test_steady_state_rar_gating.py): RAR for steady problems
+- [`tests/test_rar_round_diagnostics.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tests/test_rar_round_diagnostics.py): per-round diagnostics
+- [`tests/test_round66_rar_tolerance.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tests/test_round66_rar_tolerance.py): residual tolerance
+- [`tests/test_steady_state_rar_gating.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tests/test_steady_state_rar_gating.py): RAR for steady problems
 
-Files on the `main` branch of the repository; each link names the function or class to look for in the file.
+Files on release `v1.6.0` of the repository; each link names the function or class to look for in the file.

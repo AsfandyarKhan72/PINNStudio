@@ -58,8 +58,8 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/ode_system_inverse/y1_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/ode_system_inverse/y1_obs.txt) → output `y1`, weight 100
-- [`reference_data/deepxde/ode_system_inverse/y2_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/ode_system_inverse/y2_obs.txt) → output `y2`, weight 100
+- [`reference_data/deepxde/ode_system_inverse/y1_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/ode_system_inverse/y1_obs.txt) → output `y1`, weight 100
+- [`reference_data/deepxde/ode_system_inverse/y2_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/ode_system_inverse/y2_obs.txt) → output `y2`, weight 100
 
 ## Settings
 
@@ -117,14 +117,14 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | y2 | 3.1 × 10⁻³ |
 
 <figure markdown="span">
-  ![Forward result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/ODE_system/base_line_comparison_y1.png){ loading=lazy }
+  ![Forward result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/ODE_system/base_line_comparison_y1.png){ loading=lazy }
   <figcaption>Forward, Default settings: PINN and reference along lines, y1.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
-      ![Forward result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/ODE_system/base_line_comparison_y2.png){ loading=lazy }
+      ![Forward result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/ODE_system/base_line_comparison_y2.png){ loading=lazy }
       <figcaption>Forward, Default settings: PINN and reference along lines, y2.</figcaption>
     </figure>
 
@@ -139,23 +139,23 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.0088 %**.
 
 <figure markdown="span">
-  ![Inverse result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y1.png){ loading=lazy }
+  ![Inverse result: PINN and reference along lines, y1](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y1.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: PINN and reference along lines, y1.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/ODE_system_inv/all_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/ODE_system_inv/all_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Tuned settings: parameter convergence.</figcaption>
 </figure>
 
 ??? note "Other outputs (1 figure)"
 
     <figure markdown="span">
-      ![Inverse result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y2.png){ loading=lazy }
+      ![Inverse result: PINN and reference along lines, y2](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/ODE_system_inv/all_line_comparison_y2.png){ loading=lazy }
       <figcaption>Inverse, Tuned settings: PINN and reference along lines, y2.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-ode-system).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-ode-system).
 
 ## Loading it in PINNStudio
 
@@ -174,14 +174,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "ODE system" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "ODE system" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
     - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["ODE system"]`, same file
-    - Settings: Tuned: entry "ODE system" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Tuned: entry "ODE system" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/ode_system_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/ode_system_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/linear-ode-system.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/linear-ode-system.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-ode-system), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Linear ODE system (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20ODE%20system%20%28tuned%29.pinn.json), [`Linear ODE system, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20ODE%20system%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/ode_system_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/ode_system_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/linear-ode-system.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/linear-ode-system.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-ode-system), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Linear ODE system (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Linear%20ODE%20system%20%28tuned%29.pinn.json), [`Linear ODE system, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Linear%20ODE%20system%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **DeepXDE example:** [ode_system.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE)
 

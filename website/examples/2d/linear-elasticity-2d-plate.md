@@ -64,8 +64,8 @@ No boundary-condition rows: the boundary values are imposed exactly through the 
 
 Measured data (**Inverse** page, measured-data files):
 
-- [`reference_data/deepxde/elasticity_inverse/ux_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/elasticity_inverse/ux_obs.txt) → output `ux`, weight 100
-- [`reference_data/deepxde/elasticity_inverse/uy_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/reference_data/deepxde/elasticity_inverse/uy_obs.txt) → output `uy`, weight 100
+- [`reference_data/deepxde/elasticity_inverse/ux_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/elasticity_inverse/ux_obs.txt) → output `ux`, weight 100
+- [`reference_data/deepxde/elasticity_inverse/uy_obs.txt`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/reference_data/deepxde/elasticity_inverse/uy_obs.txt) → output `uy`, weight 100
 
 ## Settings
 
@@ -130,29 +130,29 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 | σₓᵧ | 8.4 × 10⁻⁴ |
 
 <figure markdown="span">
-  ![Forward result: PINN, reference and error, uₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_ux.png){ loading=lazy }
+  ![Forward result: PINN, reference and error, uₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_ux.png){ loading=lazy }
   <figcaption>Forward, Tuned settings: PINN, reference and error, uₓ.</figcaption>
 </figure>
 
 ??? note "Other outputs (4 figures)"
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, σₓₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxx.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, σₓₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxx.png){ loading=lazy }
       <figcaption>Forward, Tuned settings: PINN, reference and error, σₓₓ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, σₓᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxy.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, σₓᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxy.png){ loading=lazy }
       <figcaption>Forward, Tuned settings: PINN, reference and error, σₓᵧ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, σᵧᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_syy.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, σᵧᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_syy.png){ loading=lazy }
       <figcaption>Forward, Tuned settings: PINN, reference and error, σᵧᵧ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Forward result: PINN, reference and error, uᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png){ loading=lazy }
+      ![Forward result: PINN, reference and error, uᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png){ loading=lazy }
       <figcaption>Forward, Tuned settings: PINN, reference and error, uᵧ.</figcaption>
     </figure>
 
@@ -168,38 +168,38 @@ The configuration selected in PINNStudio's benchmark study, run on one RTX 4090.
 Worst parameter error: **0.045 %** (the median over the seeds of each seed's largest error).
 
 <figure markdown="span">
-  ![Inverse result: PINN, reference and error, σₓₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png){ loading=lazy }
+  ![Inverse result: PINN, reference and error, σₓₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png){ loading=lazy }
   <figcaption>Inverse, Default settings: PINN, reference and error, σₓₓ.</figcaption>
 </figure>
 
 <figure markdown="span">
-  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png){ loading=lazy }
+  ![Inverse result: parameter convergence](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png){ loading=lazy }
   <figcaption>Inverse, Default settings: parameter convergence.</figcaption>
 </figure>
 
 ??? note "Other outputs (4 figures)"
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, σₓᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, σₓᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN, reference and error, σₓᵧ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, σᵧᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, σᵧᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN, reference and error, σᵧᵧ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, uₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, uₓ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN, reference and error, uₓ.</figcaption>
     </figure>
 
     <figure markdown="span">
-      ![Inverse result: PINN, reference and error, uᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png){ loading=lazy }
+      ![Inverse result: PINN, reference and error, uᵧ](https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/v1.6.0/benchmarks/figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png){ loading=lazy }
       <figcaption>Inverse, Default settings: PINN, reference and error, uᵧ.</figcaption>
     </figure>
 
-**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-linear-elastostatic-plate).
+**Full benchmark record:** every setting tried, the per-seed values and all figures are in [the benchmark records on GitHub](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-linear-elastostatic-plate).
 
 ## Loading it in PINNStudio
 
@@ -220,14 +220,14 @@ Loading an example fills in every setting; anything you change before **Solve** 
 
 ## Definition and records
 
-- **Definition:** `EXAMPLES` entry "Linear elastostatic plate" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/deepxde_examples.py)
+- **Definition:** `EXAMPLES` entry "Linear elastostatic plate" in [`pinnstudio/core/deepxde_examples.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/core/deepxde_examples.py)
     - Inverse mode (PINNStudio's addition): `ADDED_INVERSE["Linear elastostatic plate"]`, same file
-    - Settings: Tuned: entry "Linear elastostatic plate" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/resources/tuned_settings.json)
+    - Settings: Tuned: entry "Linear elastostatic plate" in [`pinnstudio/resources/tuned_settings.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/pinnstudio/resources/tuned_settings.json)
 - **Equations:** [Governing equations](#governing-equations) on this page
 - **Reference data:** the exact-solution formula under *Reference solution* (no data files)
-- **Measured data** (Inverse): [`reference_data/deepxde/elasticity_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/main/reference_data/deepxde/elasticity_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/tools/make_deepxde_reference_data.py)
-- **Benchmark records:** [`benchmarks/problems/linear-elasticity-2d-plate.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/problems/linear-elasticity-2d-plate.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/examples.md#dx-linear-elastostatic-plate), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/README.md)
-- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Linear elasticity 2D – plate (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%20%28tuned%29.pinn.json), [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%2C%20inverse%20mode%20%28tuned%29.pinn.json)
+- **Measured data** (Inverse): [`reference_data/deepxde/elasticity_inverse/`](https://github.com/AsfandyarKhan72/PINNStudio/tree/v1.6.0/reference_data/deepxde/elasticity_inverse), written by [`tools/make_deepxde_reference_data.py`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/tools/make_deepxde_reference_data.py)
+- **Benchmark records:** [`benchmarks/problems/linear-elasticity-2d-plate.md`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/problems/linear-elasticity-2d-plate.md), its entry in the [examples overview](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/examples.md#dx-linear-elastostatic-plate), the [benchmark collection](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/README.md)
+- **Tuning-study configurations** (records of the tuning study; open one with **Problem › Open Saved Problem...**; not presets of the Examples list): [`Linear elasticity 2D – plate (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%20%28tuned%29.pinn.json), [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](https://github.com/AsfandyarKhan72/PINNStudio/blob/v1.6.0/benchmarks/tuning/Linear%20elasticity%202D%20%E2%80%93%20plate%2C%20inverse%20mode%20%28tuned%29.pinn.json)
 - **Methods** (Default and Tuned settings): [Networks and Fourier features](../../reference/networks.md)
 - **DeepXDE example:** [elasticity_plate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html))
 - **Cite:** [Lu et al. 2021](../../about/references.md#lu2021deepxde) (DeepXDE); the problem follows [Haghighat et al. 2021](../../about/references.md#haghighat2021)
