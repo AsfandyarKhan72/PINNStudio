@@ -2,7 +2,7 @@
 
 ## Package metadata
 
-PINNStudio is a setuptools package. `pyproject.toml` only declares the build system (setuptools ≥ 61 and wheel);
+PINNStudio is a setuptools package. `pyproject.toml` only declares the build system (setuptools ≥ 77 and wheel);
 the metadata is in `setup.py`:
 
 - `name="pinnstudio"`, `version` (the version of the latest release; see [Releases](releases.md)),
