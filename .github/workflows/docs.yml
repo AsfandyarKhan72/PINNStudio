@@ -1,5 +1,5 @@
 # Documentation site (MkDocs + Material).
-#  - Every pull request and every push to the documentation branch builds the site with
+#  - Every pull request and every push to an integration/** branch builds the site with
 #    `mkdocs build --strict` (any warning, broken internal link or missing page fails the build),
 #    checks external links, and uploads the built site as a downloadable preview artifact.
 #  - Deployment to GitHub Pages is explicitly controlled and OFF until the maintainers approve publication.
@@ -13,7 +13,7 @@ on:
   pull_request:
     paths: ["website/**", "mkdocs.yml", ".github/workflows/docs.yml"]
   push:
-    branches: ["docs/official-site", "integration/**"]   # build and link check only; never deploys
+    branches: ["integration/**"]   # build and link check only; never deploys
     paths: ["website/**", "mkdocs.yml", ".github/workflows/docs.yml"]
   workflow_dispatch:
     inputs:

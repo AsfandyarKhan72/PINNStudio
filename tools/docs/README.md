@@ -49,6 +49,5 @@ Links name the file and the function, never line numbers. The base of every gene
 `mkdocs.yml`: `extra.repo_blob` (the repository's `blob/` address) and `extra.source_ref` (now the branch `main`).
 **At a release, `extra.source_ref` changes to the release tag (for example `v1.6.0`) once the tag exists**; then rerun
 `make_source_links.py` and `make_gallery.py` (the gallery's repository links use the same two values) and commit.
-The edit buttons use `edit_uri` (the branch the site's sources are edited on, now `docs/official-site`; `main` after
-the merge, see `DEPLOY.md`). *Report a documentation problem* in the footer opens `extra.docs_issue_url`, a new issue
+The edit buttons use `edit_uri` (the branch the site's sources are edited on, `main`; see `DEPLOY.md`). *Report a documentation problem* in the footer opens `extra.docs_issue_url`, a new issue
 from `.github/ISSUE_TEMPLATE/documentation.md`.
