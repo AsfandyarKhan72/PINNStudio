@@ -11,7 +11,7 @@ release from 1.1.0 on. Between releases, the code in the GitHub repository can b
 
 | Version | Date |
 |---|---|
-| v1.6.0 | YYYY-MM-DD |
+| v1.6.0 | 2026-11-06 |
 | v1.5.0 | 2026-10-21 |
 | v1.4.0 | 2026-10-05 |
 | v1.3.0 | 2026-09-30 |
@@ -28,7 +28,7 @@ The dates are those of the release headings in `CHANGELOG.md`; for v1.0.0 to v1.
 entries, the dates of their GitHub releases. 0.1.0 was not tagged or published on PyPI. How a release is made is described in
 [Releases](../developer/releases.md).
 
-## v1.6.0 (YYYY-MM-DD)
+## v1.6.0 (2026-11-06)
 
 The main changes, by theme:
 
