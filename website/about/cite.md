@@ -1,26 +1,30 @@
 # Citing PINNStudio
 
-If PINNStudio is useful in your work, please cite the software. The repository's
-[`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff) has the same authors, title and
-repository address, with the version and its release date, and GitHub's **Cite this
-repository** button formats it for you. It gives the version number and no DOI.
+If PINNStudio is useful in your work, please cite the version you used. PINNStudio 1.6.0 is archived on Zenodo with
+the DOI [10.5281/zenodo.24023305](https://doi.org/10.5281/zenodo.24023305):
 
 ```bibtex
 @software{khan2026pinnstudio,
-  author  = {Khan, Asfandyar and Mamivand, Mahmood},
-  title   = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
-  year    = {2026},
-  url     = {https://github.com/AsfandyarKhan72/PINNStudio}
+  author    = {Khan, Asfandyar and Mamivand, Mahmood},
+  title     = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
+  version   = {1.6.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.24023305},
+  url       = {https://doi.org/10.5281/zenodo.24023305}
 }
 ```
 
-Add the number of the version you used, for example `version = {1.6.0}`. You can see the version in PINNStudio
-under **Help › About PINNStudio**, or with `pip show pinnstudio`.
+The repository's [`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff) has the same
+authors, title, version, release date and DOI, and GitHub's **Cite this repository** button formats it for you. You can
+see the version you have in PINNStudio under **Help › About PINNStudio**, or with `pip show pinnstudio`.
 
 ## The paper
 
 A paper describing PINNStudio is in preparation. It has not been published yet;
-this page will give its full reference and DOI once it is. Until then, please cite the software as above.
+this page will give its full reference once it is. Until then, please cite the software as above. Once the paper is
+out, cite the paper for the methods and their validation, and the archived software version for the exact
+implementation you used.
 
 ## Methods and examples
 

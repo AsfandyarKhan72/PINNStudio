@@ -195,16 +195,20 @@ and each run saves its settings next to its results.
 
 ## Citation
 
-If PINNStudio is useful in your work, please cite it — see
-[`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff); if you used a released
-version, add its number (`version = {…}`). A paper describing PINNStudio is in preparation.
+If PINNStudio is useful in your work, please cite the version you used. PINNStudio 1.6.0 is archived on Zenodo,
+DOI [10.5281/zenodo.24023305](https://doi.org/10.5281/zenodo.24023305); the same information is in
+[`CITATION.cff`](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/CITATION.cff). A paper describing PINNStudio
+is in preparation.
 
 ```bibtex
 @software{khan2026pinnstudio,
-  author  = {Khan, Asfandyar and Mamivand, Mahmood},
-  title   = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
-  year    = {2026},
-  url     = {https://github.com/AsfandyarKhan72/PINNStudio}
+  author    = {Khan, Asfandyar and Mamivand, Mahmood},
+  title     = {PINNStudio: A graphical platform for forward and inverse physics-informed neural networks},
+  version   = {1.6.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.24023305},
+  url       = {https://doi.org/10.5281/zenodo.24023305}
 }
 ```
 

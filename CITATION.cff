@@ -13,6 +13,14 @@ authors:
 repository-code: "https://github.com/AsfandyarKhan72/PINNStudio"
 version: "1.6.0"
 date-released: "2026-11-06"
+doi: "10.5281/zenodo.24023305"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.24023305"
+    description: "Zenodo archive of PINNStudio v1.6.0"
+  - type: url
+    value: "https://github.com/AsfandyarKhan72/PINNStudio/releases/tag/v1.6.0"
+    description: "GitHub release v1.6.0"
 license: MIT
 keywords:
   - physics-informed neural networks
