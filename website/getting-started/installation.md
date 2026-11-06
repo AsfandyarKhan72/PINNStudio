@@ -91,14 +91,20 @@ What the installer does (`get-pinnstudio.sh`, `get-pinnstudio.ps1`):
    is older than version 0.9.20.
 2. Runs `uv tool install` for `pinnstudio` with its own Python 3.12 (the x64 Python on Windows on ARM) and
    `--torch-backend auto`: uv picks the PyTorch build that fits the NVIDIA driver, or a CPU-only build when there
-   is no NVIDIA GPU. PINNStudio gets an environment of its own; nothing is installed system-wide, and
-   `uv tool dir` shows where it is.
-3. Puts the `pinnstudio` command on the PATH and adds a PINNStudio icon: Start menu and desktop on Windows,
+   is no NVIDIA GPU. uv looks only at the driver, so for a Maxwell, Pascal or Volta GPU (GTX 9xx/10xx, P100, V100),
+   which the newest builds have no kernels for, the installer chooses the build itself: `cu126` when the driver
+   reports CUDA 12.0 or newer, `cu118` for CUDA 11.8, and the CPU build with an older driver, with a GPU older
+   than Maxwell, or with a Blackwell GPU next to one of these older GPUs. To choose the build yourself, set
+   `UV_TORCH_BACKEND` (for example `cu130` or `cpu`) before running the installer. PINNStudio gets an environment
+   of its own; nothing is installed system-wide, and `uv tool dir` shows where it is.
+3. Checks that PyTorch can compute on the GPU PINNStudio trains on (the default GPU, `cuda:0`). If PyTorch sees
+   the GPU but cannot compute on it, the installer installs the CPU-only build instead and says so.
+4. Puts the `pinnstudio` command on the PATH and adds a PINNStudio icon: Start menu and desktop on Windows,
    `~/Applications` on macOS (found by Spotlight and Launchpad), the application menu on Linux.
-4. Prints the installed version (`PINNStudio <version> installed.`) and where training will run, for
+5. Prints the installed version (`PINNStudio <version> installed.`) and where training will run, for
    example `PyTorch will train on the GPU: <name of the GPU>`, or
    `No NVIDIA GPU found: PINNStudio will train on the CPU.`
-5. If another PINNStudio (an older `pip`, venv or conda installation) comes first on the PATH, it says where that
+6. If another PINNStudio (an older `pip`, venv or conda installation) comes first on the PATH, it says where that
    copy is, which version it is, and the command that removes it. It does not remove anything itself.
 
 The installation takes a few minutes. The `pinnstudio` command works in new terminal windows; the installer prints
