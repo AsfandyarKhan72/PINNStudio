@@ -18,8 +18,8 @@ TORCH_TAG=$(./venv/bin/python select_torch_index.py)
 # driver (or unnecessarily bundles CUDA runtime packages on a CPU-only
 # machine) -- doing this last, and verifying what actually landed, means
 # nothing installed afterward can silently leave the wrong build in place.
-# The check runs a small calculation on the GPU, so a build without kernels for
-# this GPU is caught too, not only a wrong version.
+# The check runs a small calculation on every GPU, so a build without kernels
+# for a GPU is caught too, not only a wrong version.
 echo "Installing the matching PyTorch build (${TORCH_TAG})..."
 _torch_ok=0
 if ./venv/bin/pip install torch --index-url "https://download.pytorch.org/whl/${TORCH_TAG}" --force-reinstall --quiet; then
@@ -31,7 +31,7 @@ if ./venv/bin/pip install torch --index-url "https://download.pytorch.org/whl/${
 fi
 if [ "$_torch_ok" != "1" ]; then
     if [ "$TORCH_TAG" != "cpu" ]; then
-        echo "The ${TORCH_TAG} PyTorch build could not compute on this GPU — falling back to CPU..."
+        echo "The ${TORCH_TAG} PyTorch build could not compute on every GPU — falling back to CPU..."
         echo "(You can retry GPU setup later — see 'Common installation problems' in the installation guide.)"
     fi
     ./venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall --quiet

@@ -21,8 +21,9 @@ from pinnstudio.core import update_info
 #
 #   cu126  Maxwell (5.0) to Hopper (9.0), no Blackwell. Current torch (2.14),
 #          the last release with CUDA 12.x wheels.
-#   cu128  Volta (7.0) to Blackwell (12.0), no Maxwell/Pascal since torch 2.8.
-#          Its newest torch is 2.11; later releases are not built for it.
+#   cu128  Turing (7.5) to Blackwell (12.0) in torch 2.11, its newest torch
+#          (later releases are not built for it): no Maxwell/Pascal since
+#          torch 2.8, and no Volta since 2.11.
 #   cu130  Turing (7.5) to Blackwell (12.0), no Maxwell/Pascal/Volta.
 #   cu118  Older drivers (11.8 to 11.x); torch 2.7 at the newest.
 #
@@ -30,10 +31,14 @@ from pinnstudio.core import update_info
 # get cu130 with a 13.x driver and cu126 otherwise; Maxwell, Pascal and Volta
 # get cu126. When the architecture can't be read, cu126 is chosen, because it
 # runs on the widest range of GPUs (every NVIDIA GPU except Blackwell, which
-# always reports its architecture). With several GPUs the newest one decides,
-# since no single build covers both Blackwell and Pascal/Volta. The installers
-# then run a small calculation on the GPU and fall back to the CPU build if it
-# fails (check_cuda_build below).
+# always reports its architecture).
+#
+# With several GPUs the build must run on all of them, because PyTorch's
+# default device (cuda:0) need not be the GPU nvidia-smi lists first: the
+# rules above are applied to the oldest and the newest GPU together. Blackwell
+# next to a Maxwell, Pascal or Volta GPU has no common build, so the CPU build
+# is chosen. The installers then run a small calculation on every GPU PyTorch
+# sees and fall back to the CPU build if any fails (check_cuda_build below).
 _BLACKWELL = (10, 0)
 _TURING = (7, 5)
 _MAXWELL = (5, 0)
@@ -75,8 +80,8 @@ _DETECT = object()
 
 
 def select_tag(version=None, caps=_DETECT):
-    """The wheel tag for this computer ("cu126", ...), or "cpu" without a usable
-    NVIDIA GPU and driver. `version` is the driver's CUDA version and `caps` the
+    """The wheel tag for this computer ("cu126", ...): a build that runs on
+    every NVIDIA GPU with this driver, or "cpu" if there is none. `version` is the driver's CUDA version and `caps` the
     GPUs' compute capabilities (None: unknown); both are read from the system
     when not given."""
     version = driver_cuda_version() if version is None else tuple(version)
@@ -84,14 +89,16 @@ def select_tag(version=None, caps=_DETECT):
         return "cpu"
     if caps is _DETECT:
         caps = gpu_compute_capabilities()
-    newest = max(caps) if caps else None
-    if newest is not None and newest < _MAXWELL:
+    oldest, newest = (min(caps), max(caps)) if caps else (None, None)
+    if oldest is not None and oldest < _MAXWELL:
         return "cpu"             # Kepler and older: no current PyTorch build
     if newest is not None and newest >= _BLACKWELL:
+        if oldest < _TURING:
+            return "cpu"         # no build runs on both (see above)
         if version >= (13, 0):
             return "cu130"
         return "cu128" if version >= (12, 8) else "cpu"
-    if newest is not None and newest >= _TURING and version >= (13, 0):
+    if oldest is not None and oldest >= _TURING and version >= (13, 0):
         return "cu130"
     if version >= (12, 0):
         return "cu126"
@@ -99,17 +106,22 @@ def select_tag(version=None, caps=_DETECT):
 
 
 # Run by the installers after installing a CUDA build: imports torch, checks the
-# build tag, and does a small calculation on the GPU. A build without kernels
+# build tag, and does a small calculation on every GPU PyTorch sees. A build without kernels
 # for the GPU still reports torch.cuda.is_available() == True; only running a
 # kernel shows the problem ("no kernel image is available").
 def check_cuda_build(tag):
-    """True if the installed PyTorch is the `tag` build and can compute on the GPU."""
+    """True if the installed PyTorch is the `tag` build and can compute on
+    every GPU it sees (cuda:0, cuda:1, ...)."""
     try:
         import torch
         if f"+{tag}" not in torch.__version__ or not torch.cuda.is_available():
             return False
-        x = torch.arange(8, dtype=torch.float32, device="cuda")
-        return float((x * 2).sum().cpu()) == 56.0
+        n = torch.cuda.device_count()
+        for i in range(n):
+            x = torch.arange(8, dtype=torch.float32, device=f"cuda:{i}")
+            if float((x * 2).sum().cpu()) != 56.0:
+                return False
+        return n > 0
     except Exception:
         return False
 
@@ -120,9 +132,10 @@ def gpu_fix_lines(tag, prefix=None, executable=None, platform=None, env=None):
     executable = sys.executable if executable is None else executable
     platform = sys.platform if platform is None else platform
     if tag == "cpu":
-        return ["The NVIDIA driver, or the GPU, is too old for the PyTorch builds available now.",
+        return ["No PyTorch build available now runs on this computer's NVIDIA GPU(s) with this driver.",
                 "Update the NVIDIA driver, restart, and start PINNStudio again;"
-                " a GPU older than Maxwell (GTX 9xx) can only train on the CPU."]
+                " a GPU older than Maxwell (GTX 9xx), or a Blackwell GPU next to a"
+                " Maxwell, Pascal or Volta one, can only train on the CPU."]
     if update_info.is_uv_tool_install(prefix, env):
         return ["Run PINNStudio's installer again; it installs the PyTorch build that fits the driver:",
                 "  " + update_info.update_command(prefix, executable, platform, env)]

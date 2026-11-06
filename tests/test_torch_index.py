@@ -13,12 +13,13 @@ from pinnstudio.core import torch_index as ti  # noqa: E402
 TAGS = {"cpu", "cu118", "cu126", "cu128", "cu130"}
 
 # Representative GPUs (compute capability) and what each build has kernels for
-# (PyTorch 2.14): cu126 5.0-9.0, cu128 7.0-12.0, cu130 7.5-12.0.
+# (cu126 and cu130: PyTorch 2.14; cu128: 2.11, its newest): cu126 5.0-9.0,
+# cu128 7.5-12.0 (no Volta since 2.11), cu130 7.5-12.0.
 MAXWELL, PASCAL, P100, VOLTA = (5, 2), (6, 1), (6, 0), (7, 0)
 TURING, AMPERE, ADA, HOPPER = (7, 5), (8, 6), (8, 9), (9, 0)
 BLACKWELL_DC, BLACKWELL = (10, 0), (12, 0)
 KEPLER = (3, 7)
-RUNS_ON = {"cu126": ((5, 0), (9, 0)), "cu128": ((7, 0), (12, 0)), "cu130": ((7, 5), (12, 0)),
+RUNS_ON = {"cu126": ((5, 0), (9, 0)), "cu128": ((7, 5), (12, 0)), "cu130": ((7, 5), (12, 0)),
            "cu118": ((5, 0), (9, 0))}
 NEEDS_DRIVER = {"cu118": (11, 8), "cu126": (12, 0), "cu128": (12, 8), "cu130": (13, 0)}
 
@@ -74,12 +75,31 @@ def test_unknown_architecture_is_handled_conservatively():
         assert ti.select_tag(driver, None) == "cu126"
     assert ti.select_tag((11, 8), None) == "cu118"
     assert ti.select_tag((11, 4), None) == "cpu"
-    assert ti.select_tag(None, None) == "cpu"   # no driver
 
 
-def test_several_gpus_the_newest_decides():
-    assert ti.select_tag((13, 0), [PASCAL, AMPERE]) == "cu130"
-    assert ti.select_tag((13, 0), [PASCAL, BLACKWELL]) == "cu130"
+def test_no_driver_gives_cpu(monkeypatch):
+    # No driver found: mock the detection, so the result doesn't depend on this computer.
+    monkeypatch.setattr(ti, "driver_cuda_version", lambda output=None: None)
+    assert ti.select_tag(None, None) == "cpu"
+    assert ti.select_tag(None, [AMPERE]) == "cpu"
+
+
+def test_several_gpus_get_a_build_that_runs_on_all_of_them():
+    gpus = [MAXWELL, P100, PASCAL, VOLTA, TURING, AMPERE, ADA, HOPPER, BLACKWELL_DC, BLACKWELL]
+    for a in gpus:
+        for b in gpus:
+            for driver in [(12, 8), (12, 9), (13, 0)]:
+                tag = ti.select_tag(driver, [a, b])
+                if tag == "cpu":
+                    # only when no build has kernels for both
+                    assert max(a, b) >= (10, 0) and min(a, b) < (7, 5), (a, b, driver)
+                    continue
+                lo, hi = RUNS_ON[tag]
+                assert lo <= min(a, b) and max(a, b) <= hi, (a, b, driver, tag)
+    assert ti.select_tag((13, 0), [PASCAL, AMPERE]) == "cu126"     # not cu130: no Pascal kernels
+    assert ti.select_tag((13, 0), [AMPERE, ADA]) == "cu130"
+    assert ti.select_tag((13, 0), [VOLTA, BLACKWELL]) == "cpu"     # no common build
+    assert ti.select_tag((12, 9), [TURING, BLACKWELL]) == "cu128"
     assert ti.select_tag((13, 0), [PASCAL, PASCAL]) == "cu126"
 
 
@@ -137,6 +157,7 @@ def test_check_cuda_build_catches_missing_kernels(monkeypatch):
     import torch
     monkeypatch.setattr(torch, "__version__", "2.14.1+cu128")
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 1)
 
     def no_kernel(*a, **k):
         raise RuntimeError("CUDA error: no kernel image is available for execution on the device")
@@ -150,8 +171,30 @@ def test_check_cuda_build_passes_when_the_calculation_works(monkeypatch):
     real_arange = torch.arange
     monkeypatch.setattr(torch, "__version__", "2.14.1+cu130")
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
-    monkeypatch.setattr(torch, "arange", lambda *a, device=None, **k: real_arange(*a, **k))
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    devices = []
+
+    def on_cpu(*a, device=None, **k):
+        devices.append(device)
+        return real_arange(*a, **k)
+    monkeypatch.setattr(torch, "arange", on_cpu)
     assert ti.check_cuda_build("cu130") is True
+    assert devices == ["cuda:0", "cuda:1"]          # every GPU PyTorch sees, not only the default one
+
+
+def test_check_cuda_build_fails_if_one_gpu_fails(monkeypatch):
+    import torch
+    real_arange = torch.arange
+    monkeypatch.setattr(torch, "__version__", "2.14.1+cu130")
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+
+    def second_has_no_kernels(*a, device=None, **k):
+        if device == "cuda:1":
+            raise RuntimeError("CUDA error: no kernel image is available for execution on the device")
+        return real_arange(*a, **k)
+    monkeypatch.setattr(torch, "arange", second_has_no_kernels)
+    assert ti.check_cuda_build("cu130") is False
 
 
 def test_select_torch_index_script_runs():
