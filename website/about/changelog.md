@@ -75,6 +75,9 @@ Cahn-Hilliard time-window runs. See [Troubleshooting](../help/troubleshooting.md
 - The installers compile PINNStudio when installing (faster first start), print the installed version, and point
   out another PINNStudio that comes first on the PATH. The update notice gives the right update command for each kind
   of installation.
+- The installers choose a PyTorch build that has kernels for the computer's NVIDIA GPU, including older GPUs
+  (GTX 9xx/10xx, P100, V100) when the driver allows it, and check it with a small calculation on the GPU; if that
+  fails, they install the CPU build and say so.
 - SciPy is a declared dependency.
 
 **License**
@@ -85,7 +88,7 @@ Cahn-Hilliard time-window runs. See [Troubleshooting](../help/troubleshooting.md
 
 ## v1.5.0 (2026-10-21)
 
-The current release on PyPI, and the first release since 1.4.0 (the 1.5.0 and 1.5.1 entries prepared on 2026-10-07
+The first release since 1.4.0 (the 1.5.0 and 1.5.1 entries prepared on 2026-10-07
 were not published separately and are included in it). Headline changes:
 
 - **Installation and platforms.** The one-command installers (uv, with the PyTorch build matching the NVIDIA driver),
