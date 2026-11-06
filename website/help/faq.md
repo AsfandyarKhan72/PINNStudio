@@ -76,7 +76,8 @@ Each run gets its own folder `<name>__<date>_<time>` inside the **Save to** fold
 
 **What is the difference between Save and Export script?**
 **Save** writes a `.pinn.json` problem file that PINNStudio opens again; **Export script** writes a standalone
-Python script that trains the same model without the window. See
+Python script that trains the model without the window (checked on the built-in examples to train the same model
+as Solve; see [Export equivalence](../reproducibility/export-equivalence.md)). See
 [Save, reopen and export](../getting-started/save-and-export.md).
 
 **Can I run a problem without the window, for example on a cluster?**

@@ -91,14 +91,20 @@ What the installer does (`get-pinnstudio.sh`, `get-pinnstudio.ps1`):
    is older than version 0.9.20.
 2. Runs `uv tool install` for `pinnstudio` with its own Python 3.12 (the x64 Python on Windows on ARM) and
    `--torch-backend auto`: uv picks the PyTorch build that fits the NVIDIA driver, or a CPU-only build when there
-   is no NVIDIA GPU. PINNStudio gets an environment of its own; nothing is installed system-wide, and
-   `uv tool dir` shows where it is.
-3. Puts the `pinnstudio` command on the PATH and adds a PINNStudio icon: Start menu and desktop on Windows,
+   is no NVIDIA GPU. uv looks only at the driver, so for a Maxwell, Pascal or Volta GPU (GTX 9xx/10xx, P100, V100),
+   which the newest builds have no kernels for, the installer chooses the build itself: `cu126` when the driver
+   reports CUDA 12.0 or newer, `cu118` for CUDA 11.8, and the CPU build with an older driver, with a GPU older
+   than Maxwell, or with a Blackwell GPU next to one of these older GPUs. To choose the build yourself, set
+   `UV_TORCH_BACKEND` (for example `cu130` or `cpu`) before running the installer. PINNStudio gets an environment
+   of its own; nothing is installed system-wide, and `uv tool dir` shows where it is.
+3. Checks that PyTorch can compute on the GPU PINNStudio trains on (the default GPU, `cuda:0`). If PyTorch sees
+   the GPU but cannot compute on it, the installer installs the CPU-only build instead and says so.
+4. Puts the `pinnstudio` command on the PATH and adds a PINNStudio icon: Start menu and desktop on Windows,
    `~/Applications` on macOS (found by Spotlight and Launchpad), the application menu on Linux.
-4. Prints the installed version (`PINNStudio <version> installed.`) and where training will run, for
+5. Prints the installed version (`PINNStudio <version> installed.`) and where training will run, for
    example `PyTorch will train on the GPU: <name of the GPU>`, or
    `No NVIDIA GPU found: PINNStudio will train on the CPU.`
-5. If another PINNStudio (an older `pip`, venv or conda installation) comes first on the PATH, it says where that
+6. If another PINNStudio (an older `pip`, venv or conda installation) comes first on the PATH, it says where that
    copy is, which version it is, and the command that removes it. It does not remove anything itself.
 
 The installation takes a few minutes. The `pinnstudio` command works in new terminal windows; the installer prints
@@ -193,9 +199,20 @@ reports, and the path is that of the Python PINNStudio runs in):
 ```
 
 Upgrade `pip` first (`"<path to python>" -m pip install --upgrade pip`): an old `pip` can fail on PyTorch's package index with a `flit_core` or
-"Could not find a version that satisfies" error. PINNStudio chooses `cu128` for drivers that report CUDA 12.8 or
-newer, `cu126` for CUDA 12.0 to 12.7, and `cu118` for CUDA 11.8 to 11.x; with an older driver it tells you to
-update the driver. For an installer copy, the message tells you to run the installer again instead.
+"Could not find a version that satisfies" error. PINNStudio chooses the build from the GPU's architecture as well
+as the driver's CUDA version, because each PyTorch CUDA build has kernels only for some GPUs:
+
+| GPU | Driver reports CUDA 13.0 or newer | CUDA 12.8 or 12.9 | CUDA 12.0 to 12.7 |
+|---|---|---|---|
+| Blackwell (RTX 50 series, B100/B200) | `cu130` | `cu128` | (not supported by the driver) |
+| Turing, Ampere, Ada, Hopper (RTX 20/30/40, A100, H100, ...) | `cu130` | `cu126` | `cu126` |
+| Maxwell, Pascal, Volta (GTX 9xx/10xx, P100, V100, ...) | `cu126` | `cu126` | `cu126` |
+| architecture can't be read | `cu126` | `cu126` | `cu126` |
+
+A driver that reports CUDA 11.8 to 11.x gets `cu118`. With several NVIDIA GPUs the build must run on all of them, so
+the oldest GPU counts too (a Pascal next to an RTX 40 gets `cu126`); a Blackwell GPU next to a Maxwell, Pascal or
+Volta one has no common build and gets the CPU build. With an older driver, or a GPU older than Maxwell, it tells
+you to update the driver or use the CPU. For an installer copy, the message tells you to run the installer again instead.
 
 A GPU is optional. It pays off for larger 2D and 3D problems; very small problems (for example an ODE with a few
 hundred points) often train as fast or faster on the CPU. See
@@ -224,9 +241,9 @@ cd PINNStudio
 
 Then run the source installer. It creates a virtual environment `venv` inside the `PINNStudio` folder, installs
 PINNStudio and its dependencies into it, and installs the PyTorch build that fits the NVIDIA driver: it reads the
-driver's CUDA version from `nvidia-smi` (`select_torch_index.py`), installs the matching CUDA build of PyTorch last,
-checks that this build is the one installed, and falls back to the CPU-only build if not (or if there is no NVIDIA
-GPU).
+driver's CUDA version and the GPU's architecture from `nvidia-smi` (`select_torch_index.py`), installs the matching CUDA build of PyTorch last,
+checks that this build is the one installed and can run a small calculation on every GPU, and falls back to the
+CPU-only build if not (or if there is no NVIDIA GPU).
 
 === "Linux / macOS"
 

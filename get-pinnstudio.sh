@@ -53,6 +53,69 @@ report_other_copy() {   # report_other_copy <path of the pinnstudio command foun
     say "------------------------------------------------------------------"
 }
 
+# Which PyTorch build to install. uv's `--torch-backend auto` chooses it from
+# the NVIDIA driver alone, so with a current driver it installs a CUDA 12.8+
+# or 13 build, which has no kernels for Maxwell, Pascal or Volta GPUs
+# (GTX 9xx/10xx, P100, V100). For those GPUs the build is chosen here from the
+# driver's CUDA version: cu126 (CUDA 12.x or newer) or cu118 (CUDA 11.8); with
+# an older driver, a GPU older than Maxwell, or a Blackwell GPU next to an
+# older one (no build runs on both), the CPU build. Everything else -- Turing
+# and newer, no NVIDIA GPU, GPU information that can't be read -- keeps
+# `auto`. A UV_TORCH_BACKEND you set yourself is used as it is.
+# (pinnstudio/core/torch_index.py has the same rules for install.sh.)
+ver_lt() {          # ver_lt A B: is version A (major.minor) lower than B?
+    awk -v a="$1" -v b="$2" 'BEGIN { split(a, x, "."); split(b, y, ".");
+        exit !((x[1] + 0 < y[1] + 0) || (x[1] + 0 == y[1] + 0 && x[2] + 0 < y[2] + 0)) }'
+}
+
+choose_torch_backend() {    # choose_torch_backend <compute capabilities, one per line> <driver CUDA version>
+    _old=""; _new=""
+    for _c in $1; do
+        case "$_c" in
+            [0-9]*.[0-9]*) ;;
+            *) echo auto; return ;;      # "[N/A]", an error message, ...: leave it to uv
+        esac
+        if [ -z "$_old" ] || ver_lt "$_c" "$_old"; then _old=$_c; fi
+        if [ -z "$_new" ] || ver_lt "$_new" "$_c"; then _new=$_c; fi
+    done
+    if [ -z "$_old" ] || ! ver_lt "$_old" 7.5; then echo auto; return; fi
+    if ver_lt "$_old" 5.0 || ! ver_lt "$_new" 10.0; then echo cpu; return; fi
+    case "$2" in
+        [0-9]*.[0-9]*) ;;
+        *) echo cpu; return ;;
+    esac
+    if ! ver_lt "$2" 12.0; then echo cu126
+    elif ! ver_lt "$2" 11.8; then echo cu118
+    else echo cpu
+    fi
+}
+
+torch_backend() {   # the --torch-backend value for this computer
+    if [ -n "${UV_TORCH_BACKEND:-}" ]; then echo "$UV_TORCH_BACKEND"; return; fi
+    command -v nvidia-smi >/dev/null 2>&1 || { echo auto; return; }
+    _caps=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || true)
+    _cuda=$(nvidia-smi 2>/dev/null | sed -n 's/.*CUDA \(UMD \)\{0,1\}Version: *\([0-9][0-9]*\.[0-9][0-9]*\).*/\2/p' | head -n 1)
+    choose_torch_backend "$_caps" "$_cuda"
+}
+
+# "ok <GPU name>" if PyTorch computes on the default GPU (cuda:0), which
+# PINNStudio trains on; "failed" if it sees the GPU but can't compute on it
+# (a build without kernels for it); "none" if it sees no GPU.
+gpu_state() {
+    "$1" -c "
+import torch
+if not torch.cuda.is_available():
+    print('none')
+else:
+    try:
+        x = torch.arange(8, dtype=torch.float32, device='cuda:0')
+        ok = float((x * 2).sum().cpu()) == 56.0
+    except Exception:
+        ok = False
+    print('ok ' + torch.cuda.get_device_name(0) if ok else 'failed')
+" 2>/dev/null || echo none
+}
+
 # tests source the functions above without installing anything
 [ "${PINNSTUDIO_INSTALLER_FUNCTIONS_ONLY:-}" = 1 ] && return 0 2>/dev/null
 
@@ -69,13 +132,33 @@ else
     export PATH
 fi
 
+TORCH_BACKEND=$(torch_backend)
 say ""
+if [ -n "${UV_TORCH_BACKEND:-}" ]; then
+    say "Using the PyTorch build you set with UV_TORCH_BACKEND: $TORCH_BACKEND"
+elif [ "$TORCH_BACKEND" != auto ]; then
+    say "An older NVIDIA GPU was found: installing the PyTorch build that supports it ($TORCH_BACKEND)."
+fi
 say "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
-uv tool install --compile-bytecode --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python 3.12 --torch-backend auto "$PKG"
+uv tool install --compile-bytecode --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python 3.12 --torch-backend "$TORCH_BACKEND" "$PKG"
 
 uv tool update-shell >/dev/null 2>&1 || true
 BIN="$(uv tool dir --bin)"
 TOOL_PY="$(uv tool dir)/pinnstudio/bin/python"
+
+# A PyTorch that sees the GPU but can't compute on it would stop at the first
+# training step, so install the CPU build instead.
+GPU_STATE=$(gpu_state "$TOOL_PY")
+CPU_FALLBACK=""
+if [ "$GPU_STATE" = failed ]; then
+    say ""
+    say "The PyTorch build that was installed ($TORCH_BACKEND) cannot compute on this computer's GPU."
+    say "Installing the CPU-only build instead; PINNStudio will train on the CPU..."
+    uv tool uninstall pinnstudio >/dev/null 2>&1 || true
+    uv tool install --compile-bytecode --refresh-package pinnstudio --python 3.12 --torch-backend cpu "$PKG"
+    CPU_FALLBACK=1
+    GPU_STATE=none
+fi
 VERSION=$("$TOOL_PY" -c "import importlib.metadata as m; print(m.version('pinnstudio'))" 2>/dev/null || true)
 
 say ""
@@ -87,10 +170,16 @@ else   # older versions (1.4.0 on PyPI) have no --create-shortcut and would open
   WHERE=""
 fi
 
-GPU=$("$TOOL_PY" -c "import torch; print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')" 2>/dev/null || true)
 say ""
+case "$GPU_STATE" in
+    ok\ *) GPU=${GPU_STATE#ok } ;;
+    *) GPU="" ;;
+esac
 if [ -n "$GPU" ]; then
     say "PyTorch will train on the GPU: $GPU"
+elif [ -n "$CPU_FALLBACK" ]; then
+    say "No PyTorch build that was tried can compute on this GPU, so PINNStudio will train on the CPU."
+    say "See 'Common installation problems' in the installation guide: https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/#common-installation-problems"
 elif command -v nvidia-smi >/dev/null 2>&1; then
     say "An NVIDIA GPU was found, but PyTorch cannot use it; PINNStudio will train on the CPU."
     say "See 'Common installation problems' in the installation guide: https://asfandyarkhan72.github.io/PINNStudio/getting-started/installation/#common-installation-problems"

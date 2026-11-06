@@ -73,10 +73,12 @@ reported results.
 - **Error analysis and plots.** Relative L₂, MSE, maximum and mean absolute error against reference data or an
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
-- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
-  model as **Solve**: in shortened CPU runs with fixed seeds, 88 example configurations gave bitwise-identical
-  losses and weights, one more is identical by construction, and 4 were skipped
-  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
+- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script. In the project's check of
+  the built-in examples (Tuned settings, shortened CPU runs, fixed seeds), the script trained the same model as
+  **Solve** in all 89 configurations compared: 88 independent comparisons with bitwise-identical losses and weights,
+  and one identical by construction. The other 4 of the 93 configurations do not apply to the comparison
+  (three inverse modes that do not exist and the parameter-sweep example)
+  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)). A saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
   PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact

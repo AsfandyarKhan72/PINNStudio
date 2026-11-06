@@ -130,8 +130,8 @@ benchmark runs: click a title for the example's equations, settings and benchmar
 
     ---
 
-    Each problem can be exported as a plain DeepXDE script that trains the same model outside the
-    application, for inspection, sharing or running on a cluster.
+    Each problem can be exported as a plain DeepXDE script for inspection, sharing or running on a cluster;
+    on the built-in examples it was checked to train the same model as Solve.
 
     [:octicons-arrow-right-24: Generated scripts](reference/scripts.md)
 

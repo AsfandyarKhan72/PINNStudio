@@ -48,7 +48,8 @@ Both the starting and the selected configuration of each example are recorded, s
 
 - Most results are single runs or medians of three seeds; differences smaller than the seed-to-seed spread are not
   meaningful.
-- Training times were measured on one GPU (an NVIDIA RTX 4090) and depend on hardware, drivers and other load.
+- Times are wall-clock run times of the whole run (start-up, training and post-processing), measured on one GPU (an
+  NVIDIA RTX 4090); they depend on hardware, drivers and other load.
 - A paper's method is reproduced as far as the paper states it; settings a paper leaves out are filled in and marked
   in `paper_settings.py`.
 - The selection rule uses the reference data it is evaluated on; the Tuned presets are a guide for similar problems,
