@@ -1893,7 +1893,9 @@ def page(recs):
       "selected by the solution's fit to the measured data (the L₂ in their tables), and they are not in the "
       "parameter statistics below.\n"
       "- **Seeds:** where a setting ran with three seeds (1, 2, 2026), the value is their median; otherwise "
-      "seed 2026. **Times** are training seconds on one NVIDIA RTX 4090.\n")
+      "seed 2026. **Times** are wall-clock run times in seconds on one NVIDIA RTX 4090: the whole run of the "
+      "generated script or the GUI solve, including start-up, data generation, plotting and error analysis, not only "
+      "the optimizer steps.\n")
     a("## Default and Tuned settings\n")
     a("- **Default:** the source's own settings: DeepXDE's for a DeepXDE example, the paper's method run in "
       "PINNStudio for a template from a paper, the template's starting settings for a PINNStudio template.\n"
@@ -1951,11 +1953,12 @@ def page(recs):
       "[training_methods.md → The controlled comparison]"
       "(training_methods.md#the-controlled-comparison-paper-figure-7) | "
       "`benchmarks/plans/fig7_v2.json` and `fig7_v2b.json`, `tools/make_methods_figure.py` | done (all 52 runs) |\n"
-      "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | every "
-      "example with its Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
+      "| Export equivalence | whether *Export as DeepXDE script* trains exactly the same model as *Solve* | the built-in "
+      "examples with their Tuned settings, short training, both scripts on the CPU with the same seed, loss history "
       "and identified parameters compared line by line | [export_check](export_check/README.md), [performance.md](performance.md) | "
       "`tools/check_export_equivalence.py` | done: 93 example-mode configurations, 89 completed and bitwise identical "
-      "(88 independent comparisons, 1 identical by construction), 4 excluded |\n"
+      "(88 independent comparisons, 1 identical by construction); 4 not applicable (3 inverse modes that do not "
+      "exist, the parameter-sweep example) |\n"
       "| Performance | PINNStudio's overhead over a plain script, GPU against CPU, CPU thread "
       "scaling | five problems (Lorenz, wave, 2D Allen-Cahn, Kovasznay, 3D Allen-Cahn), 3 repeats each | "
       "[performance.md](performance.md) | `benchmarks/perf_study.py` | done |\n\n"
@@ -2002,8 +2005,8 @@ def page(recs):
       "inverse mode of it.\n")
     a("**The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against "
       "the example's reference data; papers report one error over all times, so their rows give that too. Where "
-      "a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds "
-      "on one RTX 4090.\n")
+      "a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are wall-clock run times "
+      "in seconds (the whole run) on one RTX 4090.\n")
     a(f"The sweep was run on the {n_t} examples with the largest errors (counted as examples; the "
       "[tuning study](tuning_study.md) counts the forward and inverse problem of an example separately). The others "
       "were already accurate with their own settings: their result is the README's, marked **no tuning needed**.\n")
@@ -2454,7 +2457,7 @@ def _front_section(r, ent, bench_sec):
                     f"{f'{it:.0f}' if it else '–'} |")
     if rows:
         L.append(f"**Results (RTX 4090).** *Default* is {dflt}; *PINNStudio best* is the *Tuned* setting.\n")
-        L.append("| | Default | PINNStudio best | Training time of the best (s) |\n|---|---|---|---|\n" + "\n".join(rows) + "\n")
+        L.append("| | Default | PINNStudio best | Run time of the best (s, wall-clock) |\n|---|---|---|---|\n" + "\n".join(rows) + "\n")
     L.append(_front_settings(bench_sec, e.name))
     figs = _front_figures(bench_sec)
     if figs:
@@ -2789,7 +2792,8 @@ def split_paper(md, paper_dir=None):
              f"| [{h}](#{re.sub(r'[^a-z0-9 -]', '', h.lower()).replace(' ', '-')}) | {dict(rows).get('Status', '')} |\n"
              for h, rows, _ in parts) + "| [Section 4.6 — consistency of generated scripts](#section-46--consistency-of-generated-scripts) "
          "| done: 93 example-mode configurations, 89 completed and bitwise identical (88 independent comparisons, 1 identical "
-         "by construction), 4 excluded ([export_check](export_check/README.md)) |\n"
+         "by construction); 4 not applicable (3 inverse modes that do not exist, the parameter-sweep example) "
+         "([export_check](export_check/README.md)) |\n"
          "| [Section 5 — computational performance (Table 2, Supplementary Tables S3 and S4)](#section-5--computational-performance-table-2-supplementary-tables-s3-and-s4) | "
          "done |\n"]
     if front_md:

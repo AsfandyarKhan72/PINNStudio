@@ -29,10 +29,11 @@ monitoring, solution visualization, reference-based error analysis, and model re
 exported and run independently, making numerical workflows easier to inspect, reproduce, and extend.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
+<img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/demos/burgers-1d/pinnstudio_burgers_readme.gif" alt="Screen recording of PINNStudio: choosing the Burgers 1D example, viewing its equation, clicking Solve, the live loss plot and Training Log during training, then the loss history, the solution u(x, t) and the error analysis" width="100%">
 </p>
-<p align="center"><sub>The Burgers 1D example after training: the model tree on the left, the equation in the middle,
-the loss and the solution on the right, and the Training Log below.</sub></p>
+<p align="center"><sub>Solving the Burgers 1D example (Raissi et al.) in PINNStudio: choose the example, check the equation, click Solve,
+and inspect the loss, the solution and the error against the reference. A real run on an NVIDIA RTX 4090; the training
+(about 40 s) is shown at 2× speed.</sub></p>
 
 ## See PINNStudio in Action
 
@@ -73,10 +74,12 @@ reported results.
 - **Error analysis and plots.** Relative L₂, MSE, maximum and mean absolute error against reference data or an
   exact formula, with line and surface plots, animations and a history of every saved run. Learn more:
   [Error Analysis](https://asfandyarkhan72.github.io/PINNStudio/guide/error-analysis/), [error metrics](https://asfandyarkhan72.github.io/PINNStudio/reference/metrics/).
-- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script, checked to train the same
-  model as **Solve**: in shortened CPU runs with fixed seeds, 88 example configurations gave bitwise-identical
-  losses and weights, one more is identical by construction, and 4 were skipped
-  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)), and a saved model can be reloaded and plotted again without retraining. Learn more:
+- **Standalone scripts and restore.** Every problem exports as a DeepXDE/PyTorch script. In the project's check of
+  the built-in examples (Tuned settings, shortened CPU runs, fixed seeds), the script trained the same model as
+  **Solve** in all 89 configurations compared: 88 independent comparisons with bitwise-identical losses and weights,
+  and one identical by construction. The other 4 of the 93 configurations do not apply to the comparison
+  (three inverse modes that do not exist and the parameter-sweep example)
+  ([export check](https://asfandyarkhan72.github.io/PINNStudio/reproducibility/export-equivalence/)). A saved model can be reloaded and plotted again without retraining. Learn more:
   [generated scripts](https://asfandyarkhan72.github.io/PINNStudio/reference/scripts/), [checkpoints and restoring](https://asfandyarkhan72.github.io/PINNStudio/reference/checkpoints/).
 - **64 built-in examples.** From simple ODEs to the Navier-Stokes equations in 3D: 49 of DeepXDE's documented
   PINN examples and 15 PINNStudio templates, several following published PINN benchmarks, almost all with an exact

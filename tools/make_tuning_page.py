@@ -572,8 +572,8 @@ def page(summ, rows, with_files):
     a(f"- **Seeds.** The example's own settings and the chosen variant are run with up to {n_seeds} random seeds "
       "(1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses "
       "seed 2026.")
-    a("- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5 to 1.6 (each record names its commit). Times are wall-clock training time "
-      "per run.")
+    a("- **Hardware.** One NVIDIA RTX 4090, PyTorch backend, PINNStudio 1.5 to 1.6 (each record names its commit). Times are wall-clock run times "
+      "per run in seconds (start-up, training and post-processing).")
     a("- **Reproducing a result.** Each problem's section links the tuned settings as a problem file in "
       "[`tuning/`](tuning/): open it in PINNStudio (*Open a saved problem…*) and press Solve. The runs were made "
       "with [`tools/tuning_study.py`](../tools/tuning_study.py) and this page is written from its results by "
