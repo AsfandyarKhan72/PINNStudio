@@ -5223,6 +5223,14 @@ def _cpu_only_line(config):
         return 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
     return ""
 
+def _pinnstudio_version():
+    try:
+        from pinnstudio import __version__
+        return __version__
+    except Exception:
+        return None
+
+
 def _small_problem_gpu_tip(config):
     """A line for the Training Log when a small 1D problem trains on the GPU:
     with a small network a GPU step mostly waits on Python, and such problems
@@ -5638,10 +5646,39 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 {_cpu_only_line(config)}
-# ── Windows has no /tmp by default; make "/tmp/..." paths work there too ──
-if os.name == "nt":
-    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"
-    os.makedirs(_tmp_root, exist_ok=True)
+# ── The environment a run used, written next to its results (environment.json) ──
+def _write_environment(path):
+    import json as _j_env
+    import platform as _pf_env
+    import sys as _sys_env
+    _info = {{"python": _sys_env.version.split()[0], "platform": _pf_env.platform(),
+             "pinnstudio": {_pinnstudio_version()!r}, "seed": {getattr(config, "random_seed", None)!r},
+             "use_random_seed": {bool(getattr(config, "use_random_seed", False))!r}}}
+    for _mod in ("torch", "deepxde", "numpy", "scipy", "matplotlib"):
+        try:
+            _info[_mod] = __import__(_mod).__version__
+        except Exception:
+            _info[_mod] = None
+    try:
+        import torch as _t_env
+        _info["cuda"] = _t_env.version.cuda
+        _info["device"] = str(_t_env.empty(0).device)
+        _info["gpu"] = _t_env.cuda.get_device_name(0) if _t_env.cuda.is_available() else None
+        _info["float"] = str(_t_env.get_default_dtype()).replace("torch.", "")
+    except Exception:
+        pass
+    try:
+        with open(path, "w") as _fh_env:
+            _j_env.dump(_info, _fh_env, indent=2)
+    except OSError:
+        pass
+
+# ── This run's own scratch folder (plots and files that have no save folder) ──
+# PINNStudio passes it in PINNSTUDIO_SCRATCH and reads the plots from it; run on its own, the script
+# makes a new one. Never a shared /tmp: two runs at once would read each other's files.
+import tempfile as _tf_ps
+_PS_TMP = (os.environ.get("PINNSTUDIO_SCRATCH") or _tf_ps.mkdtemp(prefix="pinnstudio_run_")).replace(os.sep, "/")
+os.makedirs(_PS_TMP, exist_ok=True)
 
 import deepxde as dde
 # DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
@@ -5838,6 +5875,8 @@ if _use_save:
     with open(_os.path.join(_save_dir, "solution_results", "model_config.json"), "w") as _mcf:
         _json.dump(_model_config, _mcf, indent=2)
     print(f"Model config saved to: {{_os.path.join(_save_dir, 'solution_results', 'model_config.json')}}")
+    # What the run ran on, to reproduce it: versions, the device and the GPU
+    _write_environment(_os.path.join(_save_dir, "solution_results", "environment.json"))
 
 # ── Solution results folder ───────────────────────────────────
 _sol_dir = _os.path.join(_save_dir, "solution_results") if _use_save else "/tmp"
@@ -9129,24 +9168,15 @@ print("DONE")
     return _own_param_scratch(script)
 
 
-_PS_HEADER_OLD = (
-    'if os.name == "nt":\n'
-    '    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"\n'
-    '    os.makedirs(_tmp_root, exist_ok=True)\n')
-_PS_HEADER_NEW = _PS_HEADER_OLD + (
-    'import tempfile as _tf_ps\n'
-    '_PS_TMP = _tf_ps.mkdtemp(prefix="pinnstudio_run_").replace(os.sep, "/")   # this run\'s own scratch folder\n')
-
-
 def _own_param_scratch(script):
-    """The inverse parameter history and plots go to a scratch folder of
-    this run's own, not /tmp, where two runs at once (two windows, or the
-    test suite in parallel) read each other's parameter values."""
-    out = (script.replace('f"/tmp/param', '_PS_TMP + f"/param').replace('"/tmp/param', '_PS_TMP + "/param')
-           .replace('f"/tmp/{_in}_param_save.txt"', '_PS_TMP + f"/{_in}_param_save.txt"'))
-    if out == script or _PS_HEADER_OLD not in out:
-        return script
-    return out.replace(_PS_HEADER_OLD, _PS_HEADER_NEW, 1)
+    """Every file the script would put in /tmp goes to this run's own scratch folder (_PS_TMP, defined at
+    the top of the script) instead: two runs at once (two windows, a sweep, the test suite in parallel)
+    read each other's parameter values and plots in a shared /tmp, and Windows has no /tmp at all."""
+    import re as _re_ps
+    out = _re_ps.sub(r'f"/tmp/', '_PS_TMP + f"/', script)
+    out = out.replace('"/tmp/', '_PS_TMP + "/')
+    out = out.replace('"/tmp"', '_PS_TMP')
+    return out
 
 
 # =====================================================================
@@ -10494,8 +10524,18 @@ def _rar_tolerance_check(config, indent):
 
 
 def _formula_reference_dir(config):
-    import os as _os_ref, tempfile as _tf_ref
-    base = (getattr(config, "save_dir", "") or "").strip() or _os_ref.path.join(_tf_ref.gettempdir(), "pinnstudio_run")
+    """Where "reference from a formula" files go: the run's save folder, or, without one, a temporary
+    folder named by what the files hold (formulas, times, domain, outputs), so two runs at once share it
+    only when their files are the same."""
+    import hashlib as _hl_ref
+    import os as _os_ref
+    import tempfile as _tf_ref
+    base = (getattr(config, "save_dir", "") or "").strip()
+    if not base:
+        key = repr([getattr(config, k, None) for k in (
+            "ea_ref_formula", "ea_ref_times", "ea_ref_grid", "problem_dim", "steady_state", "output_names",
+            "x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "t_min", "t_max", "constants")])
+        base = _os_ref.path.join(_tf_ref.gettempdir(), "pinnstudio_ref_" + _hl_ref.sha256(key.encode()).hexdigest()[:12])
     return _os_ref.path.join(base, "reference_from_formula")
 
 
@@ -12139,7 +12179,17 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     save_dir_repr = repr(config.save_dir) if use_save else repr("")
     parts.append(f'''save_dir = {save_dir_repr}
 if save_dir:
-    os.makedirs(save_dir, exist_ok=True)''')
+    os.makedirs(save_dir, exist_ok=True)
+
+
+def _scratch_dir():
+    """Where files go without a save folder: one temporary folder of this run's own."""
+    global _SCRATCH
+    if "_SCRATCH" not in globals():
+        import tempfile
+        _SCRATCH = tempfile.mkdtemp(prefix="pinnstudio_run_")
+        print(f"No save folder: files go to {{_SCRATCH}}")
+    return _SCRATCH''')
 
     if needs_ic_file_loader:
         parts.append(f'''def _load_ic_from_file(path):
@@ -12457,7 +12507,7 @@ _ic_pre_constraints = []''']
         if cbs_code:
             parts.append(cbs_code)
         if is_inverse:
-            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            hist_path = 'os.path.join(save_dir or _scratch_dir(), "param_history.txt")'
             parts.append(f'''var_history_path = {hist_path}
 var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
 
@@ -12732,7 +12782,7 @@ _ta_loss_offset = 0''')
         loop_lines.append("    _ta_win_base, _ta_win_taken = _ta_loss_offset, 0")
         if is_inverse:
             loop_lines.append("    if step_i == 0:")
-            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            hist_path = 'os.path.join(save_dir or _scratch_dir(), "param_history.txt")'
             loop_lines.append(f'''        var_history_path = {hist_path}
         var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
         for pi, sp in enumerate(sched_phases):
@@ -12800,7 +12850,7 @@ _ta_loss_offset = 0''')
     # =========================================================================
     # Plots
     # =========================================================================
-    parts.append(f'''sol_dir = save_dir if save_dir else "/tmp"
+    parts.append(f'''sol_dir = save_dir if save_dir else _scratch_dir()
 loss_path = os.path.join(sol_dir, "loss_plot.png")
 solution_path = os.path.join(sol_dir, "solution_plot.{sol_ext}")''')
 

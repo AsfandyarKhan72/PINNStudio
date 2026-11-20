@@ -459,7 +459,9 @@ def _read_run_metrics(cfg, not_before):
     if (not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]") and \
             getattr(cfg, "ea_ref_mode", "files") != "formula":
         return {}
-    save_dir = getattr(cfg, "save_dir", "") or "/tmp"
+    save_dir = getattr(cfg, "save_dir", "") or ""
+    if not save_dir:              # (every sweep run has its own folder)
+        return {}
     ea_dir = os.path.join(save_dir, "error_analysis")
     files = [
         p for p in glob.glob(os.path.join(ea_dir, "error_metrics*.txt"))

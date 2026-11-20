@@ -128,7 +128,7 @@ def _linux_create():
         "Type=Application\n"
         f"Name={NAME}\n"
         f"Comment={COMMENT}\n"
-        f'Exec="{sys.executable}" -m pinnstudio\n'
+        f'Exec="{sys.executable}" -m pinnstudio %f\n'   # %f: a problem file opened with PINNStudio
         f"Path={_home()}\n"
         f"Icon={os.path.join(RES, 'pinnstudio.png')}\n"
         "Terminal=false\n"

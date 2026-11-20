@@ -47,7 +47,7 @@ def _flush_lines(stream, on_output, interval=0.5):
     _flush()
 
 
-def run_pinn(config: PINNConfig, on_output=None, set_process=None):
+def run_pinn(config: PINNConfig, on_output=None, set_process=None, scratch=None):
     """
     Generates the DeepXDE script from config,
     writes it to a temp file, and runs it.
@@ -94,6 +94,8 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
         # otherwise Windows defaults a piped (non-console) stream to the legacy
         # system codepage, which can't encode emoji/symbols the script prints.
         _env = _pyexe.script_env()
+        if scratch:          # the run's own scratch folder, where it puts plots when there is no save folder
+            _env["PINNSTUDIO_SCRATCH"] = scratch
         try:
             process = subprocess.Popen(
                     [_pyexe.script_python(), tmp_path], creationflags=_pyexe.NO_WINDOW,

@@ -369,12 +369,15 @@ class SolverThread(QThread):
         self.config = config
         self.process = None
         self._stop_requested = False
+        # this run's own folder for plots and files when there is no save folder (never a shared /tmp)
+        self.scratch = tempfile.mkdtemp(prefix="pinnstudio_run_")
 
     def run(self):
         result = run_pinn(
             self.config,
             on_output=lambda line: self.output_signal.emit(line),
-            set_process=self._set_process
+            set_process=self._set_process,
+            scratch=self.scratch,
         )
         self.done_signal.emit(result)
 
@@ -1400,6 +1403,11 @@ class MainWindow(QMainWindow):
         about_qt.triggered.connect(lambda: QMessageBox.aboutQt(self, "About Qt"))
         help_menu.addAction(about_qt)
         self._restore_layout()
+
+    def _run_scratch(self):
+        """The last run's own scratch folder (its plots when it had no save folder)."""
+        th = getattr(self, "thread", None)
+        return getattr(th, "scratch", "") or tempfile.gettempdir()
 
     def _open_url(self, url):
         """Open a documentation page in the system's web browser."""
@@ -12298,11 +12306,6 @@ class MainWindow(QMainWindow):
         self.solution_label.setText("⏳ Training...")
         self.loss_label._source_path = None
         self.solution_label._source_path = None
-        for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/solution_plot.gif", "/tmp/param_plot.png"]:
-            try:   # another user's file in a shared /tmp can't be removed
-                os.remove(_p)
-            except OSError:
-                pass
         self._log_example_changes(config)
         self._note_large_data(config)
         self._start_progress(config)
@@ -12819,14 +12822,14 @@ class MainWindow(QMainWindow):
         _sol_ext = "gif" if _is_gif else "png"
 
         save_dir = (save_dir or "").strip()
-        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
+        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else self._run_scratch()
         loss_path = os.path.join(sol_dir, "loss_plot.png")
         solution_path = os.path.join(sol_dir, f"solution_plot.{_sol_ext}")
         # Fallback to root save dir for older runs
         if not os.path.exists(loss_path):
-            loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
+            loss_path = os.path.join(save_dir or self._run_scratch(), "loss_plot.png")
         if not os.path.exists(solution_path):
-            solution_path = os.path.join(save_dir, f"solution_plot.{_sol_ext}") if save_dir else f"/tmp/solution_plot.{_sol_ext}"
+            solution_path = os.path.join(save_dir or self._run_scratch(), f"solution_plot.{_sol_ext}")
 
         if os.path.exists(loss_path):
             self.loss_label.setPixmap(QPixmap(loss_path).scaled(
@@ -12859,7 +12862,7 @@ class MainWindow(QMainWindow):
         configured/none wrote a plot (e.g. a run that was stopped before
         any monitor's first checkpoint)."""
         save_dir = (save_dir or "").strip()
-        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
+        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else self._run_scratch()
         search_dirs = [sol_dir]
         if save_dir and save_dir not in search_dirs:
             search_dirs.append(save_dir)
