@@ -60,6 +60,19 @@ class DesignerController(QObject):
         self.state.reset(d)
         return True
 
+    def follow_json(self, text: str) -> bool:
+        """The design of a settings Undo/Redo step: nothing when it is the design already here (the designer
+        keeps its own undo history), otherwise one step of the designer's Undo, not a reset."""
+        try:
+            d = D.check(text or "")
+        except ParamError as exc:
+            self.state.set_message(f"The network design could not be read: {exc}")
+            return False
+        if (D.to_json(d) if d["blocks"] else "") == self.design_json():
+            return True
+        self.state.set_path(())
+        return self.state.set_design(d)
+
     def design_json(self) -> str:
         """The design to store in the problem ("" while it is empty)."""
         d = self.state.design

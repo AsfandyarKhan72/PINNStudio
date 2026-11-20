@@ -67,7 +67,7 @@ def summary_lines(resolved: dict) -> list:
                 what = f"inputs {b['_idx']}"
             elif b["kind"] == "head":
                 what = f"outputs {b['_idx']}" + (" (as they come)" if b["direct"] else " (linear)")
-            title = f" '{b['title']}'" if b["title"] else ""
+            title = f" '{D.one_line(b['title'])}'" if b["title"] else ""
             lines.append(f"{indent}{bid}{title}: {what}" + (f"  <- {srcs}" if srcs else "")
                          + f"  [width {b['_out']}]")
             if b["kind"] == "group":
@@ -333,7 +333,7 @@ def forward_source(resolved: dict) -> str:
         for bid in lv["_order"]:
             b = blocks[bid]
             k = b["kind"]
-            title = f"  # {b['title']}" if b.get("title") else ""
+            title = f"  # {D.one_line(b['title'])}" if b.get("title") else ""
             if k == "input":
                 lines.append(f"{_var(bid)} = x[:, {b['_idx']}]{title}")
                 continue
@@ -353,9 +353,9 @@ def forward_source(resolved: dict) -> str:
                 expr = f"_dn_level_{bid}(m[{bid!r}].mods, {{{', '.join(f'{p!r}: {v}' for p, v in ins.items())}}})"
             elif k == "shared":
                 ref = blocks[b["ref"]]
-                if ref["kind"] == "group":
-                    expr = (f"_dn_level_{ref['id']}(m[{ref['id']!r}].mods, "
-                            f"{{{', '.join(f'{p!r}: {v}' for p, v in ins.items())}}})")
+                if ref["kind"] == "group":      # (one Port in, whatever its name: shapes.infer checks it)
+                    gport = (D.ports_of(ref) or ["in"])[0]
+                    expr = f"_dn_level_{ref['id']}(m[{ref['id']!r}].mods, {{{gport!r}: {arg}}})"
                 else:
                     expr = f"m[{ref['id']!r}]({arg})"
             else:
@@ -390,7 +390,7 @@ def net_source(design, input_names, output_names) -> str:
     `_DesignedNet`. ParamError when the design cannot run with these inputs and outputs."""
     resolved = resolve(design, input_names, output_names)
     code = resolved.get("code", "") or ""
-    summary = "\n".join("#   " + ln for ln in summary_lines(resolved))
+    summary = "\n".join("#   " + " ".join(ln.splitlines()) for ln in summary_lines(resolved))
     return ("import json\n"
             "# ── Designed network (Network tab): the blocks in the order they run ──\n"
             f"{summary}\n"

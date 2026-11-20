@@ -360,6 +360,15 @@ def _keep_until_finished(th):
     return th
 
 
+def _drop_scratch(path):
+    """Remove a finished run's scratch folder (only one PINNStudio made: pinnstudio_run_* in the temporary
+    folder); a file still open elsewhere just stays."""
+    import shutil
+    if path and os.path.basename(os.path.normpath(path)).startswith("pinnstudio_run_") \
+            and os.path.dirname(os.path.abspath(path)) == os.path.abspath(tempfile.gettempdir()):
+        shutil.rmtree(path, ignore_errors=True)
+
+
 class SolverThread(QThread):
     output_signal = Signal(str)
     done_signal   = Signal(str)
@@ -973,7 +982,11 @@ class MainWindow(QMainWindow):
         return "settings"
 
     def _apply_settings_snapshot(self, config):
-        self._apply_config(config)
+        self._settings_step = True        # the design follows as a designer step (see _apply_config)
+        try:
+            self._apply_config(config)
+        finally:
+            self._settings_step = False
         try:
             return self._config_key(self._build_config())
         except Exception:
@@ -10586,6 +10599,7 @@ class MainWindow(QMainWindow):
     def _save_problem(self, path=None, save_as=False):
         """Save to `path`; else to the file this problem came from (Ctrl+S),
         asking for a name when there is none or `save_as`. True when saved."""
+        self._flush_designer()
         import json
         import dataclasses
         from datetime import datetime
@@ -10820,6 +10834,7 @@ class MainWindow(QMainWindow):
         generator's runtime dispatch over every GUI option. Lets a user see
         precisely what their GUI settings translate to in real, readable
         DeepXDE code, and run/edit it themselves outside the app."""
+        self._flush_designer()
         default_name = getattr(self, "_current_problem_name", "") or "problem"
         path, _ = QFileDialog.getSaveFileName(
             self, "Export as DeepXDE Script", f"{_safe_file_stem(default_name)}.py",
@@ -11221,7 +11236,10 @@ class MainWindow(QMainWindow):
                                 f"{self.activation_combo.currentText()} is used instead.")
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
         if hasattr(self, "designer"):          # the design first: choosing Designed must not start a new one
-            self.designer.load_json(getattr(config, 'network_design', '') or '')
+            if getattr(self, "_settings_step", False):
+                self.designer.follow_json(getattr(config, 'network_design', '') or '')
+            else:
+                self.designer.load_json(getattr(config, 'network_design', '') or '')
             self._designer_io_key = None
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
         self.msffn_sigmas_edit.setText(getattr(config, 'msffn_sigmas', '1, 10') or '1, 10')
@@ -12373,7 +12391,15 @@ class MainWindow(QMainWindow):
                 "\"Check the equation at the measured points too\", if it is too slow (Inverse problem page, "
                 "About inverse problems).")
 
+    def _flush_designer(self):
+        """A value typed in the network designer's inspector reaches the design after a short pause;
+        Solve, Save and Export take it now."""
+        panel = getattr(self, "designer_panel", None)
+        if panel is not None:
+            panel.inspector.flush()
+
     def _on_solve(self):
+        self._flush_designer()
         if hasattr(self, 'right_tabs'):
             self.right_tabs.setCurrentWidget(self.results_tabs)   # the run streams into the log
         _ok, _msg = self._geometry_supported_for_training()
@@ -12409,7 +12435,10 @@ class MainWindow(QMainWindow):
         # Training) is what decides which of the two Solve actually
         # does -- there's no separate Run Sweep button anymore, and
         # Stop/Cancel is the matching single branch in _on_stop below.
-        if config.network_type == "Designed" and not self.designer.check_trust():
+        # (a sweep can switch runs to the design even when the base network is another type)
+        uses_design = (config.network_design or "").strip() and (config.network_type == "Designed"
+                                                                   or config.sweep_enabled)
+        if uses_design and not self.designer.check_trust():
             self.log_box.append("ℹ The designed network's code or files are not trusted: nothing was run "
                                 "(Network tab › More › Trust…).")
             return
@@ -12429,7 +12458,9 @@ class MainWindow(QMainWindow):
         self._log_example_changes(config)
         self._note_large_data(config)
         self._start_progress(config)
+        _before = self._run_scratch() if isinstance(getattr(self, "thread", None), SolverThread) else ""
         self.thread = SolverThread(config)
+        _drop_scratch(_before)            # the previous run's plots are replaced by this run's
         self.thread.output_signal.connect(self._on_output)
         self.thread.done_signal.connect(self._on_done)
         _keep_until_finished(self.thread).start()
@@ -12805,6 +12836,9 @@ class MainWindow(QMainWindow):
                     th.wait(1000)
         if hasattr(self, "recovery"):
             self.recovery.forget()            # a normal close: the user chose to save or not
+        th = getattr(self, "thread", None)
+        if isinstance(th, SolverThread) and not th.isRunning():
+            _drop_scratch(th.scratch)
         event.accept()
 
     # DeepXDE's import-time advertisement, printed by every script it runs

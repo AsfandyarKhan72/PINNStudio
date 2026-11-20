@@ -86,6 +86,15 @@ def label(block: dict) -> str:
 def check(d) -> dict:
     """The design `d` (a dict, or its JSON) completed with defaults, checked; ParamError naming the problem.
     Structural errors only (unknown kinds, bad references, ports, loops are left to shapes.infer)."""
+    try:
+        return _check(d)
+    except ParamError:
+        raise
+    except (ValueError, TypeError, AttributeError, KeyError) as exc:   # a value of the wrong kind
+        raise ParamError(f"the network design is not valid ({exc})") from None
+
+
+def _check(d) -> dict:
     if isinstance(d, str):
         try:
             d = json.loads(d) if d.strip() else empty()
@@ -106,10 +115,16 @@ def check(d) -> dict:
         raise ParamError(bad[0])
     out = {"version": VERSION, "blocks": [], "edges": [], "code": code}
     if d.get("name"):
-        out["name"] = str(d["name"])
+        out["name"] = one_line(d["name"])
     _level(d, out, path=(), seen=set())
     _check_refs(out)
     return out
+
+
+def one_line(text) -> str:
+    """A title or name as one line: it is written into comments of the generated scripts, where a line
+    break would end the comment and make the rest code."""
+    return " ".join(str(text or "").splitlines()).strip()
 
 
 def _level(src: dict, out: dict, path: tuple, seen: set) -> None:
@@ -165,7 +180,7 @@ def _block(raw, path, where) -> dict:
     if kind not in KINDS:
         raise ParamError(f"{where}unknown block kind {kind!r}")
     bid = str(raw.get("id", ""))
-    if not PORT_NAME.match(bid):
+    if not PORT_NAME.fullmatch(bid):          # (match() would let a final newline through)
         raise ParamError(f"{where}block id {bid!r}: letters, digits and _ only")
     if kind in TOP_ONLY and path:
         raise ParamError(f"{where}{kind} blocks belong at the top level, not inside a group")
@@ -175,7 +190,7 @@ def _block(raw, path, where) -> dict:
     unknown = [k for k in raw if k not in allowed]
     if unknown:
         raise ParamError(f"{where}{bid}: unknown setting {unknown[0]!r} for a {kind} block")
-    b = {"id": bid, "kind": kind, "title": str(raw.get("title", "") or ""),
+    b = {"id": bid, "kind": kind, "title": one_line(raw.get("title", "")),
          "x": float(raw.get("x", 0.0) or 0.0), "y": float(raw.get("y", 0.0) or 0.0)}
     for k, default in KIND_KEYS[kind].items():
         b[k] = copy.deepcopy(raw.get(k, default))
@@ -202,7 +217,7 @@ def _block(raw, path, where) -> dict:
         b["layers"] = layers
         b["trainable"] = bool(b["trainable"])
     elif kind == "port_in":
-        if not PORT_NAME.match(str(b["port"])):
+        if not PORT_NAME.fullmatch(str(b["port"])):
             raise ParamError(f"{name}: a port name is letters, digits and _ only")
     elif kind == "shared":
         b["ref"] = str(b["ref"])

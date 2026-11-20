@@ -126,6 +126,13 @@ class _Infer:
             mine = ins
             if ref["kind"] == "saved":
                 expect = {"in": ref["width_in"]}
+            elif ref["kind"] == "group":
+                gports = D.ports_of(ref)
+                if len(gports) != 1:      # a shared block has one in-port
+                    self.bad(path, b["id"], f"it calls {D.label(ref)}, which has {len(gports)} Ports in; "
+                                            "a shared copy can call a group with one Port in only")
+                    return None
+                expect = {"in": ref_in.get(gports[0])}
             else:
                 expect = ref_in
             for port, want in expect.items():

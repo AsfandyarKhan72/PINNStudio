@@ -138,7 +138,7 @@ def cmd_run(args):
         for e in errors:
             print(f"• {e}", file=sys.stderr)
         return 1
-    if config.network_type == "Designed":
+    if (config.network_design or "").strip() and (config.network_type == "Designed" or config.sweep_enabled):
         from pinnstudio.core.netdesign import design as D
         from pinnstudio.core.netdesign import trust as T
         items = T.untrusted(D.check(config.network_design))
@@ -150,8 +150,12 @@ def cmd_run(args):
             return 1
     from pinnstudio.core.runner import run_pinn
     print(f"Run folder: {config.save_dir}", flush=True)
-    result = run_pinn(config, on_output=lambda line: print(line, flush=True),
-                      scratch=tempfile.mkdtemp(prefix="pinnstudio_run_"))
+    import shutil
+    scratch = tempfile.mkdtemp(prefix="pinnstudio_run_")
+    try:
+        result = run_pinn(config, on_output=lambda line: print(line, flush=True), scratch=scratch)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)    # the results are in the run folder
     return 0 if result == "DONE" else 1
 
 

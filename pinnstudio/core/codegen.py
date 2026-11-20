@@ -9214,12 +9214,14 @@ print("DONE")
 def _own_param_scratch(script):
     """Every file the script would put in /tmp goes to this run's own scratch folder (_PS_TMP, defined at
     the top of the script) instead: two runs at once (two windows, a sweep, the test suite in parallel)
-    read each other's parameter values and plots in a shared /tmp, and Windows has no /tmp at all."""
+    read each other's parameter values and plots in a shared /tmp, and Windows has no /tmp at all.
+    Only the generator's own paths are rewritten (its file names, and the bare "/tmp" it falls back to
+    without a save folder): a path of the user's under /tmp (Save to, reference files, a saved module in a
+    network design) is data and stays as it is."""
     import re as _re_ps
-    out = _re_ps.sub(r'f"/tmp/', '_PS_TMP + f"/', script)
-    out = out.replace('"/tmp/', '_PS_TMP + "/')
-    out = out.replace('"/tmp"', '_PS_TMP')
-    return out
+    out = _re_ps.sub(r'(?<![\\\w])(f?)"/tmp/(param_|loss_plot|solution_plot|parametric_|\{)',
+                     r'_PS_TMP + \1"/\2', script)
+    return _re_ps.sub(r'(?<=else )"/tmp"(?=[\s,)])', '_PS_TMP', out)
 
 
 # =====================================================================

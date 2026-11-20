@@ -68,7 +68,7 @@ class BlockInspector(QWidget):
         self.refresh()
 
     def refresh(self):
-        self._timer.stop()
+        self.flush()        # an edit still waiting for its pause goes to the block it was typed for
         key = self.state.selection
         level = self.state.level()
         block = next((b for b in level["blocks"] if b["id"] == key), None) if key and ">" not in key else None
@@ -345,10 +345,13 @@ class BlockInspector(QWidget):
             self._layer_row = j
         self.ctl.update_block(self._bid, {"layers": layers})
 
-    def _flush(self):
+    def flush(self):
+        """Apply an edit still waiting for the typing to pause (before Solve, Save, a new selection ...)."""
         if self._timer.isActive():
             self._timer.stop()
             self._apply()
+
+    _flush = flush
 
     def _apply(self):
         if self._draft is None:

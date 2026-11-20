@@ -49,8 +49,7 @@ def needed(d: dict) -> list:
     problem}; `problem` says why a file cannot be trusted (missing, or changed since it was added)."""
     items = []
     code = d.get("code", "") or ""
-    if code.strip() and any(sp["type"] == "custom" for _p, lv in D.walk_levels(d) for b in lv["blocks"]
-                            if b["kind"] == "stack" for sp in b["layers"]):
+    if code.strip():           # the scripts embed the code whenever there is any, used by a layer or not
         items.append({"kind": "code", "name": "the design's code", "sha256": sha256_text(code),
                       "size": len(code.encode("utf-8")), "text": code, "path": "", "problem": ""})
     for _p, lv in D.walk_levels(d):
