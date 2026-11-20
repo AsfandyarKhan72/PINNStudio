@@ -43,9 +43,29 @@ from PyPI; a CUDA build matching the machine is chosen by the installers below.
 | `install.sh`, `install.bat` | from a checkout: create `venv/`, `pip install .`, then reinstall the PyTorch build chosen by `select_torch_index.py` and check that it landed and runs on the GPU |
 | `select_torch_index.py` | prints the PyTorch wheel tag (`cu126`, ..., or `cpu`) for this machine's GPU and driver, and with `--check TAG` tests that the installed build can compute on every GPU; the rules are in `pinnstudio/core/torch_index.py` |
 | `pinnstudio/shortcut.py` | `python -m pinnstudio --create-shortcut` / `--remove-shortcut`: desktop and menu shortcuts |
+| `packaging/windows/` | the Windows program and its installer: PyInstaller makes `dist\PINNStudio\` (`PINNStudio.exe` beside `_internal\`, with Python, Qt, PyTorch's CPU build and DeepXDE), Inno Setup makes `dist\PINNStudio-VERSION-setup.exe`. See its `README.md`, and *The Windows program* below |
 
 The installers install the latest release from PyPI by default. To install the code of a checkout, use
 `pip install -e .`, `install.sh`, or `PINNSTUDIO_SOURCE=$PWD sh get-pinnstudio.sh`.
+
+## The Windows program
+
+`packaging/windows/build_windows.bat` (on Windows) or `packaging/windows/build_windows_wsl.sh` (from WSL) builds
+it; `release.yml` builds it on a Windows runner for every version tag and attaches the installer to the draft
+release. The program differs from a Python installation in a few places, all behind `pinnstudio.core.pyexe.frozen()`:
+
+- **Training runs inside the program.** It holds no `python.exe`: `pyexe.script_python()` is `PINNStudio.exe`
+  itself, which runs a `.py` file it is given as Python would (`packaging/windows/pinnstudio_windows.py`). Solve,
+  sweeps, restore and Error Analysis start their scripts that way, without the splash screen.
+- **Updates** point to the new installer, not to pip (`update_info.update_command`), and the GPU hint to a
+  Python installation (`torch_index.gpu_fix_lines`); `--create-shortcut` leaves shortcuts to the installer.
+- `reference_data/` and the licences are copied into the program beside the package, where
+  `problem_file.REFERENCE_DATA_DIR` finds them.
+
+Each build checks itself: `check_build.py` runs inside the program (a training run through a second process
+of it, `environment.json`, the exported script, a designed network, the window off screen), the window starts
+and runs for 8 s off screen (`PINNSTUDIO_LAUNCH_CHECK=8`), and with `PINNSTUDIO_INSTALL_CHECK=1` the installer
+installs silently into `build\`, the installed program starts, and the uninstaller removes it.
 
 ## Checks of a build
 

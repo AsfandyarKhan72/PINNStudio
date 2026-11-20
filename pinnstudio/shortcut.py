@@ -181,6 +181,9 @@ def remove():
 
 def main(argv):
     """Handle --create-shortcut / --remove-shortcut; returns an exit code, or None for other arguments."""
+    if getattr(sys, "frozen", False) and ("--create-shortcut" in argv or "--remove-shortcut" in argv):
+        print("The Windows program's installer makes its shortcuts, and its uninstaller removes them.")
+        return 0
     if "--create-shortcut" in argv:
         try:
             made = create()

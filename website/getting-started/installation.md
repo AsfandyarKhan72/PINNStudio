@@ -3,10 +3,11 @@
 PINNStudio is a Python package. It runs on Linux, Windows and macOS, trains on the CPU or on an NVIDIA GPU, and
 needs an internet connection while it is installed (to download PyTorch, DeepXDE, PySide6 and the other packages).
 
-There are three ways to install it:
+There are four ways to install it:
 
 | Way | What it installs | How to install |
 |---|---|---|
+| **Windows installer** | PINNStudio as a Windows program, with everything it needs and no Python; trains on the CPU | [Windows installer](#windows-installer) |
 | **One-command installer** | The latest PINNStudio release from [PyPI](https://pypi.org/project/pinnstudio/), with its own Python | [One-command installer](#one-command-installer-recommended) |
 | **pip** | The latest PINNStudio release from PyPI, into a Python environment of your own | [`pip install pinnstudio`](#with-pip){ .nowrap } |
 | **From source** | The code in the GitHub repository | [From source](#development-version-from-source) |
@@ -60,6 +61,25 @@ python3 --version
 On Windows type `python --version` instead of `python3 --version`. If a command is not found, see
 [Common installation problems](#common-installation-problems). After installing Python or git, close the terminal
 and open a new one, so that it finds them.
+
+## Windows installer
+
+A release built with the release workflow has `PINNStudio-VERSION-setup.exe` among its files on the
+[GitHub releases page](https://github.com/AsfandyarKhan72/PINNStudio/releases), with `…-setup.exe.sha256` beside it.
+Run it: it installs PINNStudio as an ordinary Windows program, for you alone (no administrator needed; you may
+choose every user instead), with a Start-menu entry, optionally a desktop shortcut and PINNStudio in the **Open
+with** menu of `.pinn.json` problem files, and an uninstaller under *Settings › Apps*. It needs no Python and
+no internet connection after the download.
+
+- **The CPU only.** The program holds PyTorch's CPU build (an NVIDIA build would make it several GB). To train
+  on an NVIDIA GPU, install with the [one-command installer](#one-command-installer-recommended) or pip instead.
+- **Not signed.** Windows SmartScreen warns the first time ("Windows protected your PC"): **More info**, then
+  **Run anyway**. The `.sha256` file holds what the downloaded file must hash to:
+  `certutil -hashfile PINNStudio-VERSION-setup.exe SHA256`.
+- **Updates.** When a newer version is out, PINNStudio says so; run the new `setup.exe` over the old one.
+- **Silently:** `PINNStudio-VERSION-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER`.
+- **Exported scripts** still need a Python with DeepXDE and PyTorch to run outside PINNStudio
+  ([Exporting a script](../guide/export.md)); inside it, **Solve** needs nothing more.
 
 ## One-command installer (recommended)
 

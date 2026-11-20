@@ -1,7 +1,7 @@
 name: Release
 
-# On a version tag (vX.Y.Z): build the sdist and the wheel from the tagged commit, write SHA256SUMS, and attach
-# all three to a draft GitHub release. Publishing to PyPI is a second job that runs only after a maintainer
+# On a version tag (vX.Y.Z): build the sdist and the wheel from the tagged commit, write SHA256SUMS, build the
+# Windows program and its installer (packaging/windows), and attach them all to a draft GitHub release. Publishing to PyPI is a second job that runs only after a maintainer
 # approves the "pypi" environment (Settings > Environments), and uses PyPI's trusted publishing (no token
 # stored in the repository).
 on:
@@ -35,8 +35,37 @@ jobs:
           name: dist
           path: dist/
 
+  windows-installer:
+    # PyInstaller builds for the system it runs on; the build checks the program (a training run inside it),
+    # starts it, installs it silently, starts the installed program and uninstalls it
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --no-progress -y }
+      - name: Program and installer
+        shell: cmd
+        env:
+          PYTHON: python
+          PINNSTUDIO_INSTALL_CHECK: "1"
+        run: packaging\windows\build_windows.bat
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer
+          path: |
+            dist/PINNStudio-*-setup.exe
+            dist/PINNStudio-*-setup.exe.sha256
+            build/windows/*.log
+
   github-release:
-    needs: build
+    needs: [build, windows-installer]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -46,6 +75,12 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: windows/
+      - name: The installer beside the Python packages
+        run: mv windows/dist/PINNStudio-*-setup.exe* dist/
       - name: Draft release with the files and their checksums
         env:
           GH_TOKEN: ${{ github.token }}

@@ -159,7 +159,9 @@ def cmd_run(args):
     return 0 if result == "DONE" else 1
 
 
-def run_gui(argv):
+def run_gui(argv, on_started=None):
+    """The window. `on_started(app, window)` runs once the event loop has started (the Windows program
+    closes its splash screen there, and its launch check ends the program)."""
     _preload_torch_on_windows()
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import QTimer
@@ -180,6 +182,8 @@ def run_gui(argv):
     window = MainWindow()
     window.show()
     errors.start_stall_watch(app)          # a freeze is logged with every thread's stack
+    if on_started is not None:
+        QTimer.singleShot(0, lambda: on_started(app, window))
     files = [a for a in argv if a.endswith(".json") and not a.startswith("-")]
     if files:                      # pinnstudio problem.pinn.json, or a file opened from the desktop
         QTimer.singleShot(0, lambda: window._open_problem(files[0]))
