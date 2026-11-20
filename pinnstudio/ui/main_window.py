@@ -3672,8 +3672,8 @@ class MainWindow(QMainWindow):
         add_phase_btn.clicked.connect(lambda: self._add_scheduler_phase())
         sched_layout.addWidget(add_phase_btn)
 
+        train_layout.addWidget(self.sched_widget)     # parented first: shown without a parent, it is a window
         self.sched_widget.setVisible(True)
-        train_layout.addWidget(self.sched_widget)
 
         # L-BFGS settings
         self.lbfgs_widget = QWidget()

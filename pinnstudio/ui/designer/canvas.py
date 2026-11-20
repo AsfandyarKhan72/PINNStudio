@@ -371,6 +371,11 @@ class DesignCanvas(QGraphicsView):
         if self._press is None:
             self._press_moved = False
 
+    def _top_item(self, view_pt):
+        """The topmost item under a point of the view (items() lists them in stacking order)."""
+        hits = self.items(view_pt)
+        return hits[0] if hits else None
+
     # ── mouse ──────────────────────────────────────────────────────
     def _port_at(self, scene_pos, side=None):
         best, dist = None, 1.6 * PORT_R
@@ -394,7 +399,7 @@ class DesignCanvas(QGraphicsView):
             self.verdicts = {}
             self.drag_started.emit()
             return
-        item = self.itemAt(ev.position().toPoint())
+        item = self._top_item(ev.position().toPoint())
         while item is not None and not isinstance(item, (BlockItem, EdgeItem)):
             item = item.parentItem()
         if isinstance(item, BlockItem):
@@ -495,7 +500,7 @@ class DesignCanvas(QGraphicsView):
         self._band.setPath(path)
 
     def mouseDoubleClickEvent(self, ev):
-        item = self.itemAt(ev.position().toPoint())
+        item = self._top_item(ev.position().toPoint())
         while item is not None and not isinstance(item, BlockItem):
             item = item.parentItem()
         if isinstance(item, BlockItem) and item.kind == "group":
