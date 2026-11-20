@@ -58,6 +58,22 @@ The columns are the coordinates, the time and the outputs (`x, t, u` in 1D, `x, 
 | **Enable solution data export** | Write the solution data after a forward Solve | off | `export_enabled` |
 | **Grid size (points per axis):** | Points per space axis (101, 51, 21, 11, or typed) | 101 | `export_grid_size` |
 | **Number of time snapshots:** | Number of time files (2–50) | 11 | `export_t_steps` |
+| **Format:** | **Text (CSV)**, **VTK for ParaView**, or **Both** | Text (CSV) | `export_format` (`csv`, `vtk`, `both`) |
+| **Also save the trained network (TorchScript and torch.export)** | Save the network for use without PINNStudio or DeepXDE | off | `export_torchscript` |
+
+**VTK for ParaView** writes `solution_t{time}.vtk` beside the text files: the solution on the same grid, with
+`NaN` at grid points outside a domain that is not a box, so ParaView's *Threshold* filter shows the domain's
+shape. `solution.pvd` lists the times, so ParaView opens them as one series with a time slider.
+
+**Also save the trained network** writes two files into `solution_results`, also when solution data is off:
+
+- `model_torchscript.pt`: load it with `torch.jit.load` in Python, or with LibTorch in C++;
+- `model_exported.pt2`: load it with `torch.export.load(...).module()`.
+
+Both contain the network with its input and output transforms. They take a tensor of points (one row per point,
+the columns in the order of the network inputs, `x, y, t` for example) and return the outputs. A network that
+cannot be traced (custom code that branches on values, for example) is reported in the training log, and the run
+continues.
 
 To evaluate a trained model on your own points later, use [Restore & visualize](restore.md) or load the
 saved `.pt` model in the exported script.

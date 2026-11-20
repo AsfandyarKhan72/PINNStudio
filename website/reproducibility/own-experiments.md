@@ -19,8 +19,11 @@ described in [Benchmark collection](benchmarks.md).
   one-command installer) gives it too, and every saved `.pinn.json` file records it as
   `saved_with_pinnstudio_version`. For a source installation, record the commit as well, with
   `git rev-parse --short HEAD` in the `PINNStudio` folder (and `git status` to note local changes).
-- **Python, PyTorch, DeepXDE.** PINNStudio does not write these into the run folder. Record them yourself, with the
-  same Python PINNStudio runs in:
+- **Python, PyTorch, DeepXDE.** Every run made with **Solve** (or `pinnstudio run`) writes
+  `solution_results/environment.json` into its run folder: the Python, PINNStudio, PyTorch, CUDA, DeepXDE, NumPy,
+  SciPy and Matplotlib versions, the platform, the device and GPU name, the floating-point precision and the random
+  seed. Keep it with the results. The exported script does not write it; for a run of the exported script, record
+  them yourself, with the same Python:
 
     ```bash
     python -c "import sys, torch, deepxde; print(sys.version); print('torch', torch.__version__, 'CUDA', torch.version.cuda); print('deepxde', deepxde.__version__)"

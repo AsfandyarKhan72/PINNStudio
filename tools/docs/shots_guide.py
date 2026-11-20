@@ -335,6 +335,24 @@ def main():
             save(w, "guide_restore_model.png")
     shot(saved_run)
 
+    # ── the network designer: the multi-scale Fourier design, its shared hidden stack selected ──
+    def network_designer():
+        new(w, "1D")
+        page(w, "network")
+        w.network_type_combo.setCurrentIndex(w.network_type_combo.findText("Designed"))
+        settle(0.4)
+        w.designer.apply_preset("msffn")
+        settle(0.4)
+        w.right_tabs.setCurrentIndex(w._network_tab_index)
+        settle(0.6)
+        w.designer_panel.canvas.refit()
+        stack = next(b["id"] for b in w.design_state.level()["blocks"] if b["kind"] == "stack"
+                     and not any(ly.get("type") == "fourier" for ly in b.get("layers", [])))
+        w.designer.select(stack)
+        settle(0.6)
+        save(w, "guide_network_designer.png")
+    shot(network_designer)
+
     w.close()
     os._exit(0)
 

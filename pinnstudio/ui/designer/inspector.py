@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import copy
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QFrame, QScrollArea, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QPlainTextEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
 from pinnstudio.core.netdesign import design as D
@@ -35,6 +35,12 @@ class BlockInspector(QWidget):
         self._timer.timeout.connect(self._apply)
         self.lay = QVBoxLayout(self)
         self.lay.setContentsMargins(8, 8, 8, 8)
+        # the form scrolls rather than claim the canvas's width or the window's height (large text)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)   # never clip a field
+        self.lay.addWidget(self.scroll)
         self.body = None
         state.selection_changed.connect(lambda _k: self.refresh())
         state.design_changed.connect(self._design_changed)
@@ -43,11 +49,11 @@ class BlockInspector(QWidget):
     # ── building ───────────────────────────────────────────────────
     def _clear(self):
         if self.body is not None:
-            self.lay.removeWidget(self.body)
+            self.scroll.takeWidget()
             self.body.hide()                 # now: deleteLater only runs when the event loop gets to it
             self.body.deleteLater()
         self.body = QWidget()
-        self.lay.addWidget(self.body)
+        self.scroll.setWidget(self.body)
         return self.body
 
     def _design_changed(self):
@@ -82,6 +88,7 @@ class BlockInspector(QWidget):
         v.setContentsMargins(0, 0, 0, 0)
         title = QLabel("Network design")
         title.setObjectName("pageTitle")
+        title.setWordWrap(True)
         v.addWidget(title)
         problems = self.state.problems
         if self.state.is_empty():
@@ -93,7 +100,7 @@ class BlockInspector(QWidget):
             for path, bid, msg in problems:
                 where = (" › ".join(path) + " › " if path else "") + (bid or "design")
                 lst.addItem(f"{where}: {msg}")
-            v.addWidget(QLabel(f"{len(problems)} problem{'s' if len(problems) != 1 else ''} to fix before Solve:"))
+            v.addWidget(self._text(f"{len(problems)} problem{'s' if len(problems) != 1 else ''} to fix before Solve:"))
             v.addWidget(lst, 1)
         else:
             v.addWidget(self._hint(f"Ready: inputs {', '.join(self.state.inputs)} → outputs "
@@ -105,7 +112,7 @@ class BlockInspector(QWidget):
             fix.setToolTip("A head for each output no head gives, fed like the heads already there")
             fix.clicked.connect(self.ctl.add_missing_heads)
             v.addWidget(fix)
-        v.addWidget(QLabel("The design's code (classes for Custom layers):"))
+        v.addWidget(self._text("The design's code (classes for Custom layers):"))
         code = QPlainTextEdit(self.state.design.get("code", ""))
         code.setObjectName("designCode")
         code.setPlaceholderText("class MyLayer(torch.nn.Module):\n    def forward(self, x):\n        return x")
@@ -120,6 +127,12 @@ class BlockInspector(QWidget):
                                "available."))
 
     @staticmethod
+    def _text(text):
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        return lbl
+
+    @staticmethod
     def _hint(text):
         lbl = QLabel(text)
         lbl.setWordWrap(True)
@@ -132,8 +145,10 @@ class BlockInspector(QWidget):
         v.setContentsMargins(0, 0, 0, 0)
         head = QLabel(f"{b['kind'].replace('_', ' ').capitalize()} {b['id']}")
         head.setObjectName("pageTitle")
+        head.setWordWrap(True)
         v.addWidget(head)
         form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)   # labels above the fields when narrow
         v.addLayout(form)
         title = QLineEdit(b.get("title", ""))
         title.setPlaceholderText(b["id"])
@@ -223,7 +238,7 @@ class BlockInspector(QWidget):
         return c
 
     def _layers_editor(self, v):
-        v.addWidget(QLabel("Layers (top runs first):"))
+        v.addWidget(self._text("Layers (top runs first):"))
         self.layer_list = QListWidget()
         self.layer_list.setObjectName("layerList")
         for sp in self._draft["layers"]:

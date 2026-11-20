@@ -67,7 +67,7 @@ the window is described in the [User guide](../guide/index.md) and the [Feature 
 
 <!-- BEGIN GENERATED CONFIG TABLE -->
 
-301 fields, in the order they are defined in `pinnstudio/core/config.py`.
+304 fields, in the order they are defined in `pinnstudio/core/config.py`.
 
 ### General
 
@@ -166,6 +166,7 @@ the window is described in the [User guide](../guide/index.md) and the [Feature 
 | `network_type` | `str` | `"FNN"` | **Network type:** | Network architecture: "FNN" (plain fully-connected, shared across all outputs) or "PFNN" (parallel/independent sub-network per output, merging only at the final layer -- DeepXDE's dde.nn.PFNN). layers[0] (the raw input dimension) and ... |
 | `msffn_sigmas` | `str` | `"1, 10"` | **Fourier scales (σ):** | Multi-scale Fourier feature networks: network_type "MsFFN" (all inputs) or "STMsFFN" (space and time separately); the scales sigma of the random Fourier features, comma-separated. |
 | `msffn_sigmas_t` | `str` | `"1, 10"` | **Time scales (σₜ):** | -- |
+| `network_design` | `str` | `""` |  | A network designed as blocks on the Network tab (network_type "Designed"): the design as JSON (pinnstudio.core.netdesign.design). |
 | `input_transform_enabled` | `bool` | `False` | **Enable input transform** | Optional input/output transform: x_transformed = x_raw * scale + shift (input, one entry per input dimension) and y_transformed = y_raw * scale + shift (output, one entry per output component). |
 | `input_transform_scale` | `List[float]` | `[1.0, 1.0]` |  | -- |
 | `input_transform_shift` | `List[float]` | `[0.0, 0.0]` |  | -- |
@@ -270,6 +271,8 @@ the window is described in the [User guide](../guide/index.md) and the [Feature 
 | `export_enabled` | `bool` | `False` | **Enable solution data export** | Export Off by default -- solution data used to be written on every non-Inverse run unconditionally; now it only happens when the user opts in via the Export Solution Data dialog's checkbox. |
 | `export_grid_size` | `int` | `101` |  | -- |
 | `export_t_steps` | `int` | `11` |  | -- |
+| `export_format` | `str` | `"csv"` |  | Solution data as "csv" (text, one file per time), "vtk" (legacy VTK for ParaView, with a .pvd collection of the times) or "both" |
+| `export_torchscript` | `bool` | `False` |  | The trained network also saved as TorchScript (model_torchscript.pt), loadable without PINNStudio, DeepXDE or Python (torch.jit.load, or LibTorch in C++) |
 | `plot_output_idx` | `int` | `0` |  | -- |
 | `plot_custom_expr` | `str` | `""` |  | Optional derived scalar field to plot in the Results panel instead of a single raw output column -- e.g. |
 | `plot_custom_label` | `str` | `""` |  | Display label for the field above (colorbar/axis label, and the printed output name) -- falls back to the expression itself when left blank. |

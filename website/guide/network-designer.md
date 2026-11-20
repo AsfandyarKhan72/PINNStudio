@@ -6,11 +6,13 @@ PFNN, MsFFN, STMsFFN) and many it cannot: separate branches for space and time, 
 layers, Fourier or periodic features on some inputs only, the same layers called twice, or a layer in
 your own PyTorch code.
 
-To use it, set **Network type:** to **Designed** on the **Neural network** page. The **Network** tab
-then opens beside **Geometry**. **Edit as blocks** on the page starts the design from the network the form
+To use it, set **Network type:** to **Designed** on the **Neural network** page. A **Network** tab
+then opens in the right-hand panel: the palette of blocks on the left, the canvas, and the inspector with the
+selected block's settings, beside the canvas when the panel is wide and under it when it is narrow (a smaller
+window, or larger text). **Edit as blocks** on the page starts the design from the network the form
 describes, so it computes exactly what Solve trained before; from there, change what you want.
 
-![The Network tab: the palette on the left, the canvas with an Input, two Fourier feature stacks, a shared hidden stack, a merge and a head, and the inspector on the right with the selected stack's layers](../assets/screenshots/guide_network_designer.png){ .screenshot loading=lazy }
+![The Network tab with the multi-scale Fourier design: the palette on the left; on the canvas the Inputs block, two Fourier feature stacks (σ = 1 and σ = 10), the Hidden layers stack and its shared copy, and the Side by side merge; under the canvas the inspector with the selected Hidden layers stack: its title, how several inputs are combined, Trainable, and its two Dense layers](../assets/screenshots/guide_network_designer.png){ .screenshot loading=lazy }
 
 Background: [Networks and Fourier features](../reference/networks.md).
 

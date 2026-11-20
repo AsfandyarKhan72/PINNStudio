@@ -22,6 +22,37 @@ if TYPE_CHECKING:
 
 
 class DesignerPanel(QWidget):
+    WIDE_CHARS = 140       # narrower than this many characters (large text, a narrow window): the inspector
+    #                        goes under the canvas instead of beside it, so the canvas keeps its width
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        if not self._sized:          # first shown: the theme's font is known, size the panes by it
+            self._sized = True
+            self._arrange(force=True)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        if self._sized:
+            self._arrange()
+
+    def _arrange(self, force=False):
+        ch = max(self.fontMetrics().averageCharWidth(), 1)
+        wide = self.width() >= ch * self.WIDE_CHARS
+        want = Qt.Orientation.Horizontal if wide else Qt.Orientation.Vertical
+        if not force and self.work.orientation() == want:
+            return
+        self.work.setOrientation(want)
+        pal = self.palette.minimumWidth()
+        self.split.setSizes([pal, max(self.width() - pal, ch * 20)])
+        if wide:
+            total = max(self.work.width(), 1)
+            ins = min(max(ch * 36, total // 3), ch * 48)
+            self.work.setSizes([max(total - ins, ch * 20), ins])
+        else:
+            total = max(self.work.height(), 1)
+            self.work.setSizes([total * 3 // 5, total - total * 3 // 5])
+
     def __init__(self, state: "DesignState", controller: "DesignerController", presets: dict, parent=None):
         super().__init__(parent)
         self.setObjectName("designerPanel")
@@ -78,11 +109,17 @@ class DesignerPanel(QWidget):
         self.palette = BlockPalette(presets)
         self.canvas = DesignCanvas()
         self.inspector = BlockInspector(state, controller)
+        self.work = QSplitter(Qt.Orientation.Horizontal)     # the canvas, and the inspector beside or under it
+        self.work.addWidget(self.canvas)
+        self.work.addWidget(self.inspector)
+        self.work.setStretchFactor(0, 1)
+        self.work.setCollapsible(0, False)
         split.addWidget(self.palette)
-        split.addWidget(self.canvas)
-        split.addWidget(self.inspector)
+        split.addWidget(self.work)
         split.setStretchFactor(1, 1)
-        split.setSizes([170, 640, 290])
+        split.setCollapsible(1, False)
+        self.split = split
+        self._sized = False
         lay.addWidget(split, 1)
         self.status = QLabel("")
         self.status.setObjectName("pageDesc")

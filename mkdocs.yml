@@ -238,6 +238,7 @@ nav:
       - Exact constraints: theory/exact-constraints.md
       - Time-dependent training: theory/time-dependent.md
       - Bayesian optimization: theory/bayesian.md
+      - Scaling and nondimensional form: theory/nondimensionalisation.md
       - Scope and limitations: theory/limitations.md
   - Reproducibility:
       - reproducibility/index.md

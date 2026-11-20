@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QKeySequence, QPainter, QPainterPath, QPainterPathStroker, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QFontMetricsF, QKeySequence, QPainter, QPainterPath, QPainterPathStroker, QPen
 from PySide6.QtWidgets import (QGraphicsEllipseItem, QGraphicsItem, QGraphicsObject, QGraphicsPathItem,
                                QGraphicsScene, QGraphicsView, QToolTip)
 
@@ -158,7 +158,15 @@ class BlockItem(QGraphicsObject):
         painter.drawPath(band.simplified())
         painter.setBrush(QBrush(strong))
         painter.drawRect(QRectF(0, 7, 3, HEADER - 10))
-        font = QFont(painter.font())
+        # the scene's font, a fixed size: the painter's is the viewport's, which the UI scale enlarges,
+        # while the card's rows are fixed. The canvas zooms by the UI scale instead (text_scale)
+        base = self.scene().font() if self.scene() is not None else QFont()
+        font = QFont(base)
+        font.setFamily(base.family())           # set explicitly: unset attributes would be taken from the
+        if base.pixelSize() > 0:                # viewport's font when the painter resolves this one
+            font.setPixelSize(base.pixelSize())
+        else:
+            font.setPointSizeF(base.pointSizeF())
         font.setBold(True)
         painter.setFont(font)
         painter.setPen(QPen(QColor(t["text"])))
@@ -288,6 +296,14 @@ class DesignCanvas(QGraphicsView):
         if not self._fitted and self.blocks:
             self.fit()
 
+    def text_scale(self) -> float:
+        """How much larger the text around the canvas is than the cards' own (the scene's) font: the UI
+        scale reaches widgets through the theme's stylesheet, not the scene. The canvas zooms by it, so the
+        cards grow with the rest of the window."""
+        app_px = QFontMetricsF(self.scene_.font()).height()
+        own_px = QFontMetricsF(self.font()).height()
+        return max(1.0, own_px / app_px) if app_px > 0 else 1.0
+
     def fit(self) -> None:
         if not self.blocks:
             return
@@ -295,15 +311,17 @@ class DesignCanvas(QGraphicsView):
         for b in self.blocks.values():
             r = r.united(b.sceneBoundingRect())
         self.fitInView(r.adjusted(-60, -60, 60, 60), Qt.AspectRatioMode.KeepAspectRatio)
-        s = self.transform().m11()
-        if s > 1.0:
+        s, ts = self.transform().m11(), self.text_scale()
+        if s > ts:
             self.resetTransform()
+            self.scale(ts, ts)
             self.centerOn(r.center())
-        elif s < MIN_FIT:                      # text stays readable: scroll to see the rest
+        elif s < MIN_FIT * ts:                 # text stays readable: scroll to see the rest
+            z = MIN_FIT * ts
             self.resetTransform()
-            self.scale(MIN_FIT, MIN_FIT)
+            self.scale(z, z)
             first = min(self.blocks.values(), key=lambda b: b.pos().x())
-            self.centerOn(QPointF(first.sceneBoundingRect().left() + self.viewport().width() / (2 * MIN_FIT) - 40,
+            self.centerOn(QPointF(first.sceneBoundingRect().left() + self.viewport().width() / (2 * z) - 40,
                                   r.center().y()))
         self._fitted = True
 
@@ -453,7 +471,7 @@ class DesignCanvas(QGraphicsView):
             return
         factor = 1.15 ** steps
         s = self.transform().m11() * factor
-        if 0.25 <= s <= 3.0:
+        if 0.25 <= s <= 3.0 * self.text_scale():
             self.scale(factor, factor)
 
     # ── drop from the palette ──────────────────────────────────────

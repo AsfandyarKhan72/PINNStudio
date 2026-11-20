@@ -29,6 +29,7 @@ From left to right:
 | | **Save Problem** / **Save Problem As...** | Ctrl+S / Ctrl+Shift+S | Save the whole problem as `.pinn.json` |
 | | **Export as DeepXDE Script...** | Ctrl+E | Same as **Export script** in the toolbar |
 | | **Solve** / **Stop** | Ctrl+Enter or F5 / Shift+F5 | Same as the toolbar buttons |
+| **Edit** | **Undo** / **Redo** | Ctrl+Z / Ctrl+Y or Ctrl+Shift+Z | Step the problem's settings back and forward, one step per change (a typed value counts once it has settled). When the sketch or the network design has the keyboard focus, the keys undo and redo there instead. A new or opened problem starts a fresh history |
 | **Settings** | **L-BFGS Options**, **Float Precision...**, **Optimizer Settings...**, **GPU / Hardware...**, **Random Seed...**, **Plot Settings...**, **Display Settings...** | | See [Settings menu](settings.md) |
 | **View** | **Go to Page or Command…** | Ctrl+K or Ctrl+Shift+P | The command palette: type a few letters to go to a page or a section of the model tree, or to run a menu command (see below) |
 | | **Reset Layout** | | Put the column widths back to their defaults |

@@ -117,3 +117,37 @@ a script imports keep their own licenses ([Dependencies and attribution](../abou
 More on the scripts: [Exporting a script](../guide/export.md) and [Generated scripts](../reference/scripts.md). If an
 exported script fails outside PINNStudio, see
 [Troubleshooting](../help/troubleshooting.md#an-exported-script-fails-outside-pinnstudio).
+
+## Unsaved work after a crash
+
+While a problem has unsaved changes, PINNStudio keeps a copy every 30 seconds in
+`~/.pinnstudio/recovery/` (one file per running PINNStudio). The copy is removed when the problem is saved, when
+another problem is opened or started, and when the window is closed normally.
+
+If PINNStudio closes without that (a crash, a power cut, the computer restarting), the next start asks **Recover
+unsaved work**:
+
+- **Recover** opens the kept copy as an unsaved problem. A problem that was saved before keeps its name, and its
+  file is not changed until you save.
+- **Discard** removes the copy.
+- **Later** keeps it and asks again at the next start.
+
+Two PINNStudio windows at once each keep their own copy; one never offers the other's while it is running.
+
+## Without the window: the command line
+
+The `pinnstudio` command also works on a saved problem without opening the window. These commands do not load Qt,
+so they run on a server or a cluster node without a display:
+
+| Command | What it does |
+|---|---|
+| `pinnstudio problem.pinn.json` | Open the window with that problem (also what opening the file from the desktop does) |
+| `pinnstudio check problem.pinn.json` | List the settings that would stop **Solve**, or print `OK` (exit code 1 when something is listed) |
+| `pinnstudio export problem.pinn.json [-o script.py]` | Write the standalone script, as **Export script** does; `--full` writes Solve's own script instead |
+| `pinnstudio run problem.pinn.json [--save-dir DIR]` | Train as **Solve** does, printing the Training Log; the results go into a new run folder `<problem>__<date>_<time>` in `DIR` (default: the problem's **Save to** folder) |
+| `pinnstudio --version` | The version |
+
+`pinnstudio run` refuses a [designed network](../guide/network-designer.md) whose custom code or saved modules
+have not been trusted; trust them once in the window, or pass `--trust-code` for that run. The exit code is 0
+when the run finished, so the command can be used in batch scripts and job schedulers.
+

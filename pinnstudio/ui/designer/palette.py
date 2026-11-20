@@ -25,7 +25,7 @@ SECTIONS = (
         ("Port in", "port_in", "", "Inside a group: one of the group's inputs"),
         ("Port out", "port_out", "", "Inside a group: its output"),
     )),
-    ("Layers (a stack with one)", tuple(
+    ("Layers", tuple(
         (lt.title, "stack", name, lt.description) for name, lt in LAYERS.items())),
     ("Merges", tuple(
         (f"Merge: {m}", "merge", m, "") for m in ("concatenate", "add", "multiply", "average"))),
@@ -48,14 +48,33 @@ class BlockPalette(QListWidget):
         self.itemActivated.connect(self._activated)
         self.set_library([])
 
+    def changeEvent(self, ev):
+        super().changeEvent(ev)
+        from PySide6.QtCore import QEvent
+        if ev.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self._fit_to_font()
+
+    def _fit_to_font(self):
+        """Section titles bold in the list's font (the theme's size, which follows the UI scale), and the
+        list as wide as its longest entry needs, up to 18 characters."""
+        from PySide6.QtGui import QFont, QFontMetrics
+        bold = QFont(self.font())
+        bold.setBold(True)
+        fm = QFontMetrics(self.font())
+        widest = 0
+        for i in range(self.count()):
+            it = self.item(i)
+            if it.flags() == Qt.ItemFlag.NoItemFlags and it.text().isupper():
+                it.setFont(bold)            # (section titles may be cut: their entries say enough)
+            elif it.flags() != Qt.ItemFlag.NoItemFlags:
+                widest = max(widest, fm.horizontalAdvance(it.text()))
+        ch = fm.averageCharWidth()
+        self.setMinimumWidth(min(widest + ch * 4, ch * 22))
+
     def _header(self, text):
         it = QListWidgetItem(text.upper())
         it.setFlags(Qt.ItemFlag.NoItemFlags)
-        f = it.font()
-        f.setBold(True)
-        f.setPointSizeF(max(7.0, f.pointSizeF() - 1))
-        it.setFont(f)
-        self.addItem(it)
+        self.addItem(it)            # bold in the list's own font: _fit_to_font
 
     def _entry(self, label, data, tip=""):
         it = QListWidgetItem(label)
@@ -81,6 +100,7 @@ class BlockPalette(QListWidget):
             self.addItem(it)
         for name, path in blocks:
             self._entry(name, {"library": path}, path)
+        self._fit_to_font()
 
     def _activated(self, item):
         data = item.data(ROLE) or {}
