@@ -1220,7 +1220,15 @@ class _MsFFN(dde.nn.NN):
 """
 
 
-def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"):
+def _designed_io(config):
+    """(input names, output names) of an effective config for a designed network, else None."""
+    if getattr(config, "network_type", "") != "Designed":
+        return None
+    from pinnstudio.core.netdesign.problem import names_effective
+    return names_effective(config)
+
+
+def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10", design="", io=None):
     """Builds the literal Python source for a `_make_net(_flat_layers,
     _activation, _kernel_init, _weight_decay=0.0)` helper, embedded once
     near the top of every generated/restore script and called at every
@@ -1246,7 +1254,20 @@ def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"
     PFNN has no `regularization` kwarg in DeepXDE (confirmed against its
     PyTorch backend) -- weight_decay is silently dropped for PFNN here
     rather than raising, since weight decay is a secondary training knob,
-    not something that should block switching architectures."""
+    not something that should block switching architectures.
+
+    network_type "Designed": a network drawn as blocks on the Network tab (`design`, PINNConfig.network_design),
+    for the inputs and outputs `io` = (input names, output names) (netdesign.problem.names_effective). The
+    design is written into the helper, so every call site builds it; the layers they pass are not used."""
+    if network_type == "Designed":
+        from pinnstudio.core.netdesign import runtime as _nd_runtime
+        _ins, _outs = io if io else ([], [])
+        return (f"# ── Network architecture: designed as blocks on PINNStudio's Network tab ──\n"
+                f"_network_type = 'Designed'\n"
+                + _nd_runtime.net_source(design, list(_ins), list(_outs))
+                + "\n\ndef _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):\n"
+                  "    # the designed network; the layer sizes passed here are the form's and are not used\n"
+                  "    return _DesignedNet(_DESIGN, _activation, _kernel_init, _weight_decay)\n")
     _ms = network_type in ("MsFFN", "STMsFFN")
     _ms_code = _MSFFN_CODE if _ms else ""
     _ms_branch = (f'''    if _network_type in ("MsFFN", "STMsFFN"):
@@ -3813,6 +3834,11 @@ if {config.time_adaptive}:
                 "t0": t0, "t1": t1,
                 "layers": {config.layers},
                 "activation": "{config.activation}",
+                "network_type": {repr(config.network_type)},
+                "msffn_sigmas": {repr(config.msffn_sigmas)}, "msffn_sigmas_t": {repr(config.msffn_sigmas_t)},
+                "network_design": {repr(getattr(config, "network_design", "") if config.network_type == "Designed" else "")},
+                "network_inputs": {repr(list((_designed_io(config) or ([], []))[0]))},
+                "network_outputs": {repr(list((_designed_io(config) or ([], []))[1]))},
                 "x_min": {config.x_min}, "x_max": {config.x_max},
                 "y_min": {config.y_min}, "y_max": {config.y_max},
                 "z_min": {config.z_min}, "z_max": {config.z_max},
@@ -5204,6 +5230,8 @@ def _small_problem_gpu_tip(config):
     in benchmarks/platform/windows_speed.md). Only a hint: nothing is changed."""
     if getattr(config, "train_device", "auto") != "auto":
         return ""
+    if getattr(config, "network_type", "") == "Designed":
+        return ""          # its size is in the design, not in the form's layers
     if config.problem_dim not in ("1D", "ODE"):
         return ""
     points = int(config.num_domain or 0) + int(config.num_boundary or 0) + int(config.num_initial or 0)
@@ -5540,7 +5568,9 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # -- this is the literal `_make_net(...)` helper's source, embedded
     # once near the top of the generated script below and called at every
     # network-construction site in place of a bare dde.nn.FNN(...).
-    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t,
+                                                    getattr(config, "network_design", ""),
+                                                    _designed_io(config))
 
     # Training Monitors' shared, static derivative-building/expression-
     # evaluation helpers -- see _training_monitor_runtime_code()'s own
@@ -5745,6 +5775,10 @@ if _use_save:
         # the restore side defaults to "FNN", i.e. the old behavior.
         "network_type": {repr(config.network_type)},
         "msffn_sigmas": {repr(config.msffn_sigmas)}, "msffn_sigmas_t": {repr(config.msffn_sigmas_t)},
+        # a network designed as blocks: the design and the input/output names it was resolved against
+        "network_design": {repr(getattr(config, "network_design", "") if config.network_type == "Designed" else "")},
+        "network_inputs": {repr(list((_designed_io(config) or ([], []))[0]))},
+        "network_outputs": {repr(list((_designed_io(config) or ([], []))[1]))},
         "num_outputs": {config.num_outputs},
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
@@ -11919,7 +11953,9 @@ def generate_clean_script(config):
     # replaces every bare dde.nn.FNN(...) call below, including the
     # weight-decay arg this used to splice in directly (now passed through
     # as a plain float; _make_net silently drops it for PFNN).
-    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t,
+                                                    getattr(config, "network_design", ""),
+                                                    _designed_io(config))
 
     # ---- Plot Settings: figure-size standardization -----------
     # Same shared-helper pattern as net_helper_code just above -- see

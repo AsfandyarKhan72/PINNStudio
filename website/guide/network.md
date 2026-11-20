@@ -45,6 +45,7 @@ He normal or zeros.
 | **PFNN** | A separate sub-network per output, which can help when outputs differ a lot in size |
 | **MsFFN** | Multi-scale Fourier feature network: random Fourier features of the inputs at the scales in **Fourier scales (σ)**, for solutions with both slow and fast variations |
 | **STMsFFN** | The same with separate space and time features; **Time scales (σₜ)** sets the time scales. Needs a time-dependent problem with space (not an ODE) |
+| **Designed** | A network drawn as blocks on the **Network** tab: see [Network designer](network-designer.md). **Edit as blocks** starts it from the type chosen before, and the size rows above are hidden (the size is in the design) |
 
 For MsFFN and STMsFFN the first hidden layer needs an even number of neurons (at least 2). Large σ
 lets the network represent fast oscillations. Weight decay (**Settings › Optimizer Settings...**) can only
@@ -90,7 +91,7 @@ your own formula. The page shows a note while that is the case.
 | **Widths per layer:** | Comma-separated widths, overriding the two above | blank | | `layers` |
 | **Activation:** | Activation function | tanh | | `activation` |
 | **Kernel initializer:** | Initial weights | Glorot uniform | | `kernel_initializer` |
-| **Network type:** | FNN, PFNN, MsFFN, STMsFFN | FNN | | `network_type` |
+| **Network type:** | FNN, PFNN, MsFFN, STMsFFN, Designed | FNN | | `network_type` (and `network_design` for Designed) |
 | **Fourier scales (σ):** | MsFFN/STMsFFN feature scales | `1, 10` | | `msffn_sigmas` |
 | **Time scales (σₜ):** | STMsFFN time-feature scales | `1, 10` | | `msffn_sigmas_t` |
 | **Enable input transform** | Transform the inputs | off | | `input_transform_enabled` |

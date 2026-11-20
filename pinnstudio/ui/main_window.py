@@ -383,10 +383,11 @@ class SolverThread(QThread):
         if self._stop_requested:
             # Stop was pressed while the script was still being written: the window already shows the
             # run as stopped, so the training it would start must not go on in the background
-            self._terminate(proc)
+            self.terminate(proc)
 
     @staticmethod
-    def _terminate(proc):
+    def terminate(proc):
+        """End a training process: terminate, then kill if it has not stopped within 3 s."""
         import subprocess
         if proc.poll() is None:
             proc.terminate()
@@ -457,7 +458,7 @@ class SweepThread(QThread):
     def _set_process(self, proc):
         self.process = proc
         if self._stop_requested:              # Stop came between two runs, before this one started
-            SolverThread._terminate(proc)
+            SolverThread.terminate(proc)
 
     def stop(self):
         # Mark should_stop() True first so run_sweep()'s loop won't start
@@ -1658,6 +1659,7 @@ class MainWindow(QMainWindow):
             return
         try:
             config = self._build_config()
+            self._sync_designer_problem(config)
             errors = config.validate()
         except Exception:
             return
@@ -1717,6 +1719,8 @@ class MainWindow(QMainWindow):
                 gp.set_tool("Select")
         elif key in ("results", "restore"):
             self.right_tabs.setCurrentWidget(self.results_tabs)
+        elif key == "network" and self.network_type_combo.currentText() == "Designed":
+            self._show_network_tab()
         if other.active_bc is not None:
             other.set_active_bc(None)
         other.edge_bar.setVisible(False)
@@ -3084,12 +3088,12 @@ class MainWindow(QMainWindow):
         self.layers_spin = QSpinBox()
         self.layers_spin.setRange(1, 50); self.layers_spin.setValue(3)
         self.layers_spin.setFixedWidth(100); self.layers_spin.setFixedHeight(28)
-        _nn_row("Hidden layers:", self.layers_spin)
+        self.layers_row = _nn_row("Hidden layers:", self.layers_spin)
 
         self.neurons_spin = QSpinBox()
         self.neurons_spin.setRange(1, 4096); self.neurons_spin.setSingleStep(8); self.neurons_spin.setValue(64)
         self.neurons_spin.setFixedWidth(100); self.neurons_spin.setFixedHeight(28)
-        _nn_row("Neurons per layer:", self.neurons_spin)
+        self.neurons_row = _nn_row("Neurons per layer:", self.neurons_spin)
         # A network whose layers differ in width ("100, 50"): blank uses the
         # two boxes above. A config saved with different widths fills it in.
         self.layer_widths_edit = QLineEdit()
@@ -3099,7 +3103,7 @@ class MainWindow(QMainWindow):
             "Hidden layers and Neurons per layer above; leave blank to use them.")
         self.layer_widths_edit.setFixedWidth(150); self.layer_widths_edit.setFixedHeight(28)
         self.layer_widths_edit.textChanged.connect(self._on_layer_widths_changed)
-        _nn_row("Widths per layer:", self.layer_widths_edit)
+        self.layer_widths_row = _nn_row("Widths per layer:", self.layer_widths_edit)
 
         self.activation_combo = QComboBox()
         # Every identifier DeepXDE's own deepxde.nn.activations.get() dict
@@ -3140,13 +3144,14 @@ class MainWindow(QMainWindow):
         # Weight Decay is ignored (and codegen suppresses the arg
         # entirely) when this is PFNN.
         self.network_type_combo = QComboBox()
-        self.network_type_combo.addItems(["FNN", "PFNN", "MsFFN", "STMsFFN"])
+        self.network_type_combo.addItems(["FNN", "PFNN", "MsFFN", "STMsFFN", "Designed"])
         self.network_type_combo.setToolTip(
             "FNN: one fully-connected network.\n"
             "PFNN: a separate sub-network for each output.\n"
             "MsFFN: multi-scale Fourier feature network -- random Fourier features of the inputs at\n"
             "  several scales (sigma), for solutions with both slow and fast variations.\n"
-            "STMsFFN: the same with separate space and time features (time-dependent problems).")
+            "STMsFFN: the same with separate space and time features (time-dependent problems).\n"
+            "Designed: a network drawn as blocks on the Network tab.")
         self.network_type_combo.setFixedHeight(28)
         self._fit_combo_width(self.network_type_combo, min_width=100)
         _nn_row("Network type:", self.network_type_combo)
@@ -3160,6 +3165,33 @@ class MainWindow(QMainWindow):
         self.msffn_sigmas_t_edit.setFixedHeight(28)
         self.msffn_sigmas_t_edit.setToolTip("Scales sigma of the time features (STMsFFN), comma-separated.")
         self.msffn_sigmas_t_row = _nn_row("Time scales (σₜ):", self.msffn_sigmas_t_edit)
+        # A designed network: its summary, and the way to the Network tab
+        self.designer_row = QWidget()
+        _dr = QVBoxLayout(self.designer_row)
+        _dr.setContentsMargins(0, 0, 0, 0)
+        self.designer_summary = QLabel("")
+        self.designer_summary.setWordWrap(True)
+        self._register_hint(self.designer_summary, '#74c0fc')
+        _dr.addWidget(self.designer_summary)
+        _drb = QHBoxLayout()
+        self.design_open_btn = QPushButton("Open the Network tab")
+        self.design_open_btn.clicked.connect(self._show_network_tab)
+        self.design_from_form_btn = QPushButton("Edit as blocks")
+        self.design_from_form_btn.setToolTip("Start the design from the network the form describes (FNN, PFNN, "
+                                             "MsFFN or STMsFFN with these widths); Undo on the Network tab brings "
+                                             "the previous design back")
+        self.design_from_form_btn.clicked.connect(self._design_from_form)
+        _drb.addStretch()
+        _drb.addWidget(self.design_from_form_btn)
+        _drb.addWidget(self.design_open_btn)
+        _dr.addLayout(_drb)
+        nn_layout.addWidget(self.designer_row)
+        # a design kept while another type is chosen
+        self.design_kept_note = QLabel("A designed network is kept with this problem; choose Designed to use it "
+                                       "again.")
+        self.design_kept_note.setWordWrap(True)
+        self._register_hint(self.design_kept_note, '#8a8a8a')
+        nn_layout.addWidget(self.design_kept_note)
         self.network_type_combo.currentTextChanged.connect(self._on_network_type_changed)
         self._on_network_type_changed(self.network_type_combo.currentText())
 
@@ -5071,6 +5103,11 @@ class MainWindow(QMainWindow):
         self.domain_view.toggle_edge_bc.connect(self._on_sketch_toggle_edge)
         self._domain_tab_index = self.right_tabs.addTab(self.domain_view, "Geometry")
         self.right_tabs.setTabVisible(self._domain_tab_index, False)
+        self._build_designer()
+        self._network_tab_index = self.right_tabs.addTab(self.designer_panel, "Network")
+        self.right_tabs.setTabVisible(self._network_tab_index,
+                                      getattr(self, "network_type_combo", None) is not None
+                                      and self.network_type_combo.currentText() == "Designed")
         self._domain_view_key = None
         self._domain_view_timer = QTimer(self)
         self._domain_view_timer.setInterval(400)
@@ -8675,10 +8712,88 @@ class MainWindow(QMainWindow):
         return self.quick_examples_combo.currentText() == "None"
 
     def _on_network_type_changed(self, kind):
-        """Fourier scales only for MsFFN / STMsFFN."""
+        """Fourier scales only for MsFFN / STMsFFN; a designed network has its size in the design (the
+        Network tab), not in the form."""
         if hasattr(self, "msffn_sigmas_row"):
             self.msffn_sigmas_row.setVisible(kind in ("MsFFN", "STMsFFN"))
             self.msffn_sigmas_t_row.setVisible(kind == "STMsFFN")
+        designed = kind == "Designed"
+        if not designed:
+            self._form_network_type = kind       # what Edit as blocks starts from
+        for row in ("layers_row", "neurons_row", "layer_widths_row"):
+            if hasattr(self, row):
+                getattr(self, row).setVisible(not designed)
+        if hasattr(self, "designer_row"):
+            self.designer_row.setVisible(designed)
+        if hasattr(self, "designer"):
+            if designed and self.design_state.is_empty() and not getattr(self, "_applying_config", False):
+                self._design_from_form()             # start from the network the form had
+            self._update_designer_summary()
+        if hasattr(self, "_network_tab_index"):
+            self.right_tabs.setTabVisible(self._network_tab_index, designed)
+
+    # ── the network designer (Network tab) ─────────────────────────
+    def _build_designer(self):
+        """The Network tab: the designer's state and controller, built here and handed to its views
+        (website/developer/mvc.md, rule R8)."""
+        from pinnstudio.core.netdesign.presets import PRESETS
+        from pinnstudio.ui.controllers.designer import DesignerController
+        from pinnstudio.ui.designer.panel import DesignerPanel
+        from pinnstudio.ui.designer.window_prompter import WindowPrompter
+        from pinnstudio.ui.state.design_state import DesignState
+        self.design_state = DesignState(self)
+        self.designer = DesignerController(self.design_state, WindowPrompter(self), self)
+        self.designer_panel = DesignerPanel(self.design_state, self.designer, PRESETS)
+        self.design_state.design_changed.connect(self._update_designer_summary)
+        self._designer_io_key = None
+
+    def _show_network_tab(self):
+        if hasattr(self, "_network_tab_index"):
+            self.right_tabs.setTabVisible(self._network_tab_index, True)
+            self.right_tabs.setCurrentIndex(self._network_tab_index)
+
+    def _design_from_form(self):
+        """Edit as blocks: the design the form's last architecture (FNN, PFNN, MsFFN, STMsFFN) describes."""
+        import dataclasses
+        try:
+            cfg = self._build_config()
+        except Exception:
+            return
+        form = dataclasses.replace(cfg, network_type=getattr(self, "_form_network_type", "FNN"))
+        self.designer.set_problem(form)
+        self._designer_io_key = None
+        self.designer.from_settings(form)
+        self._show_network_tab()
+
+    def _sync_designer_problem(self, config):
+        """The designer works out widths for the problem's current inputs and outputs: tell it when they
+        may have changed (dimension, steady, outputs, input transforms)."""
+        if not hasattr(self, "designer"):
+            return
+        key = (config.problem_dim, config.steady_state, config.num_outputs, config.output_names,
+               config.input_transform_enabled, config.input_transform_mode, config.input_feature_formula,
+               getattr(config, "periodic_inputs", False), config.x_min, config.x_max, config.y_min, config.y_max,
+               config.z_min, config.z_max)
+        if key != self._designer_io_key:
+            self._designer_io_key = key
+            self.designer.set_problem(config)
+
+    def _update_designer_summary(self):
+        if not hasattr(self, "designer_summary"):
+            return
+        st = self.design_state
+        designed = self.network_type_combo.currentText() == "Designed"
+        self.design_kept_note.setVisible(not designed and not st.is_empty())
+        if st.is_empty():
+            self.designer_summary.setText("Nothing is designed yet: Edit as blocks starts from the form's network.")
+            return
+        from pinnstudio.core.netdesign import design as _nd
+        n = sum(1 for _p, lv in _nd.walk_levels(st.design) for _b in lv["blocks"])
+        probs = st.problems
+        self.designer_summary.setText(
+            f"Designed network: {n} blocks, {', '.join(st.inputs)} → {', '.join(st.outputs)}. "
+            + (f"⚠ {len(probs)} problem{'s' if len(probs) != 1 else ''} to fix on the Network tab."
+               if probs else "Ready."))
 
     def _bc_note_with_transform(self, text):
         """With no BC rows and an output-transform formula, say where the
@@ -10113,6 +10228,7 @@ class MainWindow(QMainWindow):
             activation=self.activation_combo.currentText(),
             kernel_initializer=self.kernel_init_combo.currentText(),
             network_type=self.network_type_combo.currentText() if hasattr(self, 'network_type_combo') else "FNN",
+            network_design=self.designer.design_json() if hasattr(self, 'designer') else "",
             msffn_sigmas=self.msffn_sigmas_edit.text().strip() or "1, 10",
             msffn_sigmas_t=self.msffn_sigmas_t_edit.text().strip() or "1, 10",
             input_transform_enabled=self.input_transform_cb.isChecked(),
@@ -10379,6 +10495,8 @@ class MainWindow(QMainWindow):
             # reference_data paths as "@REF/...", so the file works on another computer
             "config": _portable.to_portable(dataclasses.asdict(config), REFERENCE_DATA_DIR),
         }
+        payload["config"]["network_design"] = self.designer.design_for_file(
+            payload["config"].get("network_design", ""), path)
         origin = self._template_origin()
         if origin:
             payload["template"] = origin
@@ -10505,6 +10623,8 @@ class MainWindow(QMainWindow):
         # "@REF/..." (and reference_data paths saved on another computer)
         # point into this installation's reference_data folder
         filtered = _portable.from_portable(filtered, REFERENCE_DATA_DIR)
+        if filtered.get("network_design"):        # saved modules' files, relative to the problem file
+            filtered["network_design"] = self.designer.design_from_file(filtered["network_design"], path)
         try:
             config = PINNConfig(**filtered)
         except Exception as e:
@@ -10974,6 +11094,9 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"⚠️ Unknown activation \"{config.activation}\" in the file: "
                                 f"{self.activation_combo.currentText()} is used instead.")
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
+        if hasattr(self, "designer"):          # the design first: choosing Designed must not start a new one
+            self.designer.load_json(getattr(config, 'network_design', '') or '')
+            self._designer_io_key = None
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
         self.msffn_sigmas_edit.setText(getattr(config, 'msffn_sigmas', '1, 10') or '1, 10')
         self.msffn_sigmas_t_edit.setText(getattr(config, 'msffn_sigmas_t', '1, 10') or '1, 10')
@@ -12158,6 +12281,10 @@ class MainWindow(QMainWindow):
         # Training) is what decides which of the two Solve actually
         # does -- there's no separate Run Sweep button anymore, and
         # Stop/Cancel is the matching single branch in _on_stop below.
+        if config.network_type == "Designed" and not self.designer.check_trust():
+            self.log_box.append("ℹ The designed network's code or files are not trusted: nothing was run "
+                                "(Network tab › More › Trust…).")
+            return
         if config.sweep_enabled:
             self._start_sweep(config)
             return
@@ -17128,6 +17255,11 @@ print("DOMAIN_PREVIEW_DONE")
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
+        if cfg.get("network_type") == "Designed" and not self.designer.check_trust(cfg.get("network_design", "")):
+            # rebuilding the run's network runs its design's code and loads its files
+            self.log_box.append("ℹ The run's designed network has code or files that are not trusted: nothing "
+                                "was restored.")
+            return
 
         # Now that the restored model's own config is loaded, refine the
         # generic "Restore__<timestamp>" folder picked above into one that
@@ -17735,7 +17867,9 @@ print("RESTORE_DONE")
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
-                                                        cfg.get("msffn_sigmas_t", "1, 10"))
+                                                        cfg.get("msffn_sigmas_t", "1, 10"),
+                                                        cfg.get("network_design", ""),
+                                                        (cfg.get("network_inputs") or [], cfg.get("network_outputs") or []))
         # Re-attach the model's input/output transforms -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.
@@ -18200,7 +18334,9 @@ def _extract_plot_field(x_grid):
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
-                                                        cfg.get("msffn_sigmas_t", "1, 10"))
+                                                        cfg.get("msffn_sigmas_t", "1, 10"),
+                                                        cfg.get("network_design", ""),
+                                                        (cfg.get("network_inputs") or [], cfg.get("network_outputs") or []))
         # Re-attach the model's input/output transforms -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.

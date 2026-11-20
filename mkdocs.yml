@@ -159,6 +159,7 @@ nav:
       - Boundary conditions: guide/boundary-conditions.md
       - Inverse problems and measured data: guide/inverse.md
       - Neural network: guide/network.md
+      - Network designer: guide/network-designer.md
       - Training phases: guide/training.md
       - Loss weights: guide/loss-weights.md
       - Adaptive training: guide/adaptive.md
@@ -255,6 +256,7 @@ nav:
       - developer/index.md
       - Repository structure: developer/structure.md
       - Architecture and code generation: developer/architecture.md
+      - Model, views and controllers: developer/mvc.md
       - Configuration schema: developer/config.md
       - Adding an example: developer/add-example.md
       - Adding a training method: developer/add-method.md

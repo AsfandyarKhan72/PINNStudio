@@ -1003,6 +1003,8 @@ def _net_choices(config) -> List[str]:
             out.append("MsFFN")
             if _time_dependent_pde(config):
                 out.append("STMsFFN")
+    if (getattr(config, "network_design", "") or "").strip():
+        out.append("Designed")
     cur = getattr(config, "network_type", "FNN")
     if cur not in out:
         out.append(cur)
@@ -1011,8 +1013,10 @@ def _net_choices(config) -> List[str]:
 
 def _net_set(config, value) -> None:
     v = str(value)
-    if v not in ("FNN", "PFNN", "MsFFN", "STMsFFN"):
+    if v not in ("FNN", "PFNN", "MsFFN", "STMsFFN", "Designed"):
         raise ValueError(f"network type: {v!r}")
+    if v == "Designed" and not (getattr(config, "network_design", "") or "").strip():
+        raise ValueError("network type Designed: the problem has no designed network (Network tab)")
     config.network_type = v
     if v in ("MsFFN", "STMsFFN") and not (getattr(config, "msffn_sigmas", "") or "").strip():
         config.msffn_sigmas = "1, 10"
@@ -1210,7 +1214,7 @@ def _method_params(config) -> List["SweepParam"]:
             set_value=_causal_set, is_available=_time_dependent_pde,
         ),
         SweepParam(
-            id="network_type", label="Architecture (FNN, PFNN, MsFFN, STMsFFN)", category="Network",
+            id="network_type", label="Architecture (FNN, PFNN, MsFFN, STMsFFN, Designed)", category="Network",
             value_type="categorical", choices=_net_choices(config),
             get_value=lambda c: getattr(c, "network_type", "FNN"),
             set_value=_net_set, is_available=lambda c: True,
@@ -1259,14 +1263,14 @@ _STATIC_PARAMS: List[SweepParam] = [
         value_type="int", default_min=1, default_max=6,
         get_value=_get_hidden_layers,
         set_value=_set_hidden_layers,
-        is_available=lambda c: True,
+        is_available=lambda c: getattr(c, "network_type", "") != "Designed",
     ),
     SweepParam(
         id="neurons_per_layer", label="Neurons per layer", category="Network",
         value_type="int", default_min=16, default_max=128,
         get_value=_get_neurons_per_layer,
         set_value=_set_neurons_per_layer,
-        is_available=lambda c: True,
+        is_available=lambda c: getattr(c, "network_type", "") != "Designed",
     ),
     SweepParam(
         id="num_domain", label="Domain points", category="Collocation Points",
@@ -1369,6 +1373,57 @@ def _phase_param(idx: int) -> List[SweepParam]:
     ]
 
 
+def _design_params(config) -> List["SweepParam"]:
+    """A designed network's own knobs: the units of each Dense layer and the σ of each Fourier layer,
+    named by block (and layer, in a stack of several)."""
+    if getattr(config, "network_type", "") != "Designed" or not (getattr(config, "network_design", "") or "").strip():
+        return []
+    from pinnstudio.core.netdesign import design as _nd
+    try:
+        d = _nd.check(config.network_design)
+    except ValueError:
+        return []
+    out = []
+    for path, level in _nd.walk_levels(d):
+        for b in level["blocks"]:
+            if b["kind"] != "stack":
+                continue
+            name = " › ".join(list(path) + [_nd.label(b)])
+            for li, sp in enumerate(b["layers"]):
+                tag = f"{name}" + (f" layer {li + 1}" if len(b["layers"]) > 1 else "")
+                if sp["type"] == "dense":
+                    out.append(SweepParam(
+                        id=f"design_{b['id']}_{li}_units", label=f"Designed: {tag} units", category="Network",
+                        value_type="int", default_min=16, default_max=128,
+                        get_value=lambda c, bid=b["id"], i=li: _design_get(c, bid, i, "units"),
+                        set_value=lambda c, v, bid=b["id"], i=li: _design_set(c, bid, i, "units", int(v)),
+                        is_available=lambda c: getattr(c, "network_type", "") == "Designed"))
+                elif sp["type"] == "fourier":
+                    out.append(SweepParam(
+                        id=f"design_{b['id']}_{li}_sigma", label=f"Designed: {tag} σ", category="Network",
+                        value_type="float", default_min=1.0, default_max=10.0,
+                        get_value=lambda c, bid=b["id"], i=li: _design_get(c, bid, i, "sigma"),
+                        set_value=lambda c, v, bid=b["id"], i=li: _design_set(c, bid, i, "sigma", float(v)),
+                        is_available=lambda c: getattr(c, "network_type", "") == "Designed"))
+    return out
+
+
+def _design_get(config, bid, li, key):
+    from pinnstudio.core.netdesign import design as _nd
+    _p, b = _nd.find(_nd.check(config.network_design), bid)
+    return b["layers"][li]["params"][key] if b is not None and li < len(b["layers"]) else None
+
+
+def _design_set(config, bid, li, key, value):
+    from pinnstudio.core.netdesign import design as _nd
+    d = _nd.check(config.network_design)
+    _p, b = _nd.find(d, bid)
+    if b is None or li >= len(b["layers"]):
+        raise ValueError(f"the designed network has no layer {li + 1} in block {bid}")
+    b["layers"][li]["params"][key] = value
+    config.network_design = _nd.to_json(_nd.check(d))
+
+
 def available_params(config) -> List[SweepParam]:
     """The full list of sweep-able parameters for the CURRENT state of
     this config -- static entries always included, plus one group of
@@ -1397,6 +1452,7 @@ def available_params(config) -> List[SweepParam]:
     params.extend(_ot_scale_params(config))
     params.extend(_method_params(config))
     params.extend(_const_params(config))
+    params.extend(_design_params(config))
     return [p for p in params if p.is_available(config)]
 
 

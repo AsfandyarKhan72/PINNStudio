@@ -152,6 +152,9 @@ class PINNConfig:
     # of the random Fourier features, comma-separated.
     msffn_sigmas: str = "1, 10"
     msffn_sigmas_t: str = "1, 10"
+    # A network designed as blocks on the Network tab (network_type "Designed"): the design as JSON
+    # (pinnstudio.core.netdesign.design). Kept when another type is chosen, unused until it is chosen again.
+    network_design: str = ""
 
     # Optional input/output transform: x_transformed = x_raw * scale + shift
     # (input, one entry per input dimension) and y_transformed = y_raw *
@@ -873,6 +876,27 @@ class PINNConfig:
     sweep_plot_custom_label: str = ""
     sweep_export_t_steps: int = 11
 
+    def _designed_network_errors(self) -> list:
+        """What keeps the designed network from running for this problem: the first problem, naming the
+        block (the Network tab outlines every one)."""
+        from pinnstudio.core.netdesign import design as _nd
+        from pinnstudio.core.netdesign import runtime as _nr
+        from pinnstudio.core.netdesign.params import ParamError as _PE
+        from pinnstudio.core.netdesign.problem import network_io as _io
+        if not (self.network_design or "").strip():
+            return ["Network design: the network type is Designed but nothing is designed yet: draw it on the "
+                    "Network tab (Edit as blocks starts from the form's network)."]
+        try:
+            ins, outs = _io(self)
+        except Exception as exc:   # another setting is broken; validate() reports that one
+            return [f"Network design: the network's inputs cannot be worked out ({exc})."]
+        try:
+            _nr.resolve(_nd.check(self.network_design), ins, outs)
+        except _PE as exc:
+            msg = str(exc)
+            return [msg if msg.startswith("Network design") else f"Network design: {msg}"]
+        return []
+
     def validate(self):
         """Sanity-check the fields that would otherwise either silently
         produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
@@ -1148,6 +1172,10 @@ class PINNConfig:
             errors.append("'Scale by initial losses' isn't available with Time-Adaptive training -- "
                           "turn one of them off.")
 
+        if self.network_type not in ("FNN", "PFNN", "MsFFN", "STMsFFN", "Designed"):
+            errors.append(f"Network type must be FNN, PFNN, MsFFN, STMsFFN or Designed; got {self.network_type!r}.")
+        if self.network_type == "Designed":
+            errors.extend(self._designed_network_errors())
         if self.network_type in ("MsFFN", "STMsFFN"):
             from pinnstudio.core.codegen import _parse_sigmas
             for _lbl, _txt in (("Fourier scales", self.msffn_sigmas),) + (
