@@ -19,7 +19,7 @@ import math
 import re
 import xml.etree.ElementTree as ET
 
-from pinnstudio.ui.sketch_edges import arc_runs, fmt
+from pinnstudio.ui.sketch_edges import arc_runs
 
 ARC_STEP = math.radians(5.0)   # approximation step for arcs inside outlines
 

@@ -1311,7 +1311,7 @@ def _settings_md(c, inverse):
         txt = [f"{g} {', '.join(f'{x:g}' for x in v) if len(set(v)) > 1 else f'{v[0]:g}'}" for g, v in groups if v]
         L.append("**Loss weights:** " + "; ".join(txt))
     m = []
-    act = (c.ic_active or "").split(",")
+    (c.ic_active or "").split(",")
     hard = (c.ic_hard or "").split(",")
     names = c.output_names.split(",")
     if "True" in hard:

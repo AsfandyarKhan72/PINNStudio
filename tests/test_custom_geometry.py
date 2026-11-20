@@ -53,7 +53,6 @@ _app = QApplication.instance() or QApplication(sys.argv)
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.config import PINNConfig
-from pinnstudio.core import codegen
 from pinnstudio.core.codegen import generate_script, generate_clean_script, _build_custom_geom_code
 
 

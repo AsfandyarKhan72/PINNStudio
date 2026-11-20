@@ -1,6 +1,6 @@
 """Check benchmarks/README.md: every example shows figures for its forward and inverse results, a
 parameter plot for inverse problems, and a comparison for every output; prints what is missing."""
-import re, os, sys
+import re, os
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 t = open("benchmarks/README.md").read()
 probs = []

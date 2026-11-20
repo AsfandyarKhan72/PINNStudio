@@ -59,7 +59,7 @@ def main():
     ap.add_argument("--spacetime", required=True)
     ap.add_argument("--manifest", required=True)
     a = ap.parse_args()
-    prim, st, man, problems = {}, {}, {"runs": [], "inputs": {}}, []
+    prim, st, man, _problems = {}, {}, {"runs": [], "inputs": {}}, []
     for out in a.outs:
         res = os.path.join(out, "results.jsonl")
         man["inputs"][os.path.basename(os.path.dirname(os.path.abspath(out))) + "/results.jsonl"] = sha(res)

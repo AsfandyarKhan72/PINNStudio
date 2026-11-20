@@ -112,7 +112,7 @@ def run():
             print("ok:", msg)
 
     try:
-        import numpy as np
+        import numpy as np  # noqa: F401
         import deepxde as _dde_probe  # noqa: F401
         import torch as _torch_probe  # noqa: F401
     except ImportError:

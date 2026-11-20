@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
+    QTabWidget, QMessageBox, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
 from PySide6.QtCore import Qt, QEvent, QObject, QThread, Signal, QTimer
 from PySide6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
@@ -1854,7 +1854,6 @@ class MainWindow(QMainWindow):
 
     def _domain_view_shapes(self):
         """The domain set in the Domain panel as a shape list (2D/3D)."""
-        import json
         t = self._current_geometry_type()
         sp = lambda w: float(w.value())
         if t == "Custom":
@@ -1898,7 +1897,6 @@ class MainWindow(QMainWindow):
         key = json.dumps([dim, shapes], sort_keys=True)
         if key == self._domain_view_key:
             return
-        first = self._domain_view_key is None or json.loads(self._domain_view_key)[0] != dim
         self._domain_view_key = key
         self.domain_view.set_dim(dim)
         self.domain_view.set_shapes(shapes, fit=True)
@@ -7065,7 +7063,7 @@ class MainWindow(QMainWindow):
 
     def _on_sketch_remove_from_bcs(self, exprs):
         from pinnstudio.ui.sketch_edges import remove_from_where
-        changed, kept, emptied = [], [], []
+        changed, emptied = [], []
         for i, e in enumerate(self.custom_bc_list):
             if e['type'].currentData() in self._SKETCH_NO_WHERE_TYPES:
                 continue
@@ -7471,7 +7469,7 @@ class MainWindow(QMainWindow):
 
     def _auto_configure_ea(self, ref_dir, is_steady=False):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
-        import glob, re, numpy as np
+        import glob, re
         # Always start from a clean slate: a template with no matching
         # reference data (or none at all) must not silently inherit the
         # previous template's Error Analysis config -- e.g. switching from
@@ -13662,7 +13660,7 @@ def _style_legend(ax):
                 self.process = None
 
             def run(self):
-                import subprocess, sys
+                import subprocess
                 try:
                     self.process = subprocess.Popen([_pyexe.script_python(), self._path], creationflags=_pyexe.NO_WINDOW, stdout=subprocess.PIPE,
                                                     stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
@@ -14040,7 +14038,7 @@ print("DOMAIN_PREVIEW_DONE")
                 self.process = None
                 self._stopped = False
             def run(self):
-                import subprocess, sys
+                import subprocess
                 ok = False
                 try:
                     if self._stopped:
@@ -17216,7 +17214,7 @@ print("DOMAIN_PREVIEW_DONE")
         return "; ".join(diffs)
 
     def _on_restore(self):
-        import json, tempfile, subprocess, sys
+        import json, tempfile, subprocess
         viz_type    = self.restore_viz_combo.currentText()
         if viz_type == "Line":
             viz_type = "Surface"    # an ODE / steady 1D model is one curve, drawn by the Surface branch
@@ -17853,7 +17851,7 @@ print("DOMAIN_PREVIEW_DONE")
         _dpi = int(viz_settings.get('dpi', 150) or 150)
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
-                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
+                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi, plot_extras)
         _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
                                   if ui_key in viz_settings})
         script = f"""

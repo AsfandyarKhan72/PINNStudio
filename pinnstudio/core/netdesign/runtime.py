@@ -374,7 +374,7 @@ def forward_source(resolved: dict) -> str:
             if len(heads) == 1 and heads[0]["_idx"] == list(range(len(outs))):
                 outs = [_var(heads[0]["id"])]      # one head gives every output, in order
             lines.append(f"return torch.cat([{', '.join(outs)}], dim=1)" if len(outs) > 1 else f"return {outs[0]}")
-            head = f"def _dn_level_top(m, x):\n    # the network's inputs x -> its outputs, in the outputs' order"
+            head = "def _dn_level_top(m, x):\n    # the network's inputs x -> its outputs, in the outputs' order"
         else:
             out = next(b for b in lv["blocks"] if b["kind"] == "port_out")
             lines.append(f"return {_var(out['id'])}")

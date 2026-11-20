@@ -15,7 +15,7 @@ its signals, so building and loading a configuration works unchanged.
 A node is hidden when every panel on its page is hidden (e.g. "Inverse
 problem" outside Inverse mode), and shown again when one is shown.
 """
-from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
                              QVBoxLayout, QWidget)
@@ -428,7 +428,7 @@ MAX_LABEL_CHARS = 26
 
 def _grows(widget):
     """Whether a row's last widget takes the rest of the row by itself."""
-    from PySide6.QtWidgets import QLineEdit, QSizePolicy
+    from PySide6.QtWidgets import QLineEdit
     pol = widget.sizePolicy().horizontalPolicy()
     return (isinstance(widget, QLineEdit) and widget.maximumWidth() >= 16777215
             and pol not in (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum))

@@ -17,7 +17,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DDE_BACKEND", "pytorch")
 # Each run gets a new private home folder (results, settings), so concurrent runs never share or clean up
 # each other's files, and screenshots show no path of the machine they were made on. Nothing is deleted.
-import tempfile  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _docs_home import private_home  # noqa: E402
 private_home()
@@ -124,7 +123,6 @@ def main():
             settle(1.2)
 
     if "--solve" in sys.argv:
-        import json
         pick(w, "Forward", "1D Burgers")
         # a short run, so the screenshots can be made on a laptop CPU in minutes
         for ph in w.sched_phase_list:

@@ -79,7 +79,6 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -579,7 +578,7 @@ def run():
     # "Parameter Convergence" (added only once Inverse is selected) is
     # the widest item plot_type_combo ever holds -- confirm the combo
     # actually widens to fit it when it's added, not just at startup.
-    width_before_inverse = win.plot_type_combo.minimumWidth()
+    win.plot_type_combo.minimumWidth()
     win.radio_inverse.setChecked(True)
     _app.processEvents()
     fm_pt2 = win.plot_type_combo.fontMetrics()

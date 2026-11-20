@@ -13,7 +13,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-import pytest
 from PySide6.QtWidgets import QApplication
 
 from pinnstudio.core import obs_reduce, sweep_registry, sweep_runner

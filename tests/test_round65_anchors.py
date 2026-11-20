@@ -37,7 +37,6 @@ from PySide6.QtWidgets import QApplication
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
-import numpy as np
 
 from pinnstudio.core.codegen import _anchor_points_code, generate_clean_script, generate_script
 from pinnstudio.core.config import PINNConfig

@@ -2,7 +2,6 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 from pinnstudio.core import pyexe as _pyexe
 import subprocess
-import sys
 import tempfile
 import time
 from pinnstudio.core.codegen import generate_script

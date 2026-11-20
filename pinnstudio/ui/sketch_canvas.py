@@ -1255,7 +1255,7 @@ class SketchPanel(QWidget):
         if tool == "Polygon" and ";" in text:
             pts = parse_vertices(text)
             if len(pts) < 3:
-                raise ValueError(f"A polygon needs at least 3 corners, written x,y; x,y; x,y.")
+                raise ValueError("A polygon needs at least 3 corners, written x,y; x,y; x,y.")
             return polygon_shape(pts)
         try:
             v = [float(t) for t in text.replace(";", ",").split(",") if t.strip()]

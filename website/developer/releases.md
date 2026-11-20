@@ -44,10 +44,14 @@ the commits leading to the `v1.5.0` tag):
 4. **Merge into `main`.** The development branch is merged into `main` (for 1.5.0: "Merge branch 'cleanup' into
    main (release 1.5.0)").
 5. **Tag.** An annotated tag `vX.Y.Z` with the message "PINNStudio X.Y.Z" on the merge commit.
-6. **PyPI.** The sdist and wheel are built from the tagged commit (`python -m build`, [Building and
-   packaging](packaging.md)) and uploaded to PyPI. The repository has no workflow that publishes to PyPI; the
-   upload is done by a maintainer. From then on `pip install pinnstudio` and the one-command installers install
-   the new version.
+6. **PyPI.** Pushing the tag starts `release.yml`: it checks that the tag names the version in
+   `pinnstudio/__init__.py`, builds the sdist and wheel from the tagged commit (`python -m build`, [Building and
+   packaging](packaging.md)), writes `SHA256SUMS`, and attaches the three to a draft GitHub release. The upload to
+   PyPI waits for a maintainer to approve the `pypi` environment and uses PyPI's trusted publishing (no token is
+   stored in the repository; the trusted publisher must be set up once on PyPI). From then on
+   `pip install pinnstudio` and the one-command installers install the new version.
+   `constraints.txt` is updated to the versions the release was tested with, so
+   `pip install -c constraints.txt pinnstudio` reproduces a tested installation.
 7. **Documentation.** Publishing a release does not deploy this site. The `docs.yml` workflow deploys to GitHub
    Pages only when a maintainer starts it by hand on `main` with deployment selected, and only once publication
    has been approved (repository variable `DOCS_PUBLISH_APPROVED`). The steps are in `tools/docs/DEPLOY.md`.

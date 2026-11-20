@@ -13,7 +13,6 @@ and the Restore & visualize page can be shown with a real saved run.
 Output files are named guide_*.png.
 """
 import os
-import tempfile
 import shutil
 import sys
 import time

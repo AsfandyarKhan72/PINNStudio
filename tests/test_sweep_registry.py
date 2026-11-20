@@ -185,7 +185,6 @@ def run():
         bad_id = [{"id": "not_a_real_param_xyz", "mode": "list", "values": [1]}]
         check(any("not a sweepable parameter" in e for e in errs_for(bad_id)),
               "unknown parameter id should be flagged")
-        bad_mode = [{"id": some_id, "mode": "oat"}]
         check(errs_for([{"id": "bad", "mode": "oat"}]) != [], "")  # sanity: bad id + bad mode both flagged
         unrecognized_mode = [{"id": some_id, "mode": "wat"}]
         check(any("unrecognized mode" in e for e in errs_for(unrecognized_mode)),

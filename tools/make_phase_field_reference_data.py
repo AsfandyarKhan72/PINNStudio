@@ -87,7 +87,7 @@ def ch2d(n, dt, times=CH_TIMES, S=2.0):
     k2 = _wavenumbers(n, 2.0, 2)
     denom = 1 + dt * CH_LAM * (CH_EPS ** 2 * k2 ** 2 + S * k2)
     ph = torch.fft.fft2(phi)
-    out, t, step = {}, 0.0, 0
+    out, _t, step = {}, 0.0, 0
     nsteps = {tt: int(round(tt / dt)) for tt in times}
 
     def both(ph):

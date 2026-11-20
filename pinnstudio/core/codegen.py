@@ -1262,8 +1262,8 @@ def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"
     if network_type == "Designed":
         from pinnstudio.core.netdesign import runtime as _nd_runtime
         _ins, _outs = io if io else ([], [])
-        return (f"# ── Network architecture: designed as blocks on PINNStudio's Network tab ──\n"
-                f"_network_type = 'Designed'\n"
+        return ("# ── Network architecture: designed as blocks on PINNStudio's Network tab ──\n"
+                "_network_type = 'Designed'\n"
                 + _nd_runtime.net_source(design, list(_ins), list(_outs))
                 + "\n\ndef _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):\n"
                   "    # the designed network; the layer sizes passed here are the form's and are not used\n"
@@ -9506,7 +9506,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                 A.append(f"_sel{i} = [p for p in _cand{i} if _bc{i}_ploc(p, True)]")
                 A.append(f"for _more in range(5):   # a small Where region: draw more candidates until {npts} match")
                 A.append(f"    if len(_sel{i}) >= {npts}:")
-                A.append(f"        break")
+                A.append("        break")
                 A.append(f"    _sel{i} += [p for p in geomtime.random_boundary_points({max(20 * npts, 200)} * 4 ** (_more + 1)) if _bc{i}_ploc(p, True)]")
                 A.append(f"_pts{i} = np.array(_sel{i}[:{npts}])")
                 A.append(f"if len(_pts{i}) == 0:")
@@ -12041,7 +12041,6 @@ def generate_clean_script(config):
         for sp in sched_phases:
             sp['_w'] = "loss_weights"
     uses_nncg = any(sp.get('optimizer') == 'nncg' for sp in sched_phases)
-    total_iters = sum(int(sp.get('iterations', 0) or 0) for sp in sched_phases)
 
     # ---- Training callbacks (opt-in only) --------------------------------
     # Also turned on by BC batching even if the user never opened Training
@@ -12756,16 +12755,16 @@ _ta_loss_offset = 0''')
             parts.append(cbs_code)
 
         _ta_ic_outs = [o for o in range(n_out) if (o == 0 and config.forward_ic_from_file) or o in active_ic_outputs]
-        loop_lines = [f"def _ta_weights(w, constraints, step_i):",
+        loop_lines = ["def _ta_weights(w, constraints, step_i):",
                       f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
                       "    w = list(w)",
                       "    # from the second window on every output is held to the previous window's solution (one term",
                       "    # per output): the PDE and boundary weights as set, each output's term its initial",
                       "    # condition's weight, 1 for an output without one (as Solve's script does)",
                       f"    ic_outs = {_ta_ic_outs!r}",
-                      f"    k = len(w) - len(ic_outs)",
+                      "    k = len(w) - len(ic_outs)",
                       f"    if step_i > 0 and k == n - {n_out}:",
-                      f"        icw = dict(zip(ic_outs, w[k:]))",
+                      "        icw = dict(zip(ic_outs, w[k:]))",
                       f"        w = w[:k] + [icw.get(o, 1.0) for o in range({n_out})]",
                       "    return w if len(w) == n else [1.0] * n",
                       "",
@@ -12851,7 +12850,7 @@ _ta_loss_offset = 0''')
             step0_pretrain_ic = [ln.replace("geomtime", "_ic_pre_geomtime_i")
                                   .replace("constraints.append", "_ic_pre_constraints_i.append")
                                   for ln in ic_appends]
-            loop_lines.append(f'''    if step_i == 0:
+            loop_lines.append('''    if step_i == 0:
         _ic_pre_geomtime_i = dde.geometry.GeometryXTime(_build_geom(), dde.geometry.TimeDomain(t0, t1))
         _ic_pre_constraints_i = []''')
             for ln in step0_pretrain_ic:
@@ -12926,8 +12925,8 @@ _ta_loss_offset = 0''')
     _Up = model_i.predict(_XTp)[:, {2}].reshape({3}, {3})
     all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XTp)'''.format(
                 config.x_min, config.x_max, config.plot_output_idx, config.plot_resolution))
-        loop_lines.append(f'    print(f"Step {{step_i + 1}}/{{len(intervals)}} done. '
-                           f'Final train loss: {{sum(loss_history.loss_train[-1]):.4e}}")')
+        loop_lines.append('    print(f"Step {step_i + 1}/{len(intervals)} done. '
+                           'Final train loss: {sum(loss_history.loss_train[-1]):.4e}")')
         parts.append("\n".join(loop_lines))
 
         parts.append('''model = ta_step_models[-1][2]  # last step's model, for Error Analysis / ad-hoc predict() calls''')
