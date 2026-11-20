@@ -142,6 +142,28 @@ def test_moving_a_block_needs_more_than_the_dead_zone(ui):
     assert x1 != x0 and x1 % 20 == 0
 
 
+def test_dragging_a_block_that_was_not_selected(ui):
+    """Pressing on a block selects it, and the selection redraws the canvas: the drag goes on with the
+    redrawn card (it used the deleted one: "Internal C++ object (BlockItem) already deleted")."""
+    state, ctl, panel, _p = ui
+    c = panel.canvas
+    ctl.select("")
+    app.processEvents()
+    assert state.selection != "s1"
+    x0 = next(x["x"] for x in state.design["blocks"] if x["id"] == "s1")
+    start = c.blocks["s1"].pos() + QPointF(60, 10)
+    _drag(c, start, start + QPointF(120, 0))
+    assert state.selection == "s1"
+    x1 = next(x["x"] for x in state.design["blocks"] if x["id"] == "s1")
+    assert x1 != x0 and x1 % 20 == 0
+    # a drag from a port of an unselected block, while the canvas is redrawn, ends cleanly
+    ctl.select("")
+    app.processEvents()
+    port = c.blocks["s1"].out_port
+    _drag(c, port.scenePos(), port.scenePos() + QPointF(40, 80))
+    assert c._press is None and c._band is None
+
+
 def test_inspector_refuses_a_bad_value_and_changes_nothing(ui):
     state, ctl, panel, _p = ui
     ctl.select("s1")

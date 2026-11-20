@@ -268,9 +268,13 @@ class DesignCanvas(QGraphicsView):
     # ── drawing what it is given ───────────────────────────────────
     def show_level(self, level: dict, widths: dict, errors: dict, selection: str) -> None:
         """Draw `level` (blocks and edges) with each block's width or first problem."""
+        # A drag under way (a press on a block selects it, and the selection redraws the canvas) holds items
+        # that clear() deletes: remember them by name, and take the new items after drawing.
+        held = self._held_by_name()
         self.scene_.clear()
         self.blocks, self.edges = {}, {}
         self._band = None
+        self._target = None
         self.selection = selection
         t = _theme.current()
         self.setBackgroundBrush(QBrush(QColor(t["bg"])))
@@ -291,6 +295,7 @@ class DesignCanvas(QGraphicsView):
             f"{len(level['blocks'])} blocks: " + "; ".join(f"{D.label(b)} ({b['kind']})" for b in level["blocks"])
             + ". Connections: " + "; ".join(f"{names.get(e['src'], e['src'])} to {names.get(e['dst'], e['dst'])}"
                                             for e in level["edges"]))
+        self._hold_again(held)
         rect = self.scene_.itemsBoundingRect().adjusted(-400, -300, 400, 300)
         self.scene_.setSceneRect(rect)
         if not self._fitted and self.blocks:
@@ -332,6 +337,39 @@ class DesignCanvas(QGraphicsView):
 
     def center_scene_pos(self) -> QPointF:
         return self.mapToScene(self.viewport().rect().center())
+
+    def _held_by_name(self):
+        press = self._press
+        if not press:
+            return None
+        try:
+            if press[0] == "block":
+                return ("block", press[1].block_id) + tuple(press[2:])
+            if press[0] == "port":
+                p = press[1]
+                return ("port", p.block_item.block_id, p.side, p.port)
+        except RuntimeError:             # already gone
+            return None
+        return press                     # ("pan", ...) holds no item
+
+    def _hold_again(self, held):
+        """The drag's items, drawn anew; a drag whose block has gone ends."""
+        if held is None:
+            self._press = None
+            return
+        if held[0] == "block":
+            item = self.blocks.get(held[1])
+            self._press = ("block", item) + tuple(held[2:]) if item is not None else None
+        elif held[0] == "port":
+            item = self.blocks.get(held[1])
+            port = None
+            if item is not None:
+                port = item.out_port if held[2] == "out" else item.in_ports.get(held[3])
+            self._press = ("port", port) if port is not None else None
+        else:
+            self._press = held
+        if self._press is None:
+            self._press_moved = False
 
     # ── mouse ──────────────────────────────────────────────────────
     def _port_at(self, scene_pos, side=None):
