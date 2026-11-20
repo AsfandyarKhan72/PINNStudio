@@ -27,5 +27,10 @@ class Prompter:
         """A line of text, or None when cancelled."""
         return None
 
+    def ask_recover(self, item: dict, count: int) -> str:
+        """An autosave left by a PINNStudio that closed without saving (a dict: problem_name,
+        original_path, time): "recover", "discard" or "later"."""
+        return "later"
+
     def inform(self, title: str, text: str) -> None:
         """Tell the user something that needs no answer."""

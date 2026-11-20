@@ -25,6 +25,28 @@ class WindowPrompter:
         value, ok = QInputDialog.getText(self.parent, title, label, text=text)
         return value if ok else None
 
+    def ask_recover(self, item, count):
+        import time as _time
+        when = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(float(item.get("time") or 0)))
+        name = item.get("problem_name") or "an untitled problem"
+        box = QMessageBox(self.parent)
+        box.setObjectName("recoverDialog")
+        box.setWindowTitle("Recover unsaved work")
+        box.setIcon(QMessageBox.Icon.Question)
+        more = f" ({count - 1} more autosave{'s' if count > 2 else ''} will be offered next time)" if count > 1 else ""
+        box.setText(f"PINNStudio closed without saving {name} (last kept {when}). Recover it?{more}")
+        if item.get("original_path"):
+            box.setInformativeText(f"It was saved before as {item['original_path']}; recovering does not change "
+                                   "that file until you save.")
+        rec = box.addButton("Recover", QMessageBox.ButtonRole.AcceptRole)
+        dis = box.addButton("Discard", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(rec)
+        box.exec()
+        clicked = box.clickedButton()
+        box.deleteLater()
+        return "recover" if clicked is rec else "discard" if clicked is dis else "later"
+
     def inform(self, title, text):
         QMessageBox.information(self.parent, title, text)
 

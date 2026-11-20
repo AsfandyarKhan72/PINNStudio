@@ -691,6 +691,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._apply_display_settings()
         self._follow_system_color_scheme()
+        self._setup_autosave()
         self._check_for_updates()
         # The new top-level QTabWidget (central_tabs, added for Parameter
         # Sweep) has been reported built correctly but with its tab bar
@@ -958,6 +959,44 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         self._apply_display_settings()
+
+    AUTOSAVE_MS = 30000
+
+    def _setup_autosave(self):
+        """Unsaved work is kept in an autosave file every 30 s and offered back after a crash
+        (pinnstudio.core.recovery). Off in the offscreen tests unless PINNSTUDIO_RECOVERY is set."""
+        from pinnstudio.ui.controllers.recovery import RecoveryController
+        from pinnstudio.ui.designer.window_prompter import WindowPrompter
+        enabled = (os.environ.get("QT_QPA_PLATFORM") != "offscreen" or bool(os.environ.get("PINNSTUDIO_RECOVERY")))
+        self.recovery = RecoveryController(WindowPrompter(self), self._get_installed_version() or "", enabled, self)
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.setInterval(self.AUTOSAVE_MS)
+        self._autosave_timer.timeout.connect(self._autosave)
+        self._autosave_timer.start()
+        if enabled:
+            QTimer.singleShot(1500, self._offer_recovery)
+
+    def _autosave(self):
+        if not getattr(self, "_dirty", False) or not hasattr(self, "recovery"):
+            return
+        try:
+            config = self._build_config()
+        except Exception:
+            return
+        self.recovery.keep(config, getattr(self, "_current_path", None),
+                           getattr(self, "_current_problem_name", "") or "")
+
+    def _offer_recovery(self):
+        found = self.recovery.offer()
+        if found is None:
+            return
+        config, original_path, name = found
+        self._apply_config(config)
+        self._current_path = original_path
+        self._current_problem_name = name
+        self._clean_key = "(recovered: not saved yet)"     # stays unsaved until the user saves it
+        self._set_dirty(True)
+        self.log_box.append(f"↺ Recovered {name or 'the unsaved problem'}: save it to keep it.")
 
     def _follow_system_color_scheme(self):
         """With the theme "System (match OS)", switch between Studio Light and Studio Dark when the
@@ -1971,6 +2010,8 @@ class MainWindow(QMainWindow):
 
     def _set_dirty(self, dirty):
         self._dirty = bool(dirty)
+        if not self._dirty and hasattr(self, "recovery"):
+            self.recovery.forget()            # saved, replaced or untouched: nothing to recover
         name = getattr(self, "_current_problem_name", "") or "Untitled"
         self.setWindowTitle(f"{_ex_catalog.display_name(name)}[*] — PINNStudio")
         self.setWindowModified(self._dirty)
@@ -12683,6 +12724,8 @@ class MainWindow(QMainWindow):
                     # rather than let the window hang on close.
                     th.terminate()
                     th.wait(1000)
+        if hasattr(self, "recovery"):
+            self.recovery.forget()            # a normal close: the user chose to save or not
         event.accept()
 
     # DeepXDE's import-time advertisement, printed by every script it runs
