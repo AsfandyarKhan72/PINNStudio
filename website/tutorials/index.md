@@ -40,6 +40,7 @@ find out why.
 | 19 | [Steady 2D flow (Kovasznay)](19-kovasznay.md) | example | a steady problem with three outputs (u, v, p), constants in boundary values, a pressure fixed on one side, error against exact formulas |
 | 20 | [Diagnosing a run that does not converge](20-diagnosing.md) | example | reading the loss terms, a sign error, badly balanced weights, a run that is too short, and how each looks |
 | 21 | [A 3D problem (Poisson in a sphere)](21-3d-poisson.md) | example | a 3D domain, slices and views of a 3D solution, the cost of 3D training |
+| 22 | [Designing a network as blocks](22-network-designer.md) | example | the Network tab, a form network turned into blocks, shared blocks, changing an architecture and measuring the effect |
 
 ## Conventions
 

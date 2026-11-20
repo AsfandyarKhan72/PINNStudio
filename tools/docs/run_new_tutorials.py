@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Verification runs and screenshots for tutorials 19-21 (website/tutorials/19-*.md ... 21-*.md).
+"""Verification runs and screenshots for tutorials 19-22 (website/tutorials/19-*.md ... 22-*.md).
 
-    QT_QPA_PLATFORM=offscreen python tools/docs/run_new_tutorials.py <out_dir> [--only 19,20,21] [--shots]
+    QT_QPA_PLATFORM=offscreen python tools/docs/run_new_tutorials.py <out_dir> [--only 19,20,21,22] [--shots]
 
 Drives the real MainWindow offscreen through the same widgets a user edits (the Examples bar, the
 equation boxes, the training phases, the loss weights, Error Analysis), presses Solve with shortened
@@ -205,6 +205,89 @@ def tut21(out, shots):
     w.close()
 
 
+# ── 22. Designing a network as blocks ────────────────────────────────────
+MSF = "Poisson 1D – multi-scale Fourier features"
+MSF_ITERS = 5000
+
+
+def _msf(w):
+    st.pick(w, "Forward", MSF)
+    st.set_phase(w, 1, iters=MSF_ITERS)
+
+
+def _network_type(w, text):
+    w.network_type_combo.setCurrentIndex(w.network_type_combo.findText(text))
+    st.settle(0.4)
+
+
+def _trained(run):
+    """What the run really trained (model_config.json): the network type and the design's blocks."""
+    import json
+    p = glob.glob(os.path.join(run or "", "**", "model_config.json"), recursive=True)
+    if not p:
+        return "no model_config.json"
+    c = json.load(open(p[0], encoding="utf-8"))
+    d = c.get("network_design") or ""
+    d = json.loads(d) if isinstance(d, str) and d else (d or {})
+    return f"{c.get('network_type')} {[b['id'] for b in d.get('blocks', [])]}"
+
+
+def tut22(out, shots):
+    # A: the same problem with a plain fully connected network (the form's 3 x 100)
+    w = st.new_window()
+    _msf(w)
+    _network_type(w, "FNN")
+    if shots:
+        st.page(w, "network")
+        st.save(w, "tut22_fnn_form.png")
+    run_a, _ = solve(w, "tut22_fnn", os.path.join(out, "tut22", "fnn"))
+    print("   trained:", _trained(run_a))
+    if shots and run_a:
+        copy_fig(run_a, "*comparison*.png", "tut22_fnn_comparison.png")
+    w.close()
+
+    # B: Edit as blocks from the example's MsFFN: the same network, now as blocks
+    w = st.new_window()
+    _msf(w)
+    st.page(w, "network")
+    _network_type(w, "Designed")          # an empty design starts from the form's network (MsFFN), as Edit as blocks
+    st.settle(0.6)
+    lv = w.design_state.level()
+    print("design:", [(b["id"], b["kind"], b.get("title")) for b in lv["blocks"]])
+    if shots:
+        w.designer_panel.canvas.refit()
+        w.designer.select(next(b["id"] for b in lv["blocks"] if b["kind"] == "shared"))
+        st.settle(0.6)
+        st.save(w, "tut22_designer.png")
+    run_b, _ = solve(w, "tut22_designed", os.path.join(out, "tut22", "designed"))
+    print("   trained:", _trained(run_b))
+    if shots and run_b:
+        copy_fig(run_b, "*comparison*.png", "tut22_designed_comparison.png")
+
+    # C: delete the sigma = 10 branch (its Fourier stack and the shared hidden layers it feeds)
+    for b in list(lv["blocks"]):
+        if b["kind"] == "stack" and any(ly.get("params", {}).get("sigma") == 10.0 for ly in b.get("layers", [])):
+            w.designer.delete(b["id"])
+    for b in list(w.design_state.level()["blocks"]):
+        if b["kind"] == "shared":
+            w.designer.delete(b["id"])
+    st.settle(0.6)
+    print("after deleting:", [(b["id"], b["kind"]) for b in w.design_state.level()["blocks"]],
+          "|", w.designer_summary.text())
+    if shots:
+        w.right_tabs.setCurrentIndex(w._network_tab_index)   # (Solve left the Results tab open)
+        st.settle(0.4)
+        w.designer_panel.canvas.refit()
+        w.designer.select(next(b["id"] for b in w.design_state.level()["blocks"] if b["kind"] == "merge"))
+        st.settle(0.6)
+        st.save(w, "tut22_one_branch.png")
+    run_c, _ = solve(w, "tut22_one_branch", os.path.join(out, "tut22", "one_branch"))
+    print("   trained:", _trained(run_c))
+    if shots and run_c:
+        copy_fig(run_c, "*comparison*.png", "tut22_one_branch_comparison.png")
+    w.close()
+
+
 if __name__ == "__main__":
     out = os.path.abspath(sys.argv[1])
     shots = "--shots" in sys.argv
@@ -212,7 +295,7 @@ if __name__ == "__main__":
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1].split(",")
     st.OUT = SHOTS
-    for num, fn in (("19", tut19), ("20", tut20), ("21", tut21)):
+    for num, fn in (("19", tut19), ("20", tut20), ("21", tut21), ("22", tut22)):
         if only is None or num in only:
             fn(out, shots)
     print("done")

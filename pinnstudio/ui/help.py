@@ -39,6 +39,7 @@ TUTORIALS = (
     (19, "Steady 2D flow (Kovasznay)", "19-kovasznay"),
     (20, "Diagnosing a run that does not converge", "20-diagnosing"),
     (21, "A 3D problem (Poisson in a sphere)", "21-3d-poisson"),
+    (22, "Designing a network as blocks", "22-network-designer"),
 )
 
 # Other pages of the documentation the Help menu links to: (menu text, page)

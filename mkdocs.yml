@@ -194,6 +194,7 @@ nav:
       - 19. Steady 2D flow (Kovasznay): tutorials/19-kovasznay.md
       - 20. Diagnosing a run that does not converge: tutorials/20-diagnosing.md
       - 21. A 3D problem (Poisson in a sphere): tutorials/21-3d-poisson.md
+      - 22. Designing a network as blocks: tutorials/22-network-designer.md
   - Feature reference:
       - reference/index.md
       - All settings: reference/settings-index.md
