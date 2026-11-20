@@ -33,14 +33,17 @@ def _pythonw():
 
 
 def _ps(script):
+    # PowerShell writes to a pipe in the console's OEM code page, which text=True would read in the ANSI
+    # one: a folder such as C:\Users\Jöran\Desktop came back misspelled and was skipped. Both ends UTF-8.
+    script = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + script
     return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 def _windows_dirs():
     r = _ps("[Environment]::GetFolderPath('Programs'); [Environment]::GetFolderPath('Desktop')")
-    dirs = [line.strip() for line in r.stdout.splitlines() if line.strip()]
-    if len(dirs) != 2:   # fall back to the usual locations
+    dirs = [line.strip() for line in (r.stdout or "").splitlines() if line.strip()]
+    if len(dirs) != 2 or not all(os.path.isdir(d) for d in dirs):   # fall back to the usual locations
         appdata = os.environ.get("APPDATA", os.path.join(_home(), "AppData", "Roaming"))
         dirs = [os.path.join(appdata, "Microsoft", "Windows", "Start Menu", "Programs"),
                 os.path.join(_home(), "Desktop")]

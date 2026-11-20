@@ -1,6 +1,7 @@
 import os
 from pinnstudio.core import pyexe as _pyexe
 import math
+import tempfile
 import re as _re_log
 _re_log_l2 = _re_log.compile(r"(?<![A-Za-z0-9_])L2(?![A-Za-z0-9_])")
 from PySide6.QtWidgets import (
@@ -367,6 +368,7 @@ class SolverThread(QThread):
         super().__init__()
         self.config = config
         self.process = None
+        self._stop_requested = False
 
     def run(self):
         result = run_pinn(
@@ -378,8 +380,24 @@ class SolverThread(QThread):
 
     def _set_process(self, proc):
         self.process = proc
+        if self._stop_requested:
+            # Stop was pressed while the script was still being written: the window already shows the
+            # run as stopped, so the training it would start must not go on in the background
+            self._terminate(proc)
+
+    @staticmethod
+    def _terminate(proc):
+        import subprocess
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
 
     def stop(self):
+        self._stop_requested = True
         # terminate() (SIGTERM) alone can leave Stop/close hanging
         # indefinitely if the child is blocked inside a CUDA/PyTorch call
         # and doesn't respond promptly -- runner.py's `for line in
@@ -438,6 +456,8 @@ class SweepThread(QThread):
 
     def _set_process(self, proc):
         self.process = proc
+        if self._stop_requested:              # Stop came between two runs, before this one started
+            SolverThread._terminate(proc)
 
     def stop(self):
         # Mark should_stop() True first so run_sweep()'s loop won't start
@@ -457,6 +477,37 @@ class SweepThread(QThread):
 
 
 # --- Update-check background thread ---
+def _write_atomic(path, text):
+    """Write `text` to `path` through a temporary file in the same folder, then replace `path` with it:
+    a crash, a full disk or a second PINNStudio writing at the same moment leaves either the old file or
+    the new one, never a truncated one (a cut-off .pinn.json cannot be opened again)."""
+    import tempfile as _tf
+    folder = os.path.dirname(os.path.abspath(path))
+    fd, tmp = _tf.mkstemp(prefix=".pinnstudio-", suffix=".tmp", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        try:    # the permissions a plain open() would give (mkstemp makes the file private)
+            mode = os.stat(path).st_mode & 0o777
+        except OSError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        try:
+            os.chmod(tmp, mode)
+        except OSError:
+            pass
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _safe_file_stem(name):
     """A suggested file name without the characters a file name can't hold:
     "Poisson 1D – Dirichlet/Neumann" was offered as a folder "Poisson 1D –
@@ -635,6 +686,7 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
+        self._follow_system_color_scheme()
         self._check_for_updates()
         # The new top-level QTabWidget (central_tabs, added for Parameter
         # Sweep) has been reported built correctly but with its tab bar
@@ -792,8 +844,7 @@ class MainWindow(QMainWindow):
                 "panel_border_width": self._panel_border_width,
                 "categories": self._disp,
             }
-            with open(self._display_settings_path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2)
+            _write_atomic(self._display_settings_path, json.dumps(payload, indent=2))
         except Exception:
             pass
 
@@ -903,6 +954,20 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         self._apply_display_settings()
+
+    def _follow_system_color_scheme(self):
+        """With the theme "System (match OS)", switch between Studio Light and Studio Dark when the
+        operating system's colour scheme changes (Qt 6.5+; older Qt keeps the scheme found at start-up)."""
+        try:
+            from PySide6.QtGui import QGuiApplication
+            hints = QGuiApplication.styleHints()
+            hints.colorSchemeChanged.connect(self._on_system_color_scheme)
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _on_system_color_scheme(self, *_):
+        if self._theme == _theme.SYSTEM_THEME:
+            self._apply_display_settings()
 
     def _check_for_updates(self):
         """Kick off a background check against PyPI for a newer PINNStudio release."""
@@ -1282,6 +1347,12 @@ class MainWindow(QMainWindow):
         self._problems_timer.start()
 
         view_menu = self.menuBar().addMenu("View")
+        palette = QAction("Go to Page or Command…", self)
+        palette.setShortcuts([QKeySequence("Ctrl+K"), QKeySequence("Ctrl+Shift+P")])
+        palette.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        palette.triggered.connect(self._show_command_palette)
+        view_menu.addAction(palette)
+        view_menu.addSeparator()
         reset = QAction("Reset Layout", self)
         reset.triggered.connect(self._reset_layout)
         view_menu.addAction(reset)
@@ -1289,9 +1360,35 @@ class MainWindow(QMainWindow):
         # Help: the documentation website, the version and license (About PINNStudio), and Qt's own notice (About
         # Qt: the Qt version and its license, the usual attribution for an application built on the LGPL Qt).
         help_menu = self.menuBar().addMenu("Help")
+        from pinnstudio.ui import help as _help
+        page_help = QAction("Help for This Page", self)
+        page_help.setShortcut(QKeySequence(QKeySequence.StandardKey.HelpContents))     # F1
+        page_help.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        page_help.triggered.connect(self._open_page_help)
+        help_menu.addAction(page_help)
+        quick_ref = QAction("Quick Reference…", self)
+        quick_ref.setShortcut(QKeySequence("Ctrl+F1"))
+        quick_ref.triggered.connect(self._show_quick_reference)
+        help_menu.addAction(quick_ref)
+        help_menu.addSeparator()
         docs = QAction("Documentation", self)
-        docs.triggered.connect(lambda: __import__("webbrowser").open(self.DOCS_URL))
+        docs.triggered.connect(lambda: self._open_url(self.DOCS_URL))
         help_menu.addAction(docs)
+        tut_menu = help_menu.addMenu("Tutorials")
+        tut_menu.setObjectName("tutorialsMenu")
+        all_tut = tut_menu.addAction("All Tutorials")
+        all_tut.triggered.connect(lambda: self._open_url(self.DOCS_URL + "tutorials/"))
+        tut_menu.addSeparator()
+        for num, title, slug in _help.TUTORIALS:
+            act = tut_menu.addAction(f"{num}. {title}")
+            act.triggered.connect(lambda _c=False, u=_help.tutorial_url(slug): self._open_url(u))
+        for text, page in _help.DOC_PAGES:
+            act = help_menu.addAction(text)
+            act.triggered.connect(lambda _c=False, u=_help.doc_url(page): self._open_url(u))
+        help_menu.addSeparator()
+        report = QAction("Report a Problem…", self)
+        report.triggered.connect(lambda: self._open_url(_help.ISSUES_URL))
+        help_menu.addAction(report)
         help_menu.addSeparator()
         about = QAction("About PINNStudio", self)
         about.setMenuRole(QAction.MenuRole.AboutRole)
@@ -1302,6 +1399,34 @@ class MainWindow(QMainWindow):
         about_qt.triggered.connect(lambda: QMessageBox.aboutQt(self, "About Qt"))
         help_menu.addAction(about_qt)
         self._restore_layout()
+
+    def _open_url(self, url):
+        """Open a documentation page in the system's web browser."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        if not QDesktopServices.openUrl(QUrl(url)):
+            self.statusBar().showMessage(f"Could not open a web browser. The page is {url}", 15000)
+
+    def _open_page_help(self):
+        """F1: the user guide's page for the model-tree page on screen (the start page: Getting started)."""
+        ws = getattr(self, "workspace", None)
+        url = ws.help_url(ws.current_key()) if ws is not None else None
+        self._open_url(url or (self.DOCS_URL + "getting-started/first-run/"))
+
+    def _show_command_palette(self):
+        from pinnstudio.ui.command_palette import CommandPalette
+        dlg = CommandPalette(self)
+        dlg.exec()
+        dlg.deleteLater()
+
+    def _show_quick_reference(self):
+        from pinnstudio.ui.help import QuickReferenceDialog
+        dlg = getattr(self, "_quick_ref", None)
+        if dlg is None:
+            dlg = self._quick_ref = QuickReferenceDialog(self)
+        dlg.show()          # not modal: it stays open next to the window while you type
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _about_text(self):
         """The About PINNStudio text: version, license, the libraries it is built on and where to find more."""
@@ -1793,13 +1918,13 @@ class MainWindow(QMainWindow):
         if hasattr(self, "recent_menu"):
             self.recent_menu.clear()
             for i, p in enumerate(paths):
-                a = QAction(f"&{i + 1}  {os.path.basename(p)}", self)
+                a = QAction(f"&{i + 1}  {os.path.basename(p)}", self.recent_menu)   # the menu's: clear() frees it
                 a.setToolTip(p)
                 a.triggered.connect(lambda _c=False, q=p: self._open_problem(q))
                 self.recent_menu.addAction(a)
             if paths:
                 self.recent_menu.addSeparator()
-                clear = QAction("Clear list", self)
+                clear = QAction("Clear list", self.recent_menu)
                 clear.triggered.connect(lambda: self._set_recent_files([]))
                 self.recent_menu.addAction(clear)
             self.recent_menu.setEnabled(bool(paths))
@@ -2072,6 +2197,7 @@ class MainWindow(QMainWindow):
             return ""        # tests: always the default folder
         try:
             d = str(self._layout_settings().value("paths/save_dir", "") or "")
+            d = os.path.expanduser(d) if d else d
             return d if d and os.path.isdir(d) else ""
         except Exception:
             return ""
@@ -4927,6 +5053,8 @@ class MainWindow(QMainWindow):
         self.start_page.open_requested.connect(self._open_problem)
         self.start_page.open_path.connect(self._open_problem)
         self.start_page.example_requested.connect(self._load_example_from_start)
+        self.start_page.help_requested.connect(
+            lambda u: self._show_quick_reference() if u == "quickref" else self._open_url(u))
         self._start_tab_index = self.right_tabs.addTab(self.start_page, "Start")
         self._results_tab_index = self.right_tabs.addTab(self.results_tabs, "Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "Sketch")
@@ -5612,6 +5740,7 @@ class MainWindow(QMainWindow):
             'max_spin': max_spin,
             'n_spin': n_spin,
         }
+        row_data['header'] = header_lbl
         self.sweep_row_list.append(row_data)
         self._update_sweep_baseline_default()
 
@@ -5619,6 +5748,7 @@ class MainWindow(QMainWindow):
             self._drop_row_widget(self.sweep_rows_layout, row_widget)
             if row_data in self.sweep_row_list:
                 self.sweep_row_list.remove(row_data)
+            self._renumber_headers(self.sweep_row_list, "Parameter")
             self._update_sweep_baseline_default()
 
         remove_btn.clicked.connect(_remove)
@@ -5631,6 +5761,41 @@ class MainWindow(QMainWindow):
         # field AND the Min/Max/Steps range fields at once until the
         # user happens to touch one of the combos.
         _update_value_widgets()
+
+    @staticmethod
+    def _renumber_headers(rows, word):
+        """"── <word> N ──" headers numbered by place again after a row was removed or moved."""
+        for i, r in enumerate(rows, start=1):
+            hdr = r.get('header')
+            if hdr is not None:
+                try:
+                    hdr.setText(f"── {word} {i} ──")
+                except RuntimeError:
+                    pass
+
+    def _shift_sweep_rows(self, pattern, removed):
+        """A row (phase, inverse parameter, time-window group, BC) was removed at list position `removed`:
+        sweep rows on a later row follow it down one place, and a sweep row on the removed one is marked
+        "not available" (Solve then says so) -- they used to keep their number and so silently swept a
+        different row. `pattern` matches a parameter id with the position as its first group."""
+        changed = False
+        for row in getattr(self, 'sweep_row_list', []):
+            combo = row['param_combo']
+            pid = combo.currentData()
+            m = _re_log.fullmatch(pattern, pid) if isinstance(pid, str) else None
+            if m is None:
+                continue
+            i = int(m.group(1))
+            if i == removed:
+                new = pid + "#removed"
+            elif i > removed:
+                new = pid[:m.start(1)] + str(i - 1) + pid[m.end(1):]
+            else:
+                continue
+            combo.setItemData(combo.currentIndex(), new)
+            changed = True
+        if changed:
+            self._refresh_sweep_param_choices()
 
     def _refresh_sweep_param_choices(self):
         """Re-populates every sweep row's Parameter dropdown from
@@ -5965,7 +6130,22 @@ class MainWindow(QMainWindow):
             self.sa_normalize_cb.setChecked(False)
             self._tpl_point_weights = False
 
-    def _rebuild_output_transform_rows(self, n_outputs):
+    def _rebuild_output_transform_rows(self, n_outputs, keep=False):
+        kept_rows, kept_formulas = [], []
+        if keep:
+            try:
+                kept_rows = [(r["scale"].value(), r["shift"].value()) for r in getattr(self, "output_transform_rows", [])]
+                kept_formulas = [e.text() for e in getattr(self, "output_formula_edits", [])]
+            except RuntimeError:
+                kept_rows, kept_formulas = [], []
+        self._rebuild_output_transform_rows_impl(n_outputs)
+        for r, (scale, shift) in zip(self.output_transform_rows, kept_rows):
+            r["scale"].setValue(scale)
+            r["shift"].setValue(shift)
+        for e, text in zip(getattr(self, "output_formula_edits", []), kept_formulas):
+            e.setText(text)
+
+    def _rebuild_output_transform_rows_impl(self, n_outputs):
         if hasattr(self, "output_formula_rows_layout"):
             self._rebuild_output_formula_rows(n_outputs)
         for w in _ws_layout_widgets(self.output_transform_rows_layout):   # not takeAt: see _build_workspace
@@ -6156,7 +6336,7 @@ class MainWindow(QMainWindow):
         # Rebuild BCs: the boundary-condition layout (sides / unified /
         # per-edge) depends on which geometry type is now selected.
         if hasattr(self, 'bc_main_layout'):
-            self._build_bc_inputs(self.num_outputs_spin.value())
+            self._build_bc_inputs(self.num_outputs_spin.value(), keep_ic=True)
             self._build_weight_inputs(self.num_outputs_spin.value())
 
     def _sync_frac_widget(self):
@@ -6276,10 +6456,20 @@ class MainWindow(QMainWindow):
             self._build_weight_inputs(self.num_outputs_spin.value())
 
     def _on_geom_vertices_changed(self, text):
-        # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows.
+        # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows, once typing pauses (each
+        # keystroke rebuilt every BC, IC and weight row)
+        timer = getattr(self, "_verts_debounce", None)
+        if timer is None:
+            timer = self._verts_debounce = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(300)
+            timer.timeout.connect(self._rebuild_edge_rows)
+        timer.start()
+
+    def _rebuild_edge_rows(self):
         geom_type = self._current_geometry_type()
         if geom_type in ("Triangle", "Polygon") and hasattr(self, 'bc_main_layout'):
-            self._build_bc_inputs(self.num_outputs_spin.value())
+            self._build_bc_inputs(self.num_outputs_spin.value(), keep_ic=True)
             self._build_weight_inputs(self.num_outputs_spin.value())
 
     @staticmethod
@@ -6458,6 +6648,7 @@ class MainWindow(QMainWindow):
             'cuboid_zmin': cuboid_zmin, 'cuboid_zmax': cuboid_zmax,
             'sphere_cx': sphere_cx, 'sphere_cy': sphere_cy, 'sphere_cz': sphere_cz, 'sphere_r': sphere_r,
         }
+        row_data['header'] = header_lbl
         self.custom_geom_shape_rows.append(row_data)
         op_row_widget.setVisible(len(self.custom_geom_shape_rows) > 1)
 
@@ -6465,6 +6656,7 @@ class MainWindow(QMainWindow):
             row_widget.deleteLater()
             if row_data in self.custom_geom_shape_rows:
                 self.custom_geom_shape_rows.remove(row_data)
+            self._renumber_headers(self.custom_geom_shape_rows, "Shape")
             # The shape now first in the list (if any) has nothing before
             # it any more -- hide its combine-op row the same way it's
             # hidden for whichever shape is added first.
@@ -6759,6 +6951,7 @@ class MainWindow(QMainWindow):
             self.custom_geom_shapes_layout.removeWidget(_w)
         for row in rows:
             self.custom_geom_shapes_layout.addWidget(row['widget'])
+        self._renumber_headers(rows, "Shape")      # the order is the combine order: number by place
         self._schedule_sketch_from_rows()
         # Only the first shape in the list has no combine-op; every other
         # position (including one that just became/stopped being first)
@@ -7222,12 +7415,12 @@ class MainWindow(QMainWindow):
                 continue
             try:
                 from pinnstudio.core import obs_reduce as _obr
-                d = _obr.read_points(fp)
-                if d is None or not len(d):
+                d = _obr.first_row(fp)          # only the time is needed here, not the whole file
+                if not d:
                     continue
                 is_2d = self.radio_2d.isChecked()
                 is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
-                t_val = float(d[0, 3]) if is_3d else (float(d[0, 2]) if is_2d else float(d[0, 1]))
+                t_val = float(d[3]) if is_3d else (float(d[2]) if is_2d else float(d[1]))
                 valid_files.append((t_val, fp, _sel))
             except Exception:
                 continue
@@ -7521,7 +7714,9 @@ class MainWindow(QMainWindow):
         def _remove():
             row_widget.deleteLater()
             if row_data in self.ta_group_rows:
+                _gi = self.ta_group_rows.index(row_data)
                 self.ta_group_rows.remove(row_data)
+                self._shift_sweep_rows(r"ta_group(\d+)_steps", _gi)
         remove_btn.clicked.connect(_remove)
 
     def _add_inverse_var_row(self, name=None, init=1.0, is_primary=None, true_value=None):
@@ -7625,8 +7820,11 @@ class MainWindow(QMainWindow):
             def _remove():
                 row_widget.deleteLater()
                 if row_data in self.inv_var_rows:
+                    _vi = self.inv_var_rows.index(row_data)
                     self.inv_var_rows.remove(row_data)
+                    self._shift_sweep_rows(r"inv_var_init_(\d+)", _vi)
                 self._update_inv_multi_var_hint()
+                self._refresh_equation_previews()     # the removed name is no longer a known name
             remove_btn.clicked.connect(_remove)
 
         self._update_inv_multi_var_hint()
@@ -8099,7 +8297,27 @@ class MainWindow(QMainWindow):
         self.pde_hint.setText(hint_text)
 
     # ── Build BC inputs ───────────────────────────────────────
-    def _build_bc_inputs(self, n):
+    def _build_bc_inputs(self, n, keep_ic=False):
+        # keep_ic: the initial conditions typed so far stay (by output) -- changing the shape, a polygon's
+        # vertices or the number of outputs rebuilds these rows, and used to put back the default IC
+        kept_ic = []
+        kept_ic_file = None
+        if keep_ic:
+            for _i, _inp in enumerate(self.ic_inputs):
+                try:
+                    kept_ic.append((_inp.text(),
+                                    self.ic_active[_i].isChecked() if _i < len(self.ic_active) else True,
+                                    self.ic_hard[_i].isChecked() if _i < len(self.ic_hard) else False))
+                except RuntimeError:
+                    break
+            try:
+                _cb = self.ic_from_file[0] if getattr(self, 'ic_from_file', None) else None
+                _path = self.ic_file_paths[0] if getattr(self, 'ic_file_paths', None) else None
+                _anch = getattr(self, 'ic_file_anchor_cb', None)
+                if _cb is not None and _path is not None:
+                    kept_ic_file = (_cb.isChecked(), _path.text(), bool(_anch is not None and _anch.isChecked()))
+            except RuntimeError:
+                kept_ic_file = None
         for w in reversed(_ws_layout_widgets(self.bc_main_layout)):
             self._drop_row_widget(self.bc_main_layout, w)
         self.bc_left_types.clear();   self.bc_left_vals.clear();   self.bc_left_active.clear();   self.bc_left_deriv.clear()
@@ -8422,6 +8640,17 @@ class MainWindow(QMainWindow):
             # Restore layout and add container
             self.bc_main_layout = _main_layout_save
             self.bc_main_layout.addWidget(_bc_container)
+
+        for _i, (_text, _act, _hard) in enumerate(kept_ic[:len(self.ic_inputs)]):
+            self.ic_inputs[_i].setText(_text)
+            self.ic_hard[_i].setChecked(_hard)          # (unticks and disables "IC for" when on)
+            if not _hard:
+                self.ic_active[_i].setChecked(_act)
+        if kept_ic_file is not None and self.ic_from_file and self.ic_from_file[0] is not None:
+            self.ic_file_paths[0].setText(kept_ic_file[1])
+            self.ic_from_file[0].setChecked(kept_ic_file[0])
+            if getattr(self, 'ic_file_anchor_cb', None) is not None:
+                self.ic_file_anchor_cb.setChecked(kept_ic_file[2])
 
         self._update_bc_mode_visibility()
 
@@ -9124,7 +9353,9 @@ class MainWindow(QMainWindow):
         def _remove():
             entry_widget.deleteLater()
             if entry_data in self.custom_bc_list:
+                _bi = self.custom_bc_list.index(entry_data)
                 self.custom_bc_list.remove(entry_data)
+                self._shift_sweep_rows(r"weight_bc_(\d+)", _bi)
             self._update_bc_mode_visibility()
             self._sync_bc_nodes()
             self._sketch_bcs_changed()
@@ -9451,6 +9682,27 @@ class MainWindow(QMainWindow):
                     _old_w[_k] = _wd.value()
                 except Exception:
                     pass
+        # A BC row's weight belongs to the row, not to its position: after a row is deleted, the rows
+        # below it move up one place and keep their own weights (keyed by position they used to take
+        # the deleted row's). Remapped only when the rows are the same rows as at the last build; when
+        # the whole list was replaced (a problem opened) the positions are all there is.
+        _cur_bcs = list(getattr(self, 'custom_bc_list', []))
+        _prev_bcs = getattr(self, '_weight_bc_entries', None) or []
+        if keep and _prev_bcs and _cur_bcs:
+            _pos = {id(e): j for j, e in enumerate(_cur_bcs)}
+            if any(id(e) in _pos for e in _prev_bcs):
+                import re as _re_bc
+                _remapped = {}
+                for _k, _v in _old_w.items():
+                    _m = _re_bc.fullmatch(r"bc_(\d+)((?:_p\d+)?)", _k)
+                    if _m is None:
+                        _remapped[_k] = _v
+                        continue
+                    _j = int(_m.group(1))
+                    if _j < len(_prev_bcs) and id(_prev_bcs[_j]) in _pos:
+                        _remapped[f"bc_{_pos[id(_prev_bcs[_j])]}{_m.group(2)}"] = _v
+                _old_w = _remapped
+        self._weight_bc_entries = _cur_bcs
         for w in reversed(_ws_layout_widgets(self.weights_main_layout)):
             if w:
                 # out of the layout and hidden now (deleteLater only runs once
@@ -10131,8 +10383,7 @@ class MainWindow(QMainWindow):
         if origin:
             payload["template"] = origin
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2)
+            _write_atomic(path, json.dumps(payload, indent=2))
             self._current_problem_name = problem_name
             self._current_path = path
             self._add_recent(path)
@@ -10340,8 +10591,7 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"❌ Failed to generate DeepXDE script: {e}")
             return
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(script)
+            _write_atomic(path, script)
             self.log_box.append(f"🐍 DeepXDE script exported: {os.path.basename(path)}")
         except Exception as e:
             self.log_box.append(f"❌ Failed to write script file: {e}")
@@ -10415,7 +10665,20 @@ class MainWindow(QMainWindow):
             keys.extend(f"ic_{i}_p{pn}" for i in range(n_out))
             self._apply_weight_string(ph.get("weights", ""), keys)
 
+    def _user_edit(self):
+        """True while the user changes a setting by hand, False while a problem file, an example or a
+        template fills the window in (those set every value themselves, after the rows are rebuilt)."""
+        return not (getattr(self, "_applying_template", False) or getattr(self, "_loading_example", False)
+                    or getattr(self, "_applying_config", False))
+
     def _apply_config(self, config):
+        self._applying_config = True
+        try:
+            return self._apply_config_impl(config)
+        finally:
+            self._applying_config = False
+
+    def _apply_config_impl(self, config):
         """Populate every widget in the interface from a PINNConfig -- the
         exact mirror of _build_config(). Used by _open_problem() to restore a
         previously saved problem. Order matters: dimension, problem type, and
@@ -11075,10 +11338,12 @@ class MainWindow(QMainWindow):
             self.num_equations_spin.blockSignals(True)
             self.num_equations_spin.setValue(n)
             self.num_equations_spin.blockSignals(False)
-        self._build_pde_inputs(n)
-        self._build_bc_inputs(n)
+        # By hand, what was typed for the outputs that remain stays; a file or example sets it all anyway.
+        _keep = self._user_edit()
+        self._build_pde_inputs(n, keep_text=_keep)
+        self._build_bc_inputs(n, keep_ic=_keep)
         self._build_weight_inputs(n)
-        self._rebuild_output_transform_rows(n)
+        self._rebuild_output_transform_rows(n, keep=_keep)
         # Keep each list's choice when it still exists (a measured-data file
         # fitted to Output 2 stays on Output 2 when a third output is added).
         _prev_plot = self.plot_output_combo.currentIndex()
@@ -12173,7 +12438,7 @@ class MainWindow(QMainWindow):
         self.status_detail.setText("")
         if ok:
             ea = os.path.join(folder, "error_analysis") if folder else ""
-            self.ea_panel.show_run(p.metrics, ea, p.figures)
+            self.ea_panel.show_run(p.metrics, ea, p.figures, groups=getattr(p, "metric_groups", None))
             self.results_tabs.setCurrentIndex(0)
 
     def _figure_save_button(self, tip):
@@ -12592,6 +12857,7 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
     def _on_gpu_settings(self):
         dialog = QDialog(self)
@@ -12685,6 +12951,7 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
     def _on_seed_settings(self):
         dialog = QDialog(self)
@@ -12734,6 +13001,7 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
     def _on_lbfgs_settings(self):
         dialog = QDialog(self)
@@ -12782,6 +13050,7 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
     def _on_optimizer_settings(self):
         """Weight decay (L2 regularization) -- applies to the whole network
@@ -12820,6 +13089,7 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
 
     def _on_view_domain_changed(self, state):
@@ -12863,8 +13133,11 @@ class MainWindow(QMainWindow):
     # read back by _on_preview_done, which also points loss_label's/
     # solution_label's _source_path at them so the existing "💾 Save
     # Figure" buttons work for these too, saving exactly what's on screen.
-    _DOMAIN_PREVIEW_SPATIAL_PATH = "/tmp/domain_preview_spatial.png"
-    _DOMAIN_PREVIEW_TIME_PATH = "/tmp/domain_preview_time.png"
+    # In the system's temporary folder (a "/tmp" path means <drive>:\\tmp on Windows, which need not exist);
+    # the folder is created before each preview (_preview_domain).
+    _DOMAIN_PREVIEW_DIR = os.path.join(tempfile.gettempdir(), "pinnstudio_preview")
+    _DOMAIN_PREVIEW_SPATIAL_PATH = os.path.join(_DOMAIN_PREVIEW_DIR, "domain_preview_spatial.png").replace("\\", "/")
+    _DOMAIN_PREVIEW_TIME_PATH = os.path.join(_DOMAIN_PREVIEW_DIR, "domain_preview_time.png").replace("\\", "/")
     # Plain string (NOT an f-string) -- spliced verbatim into each
     # generated preview script via an outer f-string, so its own `{`/`}`
     # characters must stay literal, not get double-evaluated.
@@ -13181,6 +13454,10 @@ def _style_legend(ax):
 
     def _preview_domain(self):
         import tempfile, math
+        try:
+            os.makedirs(self._DOMAIN_PREVIEW_DIR, exist_ok=True)
+        except OSError:
+            pass
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
         time_path = self._DOMAIN_PREVIEW_TIME_PATH
         _DOMAIN_PREVIEW_STYLE_SETUP = self._DOMAIN_PREVIEW_STYLE_SETUP
@@ -13506,18 +13783,31 @@ print("DOMAIN_PREVIEW_DONE")
             def __init__(self, tmp):
                 super().__init__(); self._tmp = tmp
                 self.process = None
+                self._stopped = False
             def run(self):
                 import subprocess, sys
-                proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
-                _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
-                self.process = proc
-                for line in proc.stdout:
-                    self.log_sig.emit(line.rstrip())
-                proc.wait()
-                os.unlink(self._tmp)
-                self.done_sig.emit(proc.returncode == 0)
+                ok = False
+                try:
+                    if self._stopped:
+                        return
+                    proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
+                    self.process = proc               # at once, so stop() can reach it
+                    _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
+                    for line in proc.stdout:
+                        self.log_sig.emit(line.rstrip())
+                    proc.wait()
+                    ok = proc.returncode == 0 and not self._stopped
+                except Exception as exc:
+                    self.log_sig.emit(f"❌ Preview failed: {exc}")
+                finally:
+                    try:
+                        os.unlink(self._tmp)
+                    except OSError:
+                        pass
+                    self.done_sig.emit(ok)
             def stop(self):
+                self._stopped = True
                 # Same fix as SolverThread/_RestoreThread/_ParamRestoreThread
                 # -- see closeEvent. terminate()-then-kill() with a bounded
                 # wait (see SolverThread.stop() for the full rationale) --
@@ -13694,12 +13984,23 @@ print("DOMAIN_PREVIEW_DONE")
 """
 
     def _on_dist_changed(self, text):
-        if self.view_domain_check.isChecked():
-            self._preview_domain()
+        self._schedule_preview()
 
     def _on_pts_changed(self, val):
-        if self.view_domain_check.isChecked():
-            self._preview_domain()
+        self._schedule_preview()
+
+    def _schedule_preview(self):
+        """Redraw the domain preview once the point counts stop changing: typing 20000 into a box changes
+        it five times, and each preview starts a Python process (DeepXDE, PyTorch) of its own."""
+        if not self.view_domain_check.isChecked():
+            return
+        timer = getattr(self, "_preview_debounce", None)
+        if timer is None:
+            timer = self._preview_debounce = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(450)
+            timer.timeout.connect(lambda: self.view_domain_check.isChecked() and self._preview_domain())
+        timer.start()
     
     def _on_preview_done(self, success):
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
@@ -13801,9 +14102,12 @@ print("DOMAIN_PREVIEW_DONE")
         theme_row = QHBoxLayout()
         theme_row.addWidget(QLabel("Color theme:"))
         theme_combo = QComboBox()
-        theme_combo.addItems(list(_theme.THEMES))
+        theme_combo.addItems(list(_theme.THEME_CHOICES))
         theme_combo.setCurrentText(self._theme)
-        theme_combo.setFixedWidth(160)
+        theme_combo.setFixedWidth(180)
+        theme_combo.setToolTip("System (match OS) follows the operating system's light or dark setting, also "
+                               "when it changes while PINNStudio is open. High Contrast has full-contrast text "
+                               "and strong borders.")
         theme_row.addStretch(); theme_row.addWidget(theme_combo)
         theme_layout.addLayout(theme_row)
 
@@ -14037,6 +14341,7 @@ print("DOMAIN_PREVIEW_DONE")
         dialog.rejected.connect(_revert_settings)
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
 
     def _apply_display_settings(self):
@@ -14161,6 +14466,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
     
     def _on_restore_mode_changed(self, text):
         is_inverse = (text == "Inverse Model")
@@ -15748,6 +16054,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         run_btn.clicked.connect(_on_run)
         dialog.exec()
+        dialog.deleteLater()     # (parented to the window: it would stay alive until the window closes)
 
     def _build_scheduler_phases_json(self):
         import json
@@ -16129,6 +16436,7 @@ print("DOMAIN_PREVIEW_DONE")
             'lr': lr_spin,
             'loss': loss_combo_ph,
             'phase_num': phase_num,
+            'header': header_lbl,
             'decay_type': decay_type_combo,
             'decay_p1': decay_p1_spin,
             'decay_p2': decay_p2_spin,
@@ -16138,12 +16446,45 @@ print("DOMAIN_PREVIEW_DONE")
         def _remove():
             self._drop_row_widget(self.sched_phases_layout, phase_widget)
             if phase_data in self.sched_phase_list:
+                _pi = self.sched_phase_list.index(phase_data)
                 self.sched_phase_list.remove(phase_data)
+                self._shift_sweep_rows(r"phase(\d+)_(?:lr|iterations|optimizer)", _pi)
+            self._renumber_scheduler_phases(removed=phase_data['phase_num'])
             self._build_weight_inputs(self.num_outputs_spin.value())
 
         remove_btn.clicked.connect(_remove)
         self._build_weight_inputs(self.num_outputs_spin.value())
     
+    def _renumber_scheduler_phases(self, removed=None):
+        """Phases are numbered by their place in the list (the saved file has no numbers either), so after
+        one is removed the later ones move up: their headers and their per-phase weights (keys ..._p<n>)
+        follow, and a phase added afterwards gets the next free number instead of a duplicate."""
+        import re as _re_ph
+        renum = {}
+        for i, ph in enumerate(self.sched_phase_list, start=1):
+            if ph['phase_num'] != i:
+                renum[ph['phase_num']] = i
+                ph['phase_num'] = i
+            hdr = ph.get('header')
+            if hdr is not None:
+                try:
+                    hdr.setText(f"── Phase {i} ──")
+                except RuntimeError:
+                    pass
+        if not renum and removed is None:
+            return
+        moved = {}
+        for k, wd in self.weight_widgets.items():
+            m = _re_ph.fullmatch(r"(.+)_p(\d+)", k)
+            if m is None:
+                moved[k] = wd
+                continue
+            pn = int(m.group(2))
+            if pn == removed:
+                continue                      # the removed phase's weights go with it
+            moved[f"{m.group(1)}_p{renum.get(pn, pn)}"] = wd
+        self.weight_widgets = moved
+
     def _on_ic_pretrain_changed(self, state):
         self.ic_pretrain_widget.setVisible(state == 2)
 
@@ -16694,18 +17035,29 @@ print("DOMAIN_PREVIEW_DONE")
                     self.process = None
 
                 def run(self):
-                    proc = subprocess.Popen(
-                        [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
-                    )
-                    _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
-                    self.process = proc
-                    for line in proc.stdout:
-                        line = line.rstrip()
-                        if line: self.line_signal.emit(line)
-                    proc.wait()
-                    os.unlink(self._tmp)
-                    self.done_signal.emit(proc.returncode == 0)
+                    # done_signal is always sent, so a failed start (no Python found, the script file locked by a
+                    # virus scanner) cannot leave the Restore button disabled for the rest of the session
+                    ok = False
+                    try:
+                        proc = subprocess.Popen(
+                            [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
+                        )
+                        self.process = proc
+                        _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
+                        for line in proc.stdout:
+                            line = line.rstrip()
+                            if line: self.line_signal.emit(line)
+                        proc.wait()
+                        ok = proc.returncode == 0
+                    except Exception as exc:
+                        self.line_signal.emit(f"❌ Could not run the restore script: {exc}")
+                    finally:
+                        try:
+                            os.unlink(self._tmp)
+                        except OSError:
+                            pass
+                        self.done_signal.emit(ok)
 
                 def stop(self):
                     # Same fix as _RestoreThread/SolverThread -- see
@@ -16899,6 +17251,11 @@ print("DOMAIN_PREVIEW_DONE")
                     t_max_restore = _sc.get('t_max', t_max_restore)
                 except Exception:
                     pass
+                if _use_ta_restore:
+                    # the combined script picks the step that covers each time (_ta_model_for_t), so every
+                    # reference time over all the steps can be compared, not only the browsed step's window
+                    t_min_restore = min(s['t0'] for s in _ta_steps_for_restore)
+                    t_max_restore = max(s['t1'] for s in _ta_steps_for_restore)
                 # Filter files within t range. ea['files'] entries are always
                 # (time, path, output_selector) 3-tuples since the v40 multi-
                 # output Error Analysis feature (output_selector is None for a
@@ -17031,18 +17388,29 @@ print("DOMAIN_PREVIEW_DONE")
                 self.process = None
 
             def run(self):
-                proc = subprocess.Popen(
-                    [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
-                )
-                _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
-                self.process = proc
-                for line in proc.stdout:
-                    line = line.rstrip()
-                    if line: self.line_signal.emit(line)
-                proc.wait()
-                os.unlink(self._tmp)
-                self.done_signal.emit(proc.returncode == 0)
+                # done_signal is always sent, so a failed start (no Python found, the script file locked by a
+                # virus scanner) cannot leave the Restore button disabled for the rest of the session
+                ok = False
+                try:
+                    proc = subprocess.Popen(
+                        [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
+                    )
+                    self.process = proc
+                    _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
+                    for line in proc.stdout:
+                        line = line.rstrip()
+                        if line: self.line_signal.emit(line)
+                    proc.wait()
+                    ok = proc.returncode == 0
+                except Exception as exc:
+                    self.line_signal.emit(f"❌ Could not run the restore script: {exc}")
+                finally:
+                    try:
+                        os.unlink(self._tmp)
+                    except OSError:
+                        pass
+                    self.done_signal.emit(ok)
 
             def stop(self):
                 # Mirrors SolverThread.stop() -- previously this thread had

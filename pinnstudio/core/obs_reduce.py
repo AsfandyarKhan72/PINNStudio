@@ -54,6 +54,29 @@ def read_points(path):
     return data
 
 
+def first_row(path, max_lines=200):
+    """The first row of numbers of a data file (as read_points reads them), without reading the rest:
+    a 3D reference file is 20+ MB, and only its time column is needed to sort it."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for _ in range(max_lines):
+                line = fh.readline()
+                if not line:
+                    break
+                line = line.strip()
+                if not line or line[0] in "#%":
+                    continue
+                try:
+                    row = [float(v) for v in re.split(r"[,\s;]+", line) if v]
+                except ValueError:
+                    continue
+                if row and all(np.isfinite(row)):
+                    return row
+    except OSError:
+        return None
+    return None
+
+
 def describe(data, n_coord, n_space):
     """{'points', 'times', 'grid': per-axis counts or None}. 'grid' is set
     when every time in the file is the same full grid of the space axes."""

@@ -30,8 +30,13 @@ From left to right:
 | | **Export as DeepXDE Script...** | Ctrl+E | Same as **Export script** in the toolbar |
 | | **Solve** / **Stop** | Ctrl+Enter or F5 / Shift+F5 | Same as the toolbar buttons |
 | **Settings** | **L-BFGS Options**, **Float Precision...**, **Optimizer Settings...**, **GPU / Hardware...**, **Random Seed...**, **Plot Settings...**, **Display Settings...** | | See [Settings menu](settings.md) |
-| **View** | **Reset Layout** | | Put the column widths back to their defaults |
-| **Help** | **Documentation**, **About PINNStudio**, **About Qt** | | Open this website; show PINNStudio's version, license and the libraries it is built on; show Qt's version and license notice (on macOS the two *About* items are in the application menu) |
+| **View** | **Go to Page or Command…** | Ctrl+K or Ctrl+Shift+P | The command palette: type a few letters to go to a page or a section of the model tree, or to run a menu command (see below) |
+| | **Reset Layout** | | Put the column widths back to their defaults |
+| **Help** | **Help for This Page** | F1 | Open the user-guide page for the model-tree page on screen (the same as its **?** button) |
+| | **Quick Reference…** | Ctrl+F1 | A window, usable offline and kept open beside the main one, with the expression syntax, the boundary-condition kinds, the usual workflow and every keyboard shortcut, and a box to search them |
+| | **Documentation**, **Tutorials** › …, **Getting Started**, **User Guide**, **Choosing a Strategy**, **Troubleshooting**, **FAQ** | | Open that part of this website (**Tutorials** lists every tutorial) |
+| | **Report a Problem…** | | Open the issue form on GitHub |
+| | **About PINNStudio**, **About Qt** | | Show PINNStudio's version, license and the libraries it is built on; show Qt's version and license notice (on macOS the two *About* items are in the application menu) |
 
 When you start a new problem, open another one or close the window with unsaved changes, PINNStudio
 asks whether to save them first.
@@ -47,6 +52,13 @@ Right-click a tree entry for its shortcuts: **Add boundary condition**, **Duplic
 boundary conditions; **Sketch the domain** on Geometry (2D and 3D); **Add training phase** on
 Training; **Add parameter** on Inverse problem; **Add constant** on Equations; **New 1D problem** … on
 Problem; **Open a saved problem…** on Results and Restore & visualize.
+
+## Command palette
+
+**Ctrl+K** (or **View › Go to Page or Command…**) opens a search box over the whole window: the pages of the
+model tree, the sections on each page and every menu command. Type a few letters of any word, for example
+`loss w` for **Loss weights**, `lbfgs` for **L-BFGS Options** or `save as`; the arrow keys choose and Enter goes
+there (a folded section is unfolded). It is the quickest way to a setting whose page you do not remember.
 
 ## Settings column
 
@@ -107,7 +119,10 @@ The right part shows the floating-point precision chosen in **Settings › Float
 
 Drag the dividers between the columns, and between the graphics and the Training Log, to resize them.
 PINNStudio remembers the layout; **View › Reset Layout** puts it back. The look of the window (theme,
-fonts, text sizes) is set in **Settings › Display Settings...**: three themes are built in, **Studio Light**
-(the default), **Studio Dark** and **Solarized Dark**, with an accent colour and a UI scale.
+fonts, text sizes) is set in **Settings › Display Settings...**: **Studio Light** (the default), **Studio Dark**,
+**Solarized Dark** and **High Contrast** (white text on black with strong borders), or **System (match OS)**,
+which follows the operating system's light or dark setting, also when it changes while PINNStudio is open.
+Each comes with an accent colour and a UI scale. The keyboard focus is drawn in the accent colour, so the
+window can be used from the keyboard (Tab between fields, the arrow keys in the model tree).
 
 In the **Sketch** tab, Ctrl+Z undoes the last change to the drawing and Ctrl+Y (or Ctrl+Shift+Z) redoes it.

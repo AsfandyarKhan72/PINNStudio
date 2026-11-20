@@ -63,8 +63,43 @@ THEMES = {
         warning_bg="rgba(212, 160, 23, 0.12)", warning_border="rgba(212, 160, 23, 0.50)",
         log_bg="#001e26", log_text="#c9d4d6", scroll="#3b6874",
     ),
+    # Strong borders and full-contrast text (WCAG AAA for text) for low vision or a washed-out projector.
+    "High Contrast": dict(
+        dark=True,
+        bg="#000000", surface="#0d0d0d", card="#0a0a0a", input="#000000",
+        border="#9a9a9a", border_strong="#ffffff",
+        text="#ffffff", text_muted="#e6e6e6", text_faint="#c8c8c8",
+        accent="#ffd400", accent_hover="#ffe14d", accent_text="#ffe14d", on_accent="#000000",
+        sel="rgba(255, 212, 0, 0.35)", hover="rgba(255, 212, 0, 0.16)",
+        btn="#000000", btn_hover="#1f1f1f", btn_border="#ffffff",
+        disabled_bg="#141414", disabled_text="#8f8f8f",
+        success="#4ce07a", warning="#ffb347", danger="#ff6e6e", danger_hover="#ff4040", info="#7cc4ff",
+        warning_bg="rgba(255, 179, 71, 0.16)", warning_border="#ffb347",
+        log_bg="#000000", log_text="#ffffff", scroll="#bdbdbd",
+    ),
 }
 DEFAULT_THEME = "Studio Light"
+# A choice in Display Settings rather than a token set: Studio Light or Studio Dark, whichever the
+# operating system is set to, followed live when the system setting changes.
+SYSTEM_THEME = "System (match OS)"
+THEME_CHOICES = (SYSTEM_THEME, *THEMES)
+
+
+def system_prefers_dark():
+    """True when the operating system's colour scheme is dark (Qt 6.5+); False when it is light or unknown."""
+    try:
+        from PySide6.QtCore import Qt as _Qt
+        from PySide6.QtGui import QGuiApplication
+        return QGuiApplication.styleHints().colorScheme() == _Qt.ColorScheme.Dark
+    except Exception:
+        return False
+
+
+def resolve(name):
+    """The token set a theme choice stands for: SYSTEM_THEME -> Studio Light / Studio Dark."""
+    if name == SYSTEM_THEME:
+        return "Studio Dark" if system_prefers_dark() else "Studio Light"
+    return name if name in THEMES else DEFAULT_THEME
 ACCENTS = {   # optional override of the theme's accent: (accent, hover, as text on light, as text on dark)
     "Theme default": None,
     "Blue": ("#2f6fde", "#255bbd", "#2459b8", "#78a6f8"),
@@ -90,7 +125,7 @@ _current = dict(THEMES[DEFAULT_THEME])
 
 
 def tokens(name=None, accent="Theme default"):
-    t = dict(THEMES.get(name or DEFAULT_THEME, THEMES[DEFAULT_THEME]))
+    t = dict(THEMES[resolve(name or DEFAULT_THEME)])
     a = ACCENTS.get(accent)
     if a:
         t["accent"], t["accent_hover"] = a[0], a[1]
@@ -135,10 +170,13 @@ QWidget {{ background: transparent; color: {t['text']}; font-family: '{family}';
 QMainWindow, QDialog, QMessageBox, QInputDialog, QFileDialog, QColorDialog {{ background: {t['bg']}; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QAbstractScrollArea {{ background: {t['bg']}; }}
-QToolTip {{ background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 4px 6px; }}
+QToolTip {{
+    background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 5px 8px;
+    border-radius: 4px;
+}}
 
 QGroupBox {{
-    background: {t['card']}; border: {panel_border_width}px solid {pb}; border-radius: 6px;
+    background: {t['card']}; border: {panel_border_width}px solid {pb}; border-radius: 8px;
     margin-top: 16px; padding: 10px 8px 8px 8px; font-weight: 600;
 }}
 QGroupBox::title {{
@@ -159,7 +197,7 @@ QRadioButton::indicator:checked {{ background: {t['input']}; border: 1px solid {
 QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled {{ color: {t['disabled_text']}; }}
 
 QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QPlainTextEdit {{
-    background: {t['input']}; border: 1px solid {t['border']}; border-radius: 4px;
+    background: {t['input']}; border: 1px solid {t['border']}; border-radius: 5px;
     padding: 3px 6px; color: {t['text']}; min-height: 20px;
     selection-background-color: {t['accent']}; selection-color: {t['on_accent']};
 }}
@@ -188,13 +226,27 @@ QComboBox QAbstractItemView {{
 
 QPushButton {{
     background: {t['btn']}; color: {t['text']}; border: 1px solid {t['btn_border']};
-    border-radius: 5px; padding: 4px 12px; min-height: 20px;
+    border-radius: 6px; padding: 4px 12px; min-height: 20px;
 }}
 QPushButton:hover {{ background: {t['btn_hover']}; border-color: {t['accent']}; }}
 QPushButton:pressed {{ background: {t['sel']}; }}
 QPushButton:checked {{ background: {t['sel']}; border-color: {t['accent']}; color: {t['text']}; }}
 QPushButton:disabled {{ background: {t['disabled_bg']}; color: {t['disabled_text']}; border-color: {t['border']}; }}
-QPushButton:focus {{ outline: none; }}
+QPushButton:focus {{ outline: none; border-color: {t['accent']}; }}
+QCheckBox::indicator:focus, QRadioButton::indicator:focus {{ border: 1px solid {t['accent']}; }}
+QTreeWidget:focus, QListWidget:focus, QTableWidget:focus {{ border-color: {t['accent']}; }}
+QToolButton {{ background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 2px; }}
+QToolButton:hover {{ background: {t['hover']}; border-color: {t['border_strong']}; }}
+QToolButton:pressed, QToolButton:checked {{ background: {t['sel']}; }}
+QToolButton:focus {{ border-color: {t['accent']}; }}
+QProgressBar {{
+    background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 4px;
+    color: {t['text']}; text-align: center;
+}}
+QProgressBar::chunk {{ background: {t['accent']}; border-radius: 3px; }}
+QStatusBar {{ background: {t['surface']}; color: {t['text_muted']}; border-top: 1px solid {t['border']}; }}
+QStatusBar::item {{ border: none; }}
+QStatusBar QLabel {{ color: {t['text_muted']}; }}
 
 QScrollArea {{ border: none; background: {t['bg']}; }}
 QScrollBar:vertical {{ background: transparent; width: 12px; margin: 0; }}
@@ -209,6 +261,12 @@ QTextEdit {{
     font-family: '{log_family}'; font-size: {log_size}px; padding: 4px;
     selection-background-color: {t['accent']}; selection-color: {t['on_accent']};
 }}
+QTextBrowser#helpBrowser {{
+    background: {t['card']}; color: {t['text']}; font-family: '{family}'; font-size: {size}px;
+    padding: 8px 10px; border-radius: 8px;
+}}
+QListWidget#paletteList {{ padding: 4px; }}
+QListWidget#paletteList::item {{ padding: 5px 8px; border-radius: 5px; }}
 QSplitter::handle {{ background: {t['border']}; }}
 QSplitter::handle:horizontal {{ width: 1px; }}
 QSplitter::handle:vertical {{ height: 1px; }}
@@ -219,18 +277,29 @@ QMenuBar::item:selected {{ background: {t['sel']}; }}
 QMenu {{ background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 4px; }}
 QMenu::item {{ padding: 5px 22px; border-radius: 4px; }}
 QMenu::item:selected {{ background: {t['sel']}; }}
+QMenu::item:disabled {{ color: {t['disabled_text']}; }}
+QMenu::separator {{ height: 1px; background: {t['border']}; margin: 4px 8px; }}
 QTabWidget::pane {{ border: 1px solid {t['border']}; border-radius: 6px; background: {t['card']}; }}
 QTabBar::tab {{
     background: transparent; color: {t['text_muted']}; padding: 6px 14px; border: none;
     border-bottom: 2px solid transparent;
 }}
 QTabBar::tab:selected {{ color: {t['text']}; border-bottom: 2px solid {t['accent']}; }}
-QTabBar::tab:hover {{ color: {t['text']}; }}
+QTabBar::tab:hover {{ color: {t['text']}; background: {t['hover']}; }}
+QTabBar::tab:focus {{ color: {t['accent_text']}; }}
 QListWidget, QTreeWidget, QTableWidget {{
     background: {t['card']}; color: {t['text']}; border: 1px solid {t['border']}; border-radius: 4px; outline: 0;
 }}
-QListWidget::item:selected, QTableWidget::item:selected {{ background: {t['sel']}; color: {t['text']}; }}
-QHeaderView::section {{ background: {t['surface']}; color: {t['text_muted']}; border: none; padding: 4px; }}
+QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected {{
+    background: {t['sel']}; color: {t['text']};
+}}
+QListWidget::item:hover, QTreeWidget::item:hover {{ background: {t['hover']}; }}
+QTableWidget {{ gridline-color: {t['border']}; }}
+QTableCornerButton::section {{ background: {t['surface']}; border: none; }}
+QHeaderView::section {{
+    background: {t['surface']}; color: {t['text_muted']}; border: none; padding: 4px 6px;
+    border-right: 1px solid {t['border']}; border-bottom: 1px solid {t['border']}; font-weight: 600;
+}}
 
 QToolButton#collapseButton {{
     background: {t['card']}; color: {t['text_muted']}; border: none; font-size: {size}px; font-weight: 600;
@@ -508,6 +577,7 @@ class StyleRemapper(QObject):
             self._fit_items(obj)
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
+                self._name_for_screen_reader(obj)
                 from pinnstudio.ui import icons as _icons
                 _icons.iconize(obj)
             self.apply(obj)
@@ -605,6 +675,28 @@ class StyleRemapper(QObject):
             return
         if w.maximumHeight() < w.minimumHeight() <= 60:
             w.setMaximumHeight(w.minimumHeight())
+
+    _GLYPH_NAMES = {"✕": "Remove", "×": "Remove", "✖": "Remove", "▲": "Move up", "▼": "Move down",
+                    "◀": "Previous", "▶": "Next", "?": "Help", "⟲": "Undo", "⟳": "Redo", "↺": "Undo", "↻": "Redo",
+                    "+": "Add", "➕": "Add", "−": "Remove", "-": "Remove", "…": "More", "⋯": "More"}
+
+    @classmethod
+    def _name_for_screen_reader(cls, w):
+        """A button that shows only a symbol (✕, ▲, ◀ ...) or only an icon is read out by a screen reader as
+        "multiplication sign", or not at all: it gets a name from its tooltip, or from its symbol."""
+        from PySide6.QtWidgets import QAbstractButton
+        if not isinstance(w, QAbstractButton) or w.accessibleName():
+            return
+        text = w.text().replace("&", "").strip()
+        if len(text) > 2 and any(ch.isalnum() for ch in text):
+            return                                     # a real label: read as it is
+        tip = (w.toolTip() or "").strip()
+        if tip and not tip.startswith("<"):
+            name = tip.splitlines()[0][:80]
+        else:
+            name = cls._GLYPH_NAMES.get(text, "")
+        if name:
+            w.setAccessibleName(name)
 
     @staticmethod
     def _fit_small_button(w):

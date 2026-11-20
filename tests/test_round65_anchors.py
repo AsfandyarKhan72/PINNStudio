@@ -70,7 +70,7 @@ def run():
 
     # ── code ──────────────────────────────────────────────────────────────
     code = _anchor_points_code(_heat("/tmp/x", 10))
-    check("np.random.uniform(0.5, 1.5, (500, 1))" in code and "np.random.uniform(0.0, 1.0, (500, 1))" in code,
+    check("_anchor_box_points(500, [(0.5, 1.5), (0.0, 1.0)])" in code and "_sp.inside(" in code,
           f"box: given x range, t defaults to the domain range:\n{code}")
     check(_anchor_points_code(_heat("/tmp/x", 10, anchors_mode="none")) == "", "none -> no code")
     # read with the same reader as the other data files (';' separators, header and NaN rows skipped)

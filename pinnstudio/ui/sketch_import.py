@@ -194,8 +194,8 @@ def to_shapes(res, scale=1.0):
             if len(pts) < 3:
                 continue
             it = ("poly", pts)
-            runs = arc_runs(pts)
-            if runs and runs[0][0] == "full":   # a circle drawn as a polyline
+            runs = arc_runs(pts) if len(pts) >= 24 else None
+            if runs and runs[0][0] == "full":   # a circle drawn as a polyline (a 12-gon stays a polygon)
                 it = ("circle",) + tuple(runs[0][1:])
         if _area(it) > 1e-12 * extent * extent:
             cleaned.append(it)
@@ -228,7 +228,9 @@ def to_shapes(res, scale=1.0):
 
 
 def _r(v):
-    return float(fmt(v))
+    # 10 significant digits: a drawing far from its origin (x = 512345.678) keeps its detail, which the
+    # 6 digits of fmt() rounded away
+    return float(f"{v:.10g}")
 
 
 # ── DXF ──────────────────────────────────────────────────────────────────
@@ -451,6 +453,19 @@ def _path_subpaths(d):
         i += 1
         return v
 
+    def flag():
+        """An arc's large-arc or sweep flag: one character, which SVG lets run into the next number
+        ("A1 1 0 012 0" is flags 0 and 1, then x = 2), as svgo and other minifiers write it."""
+        nonlocal i
+        tok = toks[i]
+        if tok[0] not in "01":
+            raise ValueError(f"arc flag {tok!r}")
+        if len(tok) > 1:
+            toks[i] = tok[1:]
+        else:
+            i += 1
+        return int(tok[0])
+
     def flush():
         nonlocal pts, closed
         if len(pts) >= 2:
@@ -511,7 +526,8 @@ def _path_subpaths(d):
             pts += _bezier(cur, p1, p2)
             last_ctrl, cur = p1, p2
         elif C == "A":
-            rx, ry, rot, large, sweep = num(), num(), num(), num(), num()
+            rx, ry, rot = num(), num(), num()
+            large, sweep = flag(), flag()
             end = (ox + num(), oy + num())
             pts += _svg_arc(cur[0], cur[1], rx, ry, math.radians(rot), int(large), int(sweep), end[0], end[1])[1:]
             cur = end
@@ -566,7 +582,8 @@ def read_svg(text):
                     if abs(rx - ry) < 1e-12:
                         res.items.append(("circle", X, Y, k * rx))
                     else:
-                        res.items.append(("ellipse", X, Y, k * rx, k * ry, rot if m[0] * m[3] - m[1] * m[2] > 0 else -rot))
+                        # the ellipse's own x axis goes to (a, b) = m applied to (1, 0), reflected or not
+                        res.items.append(("ellipse", X, Y, k * rx, k * ry, rot))
                 else:
                     poly_out(m, _arc_points(cx, cy, ry, 0, 2 * math.pi, rx=rx)[:-1], True)
         elif t in ("polygon", "polyline"):

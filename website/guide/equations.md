@@ -27,10 +27,10 @@ count drives several other pages:
 - the output lists on the Results, Restore & visualize and Inverse problem pages, and the **Output**
   number of each boundary condition.
 
-!!! warning "Changing Outputs resets the equation boxes"
-    When you change **Outputs**, the name and equation boxes and the initial-condition expressions are
-    rebuilt with their default contents (names `u`, `v`, `w`, `p`, …). Set the number of outputs before
-    typing the equations. (Changing **Equations** alone keeps what you typed.)
+!!! note "Changing Outputs keeps what you typed"
+    When you change **Outputs**, the outputs that remain keep their names, equations, initial conditions
+    and output transforms; a new output starts with the defaults (names `u`, `v`, `w`, `p`, …), and the
+    boxes of a removed output are dropped. Opening a problem file or an example sets every box itself.
 
 ![The Equations page of a new 1D problem with Outputs set to 2: two output names, u and v, each followed by its own equation box](../assets/screenshots/guide_equations_two_outputs.png){ .screenshot loading=lazy }
 

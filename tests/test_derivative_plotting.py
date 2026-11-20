@@ -91,7 +91,7 @@ def run():
     check("OperatorPredictor" not in plain_script,
           "an unconfigured run should still mention no OperatorPredictor "
           "anywhere (regression guard for this feature's own comments)")
-    check('_plot_custom_expr = ""' in plain_script,
+    check(('_plot_custom_expr = ""' in plain_script or "_plot_custom_expr = ''" in plain_script),
           "no custom expression configured -> the embedded expression string should be empty "
           "(the operator=_plot_custom_op call itself is always present in the function body -- "
           "same 'helper always defined' convention Training Monitors' own runtime code uses -- "

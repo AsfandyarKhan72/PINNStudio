@@ -297,6 +297,7 @@ class ModelWorkspace(QObject):
         menu = self.build_menu(key)
         if not menu.isEmpty():
             menu.exec(self.tree.viewport().mapToGlobal(pos))
+        menu.deleteLater()
 
     def _show_banner(self):
         msgs = (getattr(self, "problems", {}) or {}).get(self.current_key()) or []

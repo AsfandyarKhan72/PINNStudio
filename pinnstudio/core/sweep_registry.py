@@ -1096,8 +1096,13 @@ def _exact_ic_set(config, value) -> None:
         act = _ic_list(c, "ic_active")
         hard = [h if h in ("True", "False") else "False" for h in hard]
         act = [a if a in ("True", "False") else "False" for a in act]
+        was_hard = hard[0] == "True"
         hard[0] = "True" if on else "False"
-        act[0] = "False" if on else "True"     # the window unticks "active" for an exact IC
+        if on:
+            act[0] = "False"                   # the window unticks "active" for an exact IC
+        elif was_hard:
+            act[0] = "True"                    # exact -> fitted: the IC becomes a loss term again
+        # (off on a run without an exact IC leaves its own IC loss on or off, as in the baseline)
         c.ic_hard = ",".join(hard)
         c.ic_active = ",".join(act)
     _reshape_loss_weights(config, _change)

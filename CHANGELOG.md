@@ -4,6 +4,27 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Help menu**: *Help for This Page* (F1) opens the user-guide page of the model-tree page on screen; *Quick Reference…* (Ctrl+F1) is a window that works offline with the expression and derivative syntax, the boundary-condition kinds, the usual workflow, what to check when training does not converge and every keyboard shortcut (read from the menus, so always current), with a search box; *Tutorials* lists every tutorial; links to Getting Started, the User Guide, Choosing a Strategy, Troubleshooting and the FAQ; *Report a Problem…* opens the issue form.
+- **Command palette** (Ctrl+K or Ctrl+Shift+P, *View › Go to Page or Command…*): type a few letters to go to any model-tree page or section, or to run any menu command.
+- **Start page, Learn**: cards for tutorial 1, all tutorials, the Quick Reference and the user guide.
+- **Themes**: *System (match OS)*, which follows the operating system's light or dark setting while PINNStudio runs, and *High Contrast*. The keyboard focus is now drawn (it was hidden on buttons); progress bar, status bar, tool buttons, menus, tables and lists are styled by the theme.
+- **Tutorials** 19 (steady 2D flow, Kovasznay), 20 (diagnosing a run that does not converge) and 21 (a 3D problem, Poisson in a sphere), each verified with real runs (`tools/docs/run_new_tutorials.py`).
+
+### Fixed
+- Deleting a boundary-condition row moved the loss weights of the rows below it onto the wrong rows; they now stay with their rows. Removing a training phase left duplicate phase numbers when one was added afterwards, so the per-phase weights of one of them were ignored; phases are now renumbered with their weights. Parameter-sweep rows on a phase, an inverse parameter, a time-window group or a BC weight now follow that row when an earlier one is removed (and a sweep on the removed row is marked not available), instead of silently sweeping another row.
+- Changing the geometry shape, typing a polygon's vertices, or changing the number of outputs reset the initial conditions (and, for the outputs, the equations, names and output transforms) to their defaults; what was typed is now kept. Typing vertices no longer rebuilds every condition row on each keystroke.
+- Error Analysis of a combined time-adaptive restore compared only the browsed step's time window.
+- The domain preview wrote to `/tmp`, which does not exist on a fresh Windows installation; it now uses the system's temporary folder, starts once typing in the point counts pauses, and a preview, restore or training run that cannot start no longer leaves its button disabled. *Stop* pressed while the training script was being written now stops the run that starts.
+- The Training Log showed the last lines before a long quiet stretch (an L-BFGS phase, the plotting) only when the next line came; output is now passed on every half second.
+- Time-adaptive training counted the loss history of a window with several phases (or resampling rounds) more than once in the stitched loss plot, shifting every later window.
+- A plot label or custom expression with a quote or a backslash (`$\xi$`) broke the generated script; the exported time-adaptive plot ignored the custom plot field; *random in a box* extra training points could fall outside a non-rectangular domain; exported solution files of a short time interval overwrote each other.
+- SVG import: a rotated `<ellipse>` came in mirrored; arc flags written without spaces (`A1 1 0 012 0`, as minifiers write them) stopped the import; regular polygons of 9 to 23 sides were turned into disks; coordinates kept only 6 significant digits. Sketch edges: the *Where:* expression of a slanted edge far from the origin could miss its own edge; finding the edges of a polygon with hundreds of vertices is about 6 times faster.
+- Training-monitor points of an ODE were checked for two coordinates instead of one. Sweep run folders of negative values lost the minus sign. The *Exact initial condition* sweep's "off" runs added an initial-condition loss to a problem that had none. A results folder remembered as `~/...` was not restored. Windows: desktop and Start-menu shortcuts were skipped for a user folder with non-ASCII letters.
+- Loading a 3D example took several seconds reading every reference file whole only to find its time; it now reads the first line. The History tab no longer re-reads every run after each finished run, and reads only the end of each training log. Dialogs, image viewers, context menus and recent-file actions are freed when closed.
+
 ## [1.6.0] - 2026-11-06
 
 ### Upgrading from 1.5.0

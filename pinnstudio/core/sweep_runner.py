@@ -324,7 +324,10 @@ def _slugify(text, maxlen=60):
     """A filesystem-safe folder-name fragment: letters, digits, dots and
     dashes kept, anything else (spaces, colons, commas, parens, ...)
     collapsed to one dash -- "Phase 1: Iterations" -> "Phase-1-Iterations"."""
-    text = re.sub(r"[^A-Za-z0-9.+-]+", "-", str(text).strip())
+    # a negative value's minus sign would merge into the separator dash ("Shift=-0.5" and "Shift=0.5"
+    # both became "Shift-0.5"): written as "m" instead ("Shift-m0.5"); 1e-05 keeps its dash
+    text = re.sub(r"(?<![A-Za-z0-9.])-(?=\.?\d)", "m", str(text).strip())
+    text = re.sub(r"[^A-Za-z0-9.+-]+", "-", text)
     text = re.sub(r"-+", "-", text).strip("-")
     # no trailing dot or dash: Windows drops a trailing dot from a folder name
     return ((text or "run")[:maxlen].rstrip(".-")) or "run"

@@ -14,7 +14,8 @@ arbitrary problem (see [Scope and limitations](../theory/limitations.md)).
 
 If you are new to PINNStudio, do tutorials 1 and 2 first. They introduce the model tree, the editors,
 **Solve** and **Error Analysis**, which the other tutorials take for granted. Tutorial 18 then shows the
-whole path for an equation of your own.
+whole path for an equation of your own. When a run of your own does not converge, tutorial 20 shows how to
+find out why.
 
 | # | Tutorial | Starts from | You learn |
 |---|---|---|---|
@@ -36,6 +37,9 @@ whole path for an equation of your own.
 | 16 | [Standalone scripts](16-scripts.md) | tutorial 1 | the Script tab, Export script, running a script without the GUI |
 | 17 | [Error analysis](17-error-analysis.md) | tutorials 1–2 | reference files vs formulas, metrics, output files |
 | 18 | [Your own PDE (Fisher-KPP)](18-own-problem.md) | blank 1D problem | a nonlinear PDE of your own from start to finish, one boundary row for two sides, your own reference files |
+| 19 | [Steady 2D flow (Kovasznay)](19-kovasznay.md) | example | a steady problem with three outputs (u, v, p), constants in boundary values, a pressure fixed on one side, error against exact formulas |
+| 20 | [Diagnosing a run that does not converge](20-diagnosing.md) | example | reading the loss terms, a sign error, badly balanced weights, a run that is too short, and how each looks |
+| 21 | [A 3D problem (Poisson in a sphere)](21-3d-poisson.md) | example | a 3D domain, slices and views of a 3D solution, the cost of 3D training |
 
 ## Conventions
 

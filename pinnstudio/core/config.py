@@ -1576,6 +1576,8 @@ class PINNConfig:
                 else:
                     _dim_map = {"1D": 1, "2D": 2, "3D": 3}
                     _expected_dim = _dim_map.get(self.problem_dim, 1) + (0 if self.steady_state else 1)
+                    if self.problem_dim == "ODE":
+                        _expected_dim = 1      # an ODE's network takes t alone (codegen's _ode_to_1d)
                     for _mi, _mon in enumerate(_monitors_cfg):
                         if not isinstance(_mon, dict):
                             errors.append(f"Training Monitor #{_mi + 1} is not a valid entry; got {_mon!r}.")

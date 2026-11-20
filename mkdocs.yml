@@ -190,6 +190,9 @@ nav:
       - 16. Standalone scripts: tutorials/16-scripts.md
       - 17. Error analysis: tutorials/17-error-analysis.md
       - 18. Your own PDE (Fisher-KPP): tutorials/18-own-problem.md
+      - 19. Steady 2D flow (Kovasznay): tutorials/19-kovasznay.md
+      - 20. Diagnosing a run that does not converge: tutorials/20-diagnosing.md
+      - 21. A 3D problem (Poisson in a sphere): tutorials/21-3d-poisson.md
   - Feature reference:
       - reference/index.md
       - All settings: reference/settings-index.md

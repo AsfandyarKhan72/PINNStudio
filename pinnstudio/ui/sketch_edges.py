@@ -20,6 +20,7 @@ tell this piece apart from the rest of the boundary.
 No Qt in here: the canvas draws what this returns, and the tests check it
 directly.
 """
+import functools
 import math
 
 N_SEG = 256      # samples along each straight edge
@@ -32,6 +33,27 @@ def fmt(v):
     v = round(float(v), 9)
     s = f"{v:.6g}"
     return "0" if s in ("-0", "") else s
+
+
+def fmtx(v):
+    """A number for a generated "Where:" expression: as short as fmt() for round numbers (0.3), but with
+    12 significant digits otherwise. fmt()'s 6 digits moved a slanted edge of a shape far from the
+    origin (x around 100) by more than the expression's tolerance, so the edge missed itself."""
+    v = round(float(v), 12)
+    s = f"{v:.12g}"
+    return "0" if s in ("-0", "") else s
+
+
+@functools.lru_cache(maxsize=512)
+def _polygon_data(text):
+    """parse_vertices(text) with its bounding box, remembered: shape_inside is asked about the same
+    polygon thousands of times while the edges are found, and parsing it each time made that grow with
+    the square of the number of vertices (an imported 400-vertex outline took 7 s)."""
+    pts = tuple(parse_vertices(text))
+    if not pts:
+        return pts, None
+    xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+    return pts, (min(xs), max(xs), min(ys), max(ys))
 
 
 def parse_vertices(text):
@@ -82,8 +104,10 @@ def shape_inside(shape, x, y):
             v = -(x - cx) * s + (y - cy) * c
             return (u / a) ** 2 + (v / b) ** 2 < 1.0
         if t in ("Triangle", "Polygon"):
-            pts = parse_vertices(p.get("vertices_text", ""))
-            return len(pts) >= 3 and _polygon_inside(pts, x, y)
+            pts, box = _polygon_data(p.get("vertices_text", "") or "")
+            if len(pts) < 3 or not (box[0] <= x <= box[1] and box[2] <= y <= box[3]):
+                return False
+            return _polygon_inside(pts, x, y)
     except (KeyError, TypeError, ValueError, ZeroDivisionError):
         return False
     return False
@@ -365,11 +389,11 @@ def _lin(a, b, c):
     for coef, name in ((a, "x"), (b, "y")):
         if abs(coef) < 1e-12:
             continue
-        mag = fmt(abs(coef))
+        mag = fmtx(abs(coef))
         t = name if mag == "1" else f"{mag}*{name}"
         terms.append(("- " if coef < 0 else "+ ") + t)
     if abs(c) > 1e-12:
-        terms.append(("+ " if -c > 0 else "- ") + fmt(abs(c)))
+        terms.append(("+ " if -c > 0 else "- ") + fmtx(abs(c)))
     s = " ".join(terms)
     return s[2:] if s.startswith("+ ") else "-" + s[2:]
 
@@ -381,12 +405,12 @@ def _segment_edge(p0, p1, L):
     if abs(dy) <= tiny:
         lo, hi = sorted((x0, x1))
         yv = 0.5 * (y0 + y1)
-        expr = f"np.isclose(y, {fmt(yv)}) and {fmt(lo)} <= x <= {fmt(hi)}"
+        expr = f"np.isclose(y, {fmtx(yv)}) and {fmtx(lo)} <= x <= {fmtx(hi)}"
         desc = f"y = {fmt(yv)},  {fmt(lo)} ≤ x ≤ {fmt(hi)}"
     elif abs(dx) <= tiny:
         lo, hi = sorted((y0, y1))
         xv = 0.5 * (x0 + x1)
-        expr = f"np.isclose(x, {fmt(xv)}) and {fmt(lo)} <= y <= {fmt(hi)}"
+        expr = f"np.isclose(x, {fmtx(xv)}) and {fmtx(lo)} <= y <= {fmtx(hi)}"
         desc = f"x = {fmt(xv)},  {fmt(lo)} ≤ y ≤ {fmt(hi)}"
     else:
         a, b = dy, -dx
@@ -396,10 +420,10 @@ def _segment_edge(p0, p1, L):
         tol = 1e-5 * L * math.hypot(a, b)
         if abs(dx) >= abs(dy):
             lo, hi = sorted((x0, x1))
-            rng = f"{fmt(lo)} <= x <= {fmt(hi)}"
+            rng = f"{fmtx(lo)} <= x <= {fmtx(hi)}"
         else:
             lo, hi = sorted((y0, y1))
-            rng = f"{fmt(lo)} <= y <= {fmt(hi)}"
+            rng = f"{fmtx(lo)} <= y <= {fmtx(hi)}"
         expr = f"abs({_lin(a, b, c)}) < {_tol(tol)} and {rng}"
         desc = f"line ({fmt(x0)}, {fmt(y0)}) → ({fmt(x1)}, {fmt(y1)})"
     return expr, desc
@@ -408,22 +432,22 @@ def _segment_edge(p0, p1, L):
 def _curve_expr(curve, L):
     if curve[0] == "circle":
         _, cx, cy, r = curve
-        dxs = "x" if abs(cx) < 1e-12 else f"x - {fmt(cx)}" if cx > 0 else f"x + {fmt(-cx)}"
-        dys = "y" if abs(cy) < 1e-12 else f"y - {fmt(cy)}" if cy > 0 else f"y + {fmt(-cy)}"
-        return (f"abs(np.hypot({dxs}, {dys}) - {fmt(r)}) < {_tol(1e-5 * L)}",
+        dxs = "x" if abs(cx) < 1e-12 else f"x - {fmtx(cx)}" if cx > 0 else f"x + {fmtx(-cx)}"
+        dys = "y" if abs(cy) < 1e-12 else f"y - {fmtx(cy)}" if cy > 0 else f"y + {fmtx(-cy)}"
+        return (f"abs(np.hypot({dxs}, {dys}) - {fmtx(r)}) < {_tol(1e-5 * L)}",
                 f"circle, centre ({fmt(cx)}, {fmt(cy)}), r = {fmt(r)}")
     _, cx, cy, a, b, ang = curve
-    dxs = "x" if abs(cx) < 1e-12 else f"(x - {fmt(cx)})" if cx > 0 else f"(x + {fmt(-cx)})"
-    dys = "y" if abs(cy) < 1e-12 else f"(y - {fmt(cy)})" if cy > 0 else f"(y + {fmt(-cy)})"
+    dxs = "x" if abs(cx) < 1e-12 else f"(x - {fmtx(cx)})" if cx > 0 else f"(x + {fmtx(-cx)})"
+    dys = "y" if abs(cy) < 1e-12 else f"(y - {fmtx(cy)})" if cy > 0 else f"(y + {fmtx(-cy)})"
     c, s = math.cos(ang), math.sin(ang)
     if abs(s) < 1e-12:
         u, v = dxs, dys
     elif abs(c) < 1e-12:
         u, v = dys, dxs
     else:
-        u = f"({fmt(c)}*{dxs} + {fmt(s)}*{dys})"
-        v = f"({fmt(c)}*{dys} - {fmt(s)}*{dxs})"
-    return (f"abs(({u}/{fmt(a)})**2 + ({v}/{fmt(b)})**2 - 1) < 1e-04",
+        u = f"({fmtx(c)}*{dxs} + {fmtx(s)}*{dys})"
+        v = f"({fmtx(c)}*{dys} - {fmtx(s)}*{dxs})"
+    return (f"abs(({u}/{fmtx(a)})**2 + ({v}/{fmtx(b)})**2 - 1) < 1e-04",
             f"ellipse, centre ({fmt(cx)}, {fmt(cy)}), a = {fmt(a)}, b = {fmt(b)}")
 
 
@@ -445,15 +469,15 @@ def _chain_edge(curve, s0, s1, L):
               for a, b in zip(pts_all, pts_all[1:]))
     dev = max(abs(math.hypot(x - cx, y - cy) - r) for x, y in pts_all)
     tol = 1.5 * max(sag, dev) + 1e-5 * L
-    dxs = "x" if abs(cx) < 1e-12 else f"x - {fmt(cx)}" if cx > 0 else f"x + {fmt(-cx)}"
-    dys = "y" if abs(cy) < 1e-12 else f"y - {fmt(cy)}" if cy > 0 else f"y + {fmt(-cy)}"
-    expr = f"abs(np.hypot({dxs}, {dys}) - {fmt(r)}) < {_tol(tol)}"
+    dxs = "x" if abs(cx) < 1e-12 else f"x - {fmtx(cx)}" if cx > 0 else f"x + {fmtx(-cx)}"
+    dys = "y" if abs(cy) < 1e-12 else f"y - {fmtx(cy)}" if cy > 0 else f"y + {fmtx(-cy)}"
+    expr = f"abs(np.hypot({dxs}, {dys}) - {fmtx(r)}) < {_tol(tol)}"
     full = closed and s1 - s0 >= 1.0 - 1e-9
     if not full:
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]
         pad = 1e-5 * L
-        expr += (f" and {fmt(min(xs) - pad)} <= x <= {fmt(max(xs) + pad)}"
-                 f" and {fmt(min(ys) - pad)} <= y <= {fmt(max(ys) + pad)}")
+        expr += (f" and {fmtx(min(xs) - pad)} <= x <= {fmtx(max(xs) + pad)}"
+                 f" and {fmtx(min(ys) - pad)} <= y <= {fmtx(max(ys) + pad)}")
     mid, nrm = _point_normal(curve, 0.5 * (s0 + s1))
     return {"kind": "arc", "expr": expr, "points": pts, "mid": mid, "normal": nrm,
             "desc": f"arc ≈ circle, centre ({fmt(cx)}, {fmt(cy)}), r = {fmt(r)}" + ("" if full else " (arc)")}

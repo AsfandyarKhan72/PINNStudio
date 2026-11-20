@@ -2775,7 +2775,7 @@ if {config.time_adaptive}:
     print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
 
     _plot_idx = {config.plot_output_idx}
-    _plot_custom_expr = "{plot_custom_expr_converted}"
+    _plot_custom_expr = {plot_custom_expr_converted!r}
     _plot_output_names_list = {repr(config.output_names)}.split(",")
     _plot_n_out = len(_plot_output_names_list)
     _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
@@ -2853,11 +2853,11 @@ if {config.time_adaptive}:
     # (one per optimizer-scheduler phase), plus one more for the legacy
     # Adam-then-L-BFGS path -- so without this, only whichever call
     # happened to run last for the very last step_i would ever reach the
-    # plot. Each phase's own step counter restarts at 0 (DeepXDE's
-    # LossHistory numbers every train() call's steps from scratch), so
-    # _ta_loss_offset -- the cumulative iteration count so far across
-    # every phase and every sub-domain -- is added to keep the x-axis
-    # continuously increasing across the whole run. Same "steps[-1] added
+    # plot. A window's model keeps one LossHistory over all its train()
+    # calls (phases, resampling rounds), with the steps counted on, so each
+    # call adds only the entries it appended, and the window's steps are
+    # shifted by where the previous window ended (_ta_loss_offset) to keep
+    # the x-axis continuously increasing across the whole run. Same "steps[-1] added
     # to a running total" trick already used just for the printed
     # cumulative-iteration numbers in the scheduler-phase logging below
     # (see "_sp_iters"/"_sched_cum_iters" elsewhere in this file) --
@@ -2869,12 +2869,19 @@ if {config.time_adaptive}:
     _ta_loss_offset = 0
     _ta_step_boundaries = []  # cumulative-iteration marks where one time sub-domain ends and the next begins
 
+    _ta_lh_taken = {{}}   # id(LossHistory) -> [entries already taken, its window's offset, the object]
+
     def _ta_accumulate_loss(_lh):
         global _ta_loss_offset
-        _ta_all_steps.extend([_s + _ta_loss_offset for _s in _lh.steps])
-        _ta_all_train_loss.extend(_lh.loss_train)
-        _ta_all_test_loss.extend(_lh.loss_test)
-        _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
+        _ent = _ta_lh_taken.get(id(_lh))
+        if _ent is None or _ent[2] is not _lh:
+            _ent = _ta_lh_taken[id(_lh)] = [0, _ta_loss_offset, _lh]
+        _n0, _base = _ent[0], _ent[1]
+        _ta_all_steps.extend([_s + _base for _s in _lh.steps[_n0:]])
+        _ta_all_train_loss.extend(_lh.loss_train[_n0:])
+        _ta_all_test_loss.extend(_lh.loss_test[_n0:])
+        _ent[0] = len(_lh.steps)
+        _ta_loss_offset = _base + (_lh.steps[-1] if _lh.steps else 0)
 
     # One network through all windows (Time-Adaptive -> growing time range /
     # backward compatibility / initial-condition guided learning, config.py)
@@ -6403,7 +6410,7 @@ _bc_top_active    = "{config.bc_top_active}".split(",")
 _bc_bottom_deriv_list = "{config.bc_bottom_deriv}".split(",")
 _bc_top_deriv_list    = "{config.bc_top_deriv}".split(",")
 
-_ic_expressions = "{config_ic_expressions}".split("|")
+_ic_expressions = {config_ic_expressions!r}.split("|")
 _ic_active_list = "{config.ic_active}".split(",")
 
 _constraints = []
@@ -7158,7 +7165,7 @@ for _pval in _param_values:
             _ic_pre_xyt, _ic_pre_vals = _load_ic_from_file({repr(config.forward_ic_file)})
             _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
         else:
-            _ic_exprs_pre = "{config_ic_expressions}".split("|")
+            _ic_exprs_pre = {config_ic_expressions!r}.split("|")
             # only outputs whose initial condition is on (as the exported script)
             for _oi_pre in {_clean_active_ic_outputs(config, config.num_outputs, (config.ic_active or "True").split(","))}:
                 _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
@@ -7464,8 +7471,8 @@ for _pval in _param_values:
     if not {config.time_adaptive}:
         _plot_idx = {config.plot_output_idx}
         _plot_type = "{config.plot_type}"
-        _plot_custom_expr = "{plot_custom_expr_converted}"
-        _plot_custom_label = "{plot_custom_label_resolved}"
+        _plot_custom_expr = {plot_custom_expr_converted!r}
+        _plot_custom_label = {plot_custom_label_resolved!r}
         _plot_title_override = {plot_title_override!r}
         _plot_xlabel_override = {plot_xlabel_override!r}
         _plot_ylabel_override = {plot_ylabel_override!r}
@@ -8984,6 +8991,11 @@ for _pval in _param_values:
                 return _u
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
+            # file names with 4 decimals (solution_t0.2500.txt), or more digits when 4 decimals would give
+            # two times the same name (a short time interval such as t_max = 1e-4) and overwrite a file
+            _t_fmt = ".4f" if len({{f"{{_tv:.4f}}" for _tv in _t_export}}) == len(_t_export) else ".8g"
+            def _t_tag(_tv):
+                return format(float(_tv), _t_fmt)
 
             if _is_steady and _is_2d:
                 # No time axis -- one export, x,y columns only (matches the
@@ -9020,7 +9032,7 @@ for _pval in _param_values:
                     _u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
                     np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
             elif _is_3d:
                 # Same "x,y,z,t,<outputs>" column convention _auto_configure_ea
@@ -9036,7 +9048,7 @@ for _pval in _param_values:
                     _u_exp = _nan_outside(_XYZT_exp[:, :3], model.predict(_XYZT_exp))
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
                     np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
             else:
                 for _t_val in _t_export:
@@ -9044,7 +9056,7 @@ for _pval in _param_values:
                     _u_exp_all = model.predict(_xt_exp)
                     _header_cols = "x,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_x_export, np.full_like(_x_export, _t_val), _u_exp_all])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
                     np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
 
             dim_str = "3D" if _is_3d else ("2D" if _is_2d else "1D")
@@ -10551,6 +10563,25 @@ def _anchor_join(names, var="_a"):
     return f"np.vstack([{var} for {var} in ({', '.join(names)}) if {var} is not None])"
 
 
+_ANCHOR_BOX_HELPER = """def _anchor_box_points(_n, _ranges):
+    _got, _total = [], 0
+    for _try in range(100):
+        _m = max(2 * (_n - _total), 64)
+        _cand = np.hstack([np.random.uniform(_a, _b, (_m, 1)) for _a, _b in _ranges])
+        _sp = getattr(geomtime, "geometry", geomtime)          # the spatial part (no inside() on GeometryXTime)
+        _cand = _cand[np.asarray(_sp.inside(_cand[:, :_sp.dim]), dtype=bool).reshape(-1)]
+        _got.append(_cand)
+        _total += len(_cand)
+        if _total >= _n:
+            break
+    _pts = np.vstack(_got)[:_n]
+    if len(_pts) < _n:
+        print(f"Note: only {len(_pts)} of {_n} extra training points lie inside the domain; "
+              "the box is mostly outside it.")
+    return _pts
+"""
+
+
 def _anchor_points_code(config):
     """Source defining `_user_anchors` (an (N, n_inputs) array) for the
     extra training points the user asked for, or "" when none
@@ -10583,10 +10614,11 @@ def _anchor_points_code(config):
         n = int(getattr(config, "anchors_count", 1000) or 0)
         lines = [f"# Extra training points (anchors): {n} random points in a box --"]
         lines.append("# " + ", ".join(f"{c[0]} in [{r[0]:g}, {r[1]:g}]" for c, r in zip(cols, ranges)))
-        lines.append("_user_anchors = np.hstack([")
-        for (a, b) in ranges:
-            lines.append(f"    np.random.uniform({a!r}, {b!r}, ({n}, 1)),")
-        lines.append("])")
+        lines.append("# -- only those inside the domain: the box defaults to the shape's bounding box, and the")
+        lines.append("# equation must not be checked in a hole or outside a disk / polygon")
+        lines.append(_ANCHOR_BOX_HELPER.rstrip("\n"))
+        lines.append("_user_anchors = _anchor_box_points(" + str(n) + ", ["
+                     + ", ".join(f"({a!r}, {b!r})" for a, b in ranges) + "])")
         return "\n".join(lines)
     return ""
 
@@ -11511,7 +11543,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}} (z={{_fmt_num({zmid!r})}}{"" if is_steady else f", t={{_fmt_num({tmax!r})}}"})")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}} (z={{_fmt_num({zmid!r})}}{"" if is_steady else f", t={{_fmt_num({tmax!r})}}"})")''')
     elif is_2d:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 6))
     for pts, col, lab, sz in groups:
@@ -11528,7 +11560,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}}{"" if is_steady else f" (t={{_fmt_num({tmax!r})}})"}")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}}{"" if is_steady else f" (t={{_fmt_num({tmax!r})}})"}")''')
     elif is_steady:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 3))
     for pts, col, lab, sz in groups:
@@ -11539,7 +11571,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
     ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); _grid(ax, alpha=0.2)
-    ax.set_title(f"{out_name} after RAR round {{ri}}")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}}")''')
     else:
         swap = bool(config.plot_swap_xt)
         scatter = (f'''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
@@ -11560,7 +11592,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
         im = ax.contourf(Xs, Ts, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel({"t" if swap else "x"!r}); ax.set_ylabel({"x" if swap else "t"!r})
-    ax.set_title(f"{out_name}(x,t) after RAR round {{ri}}")''')
+    ax.set_title({out_name + "(x,t)"!r} + f" after RAR round {{ri}}")''')
     return f'''# ── RAR per-round diagnostics (rar_rounds/round_NN/) ──
 rar_final_state = copy.deepcopy(model.net.state_dict())
 rar_added = np.empty((0, rar_orig_pts.shape[1]))
@@ -12530,6 +12562,7 @@ prev_u = _prev_u0(x_grid)''')
 
         ta_lines.append('''
 all_x, all_t, all_u = [], [], []   # accumulated per-step (X, T, U) grids for the final stitched plot
+all_g = []                         # each step's plot points, to evaluate a custom plot field after training
 ta_step_models = []                # [(t0, t1, model_i)] -- used for Error Analysis, if configured
 prev_net = None
 _prev_state = None
@@ -12658,6 +12691,9 @@ _ta_loss_offset = 0''')
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
         loop_lines.append("    _adam_state_i = None")
+        # one LossHistory per window's model, kept over its phases (steps counted on): each phase adds
+        # only its own new entries, and the window's steps start where the previous window ended
+        loop_lines.append("    _ta_win_base, _ta_win_taken = _ta_loss_offset, 0")
         if is_inverse:
             loop_lines.append("    if step_i == 0:")
             hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
@@ -12674,10 +12710,11 @@ _ta_loss_offset = 0''')
             if sp.get('optimizer', 'adam') != 'lbfgs':
                 loop_lines.append("    _adam_state_i = {k: v.detach().clone() for k, v in net_i.state_dict().items()}")
             loop_lines.append(
-                "    _ta_all_steps.extend([_s + _ta_loss_offset for _s in loss_history.steps]); "
-                "_ta_all_train_loss.extend(loss_history.loss_train); "
-                "_ta_all_test_loss.extend(loss_history.loss_test); "
-                "_ta_loss_offset += (loss_history.steps[-1] if loss_history.steps else 0)"
+                "    _ta_all_steps.extend([_s + _ta_win_base for _s in loss_history.steps[_ta_win_taken:]]); "
+                "_ta_all_train_loss.extend(loss_history.loss_train[_ta_win_taken:]); "
+                "_ta_all_test_loss.extend(loss_history.loss_test[_ta_win_taken:]); "
+                "_ta_win_taken = len(loss_history.steps); "
+                "_ta_loss_offset = _ta_win_base + (loss_history.steps[-1] if loss_history.steps else 0)"
             )
         loop_lines.append("    ta_step_models.append((t0, t1, model_i))")
         loop_lines.append("    prev_net = net_i")
@@ -12693,7 +12730,7 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYZTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), np.full(_Xp.size, _z_mid), _Tp.ravel()])
     _Up = model_i.predict(_XYZTp)[:, {6}].reshape({7}, {7})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XYZTp)'''.format(
                 config.x_min, config.x_max, line_slice_y, line_slice_y, line_slice_z, line_slice_z, config.plot_output_idx, config.plot_resolution))
         elif is_2d:
             loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
@@ -12704,7 +12741,7 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), _Tp.ravel()])
     _Up = model_i.predict(_XYTp)[:, {4}].reshape({5}, {5})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XYTp)'''.format(
                 config.x_min, config.x_max, line_slice_y, line_slice_y, config.plot_output_idx, config.plot_resolution))
         else:
             loop_lines.append('''    _xt_pred = np.column_stack([x_grid.ravel(), np.full(grid_size, t1)])
@@ -12714,7 +12751,7 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XTp = np.vstack([_Xp.ravel(), _Tp.ravel()]).T
     _Up = model_i.predict(_XTp)[:, {2}].reshape({3}, {3})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XTp)'''.format(
                 config.x_min, config.x_max, config.plot_output_idx, config.plot_resolution))
         loop_lines.append(f'    print(f"Step {{step_i + 1}}/{{len(intervals)}} done. '
                            f'Final train loss: {{sum(loss_history.loss_train[-1]):.4e}}")')
@@ -12865,6 +12902,9 @@ def _extract_plot_field(_x_grid, _pf_model=None):
         for the selected output, then once per output when there are several)."""
         if use_ta:
             parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
+if _plot_custom_expr.strip():   # the custom field (not the raw output), from each step's own model
+    all_u = [_extract_plot_field(_g, _m).reshape(_x.shape)
+             for _g, (_t0, _t1, _m), _x in zip(all_g, ta_step_models, all_x)]
 Xg = np.concatenate([a for a in all_x], axis=0)
 Tg = np.concatenate([a for a in all_t], axis=0)
 Ug = np.concatenate([a for a in all_u], axis=0)
@@ -12876,7 +12916,7 @@ else:
     plt.contourf(Xg, Tg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     plt.xlabel("x"); plt.ylabel("t")
 if {config.plot_colorbar}:
-    plt.colorbar(label="{out_name}")
+    plt.colorbar(label={out_name!r})
 plt.title("PINN Solution (Time-Adaptive)")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -12990,7 +13030,7 @@ im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_c
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_aspect("equal", adjustable="box")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}})")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else {"PINN Solution — " + out_name + "(x, y, z="!r} + f"{{_fmt_num(z_mid)}})")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -13253,7 +13293,7 @@ for ai, tv in enumerate(t_snaps):
     axes[ai].set_title(f"t = {{_fmt_num(tv)}}, z = {{_fmt_num(z_mid)}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}}, t)")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else {"PINN Solution — " + out_name + "(x, y, z="!r} + f"{{_fmt_num(z_mid)}}, t)")
 plt.tight_layout(rect=[0, 0, 1, 0.93])
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()

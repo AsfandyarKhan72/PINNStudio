@@ -22,7 +22,9 @@ def test_help_menu_and_about_text():
         menus = {a.text(): a.menu() for a in w.menuBar().actions() if a.menu() is not None}
         assert list(menus)[-1] == "Help", list(menus)
         items = [a.text() for a in menus["Help"].actions() if a.text()]
-        assert items == ["Documentation", "About PINNStudio", "About Qt"], items
+        assert items == ["Help for This Page", "Quick Reference…", "Documentation", "Tutorials", "Getting Started",
+                         "User Guide", "Choosing a Strategy", "Troubleshooting", "FAQ", "Report a Problem…",
+                         "About PINNStudio", "About Qt"], items
         text = w._about_text()
         import pinnstudio
         ver = w._get_installed_version()
@@ -50,6 +52,65 @@ def test_help_menu_and_about_text():
         w.deleteLater()
 
 
+def test_tutorial_list_matches_the_website():
+    """Help › Tutorials and the start page list the tutorials of website/tutorials/index.md, each with its page."""
+    import re
+    from pinnstudio.ui import help as _help
+    index = open(os.path.join(ROOT, "website", "tutorials", "index.md"), encoding="utf-8").read()
+    rows = re.findall(r"^\| (\d+) \| \[([^\]]+)\]\(([\w-]+)\.md\)", index, flags=re.M)
+    assert [(int(n), t, p) for n, t, p in rows] == list(_help.TUTORIALS)
+    for _n, _t, page in _help.TUTORIALS:
+        assert os.path.isfile(os.path.join(ROOT, "website", "tutorials", page + ".md")), page
+    nav = open(os.path.join(ROOT, "mkdocs.yml"), encoding="utf-8").read()
+    for _n, _t, page in _help.TUTORIALS:
+        assert f"tutorials/{page}.md" in nav, page
+    for _text, page in _help.DOC_PAGES:
+        assert os.path.isfile(os.path.join(ROOT, "website", page.rstrip("/") + ".md")) or \
+            os.path.isfile(os.path.join(ROOT, "website", page, "index.md")), page
+
+
+def test_page_help_and_quick_reference():
+    w = MainWindow()
+    opened = []
+    w._open_url = opened.append
+    try:
+        w._open_page_help()
+        w.workspace.select("bcs")
+        w._open_page_help()
+        assert opened == [w.DOCS_URL + "guide/problem/", w.DOCS_URL + "guide/boundary-conditions/"], opened
+        tut = next(a.menu() for a in menus_of(w)["Help"].actions() if a.text() == "Tutorials")
+        acts = [a for a in tut.actions() if a.text() and not a.isSeparator()]
+        acts[1].trigger()
+        assert opened[-1] == w.DOCS_URL + "tutorials/01-ode/", opened
+        w.start_page.learn_cards["tutorials"].click()
+        assert opened[-1] == w.DOCS_URL + "tutorials/", opened
+
+        w._show_quick_reference()
+        d = w._quick_ref
+        assert d.isVisible() and not d.isModal()
+        names = [d.tabs.tabText(i) for i in range(d.tabs.count())]
+        assert names == ["Expressions", "Conditions", "Workflow", "Shortcuts"], names
+        shortcuts = d.browsers[-1].toPlainText()
+        for want in ("Solve", "F5", "Help for This Page", "F1"):
+            assert want in shortcuts, want
+        d.filter.setText("Periodic")
+        assert d.tabs.currentIndex() == 1 and d.status.text() == ""
+        d.filter.setText("no such words anywhere")
+        assert d.status.text() == "Not found"
+        w._show_quick_reference()
+        assert w._quick_ref is d, "one window, raised again"
+        d.close()
+    finally:
+        w.close()
+        w.deleteLater()
+
+
+def menus_of(w):
+    return {a.text(): a.menu() for a in w.menuBar().actions() if a.menu() is not None}
+
+
 if __name__ == "__main__":
     test_help_menu_and_about_text()
+    test_tutorial_list_matches_the_website()
+    test_page_help_and_quick_reference()
     print("HELP MENU TEST PASSED")
