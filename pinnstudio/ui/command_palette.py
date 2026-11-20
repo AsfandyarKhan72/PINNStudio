@@ -120,13 +120,16 @@ class CommandPalette(QDialog):
 
     def eventFilter(self, obj, ev):
         from PySide6.QtCore import QEvent
-        if obj is self.edit and ev.type() == QEvent.Type.KeyPress and ev.key() in (
-                Qt.Key.Key_Down, Qt.Key.Key_Up, Qt.Key.Key_PageDown, Qt.Key.Key_PageUp):
-            self.list.setFocus()
-            self.list.keyPressEvent(ev)
-            self.edit.setFocus()
-            return True
-        return super().eventFilter(obj, ev)
+        try:              # an event filter never raises (a palette being closed)
+            if obj is self.edit and ev.type() == QEvent.Type.KeyPress and ev.key() in (
+                    Qt.Key.Key_Down, Qt.Key.Key_Up, Qt.Key.Key_PageDown, Qt.Key.Key_PageUp):
+                self.list.setFocus()
+                self.list.keyPressEvent(ev)
+                self.edit.setFocus()
+                return True
+        except RuntimeError:
+            pass
+        return False
 
     def _filter(self, text):
         self.list.clear()

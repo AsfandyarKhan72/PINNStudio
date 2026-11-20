@@ -326,10 +326,13 @@ class ModelWorkspace(QObject):
 
     # ── node visibility follows its panels ───────────────────
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
-            self._schedule_visibility()
-        elif ev.type() == QEvent.Type.LayoutRequest and obj.objectName() == "settingsPage":
-            self._schedule_align()
+        try:              # an event filter never raises (a row being deleted)
+            if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
+                self._schedule_visibility()
+            elif ev.type() == QEvent.Type.LayoutRequest and obj.objectName() == "settingsPage":
+                self._schedule_align()
+        except RuntimeError:
+            pass
         return False
 
     def _schedule_align(self):
@@ -404,8 +407,11 @@ class VisibilityFollower(QObject):
         self.sync()
 
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
-            QTimer.singleShot(0, self.sync)
+        try:
+            if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
+                QTimer.singleShot(0, self.sync)
+        except RuntimeError:
+            pass
         return False
 
     def sync(self):
@@ -559,11 +565,14 @@ class _Collapser(QObject):
         self.btn.raise_()
 
     def eventFilter(self, obj, ev):
-        if ev.type() == QEvent.Type.Resize:
-            self._place()
-        elif ev.type() == QEvent.Type.MouseButtonDblClick and ev.position().y() < 22:
-            self.toggle()
-            return True
+        try:              # an event filter never raises (a box being deleted)
+            if ev.type() == QEvent.Type.Resize:
+                self._place()
+            elif ev.type() == QEvent.Type.MouseButtonDblClick and ev.position().y() < 22:
+                self.toggle()
+                return True
+        except RuntimeError:
+            pass
         return False
 
     def toggle(self):

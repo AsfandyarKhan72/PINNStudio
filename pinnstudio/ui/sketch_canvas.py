@@ -970,10 +970,12 @@ class SketchPanel(QWidget):
         self.undo_btn.clicked.connect(self.undo)
         self.redo_btn.clicked.connect(self.redo)
         from PySide6.QtGui import QKeySequence, QShortcut
+        self._undo_shortcuts = []
         for seq, fn in (("Ctrl+Z", self.undo), ("Ctrl+Y", self.redo), ("Ctrl+Shift+Z", self.redo)):
             sc = QShortcut(QKeySequence(seq), self)
             sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             sc.activated.connect(fn)
+            self._undo_shortcuts.append(sc)
         self._update_undo_buttons()
         self.canvas.cursor_moved.connect(self._show_cursor)
         self.canvas.edges_selected.connect(self._update_edge_bar)
@@ -1551,6 +1553,12 @@ class SketchPanel(QWidget):
         finally:
             self._hist_lock = False
         self._update_undo_buttons()
+
+    def use_window_shortcuts(self) -> None:
+        """Inside the main window, Edit › Undo and Redo (the same keys) reach this panel when it has the
+        focus; its own shortcuts would make the keys ambiguous, so they are switched off."""
+        for sc in self._undo_shortcuts:
+            sc.setEnabled(False)
 
     def undo(self):
         if self._hpos > 0:

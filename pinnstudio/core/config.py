@@ -317,6 +317,12 @@ class PINNConfig:
     export_enabled: bool = False
     export_grid_size: int = 101
     export_t_steps: int = 11
+    # Solution data as "csv" (text, one file per time), "vtk" (legacy VTK for ParaView, with a .pvd
+    # collection of the times) or "both"
+    export_format: str = "csv"
+    # The trained network also saved as TorchScript (model_torchscript.pt), loadable without PINNStudio,
+    # DeepXDE or Python (torch.jit.load, or LibTorch in C++)
+    export_torchscript: bool = False
     plot_output_idx: int = 0
     # Optional derived scalar field to plot in the Results panel instead of
     # a single raw output column -- e.g. "sqrt(u**2+v**2)" for the 1D
@@ -1172,6 +1178,8 @@ class PINNConfig:
             errors.append("'Scale by initial losses' isn't available with Time-Adaptive training -- "
                           "turn one of them off.")
 
+        if self.export_format not in ("csv", "vtk", "both"):
+            errors.append(f"Export format must be csv, vtk or both; got {self.export_format!r}.")
         if self.network_type not in ("FNN", "PFNN", "MsFFN", "STMsFFN", "Designed"):
             errors.append(f"Network type must be FNN, PFNN, MsFFN, STMsFFN or Designed; got {self.network_type!r}.")
         if self.network_type == "Designed":

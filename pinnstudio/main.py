@@ -175,6 +175,7 @@ def run_gui(argv):
     _check_gpu_torch_mismatch()
     window = MainWindow()
     window.show()
+    errors.start_stall_watch(app)          # a freeze is logged with every thread's stack
     files = [a for a in argv if a.endswith(".json") and not a.startswith("-")]
     if files:                      # pinnstudio problem.pinn.json, or a file opened from the desktop
         QTimer.singleShot(0, lambda: window._open_problem(files[0]))

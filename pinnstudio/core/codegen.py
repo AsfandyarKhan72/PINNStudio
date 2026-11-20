@@ -9041,6 +9041,41 @@ for _pval in _param_values:
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 
+        # ── The trained network as TorchScript (model_torchscript.pt) ──
+        # loadable with torch.jit.load, or LibTorch in C++, without PINNStudio or DeepXDE; it takes the
+        # network's raw inputs and includes the input and output transforms
+        if {bool(getattr(config, "export_torchscript", False))} and _use_save:
+            try:
+                import torch as _torch_ts
+                _ts_src = getattr(model.data, "test_x", None)
+                if _ts_src is None or len(_ts_src) == 0:
+                    _ts_src = model.data.train_x
+                _ts_x = _torch_ts.as_tensor(np.asarray(_ts_src[:8]), dtype=_torch_ts.get_default_dtype())
+                model.net.eval()
+                import warnings as _w_ts
+                with _w_ts.catch_warnings():     # (deprecated in recent PyTorch, still what LibTorch loads)
+                    _w_ts.simplefilter("ignore", FutureWarning)
+                    _ts_mod = _torch_ts.jit.trace(model.net, _ts_x, check_trace=False)
+                model.net.train()
+                _ts_path = _os.path.join(_sol_dir, "model_torchscript.pt")
+                _ts_mod.save(_ts_path)
+                print(f"TorchScript network saved: {{_ts_path}}")
+            except Exception as _ts_e:
+                print(f"⚠ The network could not be saved as TorchScript: {{_ts_e}}")
+            try:        # torch.export, TorchScript's successor (PyTorch 2.1+): any number of points
+                import torch as _torch_ts
+                if hasattr(_torch_ts, "export"):
+                    model.net.eval()
+                    _ep = _torch_ts.export.export(model.net, (_ts_x,),
+                                                  dynamic_shapes=({{0: _torch_ts.export.Dim("points", min=1)}},))
+                    model.net.train()
+                    _ep_path = _os.path.join(_sol_dir, "model_exported.pt2")
+                    _torch_ts.export.save(_ep, _ep_path)
+                    print(f"Exported network saved: {{_ep_path}} (torch.export.load)")
+            except Exception as _ep_e:
+                model.net.train()
+                print(f"  (torch.export of the network was not possible: {{str(_ep_e).splitlines()[0][:160]}})")
+
         # ── Export solution data ──────────────────────────────
         # Opt-in (config.export_enabled, default False) -- this used to run
         # unconditionally on every non-Inverse run even if the user never
@@ -9069,6 +9104,7 @@ for _pval in _param_values:
             _t_fmt = ".4f" if len({{f"{{_tv:.4f}}" for _tv in _t_export}}) == len(_t_export) else ".8g"
             def _t_tag(_tv):
                 return format(float(_tv), _t_fmt)
+{_vtk_export_helpers_code(config)}
 
             if _is_steady and _is_2d:
                 # No time axis -- one export, x,y columns only (matches the
@@ -9080,7 +9116,8 @@ for _pval in _param_values:
                 _header = "x,y," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header)
+                _save_vtk(_fname, [_x_export, _y_export], _u_exp)
             elif _is_steady and _is_3d:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
@@ -9090,13 +9127,15 @@ for _pval in _param_values:
                 _header = "x,y,z," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header)
+                _save_vtk(_fname, [_x_export, _y_export, _z_export], _u_exp)
             elif _is_steady:
                 _u_exp_all = model.predict(_x_export.reshape(-1, 1))
                 _header_cols = "{'t' if getattr(config, '_ode', False) else 'x'}," + ",".join(_out_names_list)   # an ODE's variable is t
                 _out = np.column_stack([_x_export, _u_exp_all])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header_cols)
+                _save_vtk(_fname, [_x_export], _u_exp_all)
             elif _is_2d:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 for _t_val in _t_export:
@@ -9106,7 +9145,8 @@ for _pval in _param_values:
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
-                    np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                    _save_csv(_fname, _out, _header)
+                    _save_vtk(_fname, [_x_export, _y_export], _u_exp, _t_val)
             elif _is_3d:
                 # Same "x,y,z,t,<outputs>" column convention _auto_configure_ea
                 # (main_window.py) already expects when scanning a template's
@@ -9122,7 +9162,8 @@ for _pval in _param_values:
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
-                    np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                    _save_csv(_fname, _out, _header)
+                    _save_vtk(_fname, [_x_export, _y_export, _z_export], _u_exp, _t_val)
             else:
                 for _t_val in _t_export:
                     _xt_exp = np.column_stack([_x_export, np.full_like(_x_export, _t_val)])
@@ -9130,7 +9171,9 @@ for _pval in _param_values:
                     _header_cols = "x,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_x_export, np.full_like(_x_export, _t_val), _u_exp_all])
                     _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
-                    np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
+                    _save_csv(_fname, _out, _header_cols)
+                    _save_vtk(_fname, [_x_export], _u_exp_all, _t_val)
+            _write_pvd()
 
             dim_str = "3D" if _is_3d else ("2D" if _is_2d else "1D")
             _steps_desc = "steady (single export)" if _is_steady else f"t_steps={config.export_t_steps}"
@@ -10521,6 +10564,50 @@ def _rar_tolerance_check(config, indent):
     return (f"\n{indent}if residuals.mean() < {tol!r}:"
             f"\n{indent}    print(f\"RAR: mean residual {{residuals.mean():.4e}} is below the tolerance {tol!r} -- refinement done.\")"
             f"\n{indent}    break")
+
+
+def _vtk_export_helpers_code(config):
+    """_save_csv / _save_vtk / _write_pvd for the solution export (indented for its block): text files,
+    legacy VTK files ParaView reads (a uniform grid with one scalar per output; NaN outside a non-box
+    domain), and a .pvd collection that orders the times."""
+    fmt = getattr(config, "export_format", "csv") or "csv"
+    csv_on, vtk_on = fmt in ("csv", "both"), fmt in ("vtk", "both")
+    code = f'''_csv_on, _vtk_on, _pvd_items = {csv_on!r}, {vtk_on!r}, []
+def _save_csv(_fn, _arr, _hdr):
+    if _csv_on:
+        np.savetxt(_fn, _arr, header=_hdr, delimiter=",", comments="")
+def _save_vtk(_fn, _axes, _u, _tv=None):
+    # a uniform grid (x[, y[, z]]); _u is (points, outputs) in np.meshgrid's order (x fastest in 2D,
+    # z fastest in 3D), reordered to VTK's x-fastest order
+    if not _vtk_on:
+        return
+    _n = [len(_a) for _a in _axes] + [1] * (3 - len(_axes))
+    _U = np.asarray(_u, dtype=float).reshape(_n[0] * _n[1] * _n[2], -1)
+    if len(_axes) == 3:
+        _U = _U.reshape(_n[1], _n[0], _n[2], -1).transpose(2, 0, 1, 3).reshape(-1, _U.shape[-1])
+    _org = [float(_a[0]) for _a in _axes] + [0.0] * (3 - len(_axes))
+    _spc = [float(_a[-1] - _a[0]) / (len(_a) - 1) if len(_a) > 1 else 1.0 for _a in _axes] + [1.0] * (3 - len(_axes))
+    _vf = _fn[:-4] + ".vtk"
+    with open(_vf, "w") as _fh:
+        _fh.write("# vtk DataFile Version 3.0\\nPINNStudio solution\\nASCII\\nDATASET STRUCTURED_POINTS\\n")
+        _fh.write(f"DIMENSIONS {{_n[0]}} {{_n[1]}} {{_n[2]}}\\nORIGIN {{_org[0]}} {{_org[1]}} {{_org[2]}}\\n")
+        _fh.write(f"SPACING {{_spc[0]}} {{_spc[1]}} {{_spc[2]}}\\nPOINT_DATA {{_U.shape[0]}}\\n")
+        for _j, _nm in enumerate(_out_names_list[:_U.shape[1]]):
+            _safe = "".join(_c if (_c.isalnum() or _c == "_") else "_" for _c in str(_nm).strip()) or f"u{{_j}}"
+            _fh.write(f"SCALARS {{_safe}} double 1\\nLOOKUP_TABLE default\\n")
+            np.savetxt(_fh, _U[:, _j], fmt="%.9g")
+    if _tv is not None:
+        _pvd_items.append((float(_tv), _os.path.basename(_vf)))
+def _write_pvd():
+    if not (_vtk_on and _pvd_items):
+        return
+    with open(_os.path.join(_data_dir, "solution.pvd"), "w") as _fh:
+        _fh.write(\'<?xml version="1.0"?>\\n<VTKFile type="Collection" version="0.1">\\n<Collection>\\n\')
+        for _tv, _f in _pvd_items:
+            _fh.write(f\'<DataSet timestep="{{_tv:.9g}}" file="{{_f}}"/>\\n\')
+        _fh.write("</Collection>\\n</VTKFile>\\n")
+    print(f"ParaView collection: {{_os.path.join(_data_dir, 'solution.pvd')}}")'''
+    return "\n".join("            " + ln for ln in code.splitlines())
 
 
 def _formula_reference_dir(config):

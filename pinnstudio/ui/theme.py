@@ -20,7 +20,7 @@ import re
 
 from PySide6.QtCore import QEvent, QObject, QTimer
 from PySide6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
-from PySide6.QtWidgets import QApplication, QDialog, QWidget
+from PySide6.QtWidgets import QApplication, QDialog, QProxyStyle, QWidget
 
 # ── themes ───────────────────────────────────────────────────────────────
 THEMES = {
@@ -530,11 +530,52 @@ def _remap_decls(decls, t, selector):
     return _DECL.sub(repl, decls)
 
 
+class _ThemeStyle(QProxyStyle):
+    """The application style (Fusion) with PINNStudio's per-widget theming hooked into polish(), which Qt
+    calls once for each widget: when it is first shown, and again when its style sheet changes. An
+    application-wide event filter did the same work but sent every event of every widget through Python;
+    with another Python thread busy that made building the window three times slower (34 s against 12 s
+    in a test), and doubled it even when idle (Windows bug list, "App-wide Python event filters")."""
+    active = True
+
+    def polish(self, arg):
+        result = super().polish(arg)
+        if _ThemeStyle.active and isinstance(arg, QWidget):
+            try:
+                StyleRemapper.prepare(arg)
+            except RuntimeError:          # a widget whose C++ side is already gone: nothing to do
+                pass
+        return result
+
+
+class _DialogFitter(QObject):
+    """An event filter on dialogs only (few events): keep each dialog as large as its rows need."""
+
+    def eventFilter(self, obj, ev):
+        try:
+            t = ev.type()
+            if t == QEvent.Type.Show:
+                # the theme's font reaches a dialog's widgets after they are polished:
+                # size its buttons and drop-downs for it now
+                StyleRemapper.refit(obj)
+            if t == QEvent.Type.Show or (t == QEvent.Type.LayoutRequest and obj.isVisible()):
+                # again on every layout change: the theme's fonts and padding
+                # arrive after the dialog is first shown, and rows get added
+                StyleRemapper.fit_dialog(obj)
+        except RuntimeError:              # never raise from an event filter (a dialog being torn down)
+            pass
+        return False
+
+
 class StyleRemapper(QObject):
     """Application-wide: every time a widget's stylesheet is set, translate
     its colours to the current theme (keeping the original, so a theme
-    change can translate it again)."""
+    change can translate it again); size buttons, drop-downs and dialogs for
+    the theme's fonts; give buttons their icons and screen-reader names.
+    Done when Qt polishes each widget (`_ThemeStyle`)."""
     _instance = None
+    _style = None
+    _dialogs = None
 
     @classmethod
     def install(cls):
@@ -542,52 +583,57 @@ class StyleRemapper(QObject):
         if app is None or cls._instance is not None:
             return cls._instance
         cls._instance = cls(app)
-        app.installEventFilter(cls._instance)
-        # Stop filtering before Python shuts down: otherwise Qt, tearing the
-        # widgets down after the interpreter has started to finalize, calls
-        # back into this Python filter and crashes (seen as a segfault at
-        # the end of scripts that never call app.exec()).
+        cls._dialogs = _DialogFitter(app)
+        base = app.style().name() if app.style() is not None else "fusion"
+        cls._style = _ThemeStyle(base or "fusion")
+        _ThemeStyle.active = True
+        app.setStyle(cls._style)          # once, at start: re-polishes the few widgets there are
+        # Stop calling into Python before the interpreter shuts down: Qt, tearing
+        # the widgets down after finalization has begun, would call back into it
+        # and crash (seen as a segfault at the end of scripts that never call
+        # app.exec()).
         import atexit
         atexit.register(cls._uninstall)
         return cls._instance
 
     @classmethod
     def _uninstall(cls):
-        inst, cls._instance = cls._instance, None
-        app = QApplication.instance()
-        if inst is not None and app is not None:
+        _ThemeStyle.active = False
+        cls._instance = None
+
+    @classmethod
+    def prepare(cls, obj):
+        """Everything a widget needs from the theme, when Qt polishes it."""
+        if isinstance(obj, QDialog) and cls._dialogs is not None and not obj.property("_pinn_fitted"):
+            obj.setProperty("_pinn_fitted", True)
+            obj.installEventFilter(cls._dialogs)
+        cls._fit_text_button(obj)
+        cls._fit_combo(obj)
+        cls._fit_items(obj)
+        if not obj.property("_pinn_prepared"):
+            obj.setProperty("_pinn_prepared", True)
+            cls._fit_small_button(obj)
+            cls._name_for_screen_reader(obj)
+            from pinnstudio.ui import icons as _icons
+            _icons.iconize(obj)
+            cls._fit_height_later(obj)
+        cls.apply(obj)
+        cls._fit_height(obj)
+
+    @classmethod
+    def refit(cls, root):
+        """The UI scale changed the text size: size every button and drop-down under `root` again."""
+        for w in [root] + root.findChildren(QWidget):
             try:
-                app.removeEventFilter(inst)
+                cls._fit_text_button(w)
+                cls._fit_combo(w)
+                cls._fit_items(w)
+                cls._fit_height(w)
             except RuntimeError:
                 pass
 
-    def eventFilter(self, obj, ev):
-        if isinstance(obj, QDialog) and (ev.type() == QEvent.Type.Show or
-                                         (ev.type() == QEvent.Type.LayoutRequest and obj.isVisible())):
-            # again on every layout change: the theme's fonts and padding
-            # arrive after the dialog is first shown, and rows get added
-            self._fit_dialog(obj)
-        if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
-            self._fit_text_button(obj)       # the UI scale changed the text size
-            self._fit_combo(obj)
-            self._fit_items(obj)
-        if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
-            self._fit_text_button(obj)
-            self._fit_combo(obj)
-            self._fit_items(obj)
-            if ev.type() == QEvent.Type.Polish:
-                self._fit_small_button(obj)
-                self._name_for_screen_reader(obj)
-                from pinnstudio.ui import icons as _icons
-                _icons.iconize(obj)
-            self.apply(obj)
-            self._fit_height(obj)
-            if ev.type() == QEvent.Type.Polish:
-                self._fit_height_later(obj)
-        return False
-
     @staticmethod
-    def _fit_dialog(d):
+    def fit_dialog(d):
         """A dialog given a minimum width in code (setMinimumWidth(520)) no
         longer grows to its contents by itself (Qt then leaves its minimum
         size to the code), so its rows were squeezed on top of each other

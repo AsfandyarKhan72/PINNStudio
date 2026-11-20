@@ -369,8 +369,20 @@ class DesignerController(QObject):
         try:
             src = X.module_source(self.state.design, self.state.inputs, self.state.outputs, activation,
                                   kernel_initializer, weight_decay)
-            with open(path, "w", encoding="utf-8") as fh:
+            folder = os.path.dirname(os.path.abspath(path))
+            import tempfile
+            fd, tmp = tempfile.mkstemp(prefix=".pinnstudio-", suffix=".py", dir=folder)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(src)
+            try:
+                os.replace(tmp, path)     # a file open elsewhere is kept, never left half-written
+            except OSError:
+                os.remove(tmp)
+                raise
+        except PermissionError:
+            self.state.set_message(f"Not exported: {os.path.basename(path)} is open in another program; close it "
+                                   "there and export again")
+            return False
         except (ParamError, OSError) as exc:
             self.state.set_message(f"Not exported: {exc}")
             return False

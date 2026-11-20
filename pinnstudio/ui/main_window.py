@@ -960,6 +960,55 @@ class MainWindow(QMainWindow):
     def _apply_theme(self):
         self._apply_display_settings()
 
+    def _undo_target(self):
+        """What Edit › Undo and Redo act on: the sketch or the network design when the focus is in it,
+        else the problem's settings."""
+        w = QApplication.focusWidget()
+        for panel in (getattr(self, "sketch_panel", None), getattr(self, "domain_view", None)):
+            if panel is not None and w is not None and (panel is w or panel.isAncestorOf(w)):
+                return panel
+        dp = getattr(self, "designer_panel", None)
+        if dp is not None and w is not None and (dp is w or dp.isAncestorOf(w)):
+            return "designer"
+        return "settings"
+
+    def _apply_settings_snapshot(self, config):
+        self._apply_config(config)
+        try:
+            return self._config_key(self._build_config())
+        except Exception:
+            return None
+
+    def _edit_undo(self):
+        t = self._undo_target()
+        if t == "designer":
+            self.designer.undo()
+        elif t != "settings":
+            t.undo()
+        elif self.settings_ctl.undo(self._apply_settings_snapshot):
+            self.statusBar().showMessage("Undone", 2000)
+
+    def _edit_redo(self):
+        t = self._undo_target()
+        if t == "designer":
+            self.designer.redo()
+        elif t != "settings":
+            t.redo()
+        elif self.settings_ctl.redo(self._apply_settings_snapshot):
+            self.statusBar().showMessage("Redone", 2000)
+
+    def _update_undo_actions(self):
+        self.undo_action.setToolTip("Undo the last change to the settings" if self.settings_history.can_undo()
+                                    else "Nothing to undo")
+
+    def _start_settings_history(self):
+        """A new, opened or recovered problem: Undo starts from here."""
+        try:
+            cfg = self._build_config()
+            self.settings_ctl.start(self._config_key(cfg), cfg)
+        except Exception:
+            pass
+
     AUTOSAVE_MS = 30000
 
     def _setup_autosave(self):
@@ -996,6 +1045,7 @@ class MainWindow(QMainWindow):
         self._current_problem_name = name
         self._clean_key = "(recovered: not saved yet)"     # stays unsaved until the user saves it
         self._set_dirty(True)
+        self._start_settings_history()
         self.log_box.append(f"↺ Recovered {name or 'the unsaved problem'}: save it to keep it.")
 
     def _follow_system_color_scheme(self):
@@ -1099,6 +1149,22 @@ class MainWindow(QMainWindow):
         stop_action.triggered.connect(self._shortcut_stop)
         problem_menu.addAction(stop_action)
         self.solve_action, self.stop_action = solve_action, stop_action
+        # Edit: Undo and Redo of what has the focus -- the sketch, the network design, or else the problem's
+        # settings (text boxes keep their own: they take the keys first)
+        from pinnstudio.ui.controllers.settings import SettingsController
+        from pinnstudio.ui.state.settings_history import SettingsHistory
+        self.settings_history = SettingsHistory(self)
+        self.settings_ctl = SettingsController(self.settings_history, self)
+        edit_menu = menubar.addMenu("Edit")
+        self.undo_action = QAction("Undo", self)
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.triggered.connect(self._edit_undo)
+        edit_menu.addAction(self.undo_action)
+        self.redo_action = QAction("Redo", self)
+        self.redo_action.setShortcuts([QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")])
+        self.redo_action.triggered.connect(self._edit_redo)
+        edit_menu.addAction(self.redo_action)
+        self.settings_history.changed.connect(self._update_undo_actions)
         settings_menu = menubar.addMenu("Settings")
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
@@ -1711,6 +1777,11 @@ class MainWindow(QMainWindow):
         except Exception:
             return
         self._update_dirty(config)
+        if hasattr(self, "settings_ctl"):
+            try:
+                self.settings_ctl.settled(self._config_key(config), config)
+            except Exception:
+                pass
         self._refresh_script_tab(config)
         problems = {}
         for msg in errors:
@@ -2092,6 +2163,7 @@ class MainWindow(QMainWindow):
         self._current_path = None
         self._current_problem_name = ""
         self._mark_clean()
+        self._start_settings_history()
         self.workspace.select("equations")
         self.log_box.append(f"✅ New {dim} problem")
 
@@ -5100,6 +5172,7 @@ class MainWindow(QMainWindow):
         self.bottom_tabs.setObjectName("bottomTabs")
         self.bottom_tabs.addTab(self.log_box, "Training Log")
         self.sketch_panel = SketchPanel()
+        self.sketch_panel.use_window_shortcuts()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
         self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
         self._hook_view3d_points(self.sketch_panel)
@@ -5144,6 +5217,7 @@ class MainWindow(QMainWindow):
         # its edges / faces numbered and coloured by BC, like the Sketch.
         self.domain_view = SketchPanel()
         self.domain_view.make_viewer()
+        self.domain_view.use_window_shortcuts()       # Edit › Undo / Redo reach it (see _undo_target)
         self.domain_view.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
         self._hook_view3d_points(self.domain_view)
         self.domain_view.new_bc_requested.connect(self._on_sketch_new_bc)
@@ -5512,6 +5586,8 @@ class MainWindow(QMainWindow):
         self.export_enabled_cb = QCheckBox("Enable solution data export")
         self.export_enabled_cb.setChecked(False)
         self.export_enabled_cb.setVisible(False)
+        self._export_format = "csv"          # csv / vtk / both (Export Solution Data dialog)
+        self._export_torchscript = False
         controls_layout.addLayout(save_row)
         controls_layout.addLayout(ctrl_row2)     # (after Save to: they act on the saved run)
         self._sync_outputs_choice()
@@ -10362,6 +10438,8 @@ class MainWindow(QMainWindow):
             export_enabled=self.export_enabled_cb.isChecked(),
             export_grid_size=self._export_grid_size(),
             export_t_steps=self.export_tsteps_spin.value(),
+            export_format=getattr(self, "_export_format", "csv"),
+            export_torchscript=bool(getattr(self, "_export_torchscript", False)),
             template_type=getattr(self, '_current_template_type', ''),
             optimizer_scheduler=self.sched_cb.isChecked() if hasattr(self, 'sched_cb') else False,
             scheduler_same_weights=self.sched_same_weights_cb.isChecked() if hasattr(self, 'sched_same_weights_cb') else True,
@@ -10723,6 +10801,7 @@ class MainWindow(QMainWindow):
         self._inverse_from_example = self.radio_inverse.isChecked()   # from the file
         self._add_recent(path)
         self._mark_clean()
+        self._start_settings_history()
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
         if _val_errors:
             self.log_box.append("⚠️ To fix before Solve:")
@@ -11286,6 +11365,8 @@ class MainWindow(QMainWindow):
         self.export_enabled_cb.setChecked(getattr(config, "export_enabled", False))
         self.export_grid_combo.setCurrentText(str(config.export_grid_size))
         self.export_tsteps_spin.setValue(config.export_t_steps)
+        self._export_format = getattr(config, "export_format", "csv") or "csv"
+        self._export_torchscript = bool(getattr(config, "export_torchscript", False))
         if 0 <= config.plot_output_idx < self.plot_output_combo.count():
             self.plot_output_combo.setCurrentIndex(config.plot_output_idx)
         self.plot_all_outputs_cb.setChecked(bool(getattr(config, "plot_all_outputs", True)))
@@ -12837,8 +12918,9 @@ class MainWindow(QMainWindow):
             path += ext
         try:
             import shutil as _fig_shutil
-            _fig_shutil.copy(src, path)
-            self.log_box.append(f"💾 Figure saved: {os.path.basename(path)}")
+            from pinnstudio.ui.export_tools import write_replacing
+            if write_replacing(path, lambda tmp: _fig_shutil.copy(src, tmp), self):
+                self.log_box.append(f"💾 Figure saved: {os.path.basename(path)}")
         except Exception as e:
             self.log_box.append(f"❌ Failed to save figure: {e}")
 
@@ -14541,7 +14623,8 @@ print("DOMAIN_PREVIEW_DONE")
             log_family=lc.get("family") or _theme.mono_font_family(), log_size=self._scaled(self._log_font_size),
             panel_border=(self._panel_border_color or "").strip() or None,
             panel_border_width=self._panel_border_width)
-        self.setStyleSheet(qss)
+        if qss != self.styleSheet():          # setting it re-polishes every widget, even when unchanged
+            self.setStyleSheet(qss)
         pb = (self._panel_border_color or "").strip() or t["border"]
         for name in ("loss_label", "solution_label", "monitor_label"):
             lbl = getattr(self, name, None)
@@ -14553,6 +14636,7 @@ print("DOMAIN_PREVIEW_DONE")
         if hasattr(self, "_styled_widgets"):
             self._restyle_all()
         _theme.StyleRemapper.rethemeall(self)
+        _theme.StyleRemapper.refit(self)      # (the UI scale may have changed the text size)
         from pinnstudio.ui import icons as _icons
         _icons.retint_all()
         # the typeset equations are drawn in the theme's text colour
@@ -14618,13 +14702,33 @@ print("DOMAIN_PREVIEW_DONE")
         tsteps_row.addStretch(); tsteps_row.addWidget(tsteps_spin)
         layout.addLayout(tsteps_row)
 
-        note = QLabel("Output: solution_data/solution_t{time}.txt\nColumns: x, t, u (1D) or x, y, t, u (2D)")
+        fmt_row = QHBoxLayout()
+        fmt_label = QLabel("Format:")
+        fmt_row.addWidget(fmt_label)
+        fmt_combo = QComboBox()
+        for _text, _key in (("Text (CSV)", "csv"), ("VTK for ParaView", "vtk"), ("Both", "both")):
+            fmt_combo.addItem(_text, _key)
+        fmt_combo.setCurrentIndex(max(0, fmt_combo.findData(getattr(self, "_export_format", "csv"))))
+        fmt_combo.setToolTip("VTK: one .vtk file per time on the export grid (NaN outside a non-box domain) and "
+                             "solution.pvd, which opens the times as one series in ParaView")
+        fmt_row.addStretch(); fmt_row.addWidget(fmt_combo)
+        layout.addLayout(fmt_row)
+
+        note = QLabel("Output: solution_data/solution_t{time}.txt (and .vtk)\n"
+                      "Columns: x, t, u (1D) or x, y, t, u (2D)")
         self._register_hint(note, '#586e75')
         note.setWordWrap(True)
         layout.addWidget(note)
 
+        ts_cb = QCheckBox("Also save the trained network (TorchScript and torch.export)")
+        ts_cb.setToolTip("model_torchscript.pt (torch.jit.load, or LibTorch in C++) and model_exported.pt2\n"
+                         "(torch.export.load) in solution_results: the network with its input and output\n"
+                         "transforms, usable without PINNStudio or DeepXDE. Saved also when solution data is off.")
+        ts_cb.setChecked(bool(getattr(self, "_export_torchscript", False)))
+        layout.addWidget(ts_cb)
+
         def _sync_enabled_state(checked):
-            for w in (grid_row_label, grid_combo, tsteps_row_label, tsteps_spin, note):
+            for w in (grid_row_label, grid_combo, tsteps_row_label, tsteps_spin, note, fmt_label, fmt_combo):
                 w.setEnabled(checked)
         enable_cb.stateChanged.connect(lambda s: _sync_enabled_state(s == 2))
         _sync_enabled_state(enable_cb.isChecked())
@@ -14635,6 +14739,8 @@ print("DOMAIN_PREVIEW_DONE")
             self.export_enabled_cb.setChecked(enable_cb.isChecked())
             self.export_grid_combo.setCurrentText(grid_combo.currentText())
             self.export_tsteps_spin.setValue(tsteps_spin.value())
+            self._export_format = fmt_combo.currentData() or "csv"
+            self._export_torchscript = ts_cb.isChecked()
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)

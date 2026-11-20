@@ -17,7 +17,7 @@ import os
 import re
 import time
 
-from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
@@ -722,6 +722,21 @@ def short_label(run):
     return re.sub(r"^run_\d+__", "", run.get("label") or run.get("name") or "run").replace("_", " ")
 
 
+class _ScanThread(QThread):
+    done = Signal(str, list)
+
+    def __init__(self, base, parent=None):
+        super().__init__(parent)
+        self.base = base
+
+    def run(self):
+        try:
+            runs = scan_runs(self.base)
+        except Exception:
+            runs = []
+        self.done.emit(self.base, runs)
+
+
 class RunCompare(QWidget):
     """Several runs on one figure: training loss against iteration, and
     the relative L2 error against time (when the runs have error analysis)."""
@@ -834,6 +849,7 @@ class RunHistory(QWidget):
         super().__init__(parent)
         from PySide6.QtWidgets import QPushButton
         self.base_fn = base_fn
+        self._scans = []          # background scans of the Save-to folder still running
         self.runs = []
         lay = QVBoxLayout(self)
         lay.setContentsMargins(6, 6, 6, 6)
@@ -886,13 +902,37 @@ class RunHistory(QWidget):
     _scanned = None
 
     def refresh(self):
+        """Scan the Save-to folder in a background thread (on a network share or over VPN, reading every
+        run's files would freeze the window); the table fills when the scan is done."""
         base = ""
         try:
             base = (self.base_fn() or "").strip()
         except Exception:
             pass
         self._scanned, self.stale = base, False
-        self.runs = scan_runs(base)
+        if not base:
+            self._fill(base, [])
+            return
+        self.summary.setText(f"Scanning {base} …")
+        th = _ScanThread(base, self)
+        th.done.connect(self._scan_done)
+        th.finished.connect(lambda t=th: self._scans.remove(t) if t in self._scans else None)
+        self._scans.append(th)        # kept until finished (an older scan may still be running)
+        th.start()
+
+    def _scan_done(self, base, runs):
+        if base == self._scanned:     # a result for a folder no longer shown is dropped
+            self._fill(base, runs)
+
+    def wait_for_scan(self, ms=30000):
+        """(Tests) block until the background scans have finished."""
+        for th in list(self._scans):
+            th.wait(ms)
+        from PySide6.QtCore import QCoreApplication
+        QCoreApplication.processEvents()
+
+    def _fill(self, base, runs):
+        self.runs = runs
         self.table.setRowCount(0)
         for r in self.runs:
             i = self.table.rowCount()
@@ -982,8 +1022,11 @@ class FitImage(QObject):
         label.installEventFilter(self)
 
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
-            self._timer.start()
+        try:              # an event filter never raises (a panel being torn down)
+            if ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+                self._timer.start()
+        except RuntimeError:
+            pass
         return False
 
     def refit(self):
