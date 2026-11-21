@@ -35,11 +35,56 @@ def save_image_file(path, parent=None, target=None):
         target += ext
     if os.path.splitext(target)[1].lower() == ext:
         if os.path.abspath(target) != os.path.abspath(path):
-            shutil.copyfile(path, target)
-    else:
-        if not QImage(path).save(target):
-            return None
-    return target
+            return write_replacing(target, lambda tmp: shutil.copyfile(path, tmp), parent)
+        return target
+    ok = []
+    out = write_replacing(target, lambda tmp: ok.append(QImage(path).save(tmp)), parent)
+    return out if (out and all(ok)) else None
+
+
+def write_replacing(target, write, parent=None):
+    """Write `target` through a temporary file beside it, then put it in place: a file open in another
+    program (a PDF viewer, Excel) is then never left half-written. On Windows such a file cannot be
+    replaced at all: the old one is kept and the user is told to close it there. `write(tmp_path)` makes
+    the file. Returns the target, or None when it could not be written."""
+    import tempfile
+    import time
+    folder = os.path.dirname(os.path.abspath(target))
+    fd, tmp = tempfile.mkstemp(prefix=".pinnstudio-", suffix=os.path.splitext(target)[1], dir=folder)
+    os.close(fd)
+    try:
+        write(tmp)
+        for attempt in range(5):          # a scanner or the indexer may hold the new file for a moment
+            try:
+                os.replace(tmp, target)
+                return target
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.2)
+    except PermissionError:
+        _remove_quietly(tmp)
+        if parent is not None:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(parent, "Not saved",
+                                f"{os.path.basename(target)} could not be replaced: it is open in another "
+                                "program. Close it there and save again; the old file is unchanged.")
+        return None
+    except BaseException:
+        _remove_quietly(tmp)
+        raise
+
+
+def _remove_quietly(path):
+    import time
+    for _ in range(5):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(0.2)
 
 
 def show_in_folder(path):
@@ -96,8 +141,7 @@ def save_figure(fig, parent=None, name="figure.png", target=None, dpi=200):
         return None
     if not os.path.splitext(target)[1]:
         target += ".png"
-    fig.savefig(target, dpi=dpi, facecolor=fig.get_facecolor())
-    return target
+    return write_replacing(target, lambda tmp: fig.savefig(tmp, dpi=dpi, facecolor=fig.get_facecolor()), parent)
 
 
 def attach_figure_menu(canvas, fig_fn, name="figure.png"):
@@ -149,9 +193,11 @@ def export_table_csv(table, parent=None, name="table.csv", target=None):
         target += ".csv"
     rows = table_rows(table, selected_only=False)
     rows = [[c.replace("—", "") for c in row] for row in rows]
-    with open(target, "w", newline="", encoding="utf-8") as fh:
-        csv.writer(fh).writerows(rows)
-    return target
+
+    def write(tmp):
+        with open(tmp, "w", newline="", encoding="utf-8") as fh:
+            csv.writer(fh).writerows(rows)
+    return write_replacing(target, write, parent)
 
 
 def attach_table_menu(table, name="table.csv"):

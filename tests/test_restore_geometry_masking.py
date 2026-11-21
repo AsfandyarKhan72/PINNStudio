@@ -346,7 +346,7 @@ def run():
                       f"restoring the real Custom-geometry checkpoint should work, got exit "
                       f"{rproc.returncode}:\n{rproc.stdout}\n{rproc.stderr}")
                 check("RESTORE_DONE" in rproc.stdout,
-                      f"real-pipeline Custom-geometry restore should finish (RESTORE_DONE)")
+                      "real-pipeline Custom-geometry restore should finish (RESTORE_DONE)")
 
     return failures
 

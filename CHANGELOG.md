@@ -4,6 +4,43 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Help menu**: *Help for This Page* (F1) opens the user-guide page of the model-tree page on screen; *Quick Reference…* (Ctrl+F1) is a window that works offline with the expression and derivative syntax, the boundary-condition kinds, the usual workflow, what to check when training does not converge and every keyboard shortcut (read from the menus, so always current), with a search box; *Tutorials* lists every tutorial; links to Getting Started, the User Guide, Choosing a Strategy, Troubleshooting and the FAQ; *Report a Problem…* opens the issue form.
+- **Command palette** (Ctrl+K or Ctrl+Shift+P, *View › Go to Page or Command…*): type a few letters to go to any model-tree page or section, or to run any menu command.
+- **Start page, Learn**: cards for tutorial 1, all tutorials, the Quick Reference and the user guide.
+- **Themes**: *System (match OS)*, which follows the operating system's light or dark setting while PINNStudio runs, and *High Contrast*. The keyboard focus is now drawn (it was hidden on buttons); progress bar, status bar, tool buttons, menus, tables and lists are styled by the theme.
+- **Tutorials** 19 (steady 2D flow, Kovasznay), 20 (diagnosing a run that does not converge), 21 (a 3D problem, Poisson in a sphere) and 22 (designing a network as blocks: FNN against the multi-scale Fourier network, and the effect of removing one branch), each verified with real runs (`tools/docs/run_new_tutorials.py`).
+- **Network designer**: *Network type › Designed* builds the network as blocks on a canvas in a new **Network** tab: inputs, layer stacks (dense, activation, layer norm, scale and shift, Fourier features, periodic features, adaptive activation, custom PyTorch layers), merges, heads per output, shared blocks, groups and saved TorchScript modules. Connections are checked while dragging (green, or red with the reason), every block shows its width, every edit is one undo step, and FNN, PFNN, MsFFN, STMsFFN, ResNet and modified-MLP designs are presets (the first four give the same network as the type of that name). Custom code and saved modules run only once trusted (by SHA-256). Blocks and designs can be kept in a personal library, and a design exported as a standalone PyTorch module. Design widths and Fourier scales can be swept. Guide: *Network designer*.
+- **Edit › Undo / Redo** (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z): the problem's settings step back and forward; in the sketch and the network design the keys act there.
+- **Crash recovery**: unsaved work is kept every 30 seconds and offered back (*Recover*, *Discard*, *Later*) at the next start after PINNStudio closed without saving it.
+- **Windows installer** (`packaging/windows`): PINNStudio as a Windows program with no Python needed (PyInstaller, PyTorch's CPU build) and an Inno Setup installer: per user without administrator, Start menu, optional desktop shortcut and *Open with* for `.pinn.json` files, uninstaller, SHA-256 file. Training runs inside the program (`PINNStudio.exe script.py`). Each build checks itself (a training run inside the program, the window off screen, install and uninstall); `release.yml` builds it on a Windows runner for every version tag.
+- **Command line** without Qt: `pinnstudio check`, `export` and `run` on a `.pinn.json` file (a server or cluster node needs no display); `pinnstudio problem.pinn.json` opens the window with it.
+- **Exports**: solution data as VTK for ParaView (a `.pvd` series of the times; `NaN` outside a domain that is not a box), besides or instead of text; the trained network as TorchScript and `torch.export` files, usable without PINNStudio or DeepXDE.
+- **`environment.json`** in every run folder: Python, PyTorch, CUDA, DeepXDE and other versions, device, precision and seed.
+- **Docs**: *Scaling and nondimensional form*; what lies outside PINNStudio's scope (operator learning, units, meshes) in *Scope and limitations*; the command line and recovery in *Save, reopen and export*.
+- **Development**: model-view-controller tiers checked by `tests/test_mvc.py` (*Model, views and controllers*); `ruff` lint; quality, nightly (export equivalence, coverage) and release workflows (checksums, PyPI trusted publishing after approval); `constraints.txt`; Dependabot.
+
+### Changed
+- Each run has its own scratch folder for its plots and temporary files; two runs at once (or two PINNStudios) no longer read each other's files from a shared `/tmp`.
+- The theme is applied to each widget when Qt polishes it, instead of by an application-wide event filter: building the window with another Python thread busy took 34 s and now 16 s (in a test).
+- The History tab reads the run folders in a background thread, so a folder on a network share no longer freezes the window.
+- `model_config.json` and the time-window `step_config.json` record the network type and design: restoring a time-adaptive PFNN or MsFFN run rebuilt a plain FNN before.
+
+### Fixed
+- Deleting a boundary-condition row moved the loss weights of the rows below it onto the wrong rows; they now stay with their rows. Removing a training phase left duplicate phase numbers when one was added afterwards, so the per-phase weights of one of them were ignored; phases are now renumbered with their weights. Parameter-sweep rows on a phase, an inverse parameter, a time-window group or a BC weight now follow that row when an earlier one is removed (and a sweep on the removed row is marked not available), instead of silently sweeping another row.
+- Changing the geometry shape, typing a polygon's vertices, or changing the number of outputs reset the initial conditions (and, for the outputs, the equations, names and output transforms) to their defaults; what was typed is now kept. Typing vertices no longer rebuilds every condition row on each keystroke.
+- Error Analysis of a combined time-adaptive restore compared only the browsed step's time window.
+- The domain preview wrote to `/tmp`, which does not exist on a fresh Windows installation; it now uses the system's temporary folder, starts once typing in the point counts pauses, and a preview, restore or training run that cannot start no longer leaves its button disabled. *Stop* pressed while the training script was being written now stops the run that starts.
+- The Training Log showed the last lines before a long quiet stretch (an L-BFGS phase, the plotting) only when the next line came; output is now passed on every half second.
+- Time-adaptive training counted the loss history of a window with several phases (or resampling rounds) more than once in the stitched loss plot, shifting every later window.
+- A plot label or custom expression with a quote or a backslash (`$\xi$`) broke the generated script; the exported time-adaptive plot ignored the custom plot field; *random in a box* extra training points could fall outside a non-rectangular domain; exported solution files of a short time interval overwrote each other.
+- SVG import: a rotated `<ellipse>` came in mirrored; arc flags written without spaces (`A1 1 0 012 0`, as minifiers write them) stopped the import; regular polygons of 9 to 23 sides were turned into disks; coordinates kept only 6 significant digits. Sketch edges: the *Where:* expression of a slanted edge far from the origin could miss its own edge; finding the edges of a polygon with hundreds of vertices is about 6 times faster.
+- Training-monitor points of an ODE were checked for two coordinates instead of one. Sweep run folders of negative values lost the minus sign. The *Exact initial condition* sweep's "off" runs added an initial-condition loss to a problem that had none. A results folder remembered as `~/...` was not restored. Windows: desktop and Start-menu shortcuts were skipped for a user folder with non-ASCII letters.
+- Windows: saving a figure, a table or the designer's code over a file open in another program could leave it half-written; files are now written beside it and moved in place, and the old file is kept with a message when it cannot be replaced. An event filter could raise while a widget was torn down. A freeze of the window is now logged with every thread's stack (`~/.pinnstudio/pinnstudio.log`).
+- Loading a 3D example took several seconds reading every reference file whole only to find its time; it now reads the first line. The History tab no longer re-reads every run after each finished run, and reads only the end of each training log. Dialogs, image viewers, context menus and recent-file actions are freed when closed.
+
 ## [1.6.0] - 2026-11-06
 
 ### Upgrading from 1.5.0

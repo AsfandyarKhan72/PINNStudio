@@ -101,7 +101,6 @@ def _run_script(script, tmpdir, tag, timeout_s=240):
 # ---------------------------------------------------------------------
 
 def _run_restore_ta_case(check, tag, dim, geom_builder, geom_fields, is_3d, expect_mixed):
-    import deepxde as dde
     import numpy as np
 
     win = MainWindow()

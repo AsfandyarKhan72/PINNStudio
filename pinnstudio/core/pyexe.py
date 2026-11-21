@@ -10,8 +10,16 @@ import subprocess
 import sys
 
 
+def frozen():
+    """True in the Windows program (PyInstaller, packaging/windows): there is no python.exe, and the program
+    itself runs a script it is given (PINNStudio.exe script.py)."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def script_python():
     exe = sys.executable
+    if frozen():
+        return exe
     d, base = os.path.split(exe)
     if base.lower() == "pythonw.exe" and os.path.isfile(os.path.join(d, "python.exe")):
         return os.path.join(d, "python.exe")
@@ -30,6 +38,8 @@ def script_env():
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    if frozen():                  # a training run of the Windows program shows no splash screen
+        env["PYINSTALLER_SUPPRESS_SPLASH_SCREEN"] = "1"
     return env
 
 

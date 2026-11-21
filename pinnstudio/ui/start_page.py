@@ -22,6 +22,9 @@ class _Card(QPushButton):
         super().__init__(parent)
         self.setObjectName("startCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAccessibleName(title)            # its text is drawn by child labels, not the button
+        if meta:
+            self.setAccessibleDescription(meta)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(12, 9, 12, 9)
         lay.setSpacing(10)
@@ -60,6 +63,7 @@ class StartPage(QScrollArea):
     open_requested = Signal()
     open_path = Signal(str)
     example_requested = Signal(str)    # an example key
+    help_requested = Signal(str)       # a documentation URL, or "quickref" for the Quick Reference window
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -103,6 +107,29 @@ class StartPage(QScrollArea):
         self.recent_box.setSpacing(0)
         lay.addLayout(self.recent_box)
         self.recent_buttons = []
+
+        # LEARN: the first tutorial, the tutorials, the offline Quick Reference and the user guide
+        from pinnstudio.ui import help as _help
+        lay.addWidget(self._section("LEARN"))
+        grid = QGridLayout()
+        grid.setSpacing(8)
+        self.learn_cards = {}
+        first = _help.TUTORIALS[0]
+        for i, (key, title, meta, icon, target) in enumerate((
+                ("first", f"Tutorial 1: {first[1]}", "Your first PINN in about ten minutes, step by step",
+                 "play", _help.tutorial_url(first[2])),
+                ("tutorials", "All tutorials", f"{len(_help.TUTORIALS)} exercises, from ODEs to inverse problems",
+                 "book", _help.DOCS_URL + "tutorials/"),
+                ("quickref", "Quick reference", "Equation syntax, conditions, shortcuts (Ctrl+F1, works offline)",
+                 "help", "quickref"),
+                ("guide", "User guide", "Every page and setting explained (F1 on any page)",
+                 "info", _help.DOCS_URL + "guide/"))):
+            c = _Card(title, meta, icon)
+            c.setToolTip(target if target != "quickref" else "Open the Quick Reference window")
+            c.clicked.connect(lambda _c=False, u=target: self.help_requested.emit(u))
+            self.learn_cards[key] = c
+            grid.addWidget(c, i // 2, i % 2)
+        lay.addLayout(grid)
 
         lay.addWidget(self._section("EXAMPLES"))
         self.example_cards = {}
@@ -150,7 +177,7 @@ class StartPage(QScrollArea):
 
     def retheme(self):
         """Redraw the card icons in the current theme's accent colour."""
-        for c in list(self.new_cards.values()) + [self.open_card]:
+        for c in list(self.new_cards.values()) + [self.open_card] + list(self.learn_cards.values()):
             if getattr(c, "_icon_label", None) is not None:
                 c._icon_label.setPixmap(_icons.pixmap(c._icon, _icons._color("accent"), 22))
 

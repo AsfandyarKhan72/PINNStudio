@@ -324,7 +324,10 @@ def _slugify(text, maxlen=60):
     """A filesystem-safe folder-name fragment: letters, digits, dots and
     dashes kept, anything else (spaces, colons, commas, parens, ...)
     collapsed to one dash -- "Phase 1: Iterations" -> "Phase-1-Iterations"."""
-    text = re.sub(r"[^A-Za-z0-9.+-]+", "-", str(text).strip())
+    # a negative value's minus sign would merge into the separator dash ("Shift=-0.5" and "Shift=0.5"
+    # both became "Shift-0.5"): written as "m" instead ("Shift-m0.5"); 1e-05 keeps its dash
+    text = re.sub(r"(?<![A-Za-z0-9.])-(?=\.?\d)", "m", str(text).strip())
+    text = re.sub(r"[^A-Za-z0-9.+-]+", "-", text)
     text = re.sub(r"-+", "-", text).strip("-")
     # no trailing dot or dash: Windows drops a trailing dot from a folder name
     return ((text or "run")[:maxlen].rstrip(".-")) or "run"
@@ -456,7 +459,9 @@ def _read_run_metrics(cfg, not_before):
     if (not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]") and \
             getattr(cfg, "ea_ref_mode", "files") != "formula":
         return {}
-    save_dir = getattr(cfg, "save_dir", "") or "/tmp"
+    save_dir = getattr(cfg, "save_dir", "") or ""
+    if not save_dir:              # (every sweep run has its own folder)
+        return {}
     ea_dir = os.path.join(save_dir, "error_analysis")
     files = [
         p for p in glob.glob(os.path.join(ea_dir, "error_metrics*.txt"))

@@ -35,7 +35,8 @@ Yes. Start from **NEW** on the Start tab (or **Problem › New**), or load an ex
 
 **Does PINNStudio handle physical units?**
 No. All values are plain numbers. Write the equations in consistent units, or better in nondimensional form, so that
-the terms of the residuals have comparable size; this also helps training.
+the terms of the residuals have comparable size; this also helps training. [Scaling and nondimensional
+form](../theory/nondimensionalisation.md) shows how, with an example.
 
 ## Installation and hardware
 

@@ -17,7 +17,7 @@ import os
 import re
 import time
 
-from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
@@ -78,6 +78,9 @@ def _theme_toolbar(toolbar):
     # a stylesheet, not just a palette: the window's "QWidget { background:
     # transparent }" rule resets a palette set before the toolbar is polished
     card = _theme.current()["card"]
+    if toolbar.property("_pinn_card") == card:
+        return              # already in this theme (the live loss plot calls this on every redraw)
+    toolbar.setProperty("_pinn_card", card)
     toolbar.setStyleSheet(f"QToolBar {{ background: {card}; border: none; }}")
     pal = toolbar.palette()
     pal.setColor(toolbar.backgroundRole(), QColor(card))
@@ -97,6 +100,8 @@ class RunProgress:
         self.history = []            # (step, train terms, test terms)
         self.phase_starts = []       # (step, label)
         self.metrics = []            # (t or None, L2, MeanAbs or None)
+        self.metric_groups = []      # the output (group) of each metrics row, None when there are no groups
+        self._ea_group = None
         self.final_loss = None
         self.figures = []            # figure files the run reported saving
         self.started = time.time()
@@ -178,6 +183,10 @@ class RunProgress:
                 if not self.history or self.history[-1][0] != step or len(self.history[-1][1]) != len(tr):
                     self.history.append((step, tr, te))
             return
+        if "── Output group: " in line:
+            gm = re.search(r"Output group: (.+?) \(\d+ files?\)", line)
+            self._ea_group = gm.group(1).strip() if gm else None
+            return
         if "MeanAbs=" in line:
             tm = re.search(r"t=([-\d.eE+]+)", line)
             l2 = re.search(r"L2=([-\d.eE+]+)", line)
@@ -186,6 +195,7 @@ class RunProgress:
                 self.metrics.append((float(tm.group(1)) if tm else None,
                                      float(l2.group(1)) if l2 else None,
                                      float(ma.group(1)) if ma else None))
+                self.metric_groups.append(self._ea_group)
             except ValueError:
                 pass
             return
@@ -374,6 +384,7 @@ class ImageViewer(QDialog):
 
     def __init__(self, path, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)   # its full-size pixmap goes when it closes
         self.setWindowTitle(os.path.basename(path))
         self.resize(1100, 800)
         lay = QVBoxLayout(self)
@@ -481,21 +492,40 @@ class ErrorAnalysisPanel(QWidget):
             self.figs_lay.removeWidget(w)
             w.deleteLater()
 
-    def show_run(self, metrics, folder, figures=()):
+    def show_run(self, metrics, folder, figures=(), groups=None):
+        """`groups`: the output of each row (Error Analysis of several outputs writes one block per
+        output); shown as an *output* column when there is more than one, so three outputs at one time
+        no longer read as three rows "time 0"."""
         self.table.setRowCount(0)
-        for t, l2, ma in metrics:
+        groups = list(groups or [])
+        by_output = len({g for g in groups if g not in (None, "default")}) > 1 and len(groups) == len(metrics)
+        heads = (["output"] if by_output else []) + ["time", "relative L₂ error", "mean |error|"]
+        self.table.setColumnCount(len(heads))
+        self.table.setHorizontalHeaderLabels(heads)
+        for i, (t, l2, ma) in enumerate(metrics):
             r = self.table.rowCount()
             self.table.insertRow(r)
-            for c, v in enumerate((t, l2, ma)):
-                item = QTableWidgetItem("—" if v is None else (f"{v:g}" if c == 0 else f"{v:.3e}"))
-                if v is not None:
-                    item.setData(Qt.ItemDataRole.UserRole, float(v))
+            cells = ([groups[i]] if by_output else []) + [t, l2, ma]
+            for c, v in enumerate(cells):
+                if isinstance(v, str):
+                    item = QTableWidgetItem(v)
+                else:
+                    num_col = c - (1 if by_output else 0)
+                    item = QTableWidgetItem("—" if v is None else (f"{v:g}" if num_col == 0 else f"{v:.3e}"))
+                    if v is not None:
+                        item.setData(Qt.ItemDataRole.UserRole, float(v))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(r, c, item)
         l2s = [m[1] for m in metrics if m[1] is not None]
         if l2s:
+            n_t = len({m[0] for m in metrics if m[1] is not None})
+            if by_output:
+                n_o = len({g for g, m in zip(groups, metrics) if m[1] is not None})
+                over = (f"over {n_o} outputs" + (f" at {n_t} reference times" if n_t > 1 else ""))
+            else:
+                over = f"over {len(l2s)} reference time{'s' if len(l2s) != 1 else ''}"
             self.summary.setText(f"Relative L₂ error: mean {sum(l2s) / len(l2s):.3e}, worst {max(l2s):.3e} "
-                                 f"over {len(l2s)} reference time{'s' if len(l2s) != 1 else ''}.")
+                                 f"{over}.")
         else:
             self.summary.setText("No error analysis in the last run (set it up on the Results page).")
         for w in layout_widgets(self.figs_lay):   # not takeAt: see workspace._row_slots
@@ -515,7 +545,60 @@ class ErrorAnalysisPanel(QWidget):
 _STAMP = re.compile(r"(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})")
 
 
+def _last_step_line(path, tail=65536):
+    """The last "Step ..." line of a training log: read from the end of the file (a long run's log is
+    many megabytes, and the History tab reads one per run), the whole file only if the end has none."""
+    with open(path, "rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        fh.seek(max(0, size - tail))
+        chunk = fh.read().decode("utf-8", errors="replace")
+    lines = chunk.splitlines()
+    if size > tail:
+        lines = lines[1:]                     # the first line of the chunk may be cut
+    for line in reversed(lines):
+        if line.strip().startswith("Step"):
+            return line
+    if size <= tail:
+        return None
+    last = None
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if line.strip().startswith("Step"):
+                last = line
+    return last
+
+
+_RUN_CACHE = {}     # folder -> (signature of its files, read_run result)
+
+
+def _run_signature(folder):
+    sig = []
+    for rel in (os.path.join("solution_results", "training_log.txt"), "error_analysis",
+                os.path.join("solution_results", "model_config.json"), "solution_results"):
+        try:
+            st = os.stat(os.path.join(folder, rel))
+            sig.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            sig.append(None)
+    return tuple(sig)
+
+
 def read_run(folder):
+    """read_run_uncached, remembered while the run's files are unchanged: the History tab scans every
+    run again after each finished run, and most of them have not changed since the last scan."""
+    sig = _run_signature(folder)
+    hit = _RUN_CACHE.get(folder)
+    if hit is not None and hit[0] == sig:
+        return dict(hit[1], metrics=list(hit[1]["metrics"])) if hit[1] else None
+    run = read_run_uncached(folder)
+    if len(_RUN_CACHE) > 2000:
+        _RUN_CACHE.clear()
+    _RUN_CACHE[folder] = (sig, run)
+    return dict(run, metrics=list(run["metrics"])) if run else None
+
+
+def read_run_uncached(folder):
     """One finished run's summary from its folder (None if it isn't one):
     when, final training loss, relative L2 error, plot files."""
     sol = os.path.join(folder, "solution_results")
@@ -535,11 +618,7 @@ def read_run(folder):
     label = _STAMP.sub("", run["name"]).rstrip("_ ")
     run["label"] = label or run["name"]
     try:
-        with open(os.path.join(sol, "training_log.txt"), encoding="utf-8", errors="replace") as fh:
-            last = None
-            for line in fh:
-                if line.strip().startswith("Step"):
-                    last = line
+        last = _last_step_line(os.path.join(sol, "training_log.txt"))
         if last:
             vals = _log_values(last)
             if vals:
@@ -641,6 +720,21 @@ def scan_runs(base, max_depth=3, limit=500):
 def short_label(run):
     """A run's name for a legend: without the sweep's "run_01__" prefix."""
     return re.sub(r"^run_\d+__", "", run.get("label") or run.get("name") or "run").replace("_", " ")
+
+
+class _ScanThread(QThread):
+    done = Signal(str, list)
+
+    def __init__(self, base, parent=None):
+        super().__init__(parent)
+        self.base = base
+
+    def run(self):
+        try:
+            runs = scan_runs(self.base)
+        except Exception:
+            runs = []
+        self.done.emit(self.base, runs)
 
 
 class RunCompare(QWidget):
@@ -755,6 +849,7 @@ class RunHistory(QWidget):
         super().__init__(parent)
         from PySide6.QtWidgets import QPushButton
         self.base_fn = base_fn
+        self._scans = []          # background scans of the Save-to folder still running
         self.runs = []
         lay = QVBoxLayout(self)
         lay.setContentsMargins(6, 6, 6, 6)
@@ -807,13 +902,37 @@ class RunHistory(QWidget):
     _scanned = None
 
     def refresh(self):
+        """Scan the Save-to folder in a background thread (on a network share or over VPN, reading every
+        run's files would freeze the window); the table fills when the scan is done."""
         base = ""
         try:
             base = (self.base_fn() or "").strip()
         except Exception:
             pass
         self._scanned, self.stale = base, False
-        self.runs = scan_runs(base)
+        if not base:
+            self._fill(base, [])
+            return
+        self.summary.setText(f"Scanning {base} …")
+        th = _ScanThread(base, self)
+        th.done.connect(self._scan_done)
+        th.finished.connect(lambda t=th: self._scans.remove(t) if t in self._scans else None)
+        self._scans.append(th)        # kept until finished (an older scan may still be running)
+        th.start()
+
+    def _scan_done(self, base, runs):
+        if base == self._scanned:     # a result for a folder no longer shown is dropped
+            self._fill(base, runs)
+
+    def wait_for_scan(self, ms=30000):
+        """(Tests) block until the background scans have finished."""
+        for th in list(self._scans):
+            th.wait(ms)
+        from PySide6.QtCore import QCoreApplication
+        QCoreApplication.processEvents()
+
+    def _fill(self, base, runs):
+        self.runs = runs
         self.table.setRowCount(0)
         for r in self.runs:
             i = self.table.rowCount()
@@ -903,8 +1022,11 @@ class FitImage(QObject):
         label.installEventFilter(self)
 
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
-            self._timer.start()
+        try:              # an event filter never raises (a panel being torn down)
+            if ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+                self._timer.start()
+        except RuntimeError:
+            pass
         return False
 
     def refit(self):

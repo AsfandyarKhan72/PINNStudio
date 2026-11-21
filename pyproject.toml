@@ -1,3 +1,13 @@
 [build-system]
 requires = ["setuptools>=77", "wheel"]   # 77: license_expression (PEP 639) in setup.py
 build-backend = "setuptools.build_meta"
+
+# Lint: pyflakes (unused imports and variables, undefined names, f-strings without fields).
+#   ruff check pinnstudio tests tools        (CI: .github/workflows/quality.yml)
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["benchmarks", "website", "build", "notes"]
+
+[tool.ruff.lint]
+select = ["F"]

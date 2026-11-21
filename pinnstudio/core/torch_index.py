@@ -46,8 +46,10 @@ _MAXWELL = (5, 0)
 
 def _nvidia_smi(*args):
     try:
-        return subprocess.run(["nvidia-smi", *args], capture_output=True, text=True,
-                              timeout=10).stdout
+        # no console window: PINNStudio without a console of its own (the Windows program, pythonw.exe from
+        # the desktop shortcut) would otherwise flash one up for every call
+        return subprocess.run(["nvidia-smi", *args], capture_output=True, text=True, timeout=10,
+                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
     except Exception:
         return None
 
@@ -136,6 +138,10 @@ def gpu_fix_lines(tag, prefix=None, executable=None, platform=None, env=None):
                 "Update the NVIDIA driver, restart, and start PINNStudio again;"
                 " a GPU older than Maxwell (GTX 9xx), or a Blackwell GPU next to a"
                 " Maxwell, Pascal or Volta one, can only train on the CPU."]
+    if getattr(sys, "frozen", False):     # the Windows program holds a CPU-only PyTorch
+        return ["This PINNStudio program trains on the CPU. To train on the GPU, install PINNStudio with",
+                "Python instead (" + update_info.RELEASES.rsplit("/releases", 1)[0] + "#installation):",
+                "its installer picks the PyTorch build that fits the driver."]
     if update_info.is_uv_tool_install(prefix, env):
         return ["Run PINNStudio's installer again; it installs the PyTorch build that fits the driver:",
                 "  " + update_info.update_command(prefix, executable, platform, env)]

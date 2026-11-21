@@ -56,7 +56,7 @@ from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.codegen import (
     generate_script, generate_clean_script,
-    _training_monitor_runtime_code, _build_training_monitors_code,
+    _training_monitor_runtime_code,
 )
 
 

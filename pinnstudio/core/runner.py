@@ -2,13 +2,51 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 from pinnstudio.core import pyexe as _pyexe
 import subprocess
-import sys
 import tempfile
 import time
 from pinnstudio.core.codegen import generate_script
 from pinnstudio.core.config import PINNConfig
 
-def run_pinn(config: PINNConfig, on_output=None, set_process=None):
+def _flush_lines(stream, on_output, interval=0.5):
+    """Read `stream` to its end, handing its non-empty lines to on_output in batches every `interval`
+    seconds (and the rest at the end)."""
+    import queue
+    import threading
+    q = queue.Queue()
+
+    def _pump():
+        try:
+            for line in stream:
+                q.put(line)
+        finally:
+            q.put(None)
+    threading.Thread(target=_pump, name="pinnstudio-output", daemon=True).start()
+
+    buf = []
+
+    def _flush():
+        if on_output and buf:
+            for _l in buf:
+                on_output(_l)
+        buf.clear()
+    deadline = time.monotonic() + interval
+    while True:
+        try:
+            item = q.get(timeout=max(0.0, deadline - time.monotonic()))
+        except queue.Empty:
+            item = ""
+        if item is None:
+            break
+        item = item.rstrip()
+        if item:
+            buf.append(item)
+        if time.monotonic() >= deadline:
+            _flush()
+            deadline = time.monotonic() + interval
+    _flush()
+
+
+def run_pinn(config: PINNConfig, on_output=None, set_process=None, scratch=None):
     """
     Generates the DeepXDE script from config,
     writes it to a temp file, and runs it.
@@ -55,7 +93,10 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
         # otherwise Windows defaults a piped (non-console) stream to the legacy
         # system codepage, which can't encode emoji/symbols the script prints.
         _env = _pyexe.script_env()
-        process = subprocess.Popen(
+        if scratch:          # the run's own scratch folder, where it puts plots when there is no save folder
+            _env["PINNSTUDIO_SCRATCH"] = scratch
+        try:
+            process = subprocess.Popen(
                     [_pyexe.script_python(), tmp_path], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -64,29 +105,21 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
                     errors='replace',
                     env=_env
                 )
+        except OSError as e:
+            # no Python interpreter at the configured path, or the script file locked: report it like
+            # any other failed run (an exception here would end the QThread without its done signal)
+            if on_output:
+                on_output(f"ERROR: could not start the training script: {e}")
+            return "ERROR"
         _pyexe.end_with_pinnstudio(process)   # Windows: it ends when PINNStudio ends
         if set_process:
             set_process(process)
 
-        # Buffer output — flush every 0.5s instead of every line
-        # This reduces GUI overhead from 23% to near zero
-        _buffer = []
-        _last_flush = time.time()
-        for line in process.stdout:
-            line = line.rstrip()
-            if line:
-                _buffer.append(line)
-            _now = time.time()
-            if _now - _last_flush >= 0.5:
-                if on_output and _buffer:
-                    for _l in _buffer:
-                        on_output(_l)
-                _buffer.clear()
-                _last_flush = _now
-        # Flush any remaining lines
-        if on_output and _buffer:
-            for _l in _buffer:
-                on_output(_l)
+        # Buffer output and pass it on every 0.5 s instead of line by line (this took the GUI's share of
+        # the CPU from 23 % to almost nothing). A reader thread fills the buffer and the flush runs on
+        # the clock, so the last lines before a long quiet stretch (an L-BFGS phase, the plotting) show
+        # at once instead of waiting for the next line, which can be minutes later.
+        _flush_lines(process.stdout, on_output)
 
         process.wait()
 
@@ -96,4 +129,7 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
             return "ERROR"
 
     finally:
-        os.unlink(tmp_path)  # clean up temp file
+        try:
+            os.unlink(tmp_path)  # clean up temp file
+        except OSError:
+            pass                 # (Windows: still locked by a scanner) -- never fail the run over it

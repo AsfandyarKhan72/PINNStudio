@@ -1,0 +1,63 @@
+name: Nightly
+
+# Every night: Solve's script against the exported script for every example (tools/check_export_equivalence.py,
+# short phases), and the test suite with coverage. Results as artifacts.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  equivalence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      QT_QPA_PLATFORM: offscreen
+      DDE_BACKEND: pytorch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PINNStudio (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e .
+      - name: Solve's script against the exported script, every example
+        run: python tools/check_export_equivalence.py --out equivalence --adam 200 --lbfgs 50 --device cpu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: export-equivalence
+          path: equivalence/*.json
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      QT_QPA_PLATFORM: offscreen
+      DDE_BACKEND: pytorch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Qt system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xfixes0 libfontconfig1 libdbus-1-3
+      - name: Install PINNStudio (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e . pytest pytest-xdist pytest-cov
+      - name: Tests with coverage
+        run: python -m pytest tests -q -p no:cacheprovider -n 2 --ignore=tests/local --cov=pinnstudio --cov-report=term-missing:skip-covered --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml

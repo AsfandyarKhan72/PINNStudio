@@ -159,6 +159,7 @@ nav:
       - Boundary conditions: guide/boundary-conditions.md
       - Inverse problems and measured data: guide/inverse.md
       - Neural network: guide/network.md
+      - Network designer: guide/network-designer.md
       - Training phases: guide/training.md
       - Loss weights: guide/loss-weights.md
       - Adaptive training: guide/adaptive.md
@@ -190,6 +191,10 @@ nav:
       - 16. Standalone scripts: tutorials/16-scripts.md
       - 17. Error analysis: tutorials/17-error-analysis.md
       - 18. Your own PDE (Fisher-KPP): tutorials/18-own-problem.md
+      - 19. Steady 2D flow (Kovasznay): tutorials/19-kovasznay.md
+      - 20. Diagnosing a run that does not converge: tutorials/20-diagnosing.md
+      - 21. A 3D problem (Poisson in a sphere): tutorials/21-3d-poisson.md
+      - 22. Designing a network as blocks: tutorials/22-network-designer.md
   - Feature reference:
       - reference/index.md
       - All settings: reference/settings-index.md
@@ -234,6 +239,7 @@ nav:
       - Exact constraints: theory/exact-constraints.md
       - Time-dependent training: theory/time-dependent.md
       - Bayesian optimization: theory/bayesian.md
+      - Scaling and nondimensional form: theory/nondimensionalisation.md
       - Scope and limitations: theory/limitations.md
   - Reproducibility:
       - reproducibility/index.md
@@ -252,6 +258,7 @@ nav:
       - developer/index.md
       - Repository structure: developer/structure.md
       - Architecture and code generation: developer/architecture.md
+      - Model, views and controllers: developer/mvc.md
       - Configuration schema: developer/config.md
       - Adding an example: developer/add-example.md
       - Adding a training method: developer/add-method.md

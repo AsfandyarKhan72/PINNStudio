@@ -1,0 +1,102 @@
+name: Release
+
+# On a version tag (vX.Y.Z): build the sdist and the wheel from the tagged commit, write SHA256SUMS, build the
+# Windows program and its installer (packaging/windows), and attach them all to a draft GitHub release. Publishing to PyPI is a second job that runs only after a maintainer
+# approves the "pypi" environment (Settings > Environments), and uses PyPI's trusted publishing (no token
+# stored in the repository).
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The tag names the version in pinnstudio/__init__.py
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          v=$(python -c "import re;print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', open('pinnstudio/__init__.py').read()).group(1))")
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} but __version__ $v"; exit 1; }
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+          cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  windows-installer:
+    # PyInstaller builds for the system it runs on; the build checks the program (a training run inside it),
+    # starts it, installs it silently, starts the installed program and uninstalls it
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --no-progress -y }
+      - name: Program and installer
+        shell: cmd
+        env:
+          PYTHON: python
+          PINNSTUDIO_INSTALL_CHECK: "1"
+        run: packaging\windows\build_windows.bat
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer
+          path: |
+            dist/PINNStudio-*-setup.exe
+            dist/PINNStudio-*-setup.exe.sha256
+            build/windows/*.log
+
+  github-release:
+    needs: [build, windows-installer]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: windows/
+      - name: The installer beside the Python packages
+        run: mv windows/dist/PINNStudio-*-setup.exe* dist/
+      - name: Draft release with the files and their checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" --draft --title "PINNStudio ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md. SHA256SUMS lists the checksums of the files."
+
+  pypi:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - run: rm dist/SHA256SUMS
+      - uses: pypa/gh-action-pypi-publish@release/v1

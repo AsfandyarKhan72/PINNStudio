@@ -15,7 +15,7 @@ its signals, so building and loading a configuration works unchanged.
 A node is hidden when every panel on its page is hidden (e.g. "Inverse
 problem" outside Inverse mode), and shown again when one is shown.
 """
-from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
                              QVBoxLayout, QWidget)
@@ -297,6 +297,7 @@ class ModelWorkspace(QObject):
         menu = self.build_menu(key)
         if not menu.isEmpty():
             menu.exec(self.tree.viewport().mapToGlobal(pos))
+        menu.deleteLater()
 
     def _show_banner(self):
         msgs = (getattr(self, "problems", {}) or {}).get(self.current_key()) or []
@@ -325,10 +326,13 @@ class ModelWorkspace(QObject):
 
     # ── node visibility follows its panels ───────────────────
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
-            self._schedule_visibility()
-        elif ev.type() == QEvent.Type.LayoutRequest and obj.objectName() == "settingsPage":
-            self._schedule_align()
+        try:              # an event filter never raises (a row being deleted)
+            if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
+                self._schedule_visibility()
+            elif ev.type() == QEvent.Type.LayoutRequest and obj.objectName() == "settingsPage":
+                self._schedule_align()
+        except RuntimeError:
+            pass
         return False
 
     def _schedule_align(self):
@@ -403,8 +407,11 @@ class VisibilityFollower(QObject):
         self.sync()
 
     def eventFilter(self, obj, ev):
-        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
-            QTimer.singleShot(0, self.sync)
+        try:
+            if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
+                QTimer.singleShot(0, self.sync)
+        except RuntimeError:
+            pass
         return False
 
     def sync(self):
@@ -421,7 +428,7 @@ MAX_LABEL_CHARS = 26
 
 def _grows(widget):
     """Whether a row's last widget takes the rest of the row by itself."""
-    from PySide6.QtWidgets import QLineEdit, QSizePolicy
+    from PySide6.QtWidgets import QLineEdit
     pol = widget.sizePolicy().horizontalPolicy()
     return (isinstance(widget, QLineEdit) and widget.maximumWidth() >= 16777215
             and pol not in (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum))
@@ -558,11 +565,14 @@ class _Collapser(QObject):
         self.btn.raise_()
 
     def eventFilter(self, obj, ev):
-        if ev.type() == QEvent.Type.Resize:
-            self._place()
-        elif ev.type() == QEvent.Type.MouseButtonDblClick and ev.position().y() < 22:
-            self.toggle()
-            return True
+        try:              # an event filter never raises (a box being deleted)
+            if ev.type() == QEvent.Type.Resize:
+                self._place()
+            elif ev.type() == QEvent.Type.MouseButtonDblClick and ev.position().y() < 22:
+                self.toggle()
+                return True
+        except RuntimeError:
+            pass
         return False
 
     def toggle(self):

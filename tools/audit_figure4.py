@@ -7,7 +7,6 @@ from the same inputs and code as tools/make_benchmarks_readme.py (same arguments
 """
 import json
 import os
-import statistics
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

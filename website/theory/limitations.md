@@ -70,6 +70,21 @@ discusses them in detail.
    with known coefficients, and check whether the inferred value changes when data are removed or noise is
    added.
 
+## Problems outside PINNStudio's scope
+
+- **Operator learning.** PINNStudio trains one network for one problem: one geometry, one set of coefficients,
+  one set of boundary and initial values. Changing any of them means training again. Methods that learn the
+  solution operator for a family of problems (DeepONet, Fourier neural operators, physics-informed DeepONet) are
+  not available. A coefficient can still be swept ([Sweeps](../guide/sweeps.md)), as one training per value.
+- **Units.** Values carry no units and no automatic scaling of the equation is done; badly scaled problems train
+  poorly ([Scaling and nondimensional form](nondimensionalisation.md)).
+- **Sequences and graphs.** The [network designer](../guide/network-designer.md) builds networks that map
+  coordinates to fields. Recurrent and graph layers are not offered: a PINN's inputs are points, not sequences or
+  graphs.
+- **Meshes and 3D CAD.** Geometry is described by shapes and formulas, drawn on the sketch, or imported as a 2D
+  outline (DXF or SVG). Meshes and 3D CAD models (STL, STEP, mesh-generator files) are not read, and results are
+  written on regular grids (as text or VTK), not on a mesh.
+
 ## Limitations of the implementation
 
 The following follow from how the current (development) code works and are stated on the theory pages where

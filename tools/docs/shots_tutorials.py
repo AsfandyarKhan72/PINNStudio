@@ -12,7 +12,6 @@ Results tab; tutorial 15 restores the 1D Burgers model given with --model (from 
 Modelled on tools/docs/make_screenshots.py.
 """
 import os
-import tempfile
 import sys
 import time
 

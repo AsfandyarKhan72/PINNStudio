@@ -68,7 +68,7 @@ def _settle(secs=0.6):
 
 def test_view_switches_in_the_sketch_panel():
     from PySide6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance() or QApplication([])  # noqa: F841  (kept alive for the test)
     from pinnstudio.ui.sketch_canvas import SketchPanel
     p = SketchPanel()
     p.resize(900, 900)
@@ -96,7 +96,7 @@ def test_view_switches_in_the_sketch_panel():
 
 def test_periodic_rows_colour_the_opposite_face():
     from PySide6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance() or QApplication([])  # noqa: F841  (kept alive for the test)
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
     w.show()
@@ -124,7 +124,7 @@ def test_point_preview_stays_in_the_domain():
 
 def test_points_checkbox_draws_points():
     from PySide6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance() or QApplication([])  # noqa: F841  (kept alive for the test)
     from pinnstudio.ui.sketch_canvas import SketchPanel
     p = SketchPanel()
     p.resize(900, 900)
@@ -146,7 +146,7 @@ def test_show_points_uses_deepxde_with_the_run_settings():
     background (DeepXDE, the Collocation Points settings) and samples again
     when a setting changes."""
     from PySide6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance() or QApplication([])  # noqa: F841  (kept alive for the test)
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
     w.show()

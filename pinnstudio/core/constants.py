@@ -11,6 +11,7 @@ codegen._effective_config), so every place an expression is evaluated --
 including a saved model's restore script -- sees plain numbers, and the
 exported script lists the constants at its top.
 """
+import ast
 import json
 import keyword
 import math
@@ -24,6 +25,32 @@ _MATH.update(arcsin=math.asin, arccos=math.acos, arctan=math.atan, abs=abs, pi=m
 RESERVED = ({"x", "y", "z", "t", "u", "np", "torch", "dde", "inputs", "outputs", "X", "True", "False", "None",
              "left", "right", "bottom", "top", "front", "back",
              "x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "t_min", "t_max"} | set(_MATH))
+
+
+_ALLOWED_NODES = (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Name, ast.Load, ast.Call,
+                  ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv, ast.USub, ast.UAdd)
+
+
+def _check_expression(expr, names):
+    """Only numbers, + - * / ** % //, math functions and known names: a constant's value is evaluated
+    while a problem file is opened, before anything is run, so a file must not be able to reach Python
+    itself through it (attribute access such as ().__class__..., lambdas, subscripts)."""
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"not a valid expression ({exc.msg})")
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_NODES):
+            raise ValueError(f"'{type(node).__name__}' is not allowed in a constant")
+        if isinstance(node, ast.Constant) and (isinstance(node.value, bool)
+                                               or not isinstance(node.value, (int, float))):
+            raise ValueError("only numbers are allowed")
+        if isinstance(node, ast.Name) and node.id not in names:
+            raise ValueError(f"unknown name '{node.id}'")
+        if isinstance(node, ast.Call) and (not isinstance(node.func, ast.Name) or node.keywords
+                                           or node.func.id not in _MATH or not callable(_MATH[node.func.id])):
+            raise ValueError("only math functions such as sqrt(...) can be called")
+    return tree
 
 
 def parse(text):
@@ -61,7 +88,8 @@ def evaluate(text, other_names=()):
         if not expr:
             raise ValueError(f"Constants: '{name}' has no value.")
         try:
-            value = float(eval(compile(expr, "<constant>", "eval"), ns))
+            tree = _check_expression(expr, ns)
+            value = float(eval(compile(tree, "<constant>", "eval"), ns))
         except Exception as exc:  # noqa: BLE001
             raise ValueError(f"Constants: can't evaluate {name} = {expr} ({exc}). "
                              f"A constant can use numbers, math functions and constants defined above it.")

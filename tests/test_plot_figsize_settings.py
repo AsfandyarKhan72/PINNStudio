@@ -239,7 +239,7 @@ def run():
         single_script = win2._build_restore_script(
             "/tmp/does_not_need_to_exist.pt", minimal_cfg, "adam", "Line (time steps)", 0, 5, "/tmp")
         f_single = _extract_plot_figsize_func(single_script)
-        got = f_single(8, 5) if mode != "Default" and mode != "Custom" else (f_single(7, 5) if mode in ("Default",) else f_single(8, 5))
+        f_single(8, 5) if mode != "Default" and mode != "Custom" else (f_single(7, 5) if mode in ("Default",) else f_single(8, 5))
         # Simpler, mode-independent check: Square forces a square from
         # whatever (w,h) the call site itself used -- verify generically
         # instead of hardcoding which literal each mode happens to produce.
@@ -280,7 +280,6 @@ def run():
     # approach test_restore_steady_state.py / test_prerelease_gui_tweaks.py
     # use elsewhere in this suite for dialog-content checks without a
     # modal event loop).
-    import pinnstudio.ui.main_window as mw_mod
     from PySide6.QtWidgets import QDialog
     _orig_exec = QDialog.exec
     captured = {}

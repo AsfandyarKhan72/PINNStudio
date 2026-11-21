@@ -20,7 +20,7 @@ import re
 
 from PySide6.QtCore import QEvent, QObject, QTimer
 from PySide6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
-from PySide6.QtWidgets import QApplication, QDialog, QWidget
+from PySide6.QtWidgets import QApplication, QDialog, QProxyStyle, QWidget
 
 # ── themes ───────────────────────────────────────────────────────────────
 THEMES = {
@@ -63,8 +63,43 @@ THEMES = {
         warning_bg="rgba(212, 160, 23, 0.12)", warning_border="rgba(212, 160, 23, 0.50)",
         log_bg="#001e26", log_text="#c9d4d6", scroll="#3b6874",
     ),
+    # Strong borders and full-contrast text (WCAG AAA for text) for low vision or a washed-out projector.
+    "High Contrast": dict(
+        dark=True,
+        bg="#000000", surface="#0d0d0d", card="#0a0a0a", input="#000000",
+        border="#9a9a9a", border_strong="#ffffff",
+        text="#ffffff", text_muted="#e6e6e6", text_faint="#c8c8c8",
+        accent="#ffd400", accent_hover="#ffe14d", accent_text="#ffe14d", on_accent="#000000",
+        sel="rgba(255, 212, 0, 0.35)", hover="rgba(255, 212, 0, 0.16)",
+        btn="#000000", btn_hover="#1f1f1f", btn_border="#ffffff",
+        disabled_bg="#141414", disabled_text="#8f8f8f",
+        success="#4ce07a", warning="#ffb347", danger="#ff6e6e", danger_hover="#ff4040", info="#7cc4ff",
+        warning_bg="rgba(255, 179, 71, 0.16)", warning_border="#ffb347",
+        log_bg="#000000", log_text="#ffffff", scroll="#bdbdbd",
+    ),
 }
 DEFAULT_THEME = "Studio Light"
+# A choice in Display Settings rather than a token set: Studio Light or Studio Dark, whichever the
+# operating system is set to, followed live when the system setting changes.
+SYSTEM_THEME = "System (match OS)"
+THEME_CHOICES = (SYSTEM_THEME, *THEMES)
+
+
+def system_prefers_dark():
+    """True when the operating system's colour scheme is dark (Qt 6.5+); False when it is light or unknown."""
+    try:
+        from PySide6.QtCore import Qt as _Qt
+        from PySide6.QtGui import QGuiApplication
+        return QGuiApplication.styleHints().colorScheme() == _Qt.ColorScheme.Dark
+    except Exception:
+        return False
+
+
+def resolve(name):
+    """The token set a theme choice stands for: SYSTEM_THEME -> Studio Light / Studio Dark."""
+    if name == SYSTEM_THEME:
+        return "Studio Dark" if system_prefers_dark() else "Studio Light"
+    return name if name in THEMES else DEFAULT_THEME
 ACCENTS = {   # optional override of the theme's accent: (accent, hover, as text on light, as text on dark)
     "Theme default": None,
     "Blue": ("#2f6fde", "#255bbd", "#2459b8", "#78a6f8"),
@@ -90,7 +125,7 @@ _current = dict(THEMES[DEFAULT_THEME])
 
 
 def tokens(name=None, accent="Theme default"):
-    t = dict(THEMES.get(name or DEFAULT_THEME, THEMES[DEFAULT_THEME]))
+    t = dict(THEMES[resolve(name or DEFAULT_THEME)])
     a = ACCENTS.get(accent)
     if a:
         t["accent"], t["accent_hover"] = a[0], a[1]
@@ -135,10 +170,13 @@ QWidget {{ background: transparent; color: {t['text']}; font-family: '{family}';
 QMainWindow, QDialog, QMessageBox, QInputDialog, QFileDialog, QColorDialog {{ background: {t['bg']}; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QAbstractScrollArea {{ background: {t['bg']}; }}
-QToolTip {{ background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 4px 6px; }}
+QToolTip {{
+    background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 5px 8px;
+    border-radius: 4px;
+}}
 
 QGroupBox {{
-    background: {t['card']}; border: {panel_border_width}px solid {pb}; border-radius: 6px;
+    background: {t['card']}; border: {panel_border_width}px solid {pb}; border-radius: 8px;
     margin-top: 16px; padding: 10px 8px 8px 8px; font-weight: 600;
 }}
 QGroupBox::title {{
@@ -159,7 +197,7 @@ QRadioButton::indicator:checked {{ background: {t['input']}; border: 1px solid {
 QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled {{ color: {t['disabled_text']}; }}
 
 QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QPlainTextEdit {{
-    background: {t['input']}; border: 1px solid {t['border']}; border-radius: 4px;
+    background: {t['input']}; border: 1px solid {t['border']}; border-radius: 5px;
     padding: 3px 6px; color: {t['text']}; min-height: 20px;
     selection-background-color: {t['accent']}; selection-color: {t['on_accent']};
 }}
@@ -188,13 +226,27 @@ QComboBox QAbstractItemView {{
 
 QPushButton {{
     background: {t['btn']}; color: {t['text']}; border: 1px solid {t['btn_border']};
-    border-radius: 5px; padding: 4px 12px; min-height: 20px;
+    border-radius: 6px; padding: 4px 12px; min-height: 20px;
 }}
 QPushButton:hover {{ background: {t['btn_hover']}; border-color: {t['accent']}; }}
 QPushButton:pressed {{ background: {t['sel']}; }}
 QPushButton:checked {{ background: {t['sel']}; border-color: {t['accent']}; color: {t['text']}; }}
 QPushButton:disabled {{ background: {t['disabled_bg']}; color: {t['disabled_text']}; border-color: {t['border']}; }}
-QPushButton:focus {{ outline: none; }}
+QPushButton:focus {{ outline: none; border-color: {t['accent']}; }}
+QCheckBox::indicator:focus, QRadioButton::indicator:focus {{ border: 1px solid {t['accent']}; }}
+QTreeWidget:focus, QListWidget:focus, QTableWidget:focus {{ border-color: {t['accent']}; }}
+QToolButton {{ background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 2px; }}
+QToolButton:hover {{ background: {t['hover']}; border-color: {t['border_strong']}; }}
+QToolButton:pressed, QToolButton:checked {{ background: {t['sel']}; }}
+QToolButton:focus {{ border-color: {t['accent']}; }}
+QProgressBar {{
+    background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 4px;
+    color: {t['text']}; text-align: center;
+}}
+QProgressBar::chunk {{ background: {t['accent']}; border-radius: 3px; }}
+QStatusBar {{ background: {t['surface']}; color: {t['text_muted']}; border-top: 1px solid {t['border']}; }}
+QStatusBar::item {{ border: none; }}
+QStatusBar QLabel {{ color: {t['text_muted']}; }}
 
 QScrollArea {{ border: none; background: {t['bg']}; }}
 QScrollBar:vertical {{ background: transparent; width: 12px; margin: 0; }}
@@ -209,6 +261,12 @@ QTextEdit {{
     font-family: '{log_family}'; font-size: {log_size}px; padding: 4px;
     selection-background-color: {t['accent']}; selection-color: {t['on_accent']};
 }}
+QTextBrowser#helpBrowser {{
+    background: {t['card']}; color: {t['text']}; font-family: '{family}'; font-size: {size}px;
+    padding: 8px 10px; border-radius: 8px;
+}}
+QListWidget#paletteList {{ padding: 4px; }}
+QListWidget#paletteList::item {{ padding: 5px 8px; border-radius: 5px; }}
 QSplitter::handle {{ background: {t['border']}; }}
 QSplitter::handle:horizontal {{ width: 1px; }}
 QSplitter::handle:vertical {{ height: 1px; }}
@@ -219,18 +277,29 @@ QMenuBar::item:selected {{ background: {t['sel']}; }}
 QMenu {{ background: {t['card']}; color: {t['text']}; border: 1px solid {t['border_strong']}; padding: 4px; }}
 QMenu::item {{ padding: 5px 22px; border-radius: 4px; }}
 QMenu::item:selected {{ background: {t['sel']}; }}
+QMenu::item:disabled {{ color: {t['disabled_text']}; }}
+QMenu::separator {{ height: 1px; background: {t['border']}; margin: 4px 8px; }}
 QTabWidget::pane {{ border: 1px solid {t['border']}; border-radius: 6px; background: {t['card']}; }}
 QTabBar::tab {{
     background: transparent; color: {t['text_muted']}; padding: 6px 14px; border: none;
     border-bottom: 2px solid transparent;
 }}
 QTabBar::tab:selected {{ color: {t['text']}; border-bottom: 2px solid {t['accent']}; }}
-QTabBar::tab:hover {{ color: {t['text']}; }}
+QTabBar::tab:hover {{ color: {t['text']}; background: {t['hover']}; }}
+QTabBar::tab:focus {{ color: {t['accent_text']}; }}
 QListWidget, QTreeWidget, QTableWidget {{
     background: {t['card']}; color: {t['text']}; border: 1px solid {t['border']}; border-radius: 4px; outline: 0;
 }}
-QListWidget::item:selected, QTableWidget::item:selected {{ background: {t['sel']}; color: {t['text']}; }}
-QHeaderView::section {{ background: {t['surface']}; color: {t['text_muted']}; border: none; padding: 4px; }}
+QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected {{
+    background: {t['sel']}; color: {t['text']};
+}}
+QListWidget::item:hover, QTreeWidget::item:hover {{ background: {t['hover']}; }}
+QTableWidget {{ gridline-color: {t['border']}; }}
+QTableCornerButton::section {{ background: {t['surface']}; border: none; }}
+QHeaderView::section {{
+    background: {t['surface']}; color: {t['text_muted']}; border: none; padding: 4px 6px;
+    border-right: 1px solid {t['border']}; border-bottom: 1px solid {t['border']}; font-weight: 600;
+}}
 
 QToolButton#collapseButton {{
     background: {t['card']}; color: {t['text_muted']}; border: none; font-size: {size}px; font-weight: 600;
@@ -461,11 +530,52 @@ def _remap_decls(decls, t, selector):
     return _DECL.sub(repl, decls)
 
 
+class _ThemeStyle(QProxyStyle):
+    """The application style (Fusion) with PINNStudio's per-widget theming hooked into polish(), which Qt
+    calls once for each widget: when it is first shown, and again when its style sheet changes. An
+    application-wide event filter did the same work but sent every event of every widget through Python;
+    with another Python thread busy that made building the window three times slower (34 s against 12 s
+    in a test), and doubled it even when idle (Windows bug list, "App-wide Python event filters")."""
+    active = True
+
+    def polish(self, arg):
+        result = super().polish(arg)
+        if _ThemeStyle.active and isinstance(arg, QWidget):
+            try:
+                StyleRemapper.prepare(arg)
+            except RuntimeError:          # a widget whose C++ side is already gone: nothing to do
+                pass
+        return result
+
+
+class _DialogFitter(QObject):
+    """An event filter on dialogs only (few events): keep each dialog as large as its rows need."""
+
+    def eventFilter(self, obj, ev):
+        try:
+            t = ev.type()
+            if t == QEvent.Type.Show:
+                # the theme's font reaches a dialog's widgets after they are polished:
+                # size its buttons and drop-downs for it now
+                StyleRemapper.refit(obj)
+            if t == QEvent.Type.Show or (t == QEvent.Type.LayoutRequest and obj.isVisible()):
+                # again on every layout change: the theme's fonts and padding
+                # arrive after the dialog is first shown, and rows get added
+                StyleRemapper.fit_dialog(obj)
+        except RuntimeError:              # never raise from an event filter (a dialog being torn down)
+            pass
+        return False
+
+
 class StyleRemapper(QObject):
     """Application-wide: every time a widget's stylesheet is set, translate
     its colours to the current theme (keeping the original, so a theme
-    change can translate it again)."""
+    change can translate it again); size buttons, drop-downs and dialogs for
+    the theme's fonts; give buttons their icons and screen-reader names.
+    Done when Qt polishes each widget (`_ThemeStyle`)."""
     _instance = None
+    _style = None
+    _dialogs = None
 
     @classmethod
     def install(cls):
@@ -473,51 +583,57 @@ class StyleRemapper(QObject):
         if app is None or cls._instance is not None:
             return cls._instance
         cls._instance = cls(app)
-        app.installEventFilter(cls._instance)
-        # Stop filtering before Python shuts down: otherwise Qt, tearing the
-        # widgets down after the interpreter has started to finalize, calls
-        # back into this Python filter and crashes (seen as a segfault at
-        # the end of scripts that never call app.exec()).
+        cls._dialogs = _DialogFitter(app)
+        base = app.style().name() if app.style() is not None else "fusion"
+        cls._style = _ThemeStyle(base or "fusion")
+        _ThemeStyle.active = True
+        app.setStyle(cls._style)          # once, at start: re-polishes the few widgets there are
+        # Stop calling into Python before the interpreter shuts down: Qt, tearing
+        # the widgets down after finalization has begun, would call back into it
+        # and crash (seen as a segfault at the end of scripts that never call
+        # app.exec()).
         import atexit
         atexit.register(cls._uninstall)
         return cls._instance
 
     @classmethod
     def _uninstall(cls):
-        inst, cls._instance = cls._instance, None
-        app = QApplication.instance()
-        if inst is not None and app is not None:
+        _ThemeStyle.active = False
+        cls._instance = None
+
+    @classmethod
+    def prepare(cls, obj):
+        """Everything a widget needs from the theme, when Qt polishes it."""
+        if isinstance(obj, QDialog) and cls._dialogs is not None and not obj.property("_pinn_fitted"):
+            obj.setProperty("_pinn_fitted", True)
+            obj.installEventFilter(cls._dialogs)
+        cls._fit_text_button(obj)
+        cls._fit_combo(obj)
+        cls._fit_items(obj)
+        if not obj.property("_pinn_prepared"):
+            obj.setProperty("_pinn_prepared", True)
+            cls._fit_small_button(obj)
+            cls._name_for_screen_reader(obj)
+            from pinnstudio.ui import icons as _icons
+            _icons.iconize(obj)
+            cls._fit_height_later(obj)
+        cls.apply(obj)
+        cls._fit_height(obj)
+
+    @classmethod
+    def refit(cls, root):
+        """The UI scale changed the text size: size every button and drop-down under `root` again."""
+        for w in [root] + root.findChildren(QWidget):
             try:
-                app.removeEventFilter(inst)
+                cls._fit_text_button(w)
+                cls._fit_combo(w)
+                cls._fit_items(w)
+                cls._fit_height(w)
             except RuntimeError:
                 pass
 
-    def eventFilter(self, obj, ev):
-        if isinstance(obj, QDialog) and (ev.type() == QEvent.Type.Show or
-                                         (ev.type() == QEvent.Type.LayoutRequest and obj.isVisible())):
-            # again on every layout change: the theme's fonts and padding
-            # arrive after the dialog is first shown, and rows get added
-            self._fit_dialog(obj)
-        if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
-            self._fit_text_button(obj)       # the UI scale changed the text size
-            self._fit_combo(obj)
-            self._fit_items(obj)
-        if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
-            self._fit_text_button(obj)
-            self._fit_combo(obj)
-            self._fit_items(obj)
-            if ev.type() == QEvent.Type.Polish:
-                self._fit_small_button(obj)
-                from pinnstudio.ui import icons as _icons
-                _icons.iconize(obj)
-            self.apply(obj)
-            self._fit_height(obj)
-            if ev.type() == QEvent.Type.Polish:
-                self._fit_height_later(obj)
-        return False
-
     @staticmethod
-    def _fit_dialog(d):
+    def fit_dialog(d):
         """A dialog given a minimum width in code (setMinimumWidth(520)) no
         longer grows to its contents by itself (Qt then leaves its minimum
         size to the code), so its rows were squeezed on top of each other
@@ -605,6 +721,28 @@ class StyleRemapper(QObject):
             return
         if w.maximumHeight() < w.minimumHeight() <= 60:
             w.setMaximumHeight(w.minimumHeight())
+
+    _GLYPH_NAMES = {"✕": "Remove", "×": "Remove", "✖": "Remove", "▲": "Move up", "▼": "Move down",
+                    "◀": "Previous", "▶": "Next", "?": "Help", "⟲": "Undo", "⟳": "Redo", "↺": "Undo", "↻": "Redo",
+                    "+": "Add", "➕": "Add", "−": "Remove", "-": "Remove", "…": "More", "⋯": "More"}
+
+    @classmethod
+    def _name_for_screen_reader(cls, w):
+        """A button that shows only a symbol (✕, ▲, ◀ ...) or only an icon is read out by a screen reader as
+        "multiplication sign", or not at all: it gets a name from its tooltip, or from its symbol."""
+        from PySide6.QtWidgets import QAbstractButton
+        if not isinstance(w, QAbstractButton) or w.accessibleName():
+            return
+        text = w.text().replace("&", "").strip()
+        if len(text) > 2 and any(ch.isalnum() for ch in text):
+            return                                     # a real label: read as it is
+        tip = (w.toolTip() or "").strip()
+        if tip and not tip.startswith("<"):
+            name = tip.splitlines()[0][:80]
+        else:
+            name = cls._GLYPH_NAMES.get(text, "")
+        if name:
+            w.setAccessibleName(name)
 
     @staticmethod
     def _fit_small_button(w):

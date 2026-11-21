@@ -44,7 +44,6 @@ def test_number_boxes_keep_full_precision():
 
 
 def test_plot_settings_lists_keep_any_value(monkeypatch):
-    from PySide6.QtWidgets import QDialog
 
     from pinnstudio.ui.figure_style import FigureStyleDialog, _combo
     assert _combo(["80", "100", "200"], "500").currentText() == "500"

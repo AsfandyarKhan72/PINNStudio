@@ -97,3 +97,59 @@ def install():
     sys.excepthook = lambda t, e, tb: _report(t, e, tb)
     threading.excepthook = lambda a: _report(a.exc_type, a.exc_value, a.exc_traceback,
                                             f" in thread {a.thread.name if a.thread else '?'}")
+
+
+# ── "Not responding": a heartbeat from the UI thread, and a watchdog that logs stalls ──
+# Windows marks a window "Not responding" after 5 s without events. When the UI thread misses its beat
+# for 3 s, the watchdog writes every thread's stack to the log (read with the GIL held, through
+# sys._current_frames: faulthandler's timed dump reads frames without it and can crash the app), again
+# every 15 s while the stall lasts, at most 20 times a session, and how long the stall lasted.
+_beat = [0.0]
+STALL_S = 3.0
+
+
+def _stack_dump():
+    import sys as _sys
+    me = threading.get_ident()
+    names = {t.ident: t.name for t in threading.enumerate()}
+    out = []
+    for ident, frame in _sys._current_frames().items():
+        if ident == me:
+            continue
+        out.append(f"--- thread {names.get(ident, ident)} ---\n" + "".join(traceback.format_stack(frame)))
+    return "\n".join(out)
+
+
+def _watch():
+    import time
+    dumps, since, last_dump = 0, None, 0.0
+    while True:
+        time.sleep(0.25)
+        now = time.monotonic()
+        late = now - _beat[0]
+        if late > STALL_S:
+            if since is None:
+                since = _beat[0]
+                stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                log(f"\n[{stamp}] The window has not responded for {late:.1f} s")
+            if dumps < 20 and now - last_dump >= 15.0:
+                dumps += 1
+                last_dump = now
+                log(f"Stacks after {late:.1f} s without a heartbeat:\n{_stack_dump()}")
+        elif since is not None:
+            log(f"The window responds again, after {now - since:.1f} s")
+            since, last_dump = None, 0.0
+
+
+def start_stall_watch(app):
+    """Call once the window is up: a 1 s heartbeat on the UI thread and the watchdog thread."""
+    import time
+    from PySide6.QtCore import QTimer
+    _beat[0] = time.monotonic()
+    timer = QTimer(app)
+    timer.setInterval(1000)
+    timer.timeout.connect(lambda: _beat.__setitem__(0, time.monotonic()))
+    timer.start()
+    app.setProperty("_pinn_heartbeat", True)
+    app._pinn_heartbeat_timer = timer                  # kept alive with the app
+    threading.Thread(target=_watch, name="pinnstudio-stall-watch", daemon=True).start()

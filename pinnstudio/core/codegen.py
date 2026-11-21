@@ -1220,7 +1220,15 @@ class _MsFFN(dde.nn.NN):
 """
 
 
-def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"):
+def _designed_io(config):
+    """(input names, output names) of an effective config for a designed network, else None."""
+    if getattr(config, "network_type", "") != "Designed":
+        return None
+    from pinnstudio.core.netdesign.problem import names_effective
+    return names_effective(config)
+
+
+def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10", design="", io=None):
     """Builds the literal Python source for a `_make_net(_flat_layers,
     _activation, _kernel_init, _weight_decay=0.0)` helper, embedded once
     near the top of every generated/restore script and called at every
@@ -1246,7 +1254,20 @@ def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"
     PFNN has no `regularization` kwarg in DeepXDE (confirmed against its
     PyTorch backend) -- weight_decay is silently dropped for PFNN here
     rather than raising, since weight decay is a secondary training knob,
-    not something that should block switching architectures."""
+    not something that should block switching architectures.
+
+    network_type "Designed": a network drawn as blocks on the Network tab (`design`, PINNConfig.network_design),
+    for the inputs and outputs `io` = (input names, output names) (netdesign.problem.names_effective). The
+    design is written into the helper, so every call site builds it; the layers they pass are not used."""
+    if network_type == "Designed":
+        from pinnstudio.core.netdesign import runtime as _nd_runtime
+        _ins, _outs = io if io else ([], [])
+        return ("# ── Network architecture: designed as blocks on PINNStudio's Network tab ──\n"
+                "_network_type = 'Designed'\n"
+                + _nd_runtime.net_source(design, list(_ins), list(_outs))
+                + "\n\ndef _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):\n"
+                  "    # the designed network; the layer sizes passed here are the form's and are not used\n"
+                  "    return _DesignedNet(_DESIGN, _activation, _kernel_init, _weight_decay)\n")
     _ms = network_type in ("MsFFN", "STMsFFN")
     _ms_code = _MSFFN_CODE if _ms else ""
     _ms_branch = (f'''    if _network_type in ("MsFFN", "STMsFFN"):
@@ -2775,7 +2796,7 @@ if {config.time_adaptive}:
     print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
 
     _plot_idx = {config.plot_output_idx}
-    _plot_custom_expr = "{plot_custom_expr_converted}"
+    _plot_custom_expr = {plot_custom_expr_converted!r}
     _plot_output_names_list = {repr(config.output_names)}.split(",")
     _plot_n_out = len(_plot_output_names_list)
     _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
@@ -2853,11 +2874,11 @@ if {config.time_adaptive}:
     # (one per optimizer-scheduler phase), plus one more for the legacy
     # Adam-then-L-BFGS path -- so without this, only whichever call
     # happened to run last for the very last step_i would ever reach the
-    # plot. Each phase's own step counter restarts at 0 (DeepXDE's
-    # LossHistory numbers every train() call's steps from scratch), so
-    # _ta_loss_offset -- the cumulative iteration count so far across
-    # every phase and every sub-domain -- is added to keep the x-axis
-    # continuously increasing across the whole run. Same "steps[-1] added
+    # plot. A window's model keeps one LossHistory over all its train()
+    # calls (phases, resampling rounds), with the steps counted on, so each
+    # call adds only the entries it appended, and the window's steps are
+    # shifted by where the previous window ended (_ta_loss_offset) to keep
+    # the x-axis continuously increasing across the whole run. Same "steps[-1] added
     # to a running total" trick already used just for the printed
     # cumulative-iteration numbers in the scheduler-phase logging below
     # (see "_sp_iters"/"_sched_cum_iters" elsewhere in this file) --
@@ -2869,12 +2890,19 @@ if {config.time_adaptive}:
     _ta_loss_offset = 0
     _ta_step_boundaries = []  # cumulative-iteration marks where one time sub-domain ends and the next begins
 
+    _ta_lh_taken = {{}}   # id(LossHistory) -> [entries already taken, its window's offset, the object]
+
     def _ta_accumulate_loss(_lh):
         global _ta_loss_offset
-        _ta_all_steps.extend([_s + _ta_loss_offset for _s in _lh.steps])
-        _ta_all_train_loss.extend(_lh.loss_train)
-        _ta_all_test_loss.extend(_lh.loss_test)
-        _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
+        _ent = _ta_lh_taken.get(id(_lh))
+        if _ent is None or _ent[2] is not _lh:
+            _ent = _ta_lh_taken[id(_lh)] = [0, _ta_loss_offset, _lh]
+        _n0, _base = _ent[0], _ent[1]
+        _ta_all_steps.extend([_s + _base for _s in _lh.steps[_n0:]])
+        _ta_all_train_loss.extend(_lh.loss_train[_n0:])
+        _ta_all_test_loss.extend(_lh.loss_test[_n0:])
+        _ent[0] = len(_lh.steps)
+        _ta_loss_offset = _base + (_lh.steps[-1] if _lh.steps else 0)
 
     # One network through all windows (Time-Adaptive -> growing time range /
     # backward compatibility / initial-condition guided learning, config.py)
@@ -3806,6 +3834,11 @@ if {config.time_adaptive}:
                 "t0": t0, "t1": t1,
                 "layers": {config.layers},
                 "activation": "{config.activation}",
+                "network_type": {repr(config.network_type)},
+                "msffn_sigmas": {repr(config.msffn_sigmas)}, "msffn_sigmas_t": {repr(config.msffn_sigmas_t)},
+                "network_design": {repr(getattr(config, "network_design", "") if config.network_type == "Designed" else "")},
+                "network_inputs": {repr(list((_designed_io(config) or ([], []))[0]))},
+                "network_outputs": {repr(list((_designed_io(config) or ([], []))[1]))},
                 "x_min": {config.x_min}, "x_max": {config.x_max},
                 "y_min": {config.y_min}, "y_max": {config.y_max},
                 "z_min": {config.z_min}, "z_max": {config.z_max},
@@ -5190,6 +5223,14 @@ def _cpu_only_line(config):
         return 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
     return ""
 
+def _pinnstudio_version():
+    try:
+        from pinnstudio import __version__
+        return __version__
+    except Exception:
+        return None
+
+
 def _small_problem_gpu_tip(config):
     """A line for the Training Log when a small 1D problem trains on the GPU:
     with a small network a GPU step mostly waits on Python, and such problems
@@ -5197,6 +5238,8 @@ def _small_problem_gpu_tip(config):
     in benchmarks/platform/windows_speed.md). Only a hint: nothing is changed."""
     if getattr(config, "train_device", "auto") != "auto":
         return ""
+    if getattr(config, "network_type", "") == "Designed":
+        return ""          # its size is in the design, not in the form's layers
     if config.problem_dim not in ("1D", "ODE"):
         return ""
     points = int(config.num_domain or 0) + int(config.num_boundary or 0) + int(config.num_initial or 0)
@@ -5533,7 +5576,9 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # -- this is the literal `_make_net(...)` helper's source, embedded
     # once near the top of the generated script below and called at every
     # network-construction site in place of a bare dde.nn.FNN(...).
-    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t,
+                                                    getattr(config, "network_design", ""),
+                                                    _designed_io(config))
 
     # Training Monitors' shared, static derivative-building/expression-
     # evaluation helpers -- see _training_monitor_runtime_code()'s own
@@ -5601,10 +5646,39 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 {_cpu_only_line(config)}
-# ── Windows has no /tmp by default; make "/tmp/..." paths work there too ──
-if os.name == "nt":
-    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"
-    os.makedirs(_tmp_root, exist_ok=True)
+# ── The environment a run used, written next to its results (environment.json) ──
+def _write_environment(path):
+    import json as _j_env
+    import platform as _pf_env
+    import sys as _sys_env
+    _info = {{"python": _sys_env.version.split()[0], "platform": _pf_env.platform(),
+             "pinnstudio": {_pinnstudio_version()!r}, "seed": {getattr(config, "random_seed", None)!r},
+             "use_random_seed": {bool(getattr(config, "use_random_seed", False))!r}}}
+    for _mod in ("torch", "deepxde", "numpy", "scipy", "matplotlib"):
+        try:
+            _info[_mod] = __import__(_mod).__version__
+        except Exception:
+            _info[_mod] = None
+    try:
+        import torch as _t_env
+        _info["cuda"] = _t_env.version.cuda
+        _info["device"] = str(_t_env.empty(0).device)
+        _info["gpu"] = _t_env.cuda.get_device_name(0) if _t_env.cuda.is_available() else None
+        _info["float"] = str(_t_env.get_default_dtype()).replace("torch.", "")
+    except Exception:
+        pass
+    try:
+        with open(path, "w") as _fh_env:
+            _j_env.dump(_info, _fh_env, indent=2)
+    except OSError:
+        pass
+
+# ── This run's own scratch folder (plots and files that have no save folder) ──
+# PINNStudio passes it in PINNSTUDIO_SCRATCH and reads the plots from it; run on its own, the script
+# makes a new one. Never a shared /tmp: two runs at once would read each other's files.
+import tempfile as _tf_ps
+_PS_TMP = (os.environ.get("PINNSTUDIO_SCRATCH") or _tf_ps.mkdtemp(prefix="pinnstudio_run_")).replace(os.sep, "/")
+os.makedirs(_PS_TMP, exist_ok=True)
 
 import deepxde as dde
 # DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
@@ -5738,6 +5812,10 @@ if _use_save:
         # the restore side defaults to "FNN", i.e. the old behavior.
         "network_type": {repr(config.network_type)},
         "msffn_sigmas": {repr(config.msffn_sigmas)}, "msffn_sigmas_t": {repr(config.msffn_sigmas_t)},
+        # a network designed as blocks: the design and the input/output names it was resolved against
+        "network_design": {repr(getattr(config, "network_design", "") if config.network_type == "Designed" else "")},
+        "network_inputs": {repr(list((_designed_io(config) or ([], []))[0]))},
+        "network_outputs": {repr(list((_designed_io(config) or ([], []))[1]))},
         "num_outputs": {config.num_outputs},
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
@@ -5797,6 +5875,8 @@ if _use_save:
     with open(_os.path.join(_save_dir, "solution_results", "model_config.json"), "w") as _mcf:
         _json.dump(_model_config, _mcf, indent=2)
     print(f"Model config saved to: {{_os.path.join(_save_dir, 'solution_results', 'model_config.json')}}")
+    # What the run ran on, to reproduce it: versions, the device and the GPU
+    _write_environment(_os.path.join(_save_dir, "solution_results", "environment.json"))
 
 # ── Solution results folder ───────────────────────────────────
 _sol_dir = _os.path.join(_save_dir, "solution_results") if _use_save else "/tmp"
@@ -6403,7 +6483,7 @@ _bc_top_active    = "{config.bc_top_active}".split(",")
 _bc_bottom_deriv_list = "{config.bc_bottom_deriv}".split(",")
 _bc_top_deriv_list    = "{config.bc_top_deriv}".split(",")
 
-_ic_expressions = "{config_ic_expressions}".split("|")
+_ic_expressions = {config_ic_expressions!r}.split("|")
 _ic_active_list = "{config.ic_active}".split(",")
 
 _constraints = []
@@ -7158,7 +7238,7 @@ for _pval in _param_values:
             _ic_pre_xyt, _ic_pre_vals = _load_ic_from_file({repr(config.forward_ic_file)})
             _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
         else:
-            _ic_exprs_pre = "{config_ic_expressions}".split("|")
+            _ic_exprs_pre = {config_ic_expressions!r}.split("|")
             # only outputs whose initial condition is on (as the exported script)
             for _oi_pre in {_clean_active_ic_outputs(config, config.num_outputs, (config.ic_active or "True").split(","))}:
                 _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
@@ -7464,8 +7544,8 @@ for _pval in _param_values:
     if not {config.time_adaptive}:
         _plot_idx = {config.plot_output_idx}
         _plot_type = "{config.plot_type}"
-        _plot_custom_expr = "{plot_custom_expr_converted}"
-        _plot_custom_label = "{plot_custom_label_resolved}"
+        _plot_custom_expr = {plot_custom_expr_converted!r}
+        _plot_custom_label = {plot_custom_label_resolved!r}
         _plot_title_override = {plot_title_override!r}
         _plot_xlabel_override = {plot_xlabel_override!r}
         _plot_ylabel_override = {plot_ylabel_override!r}
@@ -8961,6 +9041,41 @@ for _pval in _param_values:
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 
+        # ── The trained network as TorchScript (model_torchscript.pt) ──
+        # loadable with torch.jit.load, or LibTorch in C++, without PINNStudio or DeepXDE; it takes the
+        # network's raw inputs and includes the input and output transforms
+        if {bool(getattr(config, "export_torchscript", False))} and _use_save:
+            try:
+                import torch as _torch_ts
+                _ts_src = getattr(model.data, "test_x", None)
+                if _ts_src is None or len(_ts_src) == 0:
+                    _ts_src = model.data.train_x
+                _ts_x = _torch_ts.as_tensor(np.asarray(_ts_src[:8]), dtype=_torch_ts.get_default_dtype())
+                model.net.eval()
+                import warnings as _w_ts
+                with _w_ts.catch_warnings():     # (deprecated in recent PyTorch, still what LibTorch loads)
+                    _w_ts.simplefilter("ignore", FutureWarning)
+                    _ts_mod = _torch_ts.jit.trace(model.net, _ts_x, check_trace=False)
+                model.net.train()
+                _ts_path = _os.path.join(_sol_dir, "model_torchscript.pt")
+                _ts_mod.save(_ts_path)
+                print(f"TorchScript network saved: {{_ts_path}}")
+            except Exception as _ts_e:
+                print(f"⚠ The network could not be saved as TorchScript: {{_ts_e}}")
+            try:        # torch.export, TorchScript's successor (PyTorch 2.1+): any number of points
+                import torch as _torch_ts
+                if hasattr(_torch_ts, "export"):
+                    model.net.eval()
+                    _ep = _torch_ts.export.export(model.net, (_ts_x,),
+                                                  dynamic_shapes=({{0: _torch_ts.export.Dim("points", min=1)}},))
+                    model.net.train()
+                    _ep_path = _os.path.join(_sol_dir, "model_exported.pt2")
+                    _torch_ts.export.save(_ep, _ep_path)
+                    print(f"Exported network saved: {{_ep_path}} (torch.export.load)")
+            except Exception as _ep_e:
+                model.net.train()
+                print(f"  (torch.export of the network was not possible: {{str(_ep_e).splitlines()[0][:160]}})")
+
         # ── Export solution data ──────────────────────────────
         # Opt-in (config.export_enabled, default False) -- this used to run
         # unconditionally on every non-Inverse run even if the user never
@@ -8984,6 +9099,12 @@ for _pval in _param_values:
                 return _u
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
+            # file names with 4 decimals (solution_t0.2500.txt), or more digits when 4 decimals would give
+            # two times the same name (a short time interval such as t_max = 1e-4) and overwrite a file
+            _t_fmt = ".4f" if len({{f"{{_tv:.4f}}" for _tv in _t_export}}) == len(_t_export) else ".8g"
+            def _t_tag(_tv):
+                return format(float(_tv), _t_fmt)
+{_vtk_export_helpers_code(config)}
 
             if _is_steady and _is_2d:
                 # No time axis -- one export, x,y columns only (matches the
@@ -8995,7 +9116,8 @@ for _pval in _param_values:
                 _header = "x,y," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header)
+                _save_vtk(_fname, [_x_export, _y_export], _u_exp)
             elif _is_steady and _is_3d:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
@@ -9005,13 +9127,15 @@ for _pval in _param_values:
                 _header = "x,y,z," + ",".join(_out_names_list)
                 _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header)
+                _save_vtk(_fname, [_x_export, _y_export, _z_export], _u_exp)
             elif _is_steady:
                 _u_exp_all = model.predict(_x_export.reshape(-1, 1))
                 _header_cols = "{'t' if getattr(config, '_ode', False) else 'x'}," + ",".join(_out_names_list)   # an ODE's variable is t
                 _out = np.column_stack([_x_export, _u_exp_all])
                 _fname = _os.path.join(_data_dir, "solution.txt")
-                np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
+                _save_csv(_fname, _out, _header_cols)
+                _save_vtk(_fname, [_x_export], _u_exp_all)
             elif _is_2d:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 for _t_val in _t_export:
@@ -9020,8 +9144,9 @@ for _pval in _param_values:
                     _u_exp = _nan_outside(_XYT_exp[:, :2], model.predict(_XYT_exp))
                     _header = "x,y,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), np.full(_Xe.size, _t_val), _u_exp])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
-                    np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
+                    _save_csv(_fname, _out, _header)
+                    _save_vtk(_fname, [_x_export, _y_export], _u_exp, _t_val)
             elif _is_3d:
                 # Same "x,y,z,t,<outputs>" column convention _auto_configure_ea
                 # (main_window.py) already expects when scanning a template's
@@ -9036,16 +9161,19 @@ for _pval in _param_values:
                     _u_exp = _nan_outside(_XYZT_exp[:, :3], model.predict(_XYZT_exp))
                     _header = "x,y,z,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), np.full(_Xe.size, _t_val), _u_exp])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
-                    np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
+                    _save_csv(_fname, _out, _header)
+                    _save_vtk(_fname, [_x_export, _y_export, _z_export], _u_exp, _t_val)
             else:
                 for _t_val in _t_export:
                     _xt_exp = np.column_stack([_x_export, np.full_like(_x_export, _t_val)])
                     _u_exp_all = model.predict(_xt_exp)
                     _header_cols = "x,t," + ",".join(_out_names_list)
                     _out = np.column_stack([_x_export, np.full_like(_x_export, _t_val), _u_exp_all])
-                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_val:.4f}}.txt")
-                    np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
+                    _fname = _os.path.join(_data_dir, f"solution_t{{_t_tag(_t_val)}}.txt")
+                    _save_csv(_fname, _out, _header_cols)
+                    _save_vtk(_fname, [_x_export], _u_exp_all, _t_val)
+            _write_pvd()
 
             dim_str = "3D" if _is_3d else ("2D" if _is_2d else "1D")
             _steps_desc = "steady (single export)" if _is_steady else f"t_steps={config.export_t_steps}"
@@ -9083,24 +9211,17 @@ print("DONE")
     return _own_param_scratch(script)
 
 
-_PS_HEADER_OLD = (
-    'if os.name == "nt":\n'
-    '    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"\n'
-    '    os.makedirs(_tmp_root, exist_ok=True)\n')
-_PS_HEADER_NEW = _PS_HEADER_OLD + (
-    'import tempfile as _tf_ps\n'
-    '_PS_TMP = _tf_ps.mkdtemp(prefix="pinnstudio_run_").replace(os.sep, "/")   # this run\'s own scratch folder\n')
-
-
 def _own_param_scratch(script):
-    """The inverse parameter history and plots go to a scratch folder of
-    this run's own, not /tmp, where two runs at once (two windows, or the
-    test suite in parallel) read each other's parameter values."""
-    out = (script.replace('f"/tmp/param', '_PS_TMP + f"/param').replace('"/tmp/param', '_PS_TMP + "/param')
-           .replace('f"/tmp/{_in}_param_save.txt"', '_PS_TMP + f"/{_in}_param_save.txt"'))
-    if out == script or _PS_HEADER_OLD not in out:
-        return script
-    return out.replace(_PS_HEADER_OLD, _PS_HEADER_NEW, 1)
+    """Every file the script would put in /tmp goes to this run's own scratch folder (_PS_TMP, defined at
+    the top of the script) instead: two runs at once (two windows, a sweep, the test suite in parallel)
+    read each other's parameter values and plots in a shared /tmp, and Windows has no /tmp at all.
+    Only the generator's own paths are rewritten (its file names, and the bare "/tmp" it falls back to
+    without a save folder): a path of the user's under /tmp (Save to, reference files, a saved module in a
+    network design) is data and stays as it is."""
+    import re as _re_ps
+    out = _re_ps.sub(r'(?<![\\\w])(f?)"/tmp/(param_|loss_plot|solution_plot|parametric_|\{)',
+                     r'_PS_TMP + \1"/\2', script)
+    return _re_ps.sub(r'(?<=else )"/tmp"(?=[\s,)])', '_PS_TMP', out)
 
 
 # =====================================================================
@@ -9387,7 +9508,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                 A.append(f"_sel{i} = [p for p in _cand{i} if _bc{i}_ploc(p, True)]")
                 A.append(f"for _more in range(5):   # a small Where region: draw more candidates until {npts} match")
                 A.append(f"    if len(_sel{i}) >= {npts}:")
-                A.append(f"        break")
+                A.append("        break")
                 A.append(f"    _sel{i} += [p for p in geomtime.random_boundary_points({max(20 * npts, 200)} * 4 ** (_more + 1)) if _bc{i}_ploc(p, True)]")
                 A.append(f"_pts{i} = np.array(_sel{i}[:{npts}])")
                 A.append(f"if len(_pts{i}) == 0:")
@@ -10447,9 +10568,63 @@ def _rar_tolerance_check(config, indent):
             f"\n{indent}    break")
 
 
+def _vtk_export_helpers_code(config):
+    """_save_csv / _save_vtk / _write_pvd for the solution export (indented for its block): text files,
+    legacy VTK files ParaView reads (a uniform grid with one scalar per output; NaN outside a non-box
+    domain), and a .pvd collection that orders the times."""
+    fmt = getattr(config, "export_format", "csv") or "csv"
+    csv_on, vtk_on = fmt in ("csv", "both"), fmt in ("vtk", "both")
+    code = f'''_csv_on, _vtk_on, _pvd_items = {csv_on!r}, {vtk_on!r}, []
+def _save_csv(_fn, _arr, _hdr):
+    if _csv_on:
+        np.savetxt(_fn, _arr, header=_hdr, delimiter=",", comments="")
+def _save_vtk(_fn, _axes, _u, _tv=None):
+    # a uniform grid (x[, y[, z]]); _u is (points, outputs) in np.meshgrid's order (x fastest in 2D,
+    # z fastest in 3D), reordered to VTK's x-fastest order
+    if not _vtk_on:
+        return
+    _n = [len(_a) for _a in _axes] + [1] * (3 - len(_axes))
+    _U = np.asarray(_u, dtype=float).reshape(_n[0] * _n[1] * _n[2], -1)
+    if len(_axes) == 3:
+        _U = _U.reshape(_n[1], _n[0], _n[2], -1).transpose(2, 0, 1, 3).reshape(-1, _U.shape[-1])
+    _org = [float(_a[0]) for _a in _axes] + [0.0] * (3 - len(_axes))
+    _spc = [float(_a[-1] - _a[0]) / (len(_a) - 1) if len(_a) > 1 else 1.0 for _a in _axes] + [1.0] * (3 - len(_axes))
+    _vf = _fn[:-4] + ".vtk"
+    with open(_vf, "w") as _fh:
+        _fh.write("# vtk DataFile Version 3.0\\nPINNStudio solution\\nASCII\\nDATASET STRUCTURED_POINTS\\n")
+        _fh.write(f"DIMENSIONS {{_n[0]}} {{_n[1]}} {{_n[2]}}\\nORIGIN {{_org[0]}} {{_org[1]}} {{_org[2]}}\\n")
+        _fh.write(f"SPACING {{_spc[0]}} {{_spc[1]}} {{_spc[2]}}\\nPOINT_DATA {{_U.shape[0]}}\\n")
+        for _j, _nm in enumerate(_out_names_list[:_U.shape[1]]):
+            _safe = "".join(_c if (_c.isalnum() or _c == "_") else "_" for _c in str(_nm).strip()) or f"u{{_j}}"
+            _fh.write(f"SCALARS {{_safe}} double 1\\nLOOKUP_TABLE default\\n")
+            np.savetxt(_fh, _U[:, _j], fmt="%.9g")
+    if _tv is not None:
+        _pvd_items.append((float(_tv), _os.path.basename(_vf)))
+def _write_pvd():
+    if not (_vtk_on and _pvd_items):
+        return
+    with open(_os.path.join(_data_dir, "solution.pvd"), "w") as _fh:
+        _fh.write(\'<?xml version="1.0"?>\\n<VTKFile type="Collection" version="0.1">\\n<Collection>\\n\')
+        for _tv, _f in _pvd_items:
+            _fh.write(f\'<DataSet timestep="{{_tv:.9g}}" file="{{_f}}"/>\\n\')
+        _fh.write("</Collection>\\n</VTKFile>\\n")
+    print(f"ParaView collection: {{_os.path.join(_data_dir, 'solution.pvd')}}")'''
+    return "\n".join("            " + ln for ln in code.splitlines())
+
+
 def _formula_reference_dir(config):
-    import os as _os_ref, tempfile as _tf_ref
-    base = (getattr(config, "save_dir", "") or "").strip() or _os_ref.path.join(_tf_ref.gettempdir(), "pinnstudio_run")
+    """Where "reference from a formula" files go: the run's save folder, or, without one, a temporary
+    folder named by what the files hold (formulas, times, domain, outputs), so two runs at once share it
+    only when their files are the same."""
+    import hashlib as _hl_ref
+    import os as _os_ref
+    import tempfile as _tf_ref
+    base = (getattr(config, "save_dir", "") or "").strip()
+    if not base:
+        key = repr([getattr(config, k, None) for k in (
+            "ea_ref_formula", "ea_ref_times", "ea_ref_grid", "problem_dim", "steady_state", "output_names",
+            "x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "t_min", "t_max", "constants")])
+        base = _os_ref.path.join(_tf_ref.gettempdir(), "pinnstudio_ref_" + _hl_ref.sha256(key.encode()).hexdigest()[:12])
     return _os_ref.path.join(base, "reference_from_formula")
 
 
@@ -10551,6 +10726,25 @@ def _anchor_join(names, var="_a"):
     return f"np.vstack([{var} for {var} in ({', '.join(names)}) if {var} is not None])"
 
 
+_ANCHOR_BOX_HELPER = """def _anchor_box_points(_n, _ranges):
+    _got, _total = [], 0
+    for _try in range(100):
+        _m = max(2 * (_n - _total), 64)
+        _cand = np.hstack([np.random.uniform(_a, _b, (_m, 1)) for _a, _b in _ranges])
+        _sp = getattr(geomtime, "geometry", geomtime)          # the spatial part (no inside() on GeometryXTime)
+        _cand = _cand[np.asarray(_sp.inside(_cand[:, :_sp.dim]), dtype=bool).reshape(-1)]
+        _got.append(_cand)
+        _total += len(_cand)
+        if _total >= _n:
+            break
+    _pts = np.vstack(_got)[:_n]
+    if len(_pts) < _n:
+        print(f"Note: only {len(_pts)} of {_n} extra training points lie inside the domain; "
+              "the box is mostly outside it.")
+    return _pts
+"""
+
+
 def _anchor_points_code(config):
     """Source defining `_user_anchors` (an (N, n_inputs) array) for the
     extra training points the user asked for, or "" when none
@@ -10583,10 +10777,11 @@ def _anchor_points_code(config):
         n = int(getattr(config, "anchors_count", 1000) or 0)
         lines = [f"# Extra training points (anchors): {n} random points in a box --"]
         lines.append("# " + ", ".join(f"{c[0]} in [{r[0]:g}, {r[1]:g}]" for c, r in zip(cols, ranges)))
-        lines.append("_user_anchors = np.hstack([")
-        for (a, b) in ranges:
-            lines.append(f"    np.random.uniform({a!r}, {b!r}, ({n}, 1)),")
-        lines.append("])")
+        lines.append("# -- only those inside the domain: the box defaults to the shape's bounding box, and the")
+        lines.append("# equation must not be checked in a hole or outside a disk / polygon")
+        lines.append(_ANCHOR_BOX_HELPER.rstrip("\n"))
+        lines.append("_user_anchors = _anchor_box_points(" + str(n) + ", ["
+                     + ", ".join(f"({a!r}, {b!r})" for a, b in ranges) + "])")
         return "\n".join(lines)
     return ""
 
@@ -11511,7 +11706,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}} (z={{_fmt_num({zmid!r})}}{"" if is_steady else f", t={{_fmt_num({tmax!r})}}"})")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}} (z={{_fmt_num({zmid!r})}}{"" if is_steady else f", t={{_fmt_num({tmax!r})}}"})")''')
     elif is_2d:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 6))
     for pts, col, lab, sz in groups:
@@ -11528,7 +11723,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}}{"" if is_steady else f" (t={{_fmt_num({tmax!r})}})"}")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}}{"" if is_steady else f" (t={{_fmt_num({tmax!r})}})"}")''')
     elif is_steady:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 3))
     for pts, col, lab, sz in groups:
@@ -11539,7 +11734,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
     ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); _grid(ax, alpha=0.2)
-    ax.set_title(f"{out_name} after RAR round {{ri}}")''')
+    ax.set_title({out_name!r} + f" after RAR round {{ri}}")''')
     else:
         swap = bool(config.plot_swap_xt)
         scatter = (f'''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
@@ -11560,7 +11755,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
         im = ax.contourf(Xs, Ts, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel({"t" if swap else "x"!r}); ax.set_ylabel({"x" if swap else "t"!r})
-    ax.set_title(f"{out_name}(x,t) after RAR round {{ri}}")''')
+    ax.set_title({out_name + "(x,t)"!r} + f" after RAR round {{ri}}")''')
     return f'''# ── RAR per-round diagnostics (rar_rounds/round_NN/) ──
 rar_final_state = copy.deepcopy(model.net.state_dict())
 rar_added = np.empty((0, rar_orig_pts.shape[1]))
@@ -11848,7 +12043,6 @@ def generate_clean_script(config):
         for sp in sched_phases:
             sp['_w'] = "loss_weights"
     uses_nncg = any(sp.get('optimizer') == 'nncg' for sp in sched_phases)
-    total_iters = sum(int(sp.get('iterations', 0) or 0) for sp in sched_phases)
 
     # ---- Training callbacks (opt-in only) --------------------------------
     # Also turned on by BC batching even if the user never opened Training
@@ -11887,7 +12081,9 @@ def generate_clean_script(config):
     # replaces every bare dde.nn.FNN(...) call below, including the
     # weight-decay arg this used to splice in directly (now passed through
     # as a plain float; _make_net silently drops it for PFNN).
-    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t,
+                                                    getattr(config, "network_design", ""),
+                                                    _designed_io(config))
 
     # ---- Plot Settings: figure-size standardization -----------
     # Same shared-helper pattern as net_helper_code just above -- see
@@ -12071,7 +12267,17 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     save_dir_repr = repr(config.save_dir) if use_save else repr("")
     parts.append(f'''save_dir = {save_dir_repr}
 if save_dir:
-    os.makedirs(save_dir, exist_ok=True)''')
+    os.makedirs(save_dir, exist_ok=True)
+
+
+def _scratch_dir():
+    """Where files go without a save folder: one temporary folder of this run's own."""
+    global _SCRATCH
+    if "_SCRATCH" not in globals():
+        import tempfile
+        _SCRATCH = tempfile.mkdtemp(prefix="pinnstudio_run_")
+        print(f"No save folder: files go to {{_SCRATCH}}")
+    return _SCRATCH''')
 
     if needs_ic_file_loader:
         parts.append(f'''def _load_ic_from_file(path):
@@ -12389,7 +12595,7 @@ _ic_pre_constraints = []''']
         if cbs_code:
             parts.append(cbs_code)
         if is_inverse:
-            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            hist_path = 'os.path.join(save_dir or _scratch_dir(), "param_history.txt")'
             parts.append(f'''var_history_path = {hist_path}
 var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
 
@@ -12530,6 +12736,7 @@ prev_u = _prev_u0(x_grid)''')
 
         ta_lines.append('''
 all_x, all_t, all_u = [], [], []   # accumulated per-step (X, T, U) grids for the final stitched plot
+all_g = []                         # each step's plot points, to evaluate a custom plot field after training
 ta_step_models = []                # [(t0, t1, model_i)] -- used for Error Analysis, if configured
 prev_net = None
 _prev_state = None
@@ -12550,16 +12757,16 @@ _ta_loss_offset = 0''')
             parts.append(cbs_code)
 
         _ta_ic_outs = [o for o in range(n_out) if (o == 0 and config.forward_ic_from_file) or o in active_ic_outputs]
-        loop_lines = [f"def _ta_weights(w, constraints, step_i):",
+        loop_lines = ["def _ta_weights(w, constraints, step_i):",
                       f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
                       "    w = list(w)",
                       "    # from the second window on every output is held to the previous window's solution (one term",
                       "    # per output): the PDE and boundary weights as set, each output's term its initial",
                       "    # condition's weight, 1 for an output without one (as Solve's script does)",
                       f"    ic_outs = {_ta_ic_outs!r}",
-                      f"    k = len(w) - len(ic_outs)",
+                      "    k = len(w) - len(ic_outs)",
                       f"    if step_i > 0 and k == n - {n_out}:",
-                      f"        icw = dict(zip(ic_outs, w[k:]))",
+                      "        icw = dict(zip(ic_outs, w[k:]))",
                       f"        w = w[:k] + [icw.get(o, 1.0) for o in range({n_out})]",
                       "    return w if len(w) == n else [1.0] * n",
                       "",
@@ -12645,7 +12852,7 @@ _ta_loss_offset = 0''')
             step0_pretrain_ic = [ln.replace("geomtime", "_ic_pre_geomtime_i")
                                   .replace("constraints.append", "_ic_pre_constraints_i.append")
                                   for ln in ic_appends]
-            loop_lines.append(f'''    if step_i == 0:
+            loop_lines.append('''    if step_i == 0:
         _ic_pre_geomtime_i = dde.geometry.GeometryXTime(_build_geom(), dde.geometry.TimeDomain(t0, t1))
         _ic_pre_constraints_i = []''')
             for ln in step0_pretrain_ic:
@@ -12658,9 +12865,12 @@ _ta_loss_offset = 0''')
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
         loop_lines.append("    _adam_state_i = None")
+        # one LossHistory per window's model, kept over its phases (steps counted on): each phase adds
+        # only its own new entries, and the window's steps start where the previous window ended
+        loop_lines.append("    _ta_win_base, _ta_win_taken = _ta_loss_offset, 0")
         if is_inverse:
             loop_lines.append("    if step_i == 0:")
-            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            hist_path = 'os.path.join(save_dir or _scratch_dir(), "param_history.txt")'
             loop_lines.append(f'''        var_history_path = {hist_path}
         var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
         for pi, sp in enumerate(sched_phases):
@@ -12674,10 +12884,11 @@ _ta_loss_offset = 0''')
             if sp.get('optimizer', 'adam') != 'lbfgs':
                 loop_lines.append("    _adam_state_i = {k: v.detach().clone() for k, v in net_i.state_dict().items()}")
             loop_lines.append(
-                "    _ta_all_steps.extend([_s + _ta_loss_offset for _s in loss_history.steps]); "
-                "_ta_all_train_loss.extend(loss_history.loss_train); "
-                "_ta_all_test_loss.extend(loss_history.loss_test); "
-                "_ta_loss_offset += (loss_history.steps[-1] if loss_history.steps else 0)"
+                "    _ta_all_steps.extend([_s + _ta_win_base for _s in loss_history.steps[_ta_win_taken:]]); "
+                "_ta_all_train_loss.extend(loss_history.loss_train[_ta_win_taken:]); "
+                "_ta_all_test_loss.extend(loss_history.loss_test[_ta_win_taken:]); "
+                "_ta_win_taken = len(loss_history.steps); "
+                "_ta_loss_offset = _ta_win_base + (loss_history.steps[-1] if loss_history.steps else 0)"
             )
         loop_lines.append("    ta_step_models.append((t0, t1, model_i))")
         loop_lines.append("    prev_net = net_i")
@@ -12693,7 +12904,7 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYZTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), np.full(_Xp.size, _z_mid), _Tp.ravel()])
     _Up = model_i.predict(_XYZTp)[:, {6}].reshape({7}, {7})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XYZTp)'''.format(
                 config.x_min, config.x_max, line_slice_y, line_slice_y, line_slice_z, line_slice_z, config.plot_output_idx, config.plot_resolution))
         elif is_2d:
             loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
@@ -12704,7 +12915,7 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), _Tp.ravel()])
     _Up = model_i.predict(_XYTp)[:, {4}].reshape({5}, {5})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XYTp)'''.format(
                 config.x_min, config.x_max, line_slice_y, line_slice_y, config.plot_output_idx, config.plot_resolution))
         else:
             loop_lines.append('''    _xt_pred = np.column_stack([x_grid.ravel(), np.full(grid_size, t1)])
@@ -12714,10 +12925,10 @@ _ta_loss_offset = 0''')
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XTp = np.vstack([_Xp.ravel(), _Tp.ravel()]).T
     _Up = model_i.predict(_XTp)[:, {2}].reshape({3}, {3})
-    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up); all_g.append(_XTp)'''.format(
                 config.x_min, config.x_max, config.plot_output_idx, config.plot_resolution))
-        loop_lines.append(f'    print(f"Step {{step_i + 1}}/{{len(intervals)}} done. '
-                           f'Final train loss: {{sum(loss_history.loss_train[-1]):.4e}}")')
+        loop_lines.append('    print(f"Step {step_i + 1}/{len(intervals)} done. '
+                           'Final train loss: {sum(loss_history.loss_train[-1]):.4e}")')
         parts.append("\n".join(loop_lines))
 
         parts.append('''model = ta_step_models[-1][2]  # last step's model, for Error Analysis / ad-hoc predict() calls''')
@@ -12727,7 +12938,7 @@ _ta_loss_offset = 0''')
     # =========================================================================
     # Plots
     # =========================================================================
-    parts.append(f'''sol_dir = save_dir if save_dir else "/tmp"
+    parts.append(f'''sol_dir = save_dir if save_dir else _scratch_dir()
 loss_path = os.path.join(sol_dir, "loss_plot.png")
 solution_path = os.path.join(sol_dir, "solution_plot.{sol_ext}")''')
 
@@ -12865,6 +13076,9 @@ def _extract_plot_field(_x_grid, _pf_model=None):
         for the selected output, then once per output when there are several)."""
         if use_ta:
             parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
+if _plot_custom_expr.strip():   # the custom field (not the raw output), from each step's own model
+    all_u = [_extract_plot_field(_g, _m).reshape(_x.shape)
+             for _g, (_t0, _t1, _m), _x in zip(all_g, ta_step_models, all_x)]
 Xg = np.concatenate([a for a in all_x], axis=0)
 Tg = np.concatenate([a for a in all_t], axis=0)
 Ug = np.concatenate([a for a in all_u], axis=0)
@@ -12876,7 +13090,7 @@ else:
     plt.contourf(Xg, Tg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     plt.xlabel("x"); plt.ylabel("t")
 if {config.plot_colorbar}:
-    plt.colorbar(label="{out_name}")
+    plt.colorbar(label={out_name!r})
 plt.title("PINN Solution (Time-Adaptive)")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -12990,7 +13204,7 @@ im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_c
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_aspect("equal", adjustable="box")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}})")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else {"PINN Solution — " + out_name + "(x, y, z="!r} + f"{{_fmt_num(z_mid)}})")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -13253,7 +13467,7 @@ for ai, tv in enumerate(t_snaps):
     axes[ai].set_title(f"t = {{_fmt_num(tv)}}, z = {{_fmt_num(z_mid)}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}}, t)")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else {"PINN Solution — " + out_name + "(x, y, z="!r} + f"{{_fmt_num(z_mid)}}, t)")
 plt.tight_layout(rect=[0, 0, 1, 0.93])
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()

@@ -65,7 +65,6 @@ _app = QApplication.instance() or QApplication(sys.argv)
 
 import numpy as np
 
-from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.codegen import generate_script, generate_clean_script
 

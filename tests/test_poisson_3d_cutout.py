@@ -27,7 +27,6 @@ def test_scripts_use_the_combined_geometry_and_exact_solution():
 
 def test_exact_solution_satisfies_the_problem():
     import numpy as np
-    import deepxde as dde
     u = lambda p: np.exp(-(p ** 2).sum(1))
     rng = np.random.default_rng(0)
     p = rng.uniform(-1, 1, (200, 3))

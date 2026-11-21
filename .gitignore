@@ -12,6 +12,7 @@ venv/
 !benchmarks/figures/tuning/**/*.png
 !benchmarks/records/**/*.png
 !pinnstudio/resources/*.png
+!packaging/windows/splash.png
 
 # Local patch scratch (apply_*.py / *.patch files kept for review before
 # applying a fix), so a plain `git add -A` never picks them up.

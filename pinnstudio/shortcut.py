@@ -33,14 +33,18 @@ def _pythonw():
 
 
 def _ps(script):
+    # PowerShell writes to a pipe in the console's OEM code page, which text=True would read in the ANSI
+    # one: a folder such as C:\Users\Jöran\Desktop came back misspelled and was skipped. Both ends UTF-8.
+    script = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + script
     return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))   # no console window
 
 
 def _windows_dirs():
     r = _ps("[Environment]::GetFolderPath('Programs'); [Environment]::GetFolderPath('Desktop')")
-    dirs = [line.strip() for line in r.stdout.splitlines() if line.strip()]
-    if len(dirs) != 2:   # fall back to the usual locations
+    dirs = [line.strip() for line in (r.stdout or "").splitlines() if line.strip()]
+    if len(dirs) != 2 or not all(os.path.isdir(d) for d in dirs):   # fall back to the usual locations
         appdata = os.environ.get("APPDATA", os.path.join(_home(), "AppData", "Roaming"))
         dirs = [os.path.join(appdata, "Microsoft", "Windows", "Start Menu", "Programs"),
                 os.path.join(_home(), "Desktop")]
@@ -125,7 +129,7 @@ def _linux_create():
         "Type=Application\n"
         f"Name={NAME}\n"
         f"Comment={COMMENT}\n"
-        f'Exec="{sys.executable}" -m pinnstudio\n'
+        f'Exec="{sys.executable}" -m pinnstudio %f\n'   # %f: a problem file opened with PINNStudio
         f"Path={_home()}\n"
         f"Icon={os.path.join(RES, 'pinnstudio.png')}\n"
         "Terminal=false\n"
@@ -178,6 +182,9 @@ def remove():
 
 def main(argv):
     """Handle --create-shortcut / --remove-shortcut; returns an exit code, or None for other arguments."""
+    if getattr(sys, "frozen", False) and ("--create-shortcut" in argv or "--remove-shortcut" in argv):
+        print("The Windows program's installer makes its shortcuts, and its uninstaller removes them.")
+        return 0
     if "--create-shortcut" in argv:
         try:
             made = create()

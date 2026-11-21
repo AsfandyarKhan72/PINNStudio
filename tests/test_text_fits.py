@@ -80,6 +80,32 @@ def test_no_text_cut_off(monkeypatch, tmp_path, ui_scale):
             w.workspace.select(key)
             _pump(0.2)
             cut += _cut(w, key)
+    # the Network tab: the palette, the canvas and a block's settings in the inspector
+    w.network_type_combo.setCurrentIndex(w.network_type_combo.findText("Designed"))
+    _pump(0.3)
+    w.right_tabs.setCurrentIndex(w._network_tab_index)
+    _pump(0.5)
+    stack = next(b["id"] for b in w.design_state.level()["blocks"] if b["kind"] == "stack")
+    w.designer.select(stack)
+    _pump(0.5)
+    panel = w.designer_panel
+    cut += _cut(panel.inspector, "network inspector")
+    canvas = panel.canvas
+    assert canvas.width() >= 4 * panel.palette.width() // 3 or canvas.width() >= 300, \
+        f"the canvas is squeezed: {canvas.width()} px beside a {panel.palette.width()} px palette"
+    # the cards grow with the UI scale (by zooming), and are drawn in the scene's own font
+    assert canvas.text_scale() == pytest.approx(1.0, abs=0.35) if ui_scale == 100 else canvas.text_scale() > 1.5
+    from PySide6.QtGui import QImage, QPainter
+    item = canvas.blocks[stack]
+    img = QImage(400, 300, QImage.Format.Format_ARGB32)
+    seen = []
+    pt = QPainter(img)
+    pt.setFont(canvas.font())                       # as the viewport's (stylesheet-scaled) font would be
+    item.paint(pt, None, None)
+    seen.append(pt.fontMetrics().height())
+    pt.end()
+    from PySide6.QtGui import QFontMetrics
+    assert seen[0] <= QFontMetrics(canvas.scene_.font()).height() + 1, "a card's text follows the viewport font"
     for name in DIALOGS:
         getattr(w, name)()
     assert not cut, "\n".join(sorted(set(cut)))

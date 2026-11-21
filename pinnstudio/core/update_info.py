@@ -28,8 +28,13 @@ def is_uv_tool_install(prefix, env=None):
     return False
 
 
+RELEASES = "https://github.com/AsfandyarKhan72/PINNStudio/releases"
+
+
 def update_command(prefix=None, executable=None, platform=None, env=None):
     """The command that updates this copy of PINNStudio."""
+    if getattr(sys, "frozen", False):     # the Windows program: its installer, not pip
+        return f"the new PINNStudio-…-setup.exe from {RELEASES}"
     prefix = sys.prefix if prefix is None else prefix
     executable = sys.executable if executable is None else executable
     platform = sys.platform if platform is None else platform

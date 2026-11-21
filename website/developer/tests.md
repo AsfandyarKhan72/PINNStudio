@@ -35,7 +35,13 @@ merged; the training tests take long on a CPU.
 | `platform-tests.yml` | push to `main`, `cleanup`, `integration/**`; pull requests to `main`; by hand | the full suite (`pytest -n auto`) on the latest Windows, macOS and Ubuntu with Python 3.12 and CPU PyTorch; failures as annotations (`tools/junit_annotations.py`); the window end to end (`tools/smoke_gui.py`: train, show results, restore); the desktop shortcut; the one-command installer on Windows and macOS |
 | `platform-matrix.yml` | a push whose commit message contains `[matrix]`, or by hand | the suite without slow tests and the window check on older and newer versions of each system (Ubuntu 22.04/24.04 including ARM, Windows 2022/2025 and Windows 11 ARM, macOS 14/15 and Intel) and Python 3.11 to 3.14; the installer on several systems. Run before a release |
 | `smoke-test.yml` | push to `main`, `cleanup`, `integration/**`; pull requests to `main` | boots `MainWindow` offscreen and runs a list of test files as scripts, with PySide6 (below 6.12 on its Python 3.11), NumPy, Matplotlib and pandas only (parts that need PyTorch or DeepXDE report themselves skipped) |
+| `quality.yml` | push to `main`, `cleanup`, `integration/**`, `feature/**`, `review/**`; pull requests to `main` | a few minutes: lint (`ruff check pinnstudio tests tools`, pyflakes rules, configured in `pyproject.toml`), the model-view-controller rules (`tests/test_mvc.py`, [MVC](mvc.md)) and the command line without a display (`tests/test_cli.py`) |
+| `nightly.yml` | every night, and by hand | Solve's script against the exported script for every example (`tools/check_export_equivalence.py`, short phases), and the suite with coverage (`pytest-cov`); both results as downloadable artifacts |
+| `release.yml` | a version tag `vX.Y.Z` | the sdist, the wheel and `SHA256SUMS` on a draft GitHub release; PyPI after approval ([Releases](releases.md)) |
 | `docs.yml` | pull requests and pushes that change the site | `mkdocs build --strict`, a link check and a downloadable preview; deployment only by hand from `main` after approval ([Contributing and documentation](contributing.md#build-and-preview)) |
+
+Dependabot (`.github/dependabot.yml`) proposes updated GitHub Actions and Python dependencies weekly; the
+platform tests run on each proposal.
 
 ## Checks outside pytest
 
