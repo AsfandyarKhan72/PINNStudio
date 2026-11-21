@@ -49,3 +49,17 @@ def test_the_entry_point_passes_commands_to_the_command_line(tmp_path):
     env = dict(os.environ, PYTHONPATH=ROOT)
     r = subprocess.run([sys.executable, entry, "--version"], capture_output=True, text=True, env=env, timeout=120)
     assert r.returncode == 0 and r.stdout.startswith("PINNStudio "), (r.stdout, r.stderr)
+
+
+def test_the_windows_version_is_found_without_running_ver(monkeypatch):
+    """PyTorch's import asks platform.machine(); when WMI fails, platform ran `cmd /c ver`, a console window
+    flashing up before PINNStudio's window. The start replaces that fallback."""
+    import platform
+    import subprocess as sp
+    from pinnstudio import main as M
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(platform, "_syscmd_ver", platform._syscmd_ver)     # restored after the test
+    ran = []
+    monkeypatch.setattr(sp, "check_output", lambda *a, **k: ran.append(a) or "")
+    M._no_console_flashes()
+    assert platform._syscmd_ver() == ("", "", "") and ran == []

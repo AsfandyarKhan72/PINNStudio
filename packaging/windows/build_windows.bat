@@ -41,7 +41,6 @@ rem PyTorch's CPU build first, from PyTorch's own index; pip then keeps it for P
 %PIP% install %CONSTRAINTS% . "pyinstaller>=6.10,<7" || exit /b 1
 rem pip keeps an installed pinnstudio of the same version: a reused venv would bundle the old source
 %PIP% install --force-reinstall --no-deps . || exit /b 1
-%PY% packaging\windows\make_splash.py build\windows\splash.png || exit /b 1
 
 echo [2/5] PyInstaller
 rem --clean removes the last dist\PINNStudio, which fails while that program runs: close it first

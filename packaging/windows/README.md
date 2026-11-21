@@ -11,7 +11,7 @@ no Python: PyInstaller makes the program folder, Inno Setup the installer.
 | `pinnstudio_windows.py` | The program's entry point: the window, `PINNStudio.exe script.py` (a training run), or the command line |
 | `check_build.py` | The build check, run inside the program |
 | `pinnstudio.iss` | The installer (Inno Setup 6) |
-| `make_splash.py` | The splash screen shown while the program loads (the icon is `pinnstudio/resources/pinnstudio.ico`) |
+| `splash.png`, `make_splash.py` | The splash screen shown while the program loads, and the script that draws it (the icon is `pinnstudio/resources/pinnstudio.ico`) |
 
 ## What a build makes
 

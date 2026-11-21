@@ -46,8 +46,10 @@ _MAXWELL = (5, 0)
 
 def _nvidia_smi(*args):
     try:
-        return subprocess.run(["nvidia-smi", *args], capture_output=True, text=True,
-                              timeout=10).stdout
+        # no console window: PINNStudio without a console of its own (the Windows program, pythonw.exe from
+        # the desktop shortcut) would otherwise flash one up for every call
+        return subprocess.run(["nvidia-smi", *args], capture_output=True, text=True, timeout=10,
+                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
     except Exception:
         return None
 

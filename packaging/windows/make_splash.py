@@ -1,14 +1,19 @@
-"""The Windows program's splash screen, drawn from PINNStudio's icon (pinnstudio/resources/pinnstudio.png).
+"""The Windows program's splash screen, packaging/windows/splash.png, drawn from PINNStudio's icon
+(pinnstudio/resources/pinnstudio.png).
 
-    python packaging/windows/make_splash.py OUT.png
+    python packaging/windows/make_splash.py [OUT.png]
 
-PyInstaller's bootloader shows it while Python, PyTorch and Qt load, and writes "Starting…" at the bottom
-left (text_pos in pinnstudio.spec), so that strip is left plain."""
+The image is kept in the repository: run this only to change it, and look at the result. Qt's offscreen
+platform on Windows has no fonts (every letter came out as an empty box), so on Windows it runs with the
+normal platform, and it refuses to draw without fonts. PyInstaller's bootloader shows the image while Python,
+PyTorch and Qt load, and writes "Starting…" at the bottom left (text_pos in pinnstudio.spec), so that strip is
+left plain."""
 import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if sys.platform != "win32":
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen  # noqa: E402
@@ -19,6 +24,9 @@ W, H = 440, 250
 
 def main(out):
     app = QGuiApplication(sys.argv[:1])          # noqa: F841 (fonts need it)
+    from PySide6.QtGui import QFontDatabase
+    if not QFontDatabase.families():
+        raise SystemExit("no fonts on this Qt platform: the text would be empty boxes")
     img = QImage(W, H, QImage.Format.Format_ARGB32)
     img.fill(QColor("#f6f8fc"))
     p = QPainter(img)
@@ -49,4 +57,4 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "build/windows/splash.png")
+    main(sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).with_name("splash.png")))

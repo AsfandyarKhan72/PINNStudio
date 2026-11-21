@@ -9,7 +9,9 @@ pinnstudio.core.pyexe.script_python() is the program, and Solve starts `PINNStud
 
 PINNSTUDIO_LAUNCH_CHECK=SECONDS starts the window as usual and ends the program that many seconds after its
 event loop starts, with exit code 0, or 1 and the traceback on stderr. A windowed program would otherwise show
-a failed start in a dialog that waits for a click (packaging/windows/build_windows.bat)."""
+a failed start in a dialog that waits for a click (packaging/windows/build_windows.bat). It also fails when the
+start runs another program: a console program started by a program without a console flashes a window of its
+own up (nvidia-smi did, before the main window)."""
 import multiprocessing
 import os
 import sys
@@ -72,6 +74,12 @@ def run_window(argv):
     check = os.environ.get("PINNSTUDIO_LAUNCH_CHECK")
     if check and sys.stderr is None:
         sys.stderr = open(os.devnull, "w")
+    started_programs = []
+    if check:
+        def audit(event, args):          # every program the start runs (Python's audit events)
+            if event in ("subprocess.Popen", "os.system", "os.startfile", "os.spawn", "os.exec"):
+                started_programs.append(f"{event}: {args[1] if event == 'subprocess.Popen' else args}")
+        sys.addaudithook(audit)
 
     def started(app, window):
         _close_splash()
@@ -85,7 +93,11 @@ def run_window(argv):
             sys.excepthook = failed
 
             def passed():
-                sys.stderr.write(f"launch check passed: {type(window).__name__} shown\n")
+                if started_programs:
+                    sys.stderr.write("launch check failed: the start ran other programs (each flashes a "
+                                     "console window up):\n  " + "\n  ".join(started_programs) + "\n")
+                    _end_now(1)
+                sys.stderr.write(f"launch check passed: {type(window).__name__} shown, no other program run\n")
                 _end_now(0)
             QTimer.singleShot(int(float(check) * 1000), passed)
 

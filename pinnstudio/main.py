@@ -15,6 +15,19 @@ The commands import no Qt, so they work on a server or a cluster node without a 
 import sys
 
 
+def _no_console_flashes():
+    """Windows: Python's platform module asks WMI for the Windows version, and when that fails (it times out
+    on some machines) it runs `cmd /c ver`. PyTorch asks (platform.machine()) while it is imported. From
+    PINNStudio without a console of its own (the Windows program, pythonw.exe from the desktop shortcut) that
+    console program flashes a window up before the main window. Without `ver`, platform takes the version
+    from sys.getwindowsversion() instead, which is what it does when `ver` gives nothing."""
+    if sys.platform != "win32":
+        return
+    import platform
+    if hasattr(platform, "_syscmd_ver"):
+        platform._syscmd_ver = lambda system="", release="", version="", *a, **k: (system, release, "")
+
+
 def _preload_torch_on_windows():
     """On Windows, PyTorch fails to load once Qt (seen with PyQt6) is loaded ("[WinError
     1114] A dynamic link library (DLL) initialization routine failed ...
@@ -28,7 +41,10 @@ def _preload_torch_on_windows():
 
 
 def _check_gpu_torch_mismatch():
-    """Warn if an NVIDIA GPU is present but the installed PyTorch build cannot use it."""
+    """Warn if an NVIDIA GPU is present but the installed PyTorch build cannot use it. Not in the Windows
+    program, which holds the CPU build on purpose (and has no console to print to)."""
+    if getattr(sys, "frozen", False):
+        return
     import shutil
     if not shutil.which("nvidia-smi"):
         return
@@ -162,6 +178,7 @@ def cmd_run(args):
 def run_gui(argv, on_started=None):
     """The window. `on_started(app, window)` runs once the event loop has started (the Windows program
     closes its splash screen there, and its launch check ends the program)."""
+    _no_console_flashes()
     _preload_torch_on_windows()
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import QTimer

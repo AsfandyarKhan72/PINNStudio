@@ -14,9 +14,7 @@ from PyInstaller.utils.win32.versioninfo import (FixedFileInfo, StringFileInfo, 
 HERE = Path(SPECPATH)                       # noqa: F821 (PyInstaller supplies SPECPATH: this file's folder)
 ROOT = HERE.parent.parent
 ICON = ROOT / "pinnstudio" / "resources" / "pinnstudio.ico"
-SPLASH = ROOT / "build" / "windows" / "splash.png"           # make_splash.py, run by build_windows.bat
-if not SPLASH.is_file():
-    raise SystemExit(f"no {SPLASH}: run packaging/windows/make_splash.py {SPLASH}")
+SPLASH = HERE / "splash.png"                 # kept in the repository (make_splash.py draws it)
 VERSION = re.search(r'__version__\s*=\s*"([^"]+)"', (ROOT / "pinnstudio" / "__init__.py").read_text()).group(1)
 
 # PINNStudio: its modules (the window imports some by name) and resources

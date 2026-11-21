@@ -37,7 +37,8 @@ def _ps(script):
     # one: a folder such as C:\Users\Jöran\Desktop came back misspelled and was skipped. Both ends UTF-8.
     script = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + script
     return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-                          capture_output=True, text=True, encoding="utf-8", errors="replace")
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))   # no console window
 
 
 def _windows_dirs():
